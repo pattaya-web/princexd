@@ -1,0 +1,70 @@
+import { NextRequest, NextResponse } from "next/server";
+import fs from "node:fs";
+import path from "node:path";
+
+export const dynamic = "force-dynamic";
+
+const MEDIA_DIR = path.join(process.cwd(), "data", "media");
+
+const MIME: Record<string, string> = {
+  ".mp4": "video/mp4",
+  ".mov": "video/quicktime",
+  ".m4v": "video/x-m4v",
+  ".webm": "video/webm",
+  ".avi": "video/x-msvideo",
+  ".mkv": "video/x-matroska",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".m4a": "audio/mp4",
+  ".aac": "audio/aac",
+};
+
+export async function GET(req: NextRequest, ctx: { params: Promise<{ file: string }> }) {
+  const { file } = await ctx.params;
+  // Le nom est généré par /api/upload : tout ce qui sort de ce gabarit est rejeté,
+  // ce qui ferme la porte aux remontées de répertoire.
+  if (!/^[A-Za-z0-9]+\.[A-Za-z0-9]+$/.test(file)) {
+    return NextResponse.json({ error: "Nom de fichier invalide" }, { status: 400 });
+  }
+
+  const full = path.join(MEDIA_DIR, file);
+  if (!full.startsWith(MEDIA_DIR) || !fs.existsSync(full)) {
+    return NextResponse.json({ error: "Fichier introuvable" }, { status: 404 });
+  }
+
+  const stat = fs.statSync(full);
+  const type = MIME[path.extname(file).toLowerCase()] ?? "application/octet-stream";
+  const range = req.headers.get("range");
+
+  // Le navigateur exige les requêtes Range pour pouvoir scrubber une vidéo.
+  if (range) {
+    const match = range.match(/bytes=(\d*)-(\d*)/);
+    const start = match?.[1] ? Number(match[1]) : 0;
+    const end = match?.[2] ? Number(match[2]) : stat.size - 1;
+    const chunk = fs.createReadStream(full, { start, end });
+    return new NextResponse(chunk as unknown as ReadableStream, {
+      status: 206,
+      headers: {
+        "Content-Type": type,
+        "Content-Length": String(end - start + 1),
+        "Content-Range": `bytes ${start}-${end}/${stat.size}`,
+        "Accept-Ranges": "bytes",
+      },
+    });
+  }
+
+  const stream = fs.createReadStream(full);
+  return new NextResponse(stream as unknown as ReadableStream, {
+    headers: {
+      "Content-Type": type,
+      "Content-Length": String(stat.size),
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "private, max-age=3600",
+    },
+  });
+}

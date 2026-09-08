@@ -1,0 +1,52 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { api } from "@/lib/client";
+import { MontageBoard } from "@/components/MontageBoard";
+import { CopyButton, InfoNote, PageHeader } from "@/components/ui";
+import type { Settings } from "@/lib/types";
+
+export default function MontagePage() {
+  const [settings, setSettings] = useState<(Settings & { kieApiKeyMask?: string }) | null>(null);
+  const [origin, setOrigin] = useState("");
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+    void api<Settings>("/api/settings").then(setSettings).catch(() => setSettings(null));
+  }, []);
+
+  const code = settings?.editorAccessCode ?? "";
+
+  return (
+    <>
+      <PageHeader
+        title="Montage"
+        subtitle="Tu déposes les rushs et le brief, ton monteur récupère, monte, et redépose la vidéo finie. Tu n'as plus qu'à poster."
+      />
+
+      <div className="mb-4">
+        <InfoNote>
+          {code ? (
+            <span className="flex flex-wrap items-center gap-2">
+              Lien à donner à ton monteur :
+              <code className="mono px-1.5 py-0.5 rounded" style={{ background: "var(--surface-3)" }}>
+                {origin}/monteur
+              </code>
+              avec le code
+              <code className="mono px-1.5 py-0.5 rounded" style={{ background: "var(--surface-3)" }}>{code}</code>
+              <CopyButton text={`${origin}/monteur — code : ${code}`} label="Copier" />
+              — il ne verra que ce board, jamais ton CRM ni tes crédits.
+            </span>
+          ) : (
+            <>
+              Définis un <strong>code d&apos;accès monteur</strong> dans Réglages pour lui ouvrir la page{" "}
+              <code className="mono">/monteur</code>. Tant qu&apos;aucun code n&apos;est défini, personne ne peut y entrer.
+            </>
+          )}
+        </InfoNote>
+      </div>
+
+      <MontageBoard role="owner" />
+    </>
+  );
+}
