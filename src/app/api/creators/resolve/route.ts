@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { newId, readDB, writeDB } from "@/lib/db";
-import { fetchCreatorPages, InstagramError, mapThumbnail } from "@/lib/instagram";
+import { fetchCreatorPages, findCreatorMedia, InstagramError, mapThumbnail } from "@/lib/instagram";
 import { cacheImage, cacheImages, hashKey } from "@/lib/thumb-cache";
 import { DownloadError, fetchMeta, isSupportedUrl } from "@/lib/ytdlp";
 import { PROD_FOLDERS } from "@/lib/format";
@@ -43,12 +43,15 @@ function readHandle(raw: string): string | null {
  * du createur.
  */
 export async function POST(req: NextRequest) {
-  const { input, deep, folder } = (await req.json().catch(() => ({}))) as {
+  const { input, deep, folder, author } = (await req.json().catch(() => ({}))) as {
     input?: string;
     deep?: number;
     /** Dossier de production cible (ajout rapide). Sinon « value ». */
     folder?: string;
+    /** Pseudo du createur, pour retrouver le reel via l'API Meta quand yt-dlp est bloque. */
+    author?: string;
   };
+  const handleGiven = (author ?? "").trim().replace(/^@/, "").toLowerCase();
   if (!input?.trim()) return NextResponse.json({ error: "Rien à analyser." }, { status: 400 });
 
   const raw = input.trim();
@@ -63,12 +66,32 @@ export async function POST(req: NextRequest) {
     const db = readDB();
     const known = db.saved.find((r) => r.permalink === url);
     if (known) {
+      let changed = false;
       // Deja en production : on le range dans le dossier demande.
       if (isFolder(folder) && known.folder !== folder) {
         known.folder = folder;
-        writeDB(db);
+        changed = true;
       }
-      return NextResponse.json({ kind: "saved", item: known, already: true });
+      // Ajoute sans infos (Instagram bloquait) : on le complete avec le createur indique.
+      if (!known.author && handleGiven) {
+        try {
+          const hit = await findCreatorMedia(handleGiven, url);
+          if (hit) {
+            known.author = hit.username;
+            known.caption = hit.media.caption ?? known.caption;
+            known.likes = hit.media.like_count ?? 0;
+            known.comments = hit.media.comments_count ?? 0;
+            known.thumbnail = await cacheImage(mapThumbnail(hit.media), `s${known.id}`);
+            changed = true;
+          } else {
+            return NextResponse.json({ error: `Reel introuvable dans les publications récentes de @${handleGiven}.` }, { status: 404 });
+          }
+        } catch (e) {
+          return NextResponse.json({ error: (e as InstagramError).message }, { status: 502 });
+        }
+      }
+      if (changed) writeDB(db);
+      return NextResponse.json({ kind: "saved", item: known, already: true, partial: !known.author });
     }
 
     try {
@@ -79,18 +102,38 @@ export async function POST(req: NextRequest) {
        * enregistre le lien tel quel : la video reste lisible via l'embed.
        */
       const known = db.creatorPosts.find((p) => p.permalink.split("?")[0] === url);
-      let meta: { author: string; title: string; thumbnail: string; likes: number; comments: number };
+      let meta: { author: string; title: string; thumbnail: string; likes: number; comments: number } | null = null;
       let partial = false;
-      try {
-        meta = await fetchMeta(url);
-      } catch (e) {
-        if (known) {
-          meta = { author: known.creator, title: known.caption, thumbnail: known.thumbnail, likes: known.likes, comments: known.comments };
-        } else if (POST_PATH.test(url)) {
-          meta = { author: "", title: url, thumbnail: "", likes: 0, comments: 0 };
-          partial = true;
-        } else {
-          throw e;
+      if (known) {
+        meta = { author: known.creator, title: known.caption, thumbnail: known.thumbnail, likes: known.likes, comments: known.comments };
+      }
+      // Createur indique : l'API Meta est plus fiable que yt-dlp depuis un serveur.
+      if (!meta && handleGiven && POST_PATH.test(url)) {
+        try {
+          const hit = await findCreatorMedia(handleGiven, url);
+          if (hit) {
+            meta = {
+              author: hit.username,
+              title: hit.media.caption ?? "",
+              thumbnail: mapThumbnail(hit.media),
+              likes: hit.media.like_count ?? 0,
+              comments: hit.media.comments_count ?? 0,
+            };
+          }
+        } catch {
+          // Quota ou compte non professionnel : on tente la suite.
+        }
+      }
+      if (!meta) {
+        try {
+          meta = await fetchMeta(url);
+        } catch (e) {
+          if (POST_PATH.test(url)) {
+            meta = { author: "", title: url, thumbnail: "", likes: 0, comments: 0 };
+            partial = true;
+          } else {
+            throw e;
+          }
         }
       }
       const item = {

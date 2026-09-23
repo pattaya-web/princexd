@@ -182,6 +182,52 @@ function downloadScript(r: SavedItem) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Ligne ajoutee sans infos (Instagram bloquait le serveur) : on demande le
+ * createur, et l'API Meta retrouve le reel, sa vignette et ses chiffres.
+ */
+function FixAuthor({ item, onDone }: { item: SavedItem; onDone: () => void }) {
+  const toast = useToast();
+  const [handle, setHandle] = useState("");
+  const [busy, setBusy] = useState(false);
+  const go = async () => {
+    const h = handle.trim();
+    if (!h || busy) return;
+    setBusy(true);
+    try {
+      const r = await api<{ partial?: boolean }>("/api/creators/resolve", {
+        method: "POST",
+        body: JSON.stringify({ input: item.permalink, folder: item.folder, author: h }),
+      });
+      if (r.partial) toast("Toujours introuvable chez ce créateur.", "err");
+      else {
+        toast("Vignette et infos récupérées.");
+        onDone();
+      }
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <input
+        className="input !h-[26px] !py-0 !text-[11.5px]"
+        style={{ width: 140 }}
+        placeholder="@créateur du reel"
+        value={handle}
+        onChange={(e) => setHandle(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") void go(); }}
+        disabled={busy}
+      />
+      <button className="btn btn-sm" onClick={() => void go()} disabled={busy || !handle.trim()}>
+        {busy ? <span className="spinner" /> : "Récupérer"}
+      </button>
+    </span>
+  );
+}
+
 function PlayerModal({ item, onClose }: { item: SavedItem | null; onClose: () => void }) {
   if (!item) return null;
   return (
@@ -218,6 +264,7 @@ function PlayerModal({ item, onClose }: { item: SavedItem | null; onClose: () =>
 function QuickAdd({ onAdded }: { onAdded: () => void }) {
   const toast = useToast();
   const [link, setLink] = useState("");
+  const [author, setAuthor] = useState("");
   const [folder, setFolder] = useState<ProdFolder>("value");
   const [busy, setBusy] = useState(false);
 
@@ -226,14 +273,19 @@ function QuickAdd({ onAdded }: { onAdded: () => void }) {
     if (!input || busy) return;
     setBusy(true);
     try {
-      const r = await api<{ kind: string; already?: boolean; item?: { author?: string } }>("/api/creators/resolve", {
+      const r = await api<{ kind: string; already?: boolean; partial?: boolean; item?: { author?: string } }>("/api/creators/resolve", {
         method: "POST",
-        body: JSON.stringify({ input, folder }),
+        body: JSON.stringify({ input, folder, author: author.trim() || undefined }),
       });
       const name = PROD_FOLDERS.find((f) => f.value === folder)?.label ?? folder;
       if (r.kind === "saved") {
-        toast(r.already ? `Déjà en production, déplacé dans ${name}.` : `Ajouté dans ${name}${r.item?.author ? ` (${r.item.author})` : ""}.`);
+        if (r.partial) {
+          toast(`Ajouté dans ${name}, mais sans vignette ni infos : Instagram bloque le serveur. Indique le @créateur pour les récupérer.`, "err");
+        } else {
+          toast(r.already ? `Déjà en production, rangé dans ${name}.` : `Ajouté dans ${name}${r.item?.author ? ` (${r.item.author})` : ""}.`);
+        }
         setLink("");
+        setAuthor("");
         onAdded();
       } else {
         toast("Ce lien est un profil, pas une vidéo : il a été ajouté dans Content.");
@@ -255,6 +307,17 @@ function QuickAdd({ onAdded }: { onAdded: () => void }) {
             placeholder="https://www.instagram.com/reel/…"
             value={link}
             onChange={(e) => setLink(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") void submit(); }}
+            disabled={busy}
+          />
+        </Field>
+        <Field label="@créateur" hint="Pour un reel Instagram : le compte qui l'a publié.">
+          <input
+            className="input"
+            style={{ width: 160 }}
+            placeholder="@pseudo"
+            value={author}
+            onChange={(e) => setAuthor(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") void submit(); }}
             disabled={busy}
           />
@@ -456,9 +519,16 @@ export default function ProductionPage() {
                                   {fmtCompact(r.likes)} likes · {fmtCompact(r.comments)} comm.
                                 </span>
                               </div>
-                              <p className="dim text-[11.5px] leading-snug line-clamp-1">
-                                {r.caption || "Sans légende"}
-                              </p>
+                              {r.source !== "mine" && !r.author ? (
+                                <div className="mt-1 flex items-center gap-2 flex-wrap">
+                                  <span className="dim text-[11px]">Infos manquantes ·</span>
+                                  <FixAuthor item={r} onDone={() => void saved.reload()} />
+                                </div>
+                              ) : (
+                                <p className="dim text-[11.5px] leading-snug line-clamp-1">
+                                  {r.caption || "Sans légende"}
+                                </p>
+                              )}
                             </div>
 
                             <span className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto sm:shrink-0 pl-9 sm:pl-0">

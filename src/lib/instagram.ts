@@ -484,6 +484,46 @@ export async function fetchCreatorPages(
 
 /* ------------------------------- Mapping -------------------------------- */
 
+/**
+ * Retrouve une publication precise chez un createur, par son lien.
+ *
+ * Business Discovery ne sait pas interroger un reel isole, seulement le
+ * flux d'un compte : on parcourt ce flux page par page jusqu'a tomber sur
+ * le lien. C'est la seule voie officielle quand yt-dlp est bloque par
+ * Instagram (serveurs sans session). Plafonne a quelques pages : un reel
+ * recent est trouve en un appel, un vieux post ne vaut pas le quota.
+ */
+export async function findCreatorMedia(
+  username: string,
+  permalink: string,
+  maxPages = 8,
+): Promise<{ username: string; media: IgMedia } | null> {
+  const id = getIgUserId();
+  const clean = username.trim().replace(/^@/, "").toLowerCase();
+  if (!/^[a-z0-9._]{1,30}$/.test(clean)) throw new InstagramError("Nom d'utilisateur invalide.", 400);
+  const wanted = permalink.split("?")[0].replace(/\/+$/, "");
+  const code = wanted.match(/\/(?:reel|reels|p|tv)\/([A-Za-z0-9_-]+)/)?.[1];
+
+  let after: string | undefined;
+  for (let page = 0; page < maxPages; page++) {
+    const edge = `media.limit(50)${after ? `.after(${after})` : ""}`;
+    const fields =
+      `business_discovery.username(${clean}){username,${edge}{id,caption,media_type,` +
+      `media_product_type,permalink,thumbnail_url,media_url,like_count,comments_count,timestamp}}`;
+    const res = await call<{ business_discovery?: DiscoveredCreator }>(`/${id}`, { fields });
+    const found = res.business_discovery;
+    const batch = found?.media?.data ?? [];
+    const hit = batch.find((m) => {
+      const p = m.permalink.split("?")[0].replace(/\/+$/, "");
+      return p === wanted || (code ? p.endsWith(`/${code}`) : false);
+    });
+    if (hit) return { username: found?.username ?? clean, media: hit };
+    after = found?.media?.paging?.cursors?.after;
+    if (!after || !batch.length) break;
+  }
+  return null;
+}
+
 export function mapFormat(m: IgMedia): ContentFormat {
   if (m.media_product_type === "REELS") return "reel-face-cam";
   if (m.media_type === "CAROUSEL_ALBUM") return "carrousel";
