@@ -35,6 +35,7 @@ function blankJob(): Partial<EditJob> {
     assignee: "",
     postId: "",
     media: [],
+    deliveryUrl: "",
     comments: [],
     deliveredAt: "",
     postedAt: "",
@@ -237,7 +238,7 @@ function JobForm({
           onChange={(e) => set("title", e.target.value)}
         />
       </Field>
-      <Field label="Style de montage" hint="« Rapide » = cuts serrés, aucun temps mort.">
+      <Field label="Style de montage">
         <select className="select" value={draft.style} onChange={(e) => set("style", e.target.value as EditJob["style"])}>
           {(["rapide", "cinematique", "talking-head", "carrousel-video", "story"] as const).map((s) => (
             <option key={s} value={s}>{label(s)}</option>
@@ -287,7 +288,7 @@ function JobForm({
           label="Sous-titres incrustés obligatoires"
         />
       </div>
-      <Field label="Brief" className="sm:col-span-2" hint="Ce que tu veux voir, ce que tu ne veux surtout pas.">
+      <Field label="Brief" className="sm:col-span-2">
         <textarea
           className="textarea"
           style={{ minHeight: 120 }}
@@ -317,9 +318,12 @@ function JobDetail({
 }) {
   const toast = useToast();
   const [comment, setComment] = useState("");
-  const [uploading, setUploading] = useState<"rush" | "livrable" | null>(null);
+  const [uploading, setUploading] = useState<MediaRef["kind"] | null>(null);
   const [linkUrl, setLinkUrl] = useState("");
+  const [refLink, setRefLink] = useState("");
+  const [delivery, setDelivery] = useState(job.deliveryUrl ?? "");
   const rushInput = useRef<HTMLInputElement>(null);
+  const refInput = useRef<HTMLInputElement>(null);
   const deliverInput = useRef<HTMLInputElement>(null);
 
   const author = role === "owner" ? "moi" : "monteur";
@@ -353,14 +357,15 @@ function JobDetail({
     }
   };
 
-  const addLink = async (kind: MediaRef["kind"]) => {
-    if (!linkUrl.trim()) return;
+  const addLink = async (kind: MediaRef["kind"], raw: string) => {
+    const url = raw.trim();
+    if (!url) return;
     await onPatch({
       media: [
         ...job.media,
         {
-          name: linkUrl.trim().split("/").pop() || "Lien externe",
-          url: linkUrl.trim(),
+          name: url.split("/").pop() || "Lien externe",
+          url,
           size: 0,
           kind,
           addedBy: author,
@@ -368,12 +373,28 @@ function JobDetail({
         },
       ],
     });
-    setLinkUrl("");
+    if (kind === "reference") setRefLink("");
+    else setLinkUrl("");
   };
 
   const removeMedia = async (url: string) => {
     if (!window.confirm("Retirer ce fichier du montage ?")) return;
     await onPatch({ media: job.media.filter((m) => m.url !== url) });
+  };
+
+  /**
+   * Enregistrer le lien fait aussi basculer le job en « livré » : sans ça il
+   * faut penser a changer la colonne a la main, et personne ne le fait.
+   */
+  const saveDelivery = async () => {
+    const url = delivery.trim();
+    await onPatch({
+      deliveryUrl: url,
+      ...(url && job.status !== "livre" && job.status !== "poste"
+        ? { status: "livre" as EditStatus, deliveredAt: new Date().toISOString() }
+        : {}),
+    });
+    toast(url ? "Livraison enregistrée." : "Lien retiré.");
   };
 
   const postComment = async () => {
@@ -385,6 +406,7 @@ function JobDetail({
   };
 
   const rushes = job.media.filter((m) => m.kind === "rush");
+  const references = job.media.filter((m) => m.kind === "reference");
   const livrables = job.media.filter((m) => m.kind === "livrable");
   const statuses = role === "editor" ? EDITOR_STATUSES : COLUMNS;
 
@@ -447,6 +469,52 @@ function JobDetail({
           </div>
         )}
 
+        {/* Vidéo de référence — le montage à reproduire */}
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="label-xs" style={{ color: references.length ? "var(--accent)" : undefined }}>
+              Montage à reproduire ({references.length})
+            </span>
+            {role === "owner" && (
+              <>
+                <input
+                  ref={refInput}
+                  type="file"
+                  multiple
+                  accept="video/*"
+                  className="hidden"
+                  onChange={(e) => void upload(e.target.files, "reference")}
+                />
+                <button
+                  className="btn btn-sm"
+                  onClick={() => refInput.current?.click()}
+                  disabled={uploading !== null}
+                >
+                  {uploading === "reference" ? <span className="spinner" /> : "＋"} Ajouter une référence
+                </button>
+              </>
+            )}
+          </div>
+          <MediaList items={references} onRemove={role === "owner" ? removeMedia : undefined} />
+          {role === "owner" && (
+            <div className="flex gap-2 mt-2">
+              <input
+                className="input !text-[12px]"
+                placeholder="…ou colle le lien du reel de référence"
+                value={refLink}
+                onChange={(e) => setRefLink(e.target.value)}
+              />
+              <button
+                className="btn btn-sm"
+                onClick={() => void addLink("reference", refLink)}
+                disabled={!refLink.trim()}
+              >
+                Ajouter
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Rushs */}
         <div>
           <div className="flex items-center justify-between gap-2 mb-2">
@@ -470,12 +538,50 @@ function JobDetail({
           <MediaList items={rushes} onRemove={role === "owner" ? removeMedia : undefined} />
         </div>
 
-        {/* Livrables */}
+        {/* Livraison — le monteur rend son travail par lien */}
         <div>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="label-xs" style={{ color: livrables.length ? "var(--good)" : undefined }}>
-              Vidéos montées ({livrables.length})
-            </span>
+          <span className="label-xs block mb-2" style={{ color: job.deliveryUrl ? "var(--good)" : undefined }}>
+            Livraison du monteur
+          </span>
+          <p className="dim text-[11.5px] mb-2 leading-relaxed">
+            Un montage fait plusieurs Go : il ne remonte pas par le formulaire. Le monteur colle ici son lien
+            SwissTransfer (ou WeTransfer, ou Drive).
+          </p>
+          <div className="flex gap-2">
+            <input
+              className="input mono !text-[12px]"
+              placeholder="https://www.swisstransfer.com/d/…"
+              value={delivery}
+              onChange={(e) => setDelivery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void saveDelivery();
+              }}
+            />
+            <button
+              className="btn btn-sm btn-primary"
+              onClick={() => void saveDelivery()}
+              disabled={delivery.trim() === (job.deliveryUrl ?? "").trim()}
+            >
+              Enregistrer
+            </button>
+          </div>
+          {job.deliveryUrl && (
+            <div className="flex items-center gap-2 mt-2">
+              <a
+                href={job.deliveryUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-sm flex-1"
+                style={{ justifyContent: "center" }}
+              >
+                Ouvrir la livraison ↗
+              </a>
+              <CopyButton text={job.deliveryUrl} label="Lien" />
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-2 mt-4 mb-2">
+            <span className="label-xs">Fichiers déposés ici ({livrables.length})</span>
             <>
               <input
                 ref={deliverInput}
@@ -485,8 +591,12 @@ function JobDetail({
                 className="hidden"
                 onChange={(e) => void upload(e.target.files, "livrable")}
               />
-              <button className="btn btn-sm btn-primary" onClick={() => deliverInput.current?.click()} disabled={uploading !== null}>
-                {uploading === "livrable" ? <span className="spinner" /> : "↑"} Déposer le montage
+              <button
+                className="btn btn-sm"
+                onClick={() => deliverInput.current?.click()}
+                disabled={uploading !== null}
+              >
+                {uploading === "livrable" ? <span className="spinner" /> : "↑"} Déposer un fichier
               </button>
             </>
           </div>
@@ -494,11 +604,15 @@ function JobDetail({
           <div className="flex gap-2 mt-2">
             <input
               className="input !text-[12px]"
-              placeholder="…ou colle un lien Drive / WeTransfer"
+              placeholder="…ou un autre lien"
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
             />
-            <button className="btn btn-sm" onClick={() => void addLink("livrable")} disabled={!linkUrl.trim()}>
+            <button
+              className="btn btn-sm"
+              onClick={() => void addLink("livrable", linkUrl)}
+              disabled={!linkUrl.trim()}
+            >
               Ajouter
             </button>
           </div>
@@ -554,6 +668,7 @@ function MediaList({ items, onRemove }: { items: MediaRef[]; onRemove?: (url: st
       {items.map((m) => {
         const isVideo = /\.(mp4|mov|webm|m4v|mkv|avi)$/i.test(m.url);
         const isImage = /\.(png|jpe?g|webp|gif)$/i.test(m.url);
+        const local = m.url.startsWith("/api/media/");
         return (
           <div key={m.url} className="card-flat overflow-hidden">
             {isVideo ? (
@@ -565,7 +680,18 @@ function MediaList({ items, onRemove }: { items: MediaRef[]; onRemove?: (url: st
             <div className="px-2.5 py-2 flex items-center gap-2">
               <span className="text-[11.5px] flex-1 min-w-0 truncate" title={m.name}>{m.name}</span>
               {m.size > 0 && <span className="dim text-[10.5px] shrink-0">{bytes(m.size)}</span>}
-              <a href={m.url} target="_blank" rel="noreferrer" className="btn btn-sm btn-ghost shrink-0">↗</a>
+              {/* Un fichier stocké se télécharge sous son vrai nom ; un lien externe s'ouvre. */}
+              {local ? (
+                <a
+                  href={`${m.url}?download=1&name=${encodeURIComponent(m.name)}`}
+                  download={m.name}
+                  className="btn btn-sm shrink-0"
+                  title="Télécharger"
+                >
+                  ↓
+                </a>
+              ) : null}
+              <a href={m.url} target="_blank" rel="noreferrer" className="btn btn-sm btn-ghost shrink-0" title="Ouvrir">↗</a>
               {onRemove && (
                 <button className="btn btn-sm btn-danger shrink-0" onClick={() => onRemove(m.url)} aria-label="Retirer">
                   ✕

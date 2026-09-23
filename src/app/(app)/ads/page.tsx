@@ -20,7 +20,6 @@ export default function AdsPage() {
       <EntityView
         spec={ADS}
         title="Meta Ads"
-        subtitle="Un angle par campagne. Ce qui compte ici n'est pas le CPM : c'est le coût par call et le ROAS."
         summary={(rows) => {
           const ads = rows as unknown as AdCampaign[];
           const actives = ads.filter((a) => a.status === "actif");

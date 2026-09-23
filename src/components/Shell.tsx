@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { JobsDock } from "./JobsDock";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, useLocalState } from "@/lib/client";
+import { forgetSession, useSession } from "@/lib/sales/client";
+import { ViewSwitcher } from "./sales/ViewSwitcher";
 import { fmtInt, fmtUsd } from "@/lib/format";
 
 /* --------------------------- Bascule de thème -------------------------- */
@@ -26,7 +29,10 @@ export function ThemeToggle() {
   ];
 
   return (
-    <div className="flex gap-0.5 p-0.5 rounded-[8px]" style={{ background: "var(--surface-3)" }}>
+    <div
+      className="flex gap-0.5 p-0.5 rounded-full"
+      style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+    >
       {options.map((o) => (
         <button
           key={o.value}
@@ -34,10 +40,10 @@ export function ThemeToggle() {
           title={o.title}
           aria-label={`Thème ${o.title}`}
           aria-pressed={theme === o.value}
-          className="w-[26px] h-[24px] rounded-[6px] text-[12px] transition-colors"
+          className="w-[26px] h-[24px] rounded-full text-[12px] transition-colors"
           style={{
-            background: theme === o.value ? "var(--surface)" : "transparent",
-            color: theme === o.value ? "var(--text)" : "var(--text-3)",
+            background: theme === o.value ? "var(--accent)" : "transparent",
+            color: theme === o.value ? "var(--accent-on)" : "var(--text-3)",
           }}
         >
           {o.icon}
@@ -55,12 +61,26 @@ const ZONES = [
   { label: "Dubaï", tz: "Asia/Dubai" },
 ];
 
+// Formateurs construits une fois : en creer six par seconde etait inutile.
+const CLOCK_FMT = ZONES.map((z) => ({
+  time: new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: z.tz, hour12: false }),
+  hour: new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hour12: false, timeZone: z.tz }),
+}));
+
 export function Clocks() {
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
     setNow(new Date());
-    const id = setInterval(() => setNow(new Date()), 1000);
+    // On n'affiche que les minutes : inutile de re-rendre a chaque seconde.
+    const id = setInterval(
+      () =>
+        setNow((prev) => {
+          const next = new Date();
+          return prev && Math.floor(prev.getTime() / 60_000) === Math.floor(next.getTime() / 60_000) ? prev : next;
+        }),
+      1000,
+    );
     return () => clearInterval(id);
   }, []);
 
@@ -69,17 +89,10 @@ export function Clocks() {
   if (!now) return <div style={{ height: 30 }} />;
 
   return (
-    <div className="flex items-center gap-3.5">
-      {ZONES.map((z) => {
-        const time = new Intl.DateTimeFormat("fr-FR", {
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZone: z.tz,
-          hour12: false,
-        }).format(now);
-        const hour = Number(
-          new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hour12: false, timeZone: z.tz }).format(now),
-        );
+    <div className="flex items-center gap-4">
+      {ZONES.map((z, i) => {
+        const time = CLOCK_FMT[i].time.format(now);
+        const hour = Number(CLOCK_FMT[i].hour.format(now));
         const awake = hour >= 8 && hour < 23;
         return (
           <div key={z.tz} className="flex items-center gap-1.5" title={z.tz}>
@@ -91,8 +104,8 @@ export function Clocks() {
                 background: awake ? "var(--good)" : "var(--border-strong)",
               }}
             />
-            <span className="dim text-[11px] hidden lg:inline">{z.label}</span>
-            <span className="mono text-[12.5px] font-medium">{time}</span>
+            <span className="label-xs hidden lg:inline">{z.label}</span>
+            <span className="mono text-[12px]">{time}</span>
           </div>
         );
       })}
@@ -135,16 +148,16 @@ export function CreditsWidget() {
 
   return (
     <div
-      className="rounded-[10px] px-3 py-2.5"
+      className="rounded-[12px] px-3.5 py-3"
       style={{
-        background: "var(--surface-2)",
+        background: "var(--surface)",
         border: `1px solid ${low ? "color-mix(in srgb, var(--warning) 45%, transparent)" : "var(--border)"}`,
       }}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="label-xs">Crédits KIE</span>
         <button
-          className="btn btn-ghost btn-sm !h-[18px] !px-1 !text-[11px]"
+          className="btn btn-ghost btn-sm !h-[20px] !px-1.5 !text-[11px]"
           onClick={() => void load()}
           disabled={loading}
           title="Rafraîchir"
@@ -154,7 +167,7 @@ export function CreditsWidget() {
       </div>
 
       {data?.error ? (
-        <p className="text-[11.5px] mt-1 leading-snug" style={{ color: "var(--warning)" }}>
+        <p className="text-[12px] mt-1.5 leading-snug" style={{ color: "var(--warning)" }}>
           {data.error.includes("clé") || data.error.includes("cle") ? (
             <>
               Clé API manquante —{" "}
@@ -168,17 +181,17 @@ export function CreditsWidget() {
         </p>
       ) : (
         <>
-          <div className="flex items-baseline gap-1.5 mt-1">
-            <span className="text-[19px] font-semibold num tracking-tight">
+          <div className="flex items-baseline gap-1.5 mt-1.5">
+            <span className="text-[22px] font-medium num" style={{ letterSpacing: "-0.03em" }}>
               {data?.credits !== null && data?.credits !== undefined ? fmtInt(data.credits) : "—"}
             </span>
-            <span className="dim text-[11px]">crédits</span>
+            <span className="dim text-[11.5px]">crédits</span>
           </div>
           <div className="flex items-center justify-between gap-2 mt-0.5">
-            <span className="text-[12.5px] font-medium num" style={{ color: low ? "var(--warning)" : "var(--good)" }}>
+            <span className="mono text-[11.5px]" style={{ color: low ? "var(--warning)" : "var(--text-2)" }}>
               ≈ {data?.usd !== null && data?.usd !== undefined ? fmtUsd(data.usd) : "—"}
             </span>
-            {low && <span className="badge badge-warn !text-[10px] !py-0">Bas</span>}
+            {low && <span className="badge badge-warn !py-0">Bas</span>}
           </div>
         </>
       )}
@@ -188,23 +201,127 @@ export function CreditsWidget() {
 
 /* -------------------------------- Nav ---------------------------------- */
 
+interface Today {
+  reelsDone: number;
+  reelsGoal: number;
+  channelDone: number;
+  channelGoal: number;
+  storyCount: number;
+  photosDone: number;
+  photosGoal: number;
+  theme: string;
+}
+
+/** Pastille d'objectif : verte une fois atteint. */
+function Goal({ label, done, goal }: { label: string; done: number; goal: number }) {
+  const ok = done >= goal;
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2 h-[22px] rounded-full mono text-[10.5px] uppercase whitespace-nowrap"
+      style={{
+        letterSpacing: "0.03em",
+        background: ok ? "color-mix(in srgb, var(--emerald) 10%, var(--surface))" : "var(--surface)",
+        border: `1px solid ${ok ? "color-mix(in srgb, var(--emerald) 30%, transparent)" : "var(--border)"}`,
+        color: ok ? "var(--emerald)" : "var(--text-2)",
+      }}
+      title={`${label} : ${done} sur ${goal}`}
+    >
+      <span>{label}</span>
+      <span style={{ color: ok ? "inherit" : "var(--text)" }}>
+        {done}/{goal}
+      </span>
+      {ok && "✓"}
+    </span>
+  );
+}
+
+/**
+ * Objectifs du jour, presents sur toutes les pages.
+ *
+ * Le Shell etant monte partout, la barre tape une route dediee et minuscule
+ * plutot que de charger les collections completes a chaque navigation.
+ */
+function DailyBar() {
+  const pathname = usePathname();
+  const [today, setToday] = useState<Today | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/today", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: Today) => { if (alive) setToday(d); })
+      .catch(() => {});
+    return () => { alive = false; };
+    // Rechargé à chaque navigation : les compteurs bougent pendant la session.
+  }, [pathname]);
+
+  if (!today) return null;
+
+  return (
+    <Link href="/" className="flex items-center gap-1.5 min-w-0" title={today.theme}>
+      <span className="label-xs hidden sm:inline mr-1">Aujourd&apos;hui</span>
+      <Goal label="Reels" done={today.reelsDone} goal={today.reelsGoal} />
+      <Goal label="Canal" done={today.channelDone} goal={today.channelGoal} />
+      <Goal label="Photos/sem." done={today.photosDone} goal={today.photosGoal} />
+      <span
+        className="inline-flex items-center gap-1 px-2 h-[22px] rounded-full mono text-[10.5px] uppercase whitespace-nowrap"
+        style={{
+          letterSpacing: "0.03em",
+          background: today.storyCount > 0
+            ? "color-mix(in srgb, var(--emerald) 10%, var(--surface))"
+            : "var(--surface)",
+          border: `1px solid ${
+            today.storyCount > 0 ? "color-mix(in srgb, var(--emerald) 30%, transparent)" : "var(--border)"
+          }`,
+          color: today.storyCount > 0 ? "var(--emerald)" : "var(--text-2)",
+        }}
+        title={today.storyCount > 0 ? `${today.storyCount} story en ligne` : "Aucune story aujourd'hui"}
+      >
+        Story {today.storyCount > 0 ? "✓" : "—"}
+      </span>
+      {today.theme && (
+        <span className="dim text-[12px] truncate hidden lg:inline ml-1.5">{today.theme}</span>
+      )}
+    </Link>
+  );
+}
+
+/**
+ * Menu principal.
+ *
+ * La section « Sales » est la seule visible pour un setter ou un closer : le
+ * reste du tool (studio IA, contenus, reglages) ne les concerne pas, et le
+ * middleware leur en refuse de toute facon l'acces.
+ */
 const NAV: { section: string; items: { href: string; label: string; icon: string }[] }[] = [
   {
     section: "Pilotage",
     items: [
       { href: "/", label: "Dashboard", icon: "◈" },
-      { href: "/croissance", label: "Croissance", icon: "↗" },
-      { href: "/insights", label: "Quoi spammer", icon: "◎" },
+      { href: "/insights", label: "Winning Format", icon: "◎" },
     ],
   },
   {
     section: "Contenu",
     items: [
+      { href: "/content", label: "Content", icon: "◫" },
+      { href: "/production", label: "Production", icon: "▣" },
+    ],
+  },
+  {
+    section: "Création",
+    items: [
       { href: "/studio", label: "Studio IA", icon: "✦" },
-      { href: "/swipe", label: "Swipe file", icon: "⇥" },
-      { href: "/contenu", label: "Calendrier", icon: "▦" },
-      { href: "/stories", label: "Story OS", icon: "◍" },
-      { href: "/montage", label: "Montage", icon: "✂" },
+      { href: "/montage", label: "Espace monteur", icon: "✂" },
+    ],
+  },
+  {
+    section: "Sales",
+    items: [
+      { href: "/sales", label: "Sales Dashboard", icon: "◈" },
+      { href: "/sales/rendez-vous", label: "Rendez-vous", icon: "☏" },
+      { href: "/sales/relances", label: "Relances", icon: "↻" },
+      { href: "/sales/commissions", label: "Commissions", icon: "▦" },
     ],
   },
   {
@@ -227,58 +344,130 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
   },
 ];
 
+/** Marque : carré ardoise + mot-symbole, réutilisé sur la page de connexion. */
+export function Brand({ size = "md" }: { size?: "md" | "lg" }) {
+  const box = size === "lg" ? 30 : 24;
+  return (
+    <span className="inline-flex items-center gap-2.5">
+      <span
+        className="grid place-items-center shrink-0 mono"
+        style={{
+          width: box,
+          height: box,
+          borderRadius: 8,
+          background: "var(--accent)",
+          color: "var(--accent-on)",
+          fontSize: size === "lg" ? 11 : 9.5,
+          letterSpacing: "0.02em",
+        }}
+      >
+        MP
+      </span>
+      <span
+        className="font-medium"
+        style={{ fontSize: size === "lg" ? 17 : 14.5, letterSpacing: "-0.025em" }}
+      >
+        MPGate
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Badge du membre connecte, avec sa sortie.
+ *
+ * Rien pour moi, et rien non plus en apercu : dans ce cas c'est le selecteur
+ * de vue juste au-dessus qui sert a revenir, un second bouton de sortie
+ * n'apporterait que de la confusion.
+ */
+function SessionBadge() {
+  const { session } = useSession();
+  if (!session || session.role === "anonyme") return null;
+  // Le proprietaire n'a une sortie que s'il s'est connecte (site en ligne).
+  if (session.role === "owner" && !session.canLogout) return null;
+  if (session.impersonated) return null;
+
+  const logout = async () => {
+    await api("/api/sales/session", { method: "DELETE" }).catch(() => {});
+    forgetSession();
+    window.location.href = "/login";
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-2 mb-2.5 px-1">
+      <span className="min-w-0">
+        <span className="block text-[13px] font-medium truncate">{session.memberName}</span>
+        <span className="label-xs">{session.role}</span>
+      </span>
+      <button className="btn btn-ghost btn-sm shrink-0" onClick={() => void logout()} title="Se déconnecter">
+        ⏻
+      </button>
+    </div>
+  );
+}
+
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { session } = useSession();
 
   // Referme le tiroir mobile dès qu'on change de page.
   useEffect(() => setOpen(false), [pathname]);
+
+  // Un commercial ne voit que son espace : afficher des liens qui renvoient
+  // vers une redirection est une fausse promesse.
+  const isSalesOnly = session?.role === "setter" || session?.role === "closer";
+  const nav = isSalesOnly ? NAV.filter((g) => g.section === "Sales") : NAV;
 
   return (
     <div className="min-h-screen flex">
       {open && (
         <div
           className="fixed inset-0 z-30 md:hidden"
-          style={{ background: "rgb(0 0 0 / 0.45)" }}
+          style={{ background: "rgb(35 49 55 / 0.35)", backdropFilter: "blur(2px)" }}
           onClick={() => setOpen(false)}
         />
       )}
 
+      {/*
+        Barre latérale posée sur le fond de page, séparée par un simple
+        liseré : le contenu et la navigation partagent la même surface, comme
+        les sections de Qoves.
+      */}
       <aside
-        className={`fixed md:sticky top-0 z-40 h-screen w-[218px] shrink-0 flex flex-col transition-transform md:translate-x-0 ${
+        className={`fixed md:sticky top-0 z-40 h-screen w-[236px] shrink-0 flex flex-col transition-transform md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
-        style={{ background: "var(--surface)", borderRight: "1px solid var(--border)" }}
+        style={{ background: "var(--bg)", borderRight: "1px solid var(--border)" }}
       >
-        <div className="px-4 h-[52px] flex items-center gap-2 shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
-          <span
-            className="w-[22px] h-[22px] rounded-[6px] grid place-items-center text-[12px] font-bold shrink-0"
-            style={{ background: "var(--accent)", color: "var(--accent-on)" }}
-          >
-            M
-          </span>
-          <span className="font-semibold text-[13.5px] tracking-tight">mvdyprince</span>
+        <div className="px-5 h-[60px] flex items-center shrink-0">
+          <Brand />
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-2.5 py-3">
-          {NAV.map((group) => (
-            <div key={group.section} className="mb-4">
-              <div className="label-xs px-2 mb-1.5">{group.section}</div>
-              <div className="flex flex-col gap-0.5">
+        <nav className="flex-1 overflow-y-auto px-3 pb-3">
+          {nav.map((group) => (
+            <div key={group.section} className="mb-5">
+              <div className="label-xs px-3 mb-2">{group.section}</div>
+              <div className="flex flex-col gap-[3px]">
                 {group.items.map((item) => {
                   const active = pathname === item.href;
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="flex items-center gap-2.5 px-2 h-[30px] rounded-[7px] text-[13px] transition-colors"
+                      className="nav-link flex items-center gap-2.5 px-3 h-[34px] rounded-full text-[13.5px]"
+                      data-active={active}
                       style={{
-                        background: active ? "var(--accent-soft)" : "transparent",
-                        color: active ? "var(--accent)" : "var(--text-2)",
-                        fontWeight: active ? 600 : 400,
+                        color: active ? "var(--text)" : "var(--text-2)",
+                        fontWeight: active ? 500 : 400,
                       }}
                     >
-                      <span className="w-[14px] text-center text-[12px] opacity-80">{item.icon}</span>
+                      <span
+                        className="w-[14px] text-center text-[12px]"
+                        style={{ color: active ? "var(--text)" : "var(--text-3)" }}
+                      >
+                        {item.icon}
+                      </span>
                       {item.label}
                     </Link>
                   );
@@ -288,30 +477,47 @@ export function Shell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        <div className="p-2.5 shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
-          <CreditsWidget />
+        <div className="p-3 shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
+          <ViewSwitcher />
+          <SessionBadge />
+          {/* Le solde de credits IA ne concerne pas l'equipe commerciale. */}
+          {!isSalesOnly && <CreditsWidget />}
         </div>
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
         <header
-          className="sticky top-0 z-20 h-[52px] flex items-center justify-between gap-3 px-4"
+          className="sticky top-0 z-20 h-[60px] flex items-center justify-between gap-3 px-5 lg:px-8"
           style={{
-            background: "color-mix(in srgb, var(--bg) 88%, transparent)",
-            backdropFilter: "blur(10px)",
+            background: "color-mix(in srgb, var(--bg) 85%, transparent)",
+            backdropFilter: "blur(12px)",
             borderBottom: "1px solid var(--border)",
           }}
         >
           <button className="btn btn-ghost btn-sm md:hidden" onClick={() => setOpen(true)} aria-label="Menu">
             ☰
           </button>
+          {!isSalesOnly && <DailyBar />}
           <div className="flex-1" />
           <Clocks />
           <ThemeToggle />
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 max-w-[1500px] w-full">{children}</main>
+        {/*
+          Colonne centrée, bornée à 1240 px.
+          En pleine largeur, un grand écran dispersait les cartes et les
+          tableaux d'un bord à l'autre ; trop étroit, tout se tassait. Cette
+          largeur garde les blocs lisibles d'un seul regard, comme les sections
+          de Qoves, avec une respiration latérale qui grandit avec l'écran.
+        */}
+        <main className="flex-1 w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+          {/* La cle force le rejeu de l'animation a chaque page. */}
+          <div key={pathname} className="rise w-full max-w-[1240px] mx-auto">{children}</div>
+        </main>
       </div>
+
+      {/* Hors du <main> : il ne doit pas etre remonte a chaque navigation. */}
+      <JobsDock />
     </div>
   );
 }

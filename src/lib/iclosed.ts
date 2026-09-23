@@ -36,9 +36,30 @@ interface IclosedTask {
   notes: string | null;
 }
 
+/** Utilisateur iClosed : c'est l'hote du call, donc le closer. */
+export interface IclosedUser {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 export interface IclosedCall {
   id: number;
   dateTimeUTC: string;
+  /**
+   * Hote du rendez-vous.
+   *
+   * Verifie sur l'API reelle : c'est le seul champ qui identifie QUI prend le
+   * call. Tant qu'un compte n'a qu'un utilisateur, tous les calls remontent
+   * avec le meme — il faut creer les closers dans iClosed pour les distinguer.
+   */
+  user?: IclosedUser;
+  userId?: number;
+  /** Fuseau dans lequel l'invite a reserve. */
+  inviteTimeZone?: string;
+  /** Parametres de campagne du lien de reservation (utm_source=ig, etc.). */
+  utm?: { utmKey: string; utmValue: string }[];
   duration: number;
   durationUnit: string;
   callType: string;
@@ -246,4 +267,39 @@ export function toLead(c: IclosedCall, status: CallEvent["status"]): Lead {
     notes: notes.slice(0, 1500),
     createdAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Rendez-vous a venir, avec repli.
+ *
+ * Le filtre `eventType=UPCOMING` de l'API iClosed est peu fiable : sur le
+ * compte connecte il renvoie `count: 1` avec une liste VIDE, quelle que soit
+ * la page ou la taille demandee. Verifie sur les 12 pages du compte.
+ *
+ * On tente donc le filtre — une seule requete, le cas normal — et s'il annonce
+ * des resultats sans en fournir, on balaie la liste complete et on filtre sur
+ * la date nous-memes. Plus couteux, mais c'est la seule facon de ne pas rater
+ * un booking a cause d'un bug de leur cote.
+ */
+export async function fetchUpcoming(maxPages = 12, perPage = 50): Promise<IclosedCall[]> {
+  const direct = await call<{ data: { eventCalls: IclosedCall[]; count: number } }>(
+    `/v1/eventCalls?eventType=UPCOMING&limit=${perPage}&page=1`,
+  );
+  const rows = direct.data?.eventCalls ?? [];
+  if (rows.length > 0) return rows;
+  if (!direct.data?.count) return [];
+
+  // Le filtre ment : on relit tout et on tranche sur la date.
+  const now = new Date().toISOString();
+  const seen = new Map<number, IclosedCall>();
+  for (let page = 1; page <= maxPages; page++) {
+    const res = await call<{ data: { eventCalls: IclosedCall[]; count: number } }>(
+      `/v1/eventCalls?limit=${perPage}&page=${page}`,
+    );
+    const batch = res.data?.eventCalls ?? [];
+    if (!batch.length) break;
+    for (const c of batch) seen.set(c.id, c);
+    if (seen.size >= (res.data?.count ?? 0)) break;
+  }
+  return [...seen.values()].filter((c) => (c.dateTimeUTC ?? "") > now);
 }

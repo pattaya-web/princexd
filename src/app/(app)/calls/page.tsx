@@ -60,7 +60,6 @@ export default function CallsPage() {
       <EntityView
         spec={CALLS}
         title="Calls"
-        subtitle="Tous tes appels de vente, leur issue et le montant closé."
         summary={(rows) => {
           const calls = rows as unknown as CallEvent[];
           const now = Date.now();
@@ -73,11 +72,10 @@ export default function CallsPage() {
           const closed = calls.filter((c) => c.status === "closed");
           return (
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-              <StatTile label="À venir" value={fmtInt(upcoming.length)} hint="Calls bookés non passés" />
+              <StatTile label="À venir" value={fmtInt(upcoming.length)} />
               <StatTile
                 label="À qualifier"
                 value={fmtInt(aQualifier.length)}
-                hint="Passés sans issue renseignée"
                 accent={aQualifier.length ? "var(--warning)" : undefined}
               />
               <StatTile

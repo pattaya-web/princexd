@@ -18,6 +18,66 @@ export interface DimensionStat {
   score: number;
 }
 
+/** Minuscules sans accents : "Commente «IA»" et "commente ia" doivent matcher. */
+function norm(v: string): string {
+  return v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+/**
+ * Ne garde que les publications qui portent un des mots-cles business.
+ * Un compte a souvent un carton viral hors niche qui ecrase tous les classements
+ * sans rien dire de ce qui vend : ce filtre l'ecarte.
+ * Si aucun post ne correspond, on rend la liste complete plutot qu'un vide.
+ */
+export function filterByKeywords(posts: Post[], keywords: string): Post[] {
+  const keys = keywords.split(",").map((k) => norm(k.trim())).filter(Boolean);
+  if (!keys.length) return posts;
+
+  const matched = posts.filter((p) => {
+    const hay = norm(`${p.title} ${p.caption ?? ""}`);
+    return keys.some((k) => hay.includes(k));
+  });
+  return matched.length ? matched : posts;
+}
+
+/** Appels a l'action reperes dans les legendes, du plus fort au plus faible. */
+export const CTA_TERMS = ["commente", "envoie", "mp", "abonne", "lien en bio", "dm"];
+
+export interface CtaStat {
+  term: string;
+  posts: number;
+  avgViews: number;
+  avgComments: number;
+  avgSaves: number;
+}
+
+/**
+ * Performance de chaque appel a l'action.
+ *
+ * Un post peut porter plusieurs CTA ("Commente IA et je t'envoie le process") :
+ * il compte alors dans chaque ligne. C'est voulu — on mesure le rendement d'une
+ * formulation, pas une repartition exclusive.
+ */
+export function ctaStats(posts: Post[], terms: string[] = CTA_TERMS): CtaStat[] {
+  const published = posts.filter((p) => p.status === "publie" && p.views > 0);
+
+  return terms
+    .map((term) => {
+      const key = norm(term);
+      const group = published.filter((p) => norm(`${p.title} ${p.caption ?? ""}`).includes(key));
+      if (!group.length) return null;
+      return {
+        term,
+        posts: group.length,
+        avgViews: sumBy(group, (p) => p.views) / group.length,
+        avgComments: sumBy(group, (p) => p.comments) / group.length,
+        avgSaves: sumBy(group, (p) => p.saves) / group.length,
+      };
+    })
+    .filter((r): r is CtaStat => r !== null)
+    .sort((a, b) => b.avgComments - a.avgComments);
+}
+
 const engagement = (p: Post) => p.likes + p.comments + p.saves + p.shares;
 
 function rate(num: number, den: number) {
@@ -79,7 +139,7 @@ export function statsByDimension(posts: Post[], dimension: (p: Post) => string):
   return scoreRows(rows);
 }
 
-/** Le format à spammer, celui à couper, et pourquoi — sans appel IA. */
+/** Le format gagnant, celui à couper, et pourquoi — sans appel IA. */
 export interface Verdict {
   spam: DimensionStat | null;
   stop: DimensionStat | null;

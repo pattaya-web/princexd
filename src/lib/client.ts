@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CollectionName } from "./types";
 
 export async function api<T>(url: string, init?: RequestInit): Promise<T> {
@@ -23,24 +23,51 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 /**
+ * Cache memoire partage entre les pages.
+ *
+ * Sans lui, changer d'onglet retelechargeait chaque collection depuis zero —
+ * plusieurs centaines de kilo-octets a chaque navigation. On affiche donc
+ * immediatement ce qu'on avait, puis on revalide en fond.
+ */
+const CACHE = new Map<string, unknown[]>();
+
+/** Vide le cache d'une collection, ou tout le cache. */
+export function invalidate(name?: CollectionName) {
+  if (!name) CACHE.clear();
+  else for (const k of [...CACHE.keys()]) if (k.startsWith(name)) CACHE.delete(k);
+}
+
+/**
  * Accès CRUD à une collection. Optimiste sur les mutations pour que l'UI
  * reste réactive, avec resynchronisation depuis la réponse serveur.
+ *
+ * `light` demande la version allegee : le serveur retire les champs lourds
+ * (transcriptions, plans de tournage) dont les listes n'ont pas besoin.
  */
-export function useCollection<T extends { id: string }>(name: CollectionName) {
-  const [rows, setRows] = useState<T[]>([]);
-  const [loading, setLoading] = useState(true);
+export function useCollection<T extends { id: string }>(
+  name: CollectionName,
+  opts: { light?: boolean } = {},
+) {
+  const light = Boolean(opts.light);
+  const key = light ? `${name}:light` : name;
+
+  const [rows, setRows] = useState<T[]>(() => (CACHE.get(key) as T[]) ?? []);
+  // Deja en cache : rien a attendre, l'ecran s'affiche tout de suite.
+  const [loading, setLoading] = useState(!CACHE.has(key));
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     try {
-      setRows(await api<T[]>(`/api/data/${name}`));
+      const data = await api<T[]>(`/api/data/${name}${light ? "?light=1" : ""}`);
+      CACHE.set(key, data);
+      setRows(data);
       setError(null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [name]);
+  }, [name, key, light]);
 
   useEffect(() => {
     void reload();
@@ -49,10 +76,14 @@ export function useCollection<T extends { id: string }>(name: CollectionName) {
   const create = useCallback(
     async (row: Partial<T>) => {
       const created = await api<T>(`/api/data/${name}`, { method: "POST", body: JSON.stringify(row) });
-      setRows((prev) => [created, ...prev]);
+      setRows((prev) => {
+        const next = [created, ...prev];
+        CACHE.set(key, next);
+        return next;
+      });
       return created;
     },
-    [name],
+    [name, key],
   );
 
   const patch = useCallback(
@@ -62,21 +93,52 @@ export function useCollection<T extends { id: string }>(name: CollectionName) {
         method: "PATCH",
         body: JSON.stringify({ id, ...changes }),
       });
-      setRows((prev) => prev.map((r) => (r.id === id ? saved : r)));
+      setRows((prev) => {
+        const next = prev.map((r) => (r.id === id ? saved : r));
+        CACHE.set(key, next);
+        return next;
+      });
       return saved;
     },
-    [name],
+    [name, key],
   );
 
   const destroy = useCallback(
     async (id: string) => {
-      setRows((prev) => prev.filter((r) => r.id !== id));
+      setRows((prev) => {
+        const next = prev.filter((r) => r.id !== id);
+        CACHE.set(key, next);
+        return next;
+      });
       await api(`/api/data/${name}?id=${encodeURIComponent(id)}`, { method: "DELETE" });
     },
-    [name],
+    [name, key],
   );
 
-  return { rows, setRows, loading, error, reload, create, patch, destroy };
+  /** Suppression d'une selection, en un seul aller-retour. */
+  const destroyMany = useCallback(
+    async (ids: string[]) => {
+      if (!ids.length) return;
+      const doomed = new Set(ids);
+      setRows((prev) => {
+        const next = prev.filter((r) => !doomed.has(r.id));
+        CACHE.set(key, next);
+        return next;
+      });
+      await api(`/api/data/${name}?ids=${encodeURIComponent(ids.join(","))}`, { method: "DELETE" });
+    },
+    [name, key],
+  );
+
+  /*
+   * Objet memoise : un consommateur qui le met en dependance d'un effet ne
+   * doit pas voir cet effet se relancer a chaque rendu. Il ne change que
+   * quand les donnees ou l'etat de chargement changent reellement.
+   */
+  return useMemo(
+    () => ({ rows, setRows, loading, error, reload, create, patch, destroy, destroyMany }),
+    [rows, loading, error, reload, create, patch, destroy, destroyMany],
+  );
 }
 
 /** Sauvegarde différée : évite un appel réseau à chaque frappe. */

@@ -11,9 +11,12 @@ const MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2 Go
 
 const SAFE_EXT = new Set([
   ".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv",
-  ".png", ".jpg", ".jpeg", ".webp", ".gif",
+  ".png", ".jpg", ".jpeg", ".jfif", ".jpe", ".webp", ".gif",
   ".mp3", ".wav", ".m4a", ".aac",
 ]);
+
+/** Extensions qui designent un JPEG sans en porter le nom. */
+const JPEG_ALIASES: Record<string, string> = { ".jfif": ".jpg", ".jpe": ".jpg" };
 
 export async function POST(req: NextRequest) {
   const form = await req.formData();
@@ -34,13 +37,22 @@ export async function POST(req: NextRequest) {
   await fs.mkdir(MEDIA_DIR, { recursive: true });
   // Nom de stockage généré : on ne fait jamais confiance au nom d'origine
   // pour construire un chemin sur le disque.
-  const stored = `${newId()}${ext}`;
+  // .jfif et .jpe sont des JPEG : seule l'extension change. On la normalise,
+  // sinon les services distants refusent le fichier sur son seul suffixe.
+  const stored = `${newId()}${JPEG_ALIASES[ext] ?? ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
   await fs.writeFile(path.join(MEDIA_DIR, stored), buffer);
+
+  // Les modeles image de KIE vont chercher le fichier sur internet : ils ne
+  // peuvent pas lire /api/media, servi en local. On renvoie donc aussi l'URL
+  // du serveur medias expose, quand il est configure.
+  const publicBase = process.env.MEDIA_PUBLIC_URL?.trim().replace(/\/+$/, "");
 
   return NextResponse.json({
     name: file.name,
     url: `/api/media/${stored}`,
+    publicUrl: publicBase ? `${publicBase}/${stored}` : "",
+    stored,
     size: file.size,
   });
 }

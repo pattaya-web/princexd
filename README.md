@@ -141,3 +141,29 @@ protège que `/monteur`, pas le reste.
 
 Next.js 15 (App Router) · React 19 · TypeScript · Tailwind v4 · stockage fichier JSON.
 Aucune dépendance native, aucune base de données à installer.
+
+## Mise en ligne (VPS + Coolify)
+
+Le projet se déploie tel quel sur un VPS via le `Dockerfile` (Next.js standalone,
+yt-dlp et ffmpeg inclus). Coolify build l'image à chaque push GitHub.
+
+0. Installer Coolify sur un VPS vierge (Ubuntu 22.04 ou 24.04, 2 vCPU et 4 Go de RAM minimum),
+   en SSH root : `curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash`, puis ouvrir
+   `http://IP_DU_VPS:8000` pour créer le compte administrateur.
+1. Dans Coolify : nouvelle ressource → dépôt GitHub → build pack **Dockerfile**, port **3000**.
+2. **Volume persistant** : monter `/app/data` (base `db.json` + médias). Sans ce volume,
+   tout est perdu à chaque redéploiement.
+3. **Variables d'environnement** (onglet Environment Variables) : copier celles de
+   `.env.local`, puis ajouter :
+   - `OWNER_PASSWORD` : mot de passe du propriétaire. Dès qu'il est défini, personne
+     n'entre sans se connecter sur `/login` (le propriétaire tape juste ce mot de passe).
+   - `SESSION_SECRET` : chaîne aléatoire longue (signature des sessions).
+   - `PUBLIC_BASE_URL` : `https://app.tondomaine.com`
+   - `MEDIA_PUBLIC_URL` : `https://app.tondomaine.com/api/media`
+4. Domaine : enregistrement DNS `A` vers l'IP du VPS (`@` pour le domaine racine, ou un
+   sous-domaine), puis coller `https://tondomaine.com` dans le champ Domains de Coolify
+   (HTTPS automatique via Let's Encrypt).
+5. Sauvegardes : onglet Backups de la ressource, planifier une copie quotidienne du volume
+   `/app/data` (base + médias) vers un stockage S3 ou local.
+
+En local, sans `OWNER_PASSWORD`, rien ne change : ouvrir le dashboard sans se connecter.

@@ -20,8 +20,7 @@ export default function MontagePage() {
   return (
     <>
       <PageHeader
-        title="Montage"
-        subtitle="Tu déposes les rushs et le brief, ton monteur récupère, monte, et redépose la vidéo finie. Tu n'as plus qu'à poster."
+        title="Espace monteur"
       />
 
       <div className="mb-4">

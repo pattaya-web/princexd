@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api, useCollection } from "@/lib/client";
-import { BarChart, Funnel, SERIES } from "@/components/charts";
-import { Card, Empty, ErrorNote, InfoNote, PageHeader, Spinner, StatTile, Tabs, useToast } from "@/components/ui";
-import { funnel, statsByDimension, verdictFormats, bestSlots, type DimensionStat } from "@/lib/analytics";
-import { fmtCompact, fmtInt, fmtPct, label } from "@/lib/format";
-import type { Lead, Post, Story } from "@/lib/types";
+import { FormatPosts } from "@/components/instagram";
+import { Card, Empty, ErrorNote, PageHeader, Spinner, StatTile, Tabs, useToast } from "@/components/ui";
+import { filterByKeywords } from "@/lib/analytics";
+import { label } from "@/lib/format";
+import type { Lead, Post, ProdFolder, SavedItem, Settings, Story } from "@/lib/types";
 
 interface Strategy {
   verdict: string;
@@ -19,33 +19,52 @@ interface Strategy {
   alertes: string[];
 }
 
-type Dim = "format" | "angle" | "hook";
-
 export default function InsightsPage() {
-  const posts = useCollection<Post>("posts");
+  const posts = useCollection<Post>("posts", { light: true });
   const stories = useCollection<Story>("stories");
   const leads = useCollection<Lead>("leads");
+  const saved = useCollection<SavedItem>("saved");
   const toast = useToast();
 
-  const [dim, setDim] = useState<Dim>("format");
-  const [metric, setMetric] = useState<"score" | "avgViews" | "followersPerPost" | "callsBooked">("score");
   const [strategy, setStrategy] = useState<Strategy | null>(null);
+  // Aligne cette page sur le dashboard : par defaut on n'analyse que le
+  // contenu business, un viral hors niche faussant toutes les moyennes.
+  const [scope, setScope] = useState<"business" | "tout">("business");
+  const [vSort, setVSort] = useState<"engagement" | "views" | "likes" | "comments" | "recent">("engagement");
+  const [vAsc, setVAsc] = useState(false);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  useEffect(() => {
+    void api<Settings>("/api/settings").then(setSettings).catch(() => setSettings(null));
+  }, []);
   const [loadingAi, setLoadingAi] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const selector = useMemo(() => {
-    if (dim === "angle") return (p: Post) => p.angle;
-    if (dim === "hook") return (p: Post) => (p.hook ? p.hook.slice(0, 42) : "sans hook");
-    return (p: Post) => p.format;
-  }, [dim]);
+  const scoped = useMemo(
+    () =>
+      scope === "tout"
+        ? posts.rows
+        : filterByKeywords(posts.rows, settings?.postFilterKeywords ?? "commente"),
+    [posts.rows, scope, settings],
+  );
 
-  const stats = useMemo(() => statsByDimension(posts.rows, selector), [posts.rows, selector]);
-  const formatStats = useMemo(() => statsByDimension(posts.rows, (p) => p.format), [posts.rows]);
-  const verdict = useMemo(() => verdictFormats(formatStats), [formatStats]);
-  const fun = useMemo(() => funnel(posts.rows, stories.rows, leads.rows), [posts.rows, stories.rows, leads.rows]);
-  const slots = useMemo(() => bestSlots(posts.rows), [posts.rows]);
 
-  const measured = posts.rows.filter((p) => p.status === "publie" && p.views > 0);
+  const measured = scoped.filter((p) => p.status === "publie" && p.views > 0);
+
+  /** Mes videos du perimetre, filtrees et triees. */
+  const videos = useMemo(() => {
+    const engagement = (p: Post) => p.comments + p.saves + p.shares + p.likes;
+    const dir = vAsc ? -1 : 1;
+
+    return scoped
+      .filter((p) => p.status === "publie" && engagement(p) > 0)
+      .sort((a, b) => {
+        if (vSort === "recent") return dir * b.publishedAt.localeCompare(a.publishedAt);
+        if (vSort === "views") return dir * (b.views - a.views);
+        if (vSort === "likes") return dir * (b.likes - a.likes);
+        if (vSort === "comments") return dir * (b.comments - a.comments);
+        return dir * (engagement(b) - engagement(a));
+      });
+  }, [scoped, vSort, vAsc]);
 
   const askAi = async () => {
     setLoadingAi(true);
@@ -61,23 +80,22 @@ export default function InsightsPage() {
     }
   };
 
-  const chartRows = useMemo(() => {
-    const value = (s: DimensionStat) =>
-      metric === "score" ? s.score : metric === "avgViews" ? s.avgViews : metric === "followersPerPost" ? s.followersPerPost : s.callsBooked;
-    return stats.map((s, i) => ({
-      label: s.label,
-      value: value(s),
-      color: SERIES[i % SERIES.length],
-      meta: `${s.posts} posts · ${fmtCompact(s.avgViews)} vues/post · ${fmtPct(s.avgEngagementRate * 100)} d'engagement · ${s.callsBooked} calls`,
-    }));
-  }, [stats, metric]);
-
   if (posts.loading) return <Spinner label="Chargement…" />;
 
   if (measured.length < 3) {
     return (
       <>
-        <PageHeader title="Quoi spammer" subtitle="Le tool te dit sur quel format itérer — à partir de tes chiffres, pas d'une intuition." />
+        <PageHeader title="Winning Format" actions={
+          <Tabs
+            value={scope}
+            onChange={setScope}
+            options={[
+              { value: "business", label: "Business", count: filterByKeywords(posts.rows, settings?.postFilterKeywords ?? "commente").length },
+              { value: "tout", label: "Tout", count: posts.rows.length },
+            ]}
+          />
+        }
+      />
         <Card>
           <Empty action={<Link href="/contenu" className="btn btn-primary">Aller au calendrier de contenu</Link>}>
             Il faut au moins 3 posts publiés avec leurs stats pour que cette page dise quelque chose d&apos;honnête.
@@ -91,8 +109,8 @@ export default function InsightsPage() {
   return (
     <>
       <PageHeader
-        title="Quoi spammer"
-        subtitle={`Calculé sur ${measured.length} posts mesurés. Le score pondère la portée, l'engagement, les abonnés gagnés et surtout les calls générés.`}
+        title="Winning Format"
+        subtitle={`${measured.length} posts mesurés`}
         actions={
           <button className="btn btn-primary" onClick={() => void askAi()} disabled={loadingAi}>
             {loadingAi ? <span className="spinner" /> : "✦"} Demander le plan de la semaine
@@ -100,132 +118,61 @@ export default function InsightsPage() {
         }
       />
 
-      {/* Le verdict chiffré, avant tout appel IA. */}
-      <div className="grid md:grid-cols-2 gap-3 mb-4">
-        <div
-          className="card px-4 py-3.5"
-          style={{ borderColor: "color-mix(in srgb, var(--good) 45%, transparent)" }}
+      {videos.length > 0 && (
+        <Card
+          title="Mes vidéos"
+          subtitle={`${videos.length} sur ${measured.length} publications mesurées`}
+          className="mb-4"
+          actions={
+            <span className="flex items-center gap-1.5">
+              <Tabs
+                value={vSort}
+                onChange={setVSort}
+                options={[
+                  { value: "engagement", label: "Engagement" },
+                  { value: "views", label: "Vues" },
+                  { value: "likes", label: "Likes" },
+                  { value: "comments", label: "Comm." },
+                  { value: "recent", label: "Récents" },
+                ]}
+              />
+              <button className="btn btn-sm" onClick={() => setVAsc((v) => !v)}>
+                {vAsc ? "↑" : "↓"}
+              </button>
+            </span>
+          }
         >
-          <div className="label-xs" style={{ color: "var(--good)" }}>À spammer</div>
-          {verdict.spam ? (
-            <>
-              <div className="text-[19px] font-semibold mt-1">{verdict.spam.label}</div>
-              <p className="muted text-[12.5px] mt-1 leading-relaxed">
-                {fmtCompact(verdict.spam.avgViews)} vues/post en moyenne, {verdict.spam.followersPerPost.toFixed(1)}{" "}
-                abonné{verdict.spam.followersPerPost >= 2 ? "s" : ""}/post et {verdict.spam.callsBooked} call
-                {verdict.spam.callsBooked > 1 ? "s" : ""} générés sur {verdict.spam.posts} posts. Score{" "}
-                {verdict.spam.score}/100.
-              </p>
-            </>
-          ) : (
-            <p className="dim text-[12.5px] mt-1.5">Aucun format n&apos;a encore assez de posts pour trancher.</p>
-          )}
-        </div>
-
-        <div
-          className="card px-4 py-3.5"
-          style={{ borderColor: verdict.stop ? "color-mix(in srgb, var(--critical) 40%, transparent)" : "var(--border)" }}
-        >
-          <div className="label-xs" style={{ color: verdict.stop ? "var(--critical)" : undefined }}>
-            À arrêter
-          </div>
-          {verdict.stop && verdict.stop.key !== verdict.spam?.key ? (
-            <>
-              <div className="text-[19px] font-semibold mt-1">{verdict.stop.label}</div>
-              <p className="muted text-[12.5px] mt-1 leading-relaxed">
-                {fmtCompact(verdict.stop.avgViews)} vues/post, {verdict.stop.callsBooked} call
-                {verdict.stop.callsBooked > 1 ? "s" : ""} sur {verdict.stop.posts} posts. Score {verdict.stop.score}/100
-                — ce temps de production est mieux investi ailleurs.
-              </p>
-            </>
-          ) : (
-            <p className="dim text-[12.5px] mt-1.5">Rien à couper pour l&apos;instant.</p>
-          )}
-        </div>
-      </div>
-
-      {verdict.confiance !== "bonne" && (
-        <div className="mb-4">
-          <InfoNote>
-            Confiance <strong>{verdict.confiance}</strong> : avec {measured.length} posts mesurés, le classement peut
-            encore bouger. Vise une vingtaine de posts avec stats et au moins 3 posts par format avant de prendre une
-            décision définitive.
-          </InfoNote>
-        </div>
+          <FormatPosts
+            posts={videos}
+            title=""
+            savedUrls={new Set(saved.rows.map((r) => r.permalink))}
+            onSave={(p, folder: ProdFolder) =>
+              void saved.create({
+                source: "mine",
+                author: "moi",
+                permalink: p.url,
+                thumbnail: p.thumbnail ?? "",
+                caption: p.caption ?? p.title,
+                likes: p.likes,
+                comments: p.comments,
+                views: p.views,
+                isReel: p.format.startsWith("reel"),
+                folder,
+                note: "",
+                postId: p.id,
+                transcript: p.transcript ?? "",
+              })
+            }
+          />
+        </Card>
       )}
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-4 items-start">
         <div className="flex flex-col gap-4">
-          <Card
-            title="Classement"
-            actions={
-              <Tabs
-                value={dim}
-                onChange={setDim}
-                options={[
-                  { value: "format", label: "Format" },
-                  { value: "angle", label: "Angle" },
-                  { value: "hook", label: "Hook" },
-                ]}
-              />
-            }
-          >
-            <div className="mb-3">
-              <Tabs
-                value={metric}
-                onChange={setMetric}
-                options={[
-                  { value: "score", label: "Score global" },
-                  { value: "avgViews", label: "Vues/post" },
-                  { value: "followersPerPost", label: "Abonnés/post" },
-                  { value: "callsBooked", label: "Calls" },
-                ]}
-              />
-            </div>
-            <BarChart
-              rows={chartRows}
-              format={metric === "score" ? (n) => `${Math.round(n)}` : metric === "followersPerPost" ? (n) => n.toFixed(1) : fmtCompact}
-              unit={metric === "score" ? "/100" : undefined}
-            />
-          </Card>
-
-          <Card title="Le détail chiffré" padded={false}>
-            <div className="scroll-x">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>{dim === "format" ? "Format" : dim === "angle" ? "Angle" : "Hook"}</th>
-                    <th>Posts</th>
-                    <th>Vues/post</th>
-                    <th>Engagement</th>
-                    <th>Saves</th>
-                    <th>Abonnés/post</th>
-                    <th>Calls</th>
-                    <th>Score</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.map((s) => (
-                    <tr key={s.key}>
-                      <td className="font-medium">{s.label}</td>
-                      <td className="num">{s.posts}</td>
-                      <td className="num">{fmtCompact(s.avgViews)}</td>
-                      <td className="num">{fmtPct(s.avgEngagementRate * 100)}</td>
-                      <td className="num">{fmtPct(s.avgSaveRate * 100)}</td>
-                      <td className="num">{s.followersPerPost.toFixed(1)}</td>
-                      <td className="num">{s.callsBooked}</td>
-                      <td className="num font-semibold">{s.score}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-
           {error && <ErrorNote>{error}</ErrorNote>}
 
           {strategy && (
-            <Card title="Le plan de la semaine" subtitle="Généré par l'IA à partir de tes chiffres.">
+            <Card title="Le plan de la semaine">
               <div className="flex flex-col gap-4">
                 <p
                   className="text-[14px] leading-relaxed font-medium p-3 rounded-[8px]"
@@ -322,57 +269,6 @@ export default function InsightsPage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <Card title="Entonnoir contenu → call">
-            <Funnel
-              steps={[
-                { label: "Vues", value: fun.views },
-                { label: "Visites de profil", value: fun.profileVisits, rate: fun.visitRate },
-                { label: "Clics sur le lien", value: fun.linkClicks, rate: fun.clickRate },
-                { label: "Calls bookés", value: fun.callsBooked, rate: fun.bookRate },
-                { label: "Closés", value: fun.closed, rate: fun.closeRate },
-              ]}
-            />
-          </Card>
-
-          {slots.length > 0 && (
-            <Card title="Meilleurs créneaux" subtitle="Heure de publication réelle de tes posts.">
-              <BarChart
-                rows={slots.slice(0, 6).map((s, i) => ({
-                  label: `${String(s.hour).padStart(2, "0")} h`,
-                  value: s.avgViews,
-                  color: SERIES[i % SERIES.length],
-                  meta: `${s.posts} post${s.posts > 1 ? "s" : ""} publiés sur ce créneau`,
-                }))}
-                format={fmtCompact}
-              />
-            </Card>
-          )}
-
-          <Card title="Ce qui manque">
-            <ul className="flex flex-col gap-2 text-[12.5px]">
-              {verdict.insuffisant.length > 0 && (
-                <li className="muted leading-relaxed">
-                  Formats sous-testés (moins de 3 posts) :{" "}
-                  <strong>{verdict.insuffisant.map((s) => s.label).join(", ")}</strong>. Impossible de conclure dessus.
-                </li>
-              )}
-              {posts.rows.filter((p) => p.status === "publie" && !p.views).length > 0 && (
-                <li className="muted leading-relaxed">
-                  <strong>{fmtInt(posts.rows.filter((p) => p.status === "publie" && !p.views).length)}</strong> posts
-                  publiés sans stats. Ils ne comptent pas dans le classement.
-                </li>
-              )}
-              {posts.rows.filter((p) => p.status === "publie" && !p.hook).length > 0 && (
-                <li className="muted leading-relaxed">
-                  <strong>{fmtInt(posts.rows.filter((p) => p.status === "publie" && !p.hook).length)}</strong> posts
-                  sans hook renseigné : l&apos;onglet « Hook » est aveugle pour eux.
-                </li>
-              )}
-              {!verdict.insuffisant.length && (
-                <li className="muted leading-relaxed">Tes données sont propres. Continue comme ça.</li>
-              )}
-            </ul>
-          </Card>
         </div>
       </div>
     </>

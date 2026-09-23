@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readDB, writeDB } from "@/lib/db";
-import type { CallEvent, Lead } from "@/lib/types";
+import { getSettings, newId, readDB, writeDB } from "@/lib/db";
+import { upsertLead } from "@/lib/sales/repo";
+import type { Appointment, CallEvent, Lead } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,77 @@ export async function POST(req: NextRequest) {
       known.stage = "call-book";
       known.callAt = iso;
     }
+  }
+
+  /*
+   * Rendez-vous du module commercial.
+   *
+   * C'est la voie fiable pour recevoir un booking : l'API de liste d'iClosed
+   * s'est reveleé incapable de renvoyer les rendez-vous a venir (elle annonce
+   * `count: 1` avec une liste vide, verifie sur les 12 pages du compte). Le
+   * webhook, lui, pousse l'information au moment ou elle nait.
+   *
+   * Comme pour l'import manuel, iClosed ne sait pas qui a set le lead : le
+   * rendez-vous prend le setter par defaut configure dans les reglages. Sans
+   * setter par defaut, on ne cree rien plutot que d'inventer une attribution.
+   */
+  const settings = getSettings();
+  const setterId = settings.salesDefaultSetterId;
+  const alreadyLinked = db.appointments.some((a) => a.iclosedEventId === uid);
+
+  if (status === "book" && uid && setterId && !alreadyLinked && db.team.some((m) => m.id === setterId)) {
+    const igGuess = (email || name || `iclosed-${uid}`).split("@")[0];
+    const lead = upsertLead(db, {
+      igUsername: igGuess,
+      name,
+      email,
+      timezone: pick(flat, ["timezone", "inviteTimeZone"]) || "Europe/Paris",
+      setterId,
+      source: "inbound",
+    });
+
+    const appointment: Appointment = {
+      id: newId(),
+      leadId: lead.id,
+      setterId,
+      closerId: "",
+      scheduledAt: iso,
+      timezone: pick(flat, ["timezone", "inviteTimeZone"]) || "Europe/Paris",
+      source: "inbound",
+      status: "booked",
+      qualified: false,
+      setterNotes: "",
+      closerNotes: "",
+      lostReason: "",
+      iclosedUrl: url,
+      iclosedEventId: uid,
+      rescheduledFromId: "",
+      completedAt: "",
+      history: [
+        {
+          at: new Date().toISOString(),
+          actorId: "",
+          actorName: "iClosed",
+          from: "",
+          to: "booked",
+          note: "Reçu par webhook iClosed",
+        },
+      ],
+      createdBy: "",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    db.appointments.unshift(appointment);
+    db.activityLogs.unshift({
+      id: newId(),
+      at: appointment.createdAt,
+      actorId: "",
+      actorName: "iClosed",
+      action: "appointment.created",
+      entity: "appointment",
+      entityId: appointment.id,
+      summary: `Rendez-vous reçu d'iClosed pour ${lead.handle || lead.name}`,
+    });
   }
 
   writeDB(db);

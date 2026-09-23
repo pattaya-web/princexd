@@ -11,7 +11,6 @@ export default function CrmPage() {
     <EntityView
       spec={LEADS}
       title="CRM"
-      subtitle="Chaque lead qui sort d'un contenu, jusqu'au closing. Glisse une carte d'une colonne à l'autre pour changer son étape."
       summary={(rows) => {
         const leads = rows as unknown as Lead[];
         const won = leads.filter((l) => l.stage === "closed-won");
@@ -23,7 +22,7 @@ export default function CrmPage() {
             <StatTile label="Pipeline ouvert" value={fmtEur(inPipe.reduce((a, l) => a + (l.dealValue || 0), 0))} hint={`${inPipe.length} leads actifs`} />
             <StatTile label="Closé" value={fmtEur(won.reduce((a, l) => a + (l.dealValue || 0), 0))} hint={`${won.length} ventes`} accent="var(--good)" />
             <StatTile label="Taux de closing" value={decided ? fmtPct((won.length / decided) * 100) : "—"} hint={decided ? `${won.length} / ${decided} décidés` : "Aucun deal tranché"} />
-            <StatTile label="Calls bookés" value={fmtInt(leads.filter((l) => l.stage === "call-book").length)} hint="En attente de call" />
+            <StatTile label="Calls bookés" value={fmtInt(leads.filter((l) => l.stage === "call-book").length)} />
           </div>
         );
       }}

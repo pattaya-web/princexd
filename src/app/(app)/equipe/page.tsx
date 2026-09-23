@@ -17,7 +17,6 @@ export default function EquipePage() {
       <EntityView
         spec={TEAM}
         title="Équipe"
-        subtitle="Qui fait quoi, à quelle commission, sur quel objectif."
       />
     </>
   );

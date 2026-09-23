@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insert, list, remove, update } from "@/lib/db";
+import { insert, list, remove, removeMany, update } from "@/lib/db";
 import type { CollectionName } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -18,17 +18,43 @@ const ALLOWED: CollectionName[] = [
   "swipes",
   "generations",
   "edits",
+  "creators",
+  "creatorPosts",
+  "saved",
+  "redo",
 ];
 
 function resolve(name: string): CollectionName | null {
   return (ALLOWED as string[]).includes(name) ? (name as CollectionName) : null;
 }
 
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ collection: string }> }) {
+/**
+ * Champs retires en mode allege : du texte long dont les listes n'ont aucun
+ * usage. Sur 226 publications, les transcriptions pesent a elles seules 155 Ko
+ * sur 422. Un booleen `hasTranscript` les remplace pour que l'interface sache
+ * quand meme lesquelles sont deja transcrites.
+ */
+const HEAVY: Partial<Record<CollectionName, string[]>> = {
+  posts: ["transcript", "blueprint", "script"],
+};
+
+export async function GET(req: NextRequest, ctx: { params: Promise<{ collection: string }> }) {
   const { collection } = await ctx.params;
   const key = resolve(collection);
   if (!key) return NextResponse.json({ error: "Collection inconnue" }, { status: 404 });
-  return NextResponse.json(list(key));
+
+  const rows = list(key);
+  const heavy = HEAVY[key];
+  if (req.nextUrl.searchParams.get("light") !== "1" || !heavy) {
+    return NextResponse.json(rows);
+  }
+
+  const slim = (rows as unknown as Record<string, unknown>[]).map((row) => {
+    const copy: Record<string, unknown> = { ...row, hasTranscript: Boolean(row.transcript) };
+    for (const f of heavy) delete copy[f];
+    return copy;
+  });
+  return NextResponse.json(slim);
 }
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ collection: string }> }) {
@@ -54,6 +80,13 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ collecti
   const { collection } = await ctx.params;
   const key = resolve(collection);
   if (!key) return NextResponse.json({ error: "Collection inconnue" }, { status: 404 });
+  // `ids` permet de vider une selection en une seule ecriture.
+  const many = req.nextUrl.searchParams.get("ids");
+  if (many) {
+    const list = many.split(",").map((s) => s.trim()).filter(Boolean);
+    if (!list.length) return NextResponse.json({ error: "ids vide" }, { status: 400 });
+    return NextResponse.json(removeMany(key, list));
+  }
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id manquant" }, { status: 400 });
   return NextResponse.json(remove(key, id));

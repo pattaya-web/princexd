@@ -8,7 +8,6 @@ export default function RessourcesPage() {
     <EntityView
       spec={RESOURCES}
       title="Ressources"
-      subtitle="Ta bibliothèque : templates, docs, outils, formations. Tout ce que tu ne veux pas rechercher deux fois."
     />
   );
 }

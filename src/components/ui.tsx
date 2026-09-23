@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 /* ------------------------------- Layout ------------------------------- */
 
@@ -14,10 +15,12 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-start justify-between gap-3 mb-5">
-      <div>
-        <h1 className="text-[19px] font-semibold tracking-tight">{title}</h1>
-        {subtitle && <p className="muted text-[13px] mt-0.5 max-w-2xl">{subtitle}</p>}
+    <header className="flex flex-wrap items-end justify-between gap-4 mb-7">
+      <div className="min-w-0">
+        <h1 className="text-[26px] sm:text-[30px] font-medium leading-[1.1]" style={{ letterSpacing: "-0.03em" }}>
+          {title}
+        </h1>
+        {subtitle && <p className="muted text-[14px] mt-2 max-w-2xl leading-relaxed">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2 flex-wrap">{actions}</div>}
     </header>
@@ -42,15 +45,15 @@ export function Card({
   return (
     <section className={`card ${className}`}>
       {(title || actions) && (
-        <div className="flex items-start justify-between gap-3 px-4 pt-3.5 pb-3 border-b" style={{ borderColor: "var(--border)" }}>
-          <div>
-            {title && <h2 className="text-[13px] font-semibold">{title}</h2>}
-            {subtitle && <p className="dim text-[12px] mt-0.5">{subtitle}</p>}
+        <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3.5 border-b" style={{ borderColor: "var(--border)" }}>
+          <div className="min-w-0">
+            {title && <h2 className="text-[15px] font-medium">{title}</h2>}
+            {subtitle && <p className="muted text-[12.5px] mt-1">{subtitle}</p>}
           </div>
           {actions && <div className="flex items-center gap-1.5 shrink-0">{actions}</div>}
         </div>
       )}
-      <div className={padded ? "p-4" : ""}>{children}</div>
+      <div className={padded ? "p-5" : ""}>{children}</div>
     </section>
   );
 }
@@ -116,22 +119,25 @@ export function StatTile({
   accent?: string;
 }) {
   return (
-    <div className="card px-4 py-3.5">
+    <div className="card px-5 py-4">
       <div className="label-xs">{label}</div>
-      <div className="flex items-baseline gap-2 mt-1.5">
-        <span className="text-[24px] font-semibold num tracking-tight" style={accent ? { color: accent } : undefined}>
+      <div className="flex items-baseline gap-2.5 mt-2.5">
+        <span
+          className="text-[28px] font-medium num leading-none"
+          style={{ letterSpacing: "-0.035em", ...(accent ? { color: accent } : {}) }}
+        >
           {value}
         </span>
         {trend !== undefined && trend !== 0 && (
           <span
-            className="text-[12px] font-semibold num"
+            className="mono text-[11px] num"
             style={{ color: trend > 0 ? "var(--good)" : "var(--critical)" }}
           >
             {trend > 0 ? "▲" : "▼"} {Math.abs(trend).toLocaleString("fr-FR")}
           </span>
         )}
       </div>
-      {hint && <div className="dim text-[12px] mt-1">{hint}</div>}
+      {hint && <div className="dim text-[12px] mt-2">{hint}</div>}
     </div>
   );
 }
@@ -153,6 +159,15 @@ export function Modal({
   wide?: boolean;
   footer?: ReactNode;
 }) {
+  /*
+   * Montage differe.
+   *
+   * Le portail vise `document.body`, qui n'existe pas au rendu serveur : on
+   * n'ouvre donc le passage qu'une fois cote navigateur.
+   */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -167,37 +182,70 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  /*
+   * Rendu dans <body> plutot qu'a sa place dans l'arbre.
+   *
+   * Le contenu des pages vit dans un conteneur anime (`.rise`), et une
+   * animation sur `transform` cree un bloc conteneur : un `position: fixed`
+   * a l'interieur se cale alors sur CE conteneur, pas sur la fenetre. Le voile
+   * sombre ne couvrait donc que la zone de contenu, laissant la barre laterale
+   * et l'en-tete en clair, et la fenetre n'etait pas centree sur l'ecran.
+   *
+   * Le portail supprime la dependance a tout ancetre : ou que la modale soit
+   * appelee, elle s'affiche par-dessus l'application entiere.
+   */
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-8"
-      style={{ background: "rgb(0 0 0 / 0.5)", backdropFilter: "blur(2px)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6"
+      style={{ background: "rgb(35 49 55 / 0.4)", backdropFilter: "blur(6px)" }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className={`card fade-in w-full ${wide ? "max-w-4xl" : "max-w-xl"} my-auto`}>
+      {/*
+        Colonne bornee a la hauteur de l'ecran : l'en-tete et le pied restent
+        visibles, seul le corps defile. Sans cette borne, une video verticale
+        poussait le pied hors de l'ecran et la fenetre debordait.
+      */}
+      <div
+        className={`card fade-in w-full flex flex-col ${wide ? "max-w-5xl" : "max-w-xl"}`}
+        style={{ maxHeight: "92vh", boxShadow: "var(--shadow-lg)", borderRadius: "var(--radius-lg)" }}
+      >
         <div
-          className="flex items-center justify-between gap-3 px-4 py-3 border-b sticky top-0 z-10"
-          style={{ borderColor: "var(--border)", background: "var(--surface)", borderTopLeftRadius: "var(--radius)", borderTopRightRadius: "var(--radius)" }}
+          className="flex items-center justify-between gap-3 px-5 py-4 shrink-0"
+          style={{
+            borderBottom: "1px solid var(--border)",
+            background: "var(--surface)",
+            borderTopLeftRadius: "var(--radius-lg)",
+            borderTopRightRadius: "var(--radius-lg)",
+          }}
         >
-          <h2 className="text-[14px] font-semibold">{title}</h2>
-          <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label="Fermer">
+          <h2 className="text-[16px] font-medium truncate">{title}</h2>
+          <button className="btn btn-ghost btn-sm shrink-0" onClick={onClose} aria-label="Fermer">
             ✕
           </button>
         </div>
-        <div className="p-4">{children}</div>
+
+        <div className="p-5 overflow-y-auto flex-1 min-h-0">{children}</div>
+
         {footer && (
           <div
-            className="flex justify-end gap-2 px-4 py-3 border-t"
-            style={{ borderColor: "var(--border)", background: "var(--surface-2)", borderBottomLeftRadius: "var(--radius)", borderBottomRightRadius: "var(--radius)" }}
+            className="flex flex-wrap justify-end items-center gap-2 px-5 py-3.5 shrink-0"
+            style={{
+              borderTop: "1px solid var(--border)",
+              background: "var(--surface-2)",
+              borderBottomLeftRadius: "var(--radius-lg)",
+              borderBottomRightRadius: "var(--radius-lg)",
+            }}
           >
             {footer}
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -255,7 +303,7 @@ export function Toggle({
             height: 15,
             top: 2,
             left: 2,
-            background: "#fff",
+            background: checked ? "var(--accent-on)" : "#fff",
             transform: checked ? "translateX(15px)" : "none",
           }}
         />
@@ -313,15 +361,16 @@ export function ToastHost({ children }: { children: ReactNode }) {
         {items.map((t) => (
           <div
             key={t.id}
-            className="card fade-in px-3.5 py-2.5 text-[13px] leading-snug"
-            style={
-              t.kind === "err"
+            className="card fade-in px-4 py-3 text-[13px] leading-snug"
+            style={{
+              boxShadow: "var(--shadow-lg)",
+              ...(t.kind === "err"
                 ? {
                     borderColor: "color-mix(in srgb, var(--critical) 40%, transparent)",
                     color: "var(--critical)",
                   }
-                : undefined
-            }
+                : {}),
+            }}
             role="status"
           >
             {t.msg}
@@ -344,18 +393,21 @@ export function Tabs<T extends string>({
   options: { value: T; label: string; count?: number }[];
 }) {
   return (
-    <div className="flex gap-1 p-1 rounded-[10px] overflow-x-auto" style={{ background: "var(--surface-3)" }}>
+    <div
+      className="inline-flex max-w-full gap-1 p-1 rounded-full overflow-x-auto"
+      style={{ background: "var(--surface-3)", border: "1px solid var(--border)" }}
+    >
       {options.map((o) => {
         const active = o.value === value;
         return (
           <button
             key={o.value}
             onClick={() => onChange(o.value)}
-            className="px-3 h-[28px] rounded-[7px] text-[12.5px] font-medium transition-colors whitespace-nowrap"
+            className="tab-btn px-3.5 h-[28px] rounded-full text-[12.5px] font-medium whitespace-nowrap"
             style={{
               background: active ? "var(--surface)" : "transparent",
               color: active ? "var(--text)" : "var(--text-2)",
-              boxShadow: active ? "var(--shadow)" : "none",
+              border: `1px solid ${active ? "var(--border)" : "transparent"}`,
             }}
           >
             {o.label}

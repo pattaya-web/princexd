@@ -1,34 +1,104 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api, useCollection } from "@/lib/client";
-import { MODELS, type ModelDef } from "@/lib/models";
-import { Card, CopyButton, Empty, ErrorNote, Field, InfoNote, PageHeader, Spinner, Tabs, useToast } from "@/components/ui";
-import { fmtInt, fmtUsd, label, relative } from "@/lib/format";
+import { getModel, MODELS, modelsOfKind, type ModelDef, type ModelKind } from "@/lib/models";
+import {
+  Card,
+  CopyButton,
+  Empty,
+  ErrorNote,
+  Field,
+  Modal,
+  PageHeader,
+  Tabs,
+  Toggle,
+  useToast,
+} from "@/components/ui";
+import { FaceSwap } from "@/components/FaceSwap";
+import { MediaField } from "@/components/MediaField";
+import { ElementField, ELEMENT_NAME, EMPTY_ELEMENT, type ElementValue } from "@/components/ElementField";
+import { SkPage } from "@/components/Skeleton";
+import { GENERATIONS_EVENT } from "@/components/JobsDock";
+import { duration, estimateSec, fmtInt, fmtUsd, label, relative } from "@/lib/format";
 import type { Generation } from "@/lib/types";
 
 const CREDIT_USD = 0.005;
 
+const KIND_LABEL: Record<ModelKind, string> = {
+  image: "Image",
+  video: "Vidéo",
+  swap: "Swap vidéo",
+};
+
 function defaultsFor(model: ModelDef): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const f of model.fields) out[f.key] = f.default ?? "";
+  for (const f of model.fields) {
+    out[f.key] =
+      f.type === "files" ? [] : f.type === "element" ? { ...EMPTY_ELEMENT } : (f.default ?? "");
+  }
   return out;
+}
+
+/**
+ * Prompt a conserver en changeant de modele.
+ *
+ * On ne reporte que ce que l'utilisateur a lui-meme ecrit. Reporter aveuglement
+ * l'ancienne valeur ecrasait la consigne par defaut du nouveau modele — et un
+ * champ vide restait vide, ce qui laissait partir des generations sans consigne.
+ */
+function carryPrompt(prev: unknown, from: ModelDef, to: ModelDef): string {
+  const typed = String(prev ?? "").trim();
+  const fallback = String(to.fields.find((f) => f.key === "prompt")?.default ?? "");
+  if (!typed) return fallback;
+  const previousDefault = String(from.fields.find((f) => f.key === "prompt")?.default ?? "").trim();
+  // Une consigne laissee telle quelle n'est pas un travail a preserver.
+  return typed === previousDefault ? fallback : typed;
+}
+
+function firstOfKind(kind: ModelKind) {
+  return modelsOfKind(kind)[0] ?? MODELS[0];
 }
 
 function StudioInner() {
   const params = useSearchParams();
   const toast = useToast();
-  const { rows, setRows, reload } = useCollection<Generation>("generations");
+  const { rows, setRows, reload, destroyMany } = useCollection<Generation>("generations");
 
-  const [kind, setKind] = useState<"image" | "video">("image");
-  const [modelId, setModelId] = useState(MODELS[0].id);
-  const [input, setInput] = useState<Record<string, unknown>>(() => defaultsFor(MODELS[0]));
+  const [kind, setKind] = useState<ModelKind>("image");
+  const [modelId, setModelId] = useState(() => firstOfKind("image").id);
+  const [input, setInput] = useState<Record<string, unknown>>(() => defaultsFor(firstOfKind("image")));
+  const [swap, setSwap] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(() => new Set());
+  const picking = picked.size > 0;
 
   const model = useMemo(() => MODELS.find((m) => m.id === modelId) ?? MODELS[0], [modelId]);
-  const visible = useMemo(() => MODELS.filter((m) => m.kind === kind), [kind]);
+  const visible = useMemo(() => modelsOfKind(kind), [kind]);
+
+  /*
+   * Les champs se rangent par nature plutot que dans l'ordre du catalogue :
+   * les reglages courts en pastilles sur la ligne du modele, les consignes en
+   * pleine largeur, les sources en vignettes. Une grille uniforme etirait un
+   * menu « Format » sur 300 px et noyait le prompt au milieu.
+   */
+  const shownFields = useMemo(() => model.fields.filter((f) => !f.hidden), [model]);
+  const compact = useMemo(() => shownFields.filter((f) => f.compact), [shownFields]);
+  const texts = useMemo(() => shownFields.filter((f) => f.type === "textarea"), [shownFields]);
+  const media = useMemo(
+    () => shownFields.filter((f) => f.type === "file" || f.type === "files" || f.type === "element"),
+    [shownFields],
+  );
+  const others = useMemo(
+    () =>
+      shownFields.filter(
+        (f) => !f.compact && f.type !== "textarea" && f.type !== "file" && f.type !== "files" && f.type !== "element",
+      ),
+    [shownFields],
+  );
 
   // Le Swipe file peut envoyer un prompt tout prêt via l'URL.
   const seeded = useRef(false);
@@ -36,13 +106,11 @@ function StudioInner() {
     if (seeded.current) return;
     const prompt = params.get("prompt");
     const wanted = params.get("kind");
-    if (wanted === "video" || wanted === "image") {
+    if (wanted === "video" || wanted === "image" || wanted === "swap") {
+      const first = firstOfKind(wanted);
       setKind(wanted);
-      const first = MODELS.find((m) => m.kind === wanted);
-      if (first) {
-        setModelId(first.id);
-        setInput({ ...defaultsFor(first), ...(prompt ? { prompt } : {}) });
-      }
+      setModelId(first.id);
+      setInput({ ...defaultsFor(first), ...(prompt ? { prompt } : {}) });
     } else if (prompt) {
       setInput((v) => ({ ...v, prompt }));
     }
@@ -53,38 +121,129 @@ function StudioInner() {
     const next = MODELS.find((m) => m.id === id);
     if (!next) return;
     setModelId(id);
+    // Sinon l'erreur du modele precedent semble decrire le nouveau.
+    setError(null);
     // On conserve le prompt en changeant de modèle : c'est le travail qu'on ne veut pas reperdre.
-    setInput((prev) => ({ ...defaultsFor(next), prompt: prev.prompt ?? "" }));
+    setInput((prev) => ({ ...defaultsFor(next), prompt: carryPrompt(prev.prompt, model, next) }));
   };
 
-  const switchKind = (k: "image" | "video") => {
+  const switchKind = (k: ModelKind) => {
+    const first = firstOfKind(k);
     setKind(k);
-    const first = MODELS.find((m) => m.kind === k);
-    if (first) {
-      setModelId(first.id);
-      setInput((prev) => ({ ...defaultsFor(first), prompt: prev.prompt ?? "" }));
-    }
+    setError(null);
+    setSwap(false);
+    setModelId(first.id);
+    setInput((prev) => ({ ...defaultsFor(first), prompt: carryPrompt(prev.prompt, model, first) }));
   };
+
+  /**
+   * Chaînage : on envoie un résultat de la galerie dans le premier champ média
+   * du bon type. C'est le geste central du workflow — on génère le personnage
+   * en image, puis on l'applique à sa vidéo sans jamais rien retélécharger.
+   */
+  const reuse = useCallback(
+    (url: string, from: "image" | "video") => {
+      const first = firstOfKind("swap");
+      const accept = from;
+      const slot = first.fields.find((f) => (f.type === "file" || f.type === "files") && f.accept === accept);
+      if (!slot) {
+        toast("Aucun emplacement compatible.");
+        return;
+      }
+      setKind("swap");
+      setSwap(false);
+      setModelId(first.id);
+      setInput({ ...defaultsFor(first), [slot.key]: slot.type === "files" ? [url] : url });
+      toast(`Envoyé dans « ${slot.label} ».`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [toast],
+  );
+
+  /**
+   * Recharge une generation passee dans le formulaire.
+   *
+   * Les entrees sont stockees telles qu'elles sont parties chez KIE : on les
+   * retraduit vers la forme attendue par les champs, sinon un tableau atterrit
+   * dans un champ simple et le formulaire se casse.
+   */
+  const restore = useCallback(
+    (gen: Generation) => {
+      const def = MODELS.find((m) => m.id === gen.model);
+      if (!def) {
+        toast("Ce modèle n'est plus au catalogue.", "err");
+        return;
+      }
+      const raw = (gen.input ?? {}) as Record<string, unknown>;
+      const next: Record<string, unknown> = { ...defaultsFor(def) };
+
+      for (const f of def.fields) {
+        const v = raw[f.key];
+        if (v === undefined || v === null) continue;
+
+        if (f.type === "files") {
+          next[f.key] = Array.isArray(v) ? v.map(String) : [String(v)];
+        } else if (f.type === "file") {
+          next[f.key] = Array.isArray(v) ? String(v[0] ?? "") : String(v);
+        } else if (f.type === "element") {
+          const el = (Array.isArray(v) ? v[0] : null) as
+            | { description?: string; element_input_urls?: string[] }
+            | null;
+          next[f.key] = el
+            ? { urls: el.element_input_urls ?? [], description: el.description ?? "" }
+            : { ...EMPTY_ELEMENT };
+        } else {
+          next[f.key] = typeof v === "boolean" ? String(v) : String(v);
+        }
+      }
+
+      setKind(def.kind);
+      setSwap(false);
+      setModelId(def.id);
+      setInput(next);
+      setError(null);
+      toast("Réglages rechargés dans le formulaire.");
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+    },
+    [toast],
+  );
 
   const pending = rows.filter((g) => g.state !== "success" && g.state !== "fail");
+  const previewed = rows.find((g) => g.id === preview && g.state === "success") ?? null;
+  // Ce que ce modele a reellement mis, sur ce compte.
+  const eta = estimateSec(modelId, rows);
+  // Calculee une fois par modele et par lot de lignes : la faire par
+  // vignette parcourait toute la galerie pour chacune d'elles, a chaque rendu.
+  const etaByModel = useMemo(() => {
+    const m = new Map<string, number | null>();
+    for (const g of rows) {
+      if (!m.has(g.model)) m.set(g.model, estimateSec(g.model, rows)?.sec ?? null);
+    }
+    return m;
+  }, [rows]);
 
   // Polling tant qu'une génération est en cours. KIE est asynchrone :
   // createTask ne renvoie qu'un identifiant, jamais le résultat.
+  /*
+   * Le sondage vit dans le Shell, pour continuer quand on quitte cette page.
+   * Ici on se contente d'ecouter ce qu'il diffuse : deux boucles concurrentes
+   * doubleraient les appels pour rien.
+   */
   useEffect(() => {
-    if (!pending.length) return;
-    const id = setInterval(async () => {
-      try {
-        const res = await api<{ remaining: number; generations?: Generation[] }>("/api/kie/task");
-        if (res.generations) setRows(res.generations);
-      } catch {
-        // Erreur réseau ponctuelle : le prochain tick réessaiera.
-      }
-    }, 6000);
-    return () => clearInterval(id);
-  }, [pending.length, setRows]);
+    const onJobs = (e: Event) => {
+      const rows = (e as CustomEvent<Generation[]>).detail;
+      if (Array.isArray(rows)) setRows(rows);
+    };
+    window.addEventListener(GENERATIONS_EVENT, onJobs);
+    return () => window.removeEventListener(GENERATIONS_EVENT, onJobs);
+  }, [setRows]);
 
   const launch = async () => {
-    const missing = model.fields.filter((f) => f.required && !String(input[f.key] ?? "").trim());
+    const missing = model.fields.filter((f) => {
+      if (!f.required) return false;
+      const v = input[f.key];
+      return Array.isArray(v) ? v.length === 0 : !String(v ?? "").trim();
+    });
     if (missing.length) {
       setError(`Champ obligatoire manquant : ${missing.map((f) => f.label).join(", ")}.`);
       return;
@@ -95,10 +254,29 @@ function StudioInner() {
       const payload: Record<string, unknown> = {};
       for (const f of model.fields) {
         const raw = input[f.key];
-        if (raw === "" || raw === undefined) continue;
-        if (f.type === "urls") {
+        if (raw === "" || raw === undefined || raw === null) continue;
+
+        if (f.type === "element") {
+          // KIE attend un tableau de sujets nommes ; sans image, on n'envoie rien.
+          const el = raw as ElementValue;
+          if (el?.urls?.length) {
+            payload[f.key] = [
+              {
+                name: ELEMENT_NAME,
+                description: el.description?.trim() || "le produit tenu dans la main",
+                element_input_urls: el.urls,
+              },
+            ];
+          }
+        } else if (f.type === "files") {
+          const urls = (Array.isArray(raw) ? raw : [raw]).map(String).filter(Boolean);
+          if (urls.length) payload[f.key] = urls;
+        } else if (f.type === "urls") {
           const urls = String(raw).split("\n").map((s) => s.trim()).filter(Boolean);
           if (urls.length) payload[f.key] = urls;
+        } else if (f.type === "number") {
+          const n = Number(raw);
+          if (Number.isFinite(n)) payload[f.key] = n;
         } else if (raw === "true" || raw === "false") {
           payload[f.key] = raw === "true";
         } else {
@@ -122,7 +300,6 @@ function StudioInner() {
     <>
       <PageHeader
         title="Studio IA"
-        subtitle="Génère tes visuels et tes plans de B-roll via KIE. Les tâches sont asynchrones : lance, et continue à bosser."
         actions={
           <>
             {pending.length > 0 && (
@@ -135,161 +312,679 @@ function StudioInner() {
         }
       />
 
-      <div className="grid lg:grid-cols-[380px_1fr] gap-4 items-start">
-        <div className="flex flex-col gap-4 lg:sticky lg:top-[68px]">
-          <Card title="Nouvelle génération">
-            <div className="flex flex-col gap-3.5">
-              <Tabs
-                value={kind}
-                onChange={switchKind}
-                options={[
-                  { value: "image", label: "Image" },
-                  { value: "video", label: "Vidéo" },
-                ]}
-              />
-
-              <Field label="Modèle" hint={model.blurb}>
-                <select className="select" value={modelId} onChange={(e) => switchModel(e.target.value)}>
-                  {visible.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} — {m.vendor}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-
-              {model.fields.map((f) => (
-                <Field key={f.key} label={f.label} hint={f.help}>
-                  {f.type === "textarea" ? (
-                    <textarea
-                      className="textarea"
-                      style={{ minHeight: 120 }}
-                      placeholder={f.placeholder}
-                      value={String(input[f.key] ?? "")}
-                      onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
-                    />
-                  ) : f.type === "select" ? (
-                    <select
-                      className="select"
-                      value={String(input[f.key] ?? "")}
-                      onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
-                    >
-                      {f.options?.map((o) => (
-                        <option key={o} value={o}>{o}</option>
-                      ))}
-                    </select>
-                  ) : f.type === "urls" ? (
-                    <textarea
-                      className="textarea mono !text-[12px]"
-                      style={{ minHeight: 60 }}
-                      placeholder="https://…"
-                      value={String(input[f.key] ?? "")}
-                      onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
-                    />
-                  ) : (
-                    <input
-                      className="input"
-                      placeholder={f.placeholder}
-                      value={String(input[f.key] ?? "")}
-                      onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
-                    />
-                  )}
-                </Field>
-              ))}
-
-              {error && <ErrorNote>{error}</ErrorNote>}
-
-              <div className="flex items-center justify-between gap-3 pt-1">
-                <span className="dim text-[12px]">
-                  ≈ {fmtInt(model.approxCredits)} crédits · {fmtUsd(model.approxCredits * CREDIT_USD)}
-                </span>
-                <button className="btn btn-primary" onClick={() => void launch()} disabled={busy}>
-                  {busy ? <span className="spinner" /> : "✦"} Générer
+      <div className="flex flex-col gap-4">
+        <Card
+          title="Résultats"
+          subtitle={
+            picking
+              ? `${picked.size} sélectionnée${picked.size > 1 ? "s" : ""}`
+              : `${rows.length} génération${rows.length > 1 ? "s" : ""}`
+          }
+          padded={false}
+          actions={
+            picking ? (
+              <>
+                <button className="btn btn-sm" onClick={() => setPicked(new Set())}>
+                  Annuler
                 </button>
-              </div>
-            </div>
-          </Card>
-
-          <InfoNote>
-            Le coût affiché est un ordre de grandeur : KIE facture au modèle et à la durée. Le vrai débit apparaît sur
-            chaque carte une fois la tâche terminée, et le solde en bas à gauche se met à jour tout seul.
-          </InfoNote>
-        </div>
-
-        <Card title="Galerie" subtitle={`${rows.length} génération${rows.length > 1 ? "s" : ""}`} padded={false}>
+                <button
+                  className="btn btn-sm"
+                  onClick={() => setPicked(new Set(rows.map((g) => g.id)))}
+                >
+                  Tout
+                </button>
+                <button
+                  className="btn btn-sm btn-danger"
+                  onClick={() => {
+                    const ids = [...picked];
+                    if (!window.confirm(`Supprimer ${ids.length} génération${ids.length > 1 ? "s" : ""} ?`)) return;
+                    setPicked(new Set());
+                    void destroyMany(ids).catch((e) => toast((e as Error).message, "err"));
+                  }}
+                >
+                  Supprimer ({picked.size})
+                </button>
+              </>
+            ) : undefined
+          }
+        >
           {!rows.length ? (
             <Empty>Rien de généré pour l&apos;instant. Lance ta première image à gauche.</Empty>
           ) : (
-            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 p-3.5">
+            <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 p-3">
               {rows.map((g) => (
-                <GenerationCard key={g.id} gen={g} />
+                <GenerationCard
+                  key={g.id}
+                  gen={g}
+                  eta={etaByModel.get(g.model) ?? null}
+                  picking={picking}
+                  picked={picked.has(g.id)}
+                  onPick={() =>
+                    setPicked((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(g.id)) next.delete(g.id);
+                      else next.add(g.id);
+                      return next;
+                    })
+                  }
+                  onOpen={() => setPreview(g.id)}
+                />
               ))}
             </div>
           )}
         </Card>
+
+        <div>
+          <Card>
+            <div className="flex flex-col gap-3.5">
+              <Tabs
+                value={kind}
+                onChange={switchKind}
+                options={(["image", "video", "swap"] as ModelKind[]).map((k) => ({
+                  value: k,
+                  label: KIND_LABEL[k],
+                }))}
+              />
+
+              {kind === "image" && (
+                <Toggle checked={swap} onChange={setSwap} label="Swap de visage" />
+              )}
+
+              {swap && kind === "image" ? (
+                <FaceSwap onQueued={(g) => setRows((prev) => [g, ...prev])} />
+              ) : (
+                <>
+                  <div className="flex items-end gap-2.5 flex-wrap">
+                    <select
+                      className="select !w-auto !min-w-[220px] font-medium"
+                      value={modelId}
+                      onChange={(e) => switchModel(e.target.value)}
+                    >
+                      {visible.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.best ? "★ " : ""}
+                          {m.name} — {m.vendor}
+                        </option>
+                      ))}
+                    </select>
+
+                    {media.length === 0 &&
+                      compact.map((f) => (
+                      <label key={f.key} className="flex flex-col gap-1" title={f.help}>
+                        <span className="label-xs">{f.label}</span>
+                        {f.type === "text" ? (
+                          <input
+                            className="input !w-[210px] !h-[34px] !text-[12px] !py-0"
+                            placeholder={f.placeholder}
+                            value={String(input[f.key] ?? "")}
+                            onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
+                          />
+                        ) : f.type === "select" ? (
+                          <select
+                            className="select !w-auto !h-[34px] !text-[12px] !py-0"
+                            value={String(input[f.key] ?? "")}
+                            onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
+                          >
+                            {f.options?.map((o) => (
+                              <option key={o} value={o}>{f.optionLabels?.[o] ?? (o || "Auto")}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            className="input !w-[84px] !h-[34px] !text-[12px] !py-0"
+                            type="number"
+                            value={String(input[f.key] ?? "")}
+                            onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
+                          />
+                        )}
+                        </label>
+                      ))}
+                  </div>
+
+                  {/* Sources d'abord : on choisit ses images avant d'ecrire. */}
+                  {media.length > 0 && (
+                    <div className="flex flex-wrap gap-x-6 gap-y-3 items-start">
+                      {media.map((f) =>
+                        f.type === "element" ? (
+                          <ElementField
+                            key={`${model.id}:${f.key}`}
+                            field={f}
+                            value={(input[f.key] as ElementValue) ?? EMPTY_ELEMENT}
+                            onChange={(v) => setInput((prev) => ({ ...prev, [f.key]: v }))}
+                            disabled={busy}
+                          />
+                        ) : (
+                          <MediaField
+                            key={`${model.id}:${f.key}`}
+                            field={f}
+                            value={(input[f.key] as string | string[]) ?? (f.type === "files" ? [] : "")}
+                            onChange={(v) => setInput((prev) => ({ ...prev, [f.key]: v }))}
+                            disabled={busy}
+                          />
+                        ),
+                      )}
+                    </div>
+                  )}
+
+                  {/* Consignes : pleine largeur, c'est le coeur du travail. */}
+                  {texts.map((f) => (
+                    <Field key={f.key} label={f.label}>
+                      <textarea
+                        className="textarea"
+                        style={{ minHeight: f.key === "prompt" ? 104 : 76 }}
+                        placeholder={f.placeholder}
+                        value={String(input[f.key] ?? "")}
+                        onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
+                      />
+                    </Field>
+                  ))}
+
+                  {/* Reglages en pied, quand les sources occupent le haut. */}
+                  {media.length > 0 && (compact.length > 0 || others.length > 0) && (
+                    <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+                      {[...compact, ...others].map((f) => (
+                        <label key={f.key} className="flex flex-col gap-1" title={f.help}>
+                          <span className="label-xs">{f.label}</span>
+                          {f.type === "select" ? (
+                            <select
+                              className="select !w-auto !h-[34px] !text-[12px] !py-0"
+                              value={String(input[f.key] ?? "")}
+                              onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
+                            >
+                              {f.options?.map((o) => (
+                                <option key={o} value={o}>{f.optionLabels?.[o] ?? (o || "Auto")}</option>
+                              ))}
+                            </select>
+                          ) : f.type === "number" ? (
+                            <input
+                              className="input !w-[84px] !h-[34px] !text-[12px] !py-0"
+                              type="number"
+                              value={String(input[f.key] ?? "")}
+                              onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
+                            />
+                          ) : (
+                            <input
+                              className="input !w-[210px] !h-[34px] !text-[12px] !py-0"
+                              placeholder={f.placeholder}
+                              value={String(input[f.key] ?? "")}
+                              onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
+                            />
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Sans source, le reste tient sur la ligne du modele. */}
+                  {media.length === 0 && others.length > 0 && (
+                    <div className="grid sm:grid-cols-2 gap-x-4 gap-y-3">
+                      {others.map((f) => (
+                        <Field key={f.key} label={f.label}>
+                          <input
+                            className="input"
+                            placeholder={f.placeholder}
+                            value={String(input[f.key] ?? "")}
+                            onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
+                          />
+                        </Field>
+                      ))}
+                    </div>
+                  )}
+
+                  {error && <ErrorNote>{error}</ErrorNote>}
+
+                  <div
+                    className="flex items-center justify-between gap-3 pt-3"
+                    style={{ borderTop: "1px solid var(--border)" }}
+                  >
+                    <span className="dim text-[12px] leading-snug">
+                      {eta && (
+                        <>
+                          ≈ {duration(eta.sec)} d&apos;attente
+                          <span className="opacity-70">
+                            {" "}
+                            (médiane sur {eta.sample} génération{eta.sample > 1 ? "s" : ""})
+                          </span>
+                          <br />
+                        </>
+                      )}
+                      {model.creditsPerSec ? (
+                        <>
+                          {fmtInt(model.creditsPerSec)} crédits/s — soit ≈{" "}
+                          {fmtInt(model.approxCredits)} · {fmtUsd(model.approxCredits * CREDIT_USD)} pour 10 s
+                        </>
+                      ) : (
+                        <>
+                          ≈ {fmtInt(model.approxCredits)} crédits · {fmtUsd(model.approxCredits * CREDIT_USD)}
+                        </>
+                      )}
+                    </span>
+                    <button className="btn btn-primary" onClick={() => void launch()} disabled={busy}>
+                      {busy ? <span className="spinner" /> : "✦"} {kind === "swap" ? "Swap" : "Générer"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+
+        </div>
       </div>
+
+      {previewed && <Preview gen={previewed} onClose={() => setPreview(null)} onReuse={reuse} onRestore={restore} />}
     </>
   );
 }
 
-function GenerationCard({ gen }: { gen: Generation }) {
+/** Nom de fichier lisible, construit a partir du prompt. */
+function fileName(gen: Generation) {
+  const slug = gen.prompt
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 50);
+  return slug || gen.model.split("/").pop() || "generation";
+}
+
+function downloadHref(gen: Generation, url: string) {
+  return `/api/kie/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(fileName(gen))}`;
+}
+
+function GenerationCard({
+  gen,
+  eta,
+  onOpen,
+  picking,
+  picked,
+  onPick,
+}: {
+  gen: Generation;
+  eta: number | null;
+  onOpen: () => void;
+  picking: boolean;
+  picked: boolean;
+  onPick: () => void;
+}) {
   const done = gen.state === "success";
   const failed = gen.state === "fail";
   const url = gen.resultUrls[0];
+  const isVideo = gen.kind === "video";
 
   return (
-    <article className="card-flat overflow-hidden flex flex-col">
-      <div
-        className="relative grid place-items-center"
-        style={{ aspectRatio: "4 / 5", background: "var(--surface-3)" }}
+    <article
+      className="tile card-flat relative overflow-hidden"
+      style={{
+        aspectRatio: "4 / 5",
+        background: "var(--surface-3)",
+        outline: picked ? "2px solid var(--accent)" : undefined,
+        outlineOffset: -2,
+      }}
+    >
+      {/* La case reste visible des qu'une selection est en cours. */}
+      <button
+        type="button"
+        onClick={onPick}
+        title={picked ? "Désélectionner" : "Sélectionner"}
+        className={`${picking ? "" : "tile-actions "}absolute top-1.5 left-1.5 z-10 grid place-items-center rounded-[6px] text-[12px] leading-none`}
+        style={{
+          width: 22,
+          height: 22,
+          background: picked ? "var(--accent)" : "rgb(0 0 0 / 0.5)",
+          color: "#fff",
+          border: "1px solid rgb(255 255 255 / 0.35)",
+        }}
       >
-        {done && url ? (
-          gen.kind === "video" ? (
-            <video src={url} controls playsInline className="w-full h-full object-cover" />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt={gen.prompt.slice(0, 80)} className="w-full h-full object-cover" loading="lazy" />
-          )
-        ) : failed ? (
-          <div className="text-center px-3">
-            <div className="text-[20px] mb-1">⚠</div>
-            <p className="text-[11.5px] leading-snug" style={{ color: "var(--critical)" }}>
-              {gen.failMsg || "Génération échouée"}
-            </p>
-          </div>
+        {picked ? "✓" : ""}
+      </button>
+      {done && url ? (
+        <>
+          <button
+            type="button"
+            onClick={picking ? onPick : onOpen}
+            className="block w-full h-full"
+            title={picking ? "Sélectionner" : "Voir en grand"}
+            style={{ cursor: picking ? "pointer" : "zoom-in" }}
+          >
+            {isVideo ? (
+              <video src={url} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+            )}
+          </button>
+          <a
+            href={downloadHref(gen, url)}
+            download
+            onClick={(e) => e.stopPropagation()}
+            className="tile-actions absolute bottom-1.5 right-1.5 btn btn-sm"
+            hidden={picking}
+            title="Télécharger"
+          >
+            ↓
+          </a>
+          {isVideo && (
+            <span
+              className="absolute top-1.5 left-1.5 rounded-full grid place-items-center text-[11px] pointer-events-none"
+              style={{ width: 22, height: 22, background: "rgb(0 0 0 / 0.55)", color: "#fff" }}
+            >
+              ▶
+            </span>
+          )}
+        </>
+      ) : failed ? (
+        <div className="w-full h-full grid place-items-center text-center px-3">
+          <p className="text-[11.5px] leading-snug" style={{ color: "var(--critical)" }}>
+            {gen.failMsg || "Génération échouée"}
+          </p>
+        </div>
+      ) : (
+        <Working gen={gen} eta={eta} />
+      )}
+    </article>
+  );
+}
+
+/**
+ * Durees relevees sur les generations reelles de ce compte :
+ * nano-banana-pro 1 min 42, Kling 2.6 motion-control 3 min 20 et 6 min,
+ * Kling 3.0 Omni 8 min 16. On prend le haut de la fourchette : une barre qui
+ * sature avant la fin est plus penible qu'une barre qui avance lentement.
+ */
+const TYPICAL_SEC: Record<string, number> = { image: 120, video: 480 };
+
+function mmss(total: number) {
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return m > 0 ? `${m} min ${String(s).padStart(2, "0")}` : `${s} s`;
+}
+
+/**
+ * Attente d'une generation.
+ *
+ * KIE ne publie un pourcentage que pour une partie des modeles. Quand il
+ * manque, on se rabat sur le temps ecoule rapporte a une duree typique : ce
+ * n'est pas la verite du moteur, mais ca repond a la seule question qu'on se
+ * pose devant l'ecran — est-ce que ca avance, et j'en ai pour combien.
+ */
+function Working({ gen, eta }: { gen: Generation; eta: number | null }) {
+  const [elapsed, setElapsed] = useState(() =>
+    Math.max(0, Math.round((Date.now() - new Date(gen.createdAt).getTime()) / 1000)),
+  );
+
+  useEffect(() => {
+    const id = setInterval(
+      () => setElapsed(Math.max(0, Math.round((Date.now() - new Date(gen.createdAt).getTime()) / 1000))),
+      1000,
+    );
+    return () => clearInterval(id);
+  }, [gen.createdAt]);
+
+  const vendor = getModel(gen.model)?.vendor;
+  // L'historique prime sur la valeur generique : il colle au modele choisi.
+  const typical = eta ?? TYPICAL_SEC[gen.kind] ?? 300;
+  const real = gen.progress > 0;
+  /*
+   * KIE ne publie que « waiting » puis « success » sur les modeles video :
+   * on ne sait pas si la tache attend ou calcule. On montre donc une barre
+   * indeterminee plutot qu'un pourcentage invente.
+   */
+  const opaque = gen.state === "waiting" || gen.state === "queuing";
+  const left = typical - elapsed;
+  const pct = real ? gen.progress : Math.min(95, Math.round((elapsed / typical) * 100));
+
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center gap-2.5 px-4">
+      <span className="num text-[19px] font-semibold tabular-nums">{mmss(elapsed)}</span>
+      <span className="dim text-[11px]">
+        {opaque ? `En cours chez ${vendor ?? "le fournisseur"}` : label(gen.state)}
+      </span>
+
+      <div className="w-full rounded-full overflow-hidden" style={{ height: 5, background: "var(--border)" }}>
+        {opaque ? (
+          // Rien a mesurer tant que rien n'a demarre : on montre juste que c'est vivant.
+          <div className="h-full rounded-full sliding" style={{ width: "35%", background: "var(--accent)" }} />
         ) : (
-          <Spinner label={label(gen.state)} />
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${Math.max(pct, 4)}%`,
+              background: "var(--accent)",
+              transition: "width .6s ease",
+            }}
+          />
         )}
       </div>
 
-      <div className="p-2.5 flex flex-col gap-1.5 flex-1">
-        <p className="text-[11.5px] leading-snug muted line-clamp-3" title={gen.prompt}>
-          {gen.prompt || "(sans prompt)"}
-        </p>
-        <div className="flex items-center justify-between gap-2 mt-auto pt-1">
-          <span className="dim text-[10.5px] truncate" title={gen.model}>
-            {gen.model.split("/").pop()} · {relative(gen.createdAt)}
+      <span className="dim text-[10.5px] text-center leading-snug">
+        {opaque
+          ? left > 0
+            ? `≈ ${mmss(left)} restantes`
+            : "Ça dépasse la durée habituelle"
+          : real
+            ? `${pct} %`
+            : left > 0
+              ? `≈ ${mmss(left)} restantes`
+              : "Bientôt fini — ça dépasse la durée habituelle"}
+      </span>
+    </div>
+  );
+}
+
+/** Cles d'entree portant des medias, par type. */
+const MEDIA_KEYS = {
+  image: [
+    "image_urls",
+    "input_urls",
+    "image_input",
+    "reference_image",
+    "reference_image_urls",
+    "first_frame_url",
+    "last_frame_url",
+    "image_url",
+    "tail_image_url",
+  ],
+  video: ["video_urls", "video_url", "reference_video_urls"],
+};
+
+/** Cles deja affichees ailleurs : on ne les repete pas dans les reglages. */
+const HIDDEN_SETTINGS = new Set([...MEDIA_KEYS.image, ...MEDIA_KEYS.video, "prompt", "elements"]);
+
+function asUrls(v: unknown): string[] {
+  if (typeof v === "string") return v ? [v] : [];
+  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string");
+  return [];
+}
+
+interface ElementRef {
+  name?: string;
+  description?: string;
+  element_input_urls?: string[];
+}
+
+function Source({ url, kind }: { url: string; kind: "image" | "video" }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="rounded-[7px] overflow-hidden shrink-0 relative block"
+      style={{ width: 54, height: 66, border: "1px solid var(--border)", background: "var(--surface-3)" }}
+      title={kind === "video" ? "Ouvrir la vidéo source" : "Ouvrir l'image source"}
+    >
+      {kind === "video" ? (
+        <>
+          <video src={url} className="w-full h-full object-cover" muted preload="metadata" />
+          <span
+            className="absolute inset-0 grid place-items-center text-[11px]"
+            style={{ background: "rgb(0 0 0 / 0.3)", color: "#fff" }}
+          >
+            ▶
           </span>
-          {gen.creditsConsumed > 0 && (
-            <span className="badge !text-[10px] !py-0">{fmtInt(gen.creditsConsumed)} cr.</span>
+        </>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" className="w-full h-full object-cover" />
+      )}
+    </a>
+  );
+}
+
+/**
+ * Apercu detaille d'une generation.
+ *
+ * Une vignette seule ne dit pas comment elle a ete obtenue. Retrouver le
+ * modele, la consigne et les images de reference deux jours plus tard imposait
+ * de fouiller la base — alors que c'est exactement ce qu'on veut relire pour
+ * reproduire un resultat qui a marche.
+ */
+function Preview({
+  gen,
+  onClose,
+  onReuse,
+  onRestore,
+}: {
+  gen: Generation;
+  onClose: () => void;
+  onReuse: (url: string, from: "image" | "video") => void;
+  onRestore: (gen: Generation) => void;
+}) {
+  const url = gen.resultUrls[0];
+  const def = getModel(gen.model);
+  const input = (gen.input ?? {}) as Record<string, unknown>;
+
+  const images = MEDIA_KEYS.image.flatMap((k) => asUrls(input[k]));
+  const videos = MEDIA_KEYS.video.flatMap((k) => asUrls(input[k]));
+  const elements = (Array.isArray(input.elements) ? input.elements : []) as ElementRef[];
+  const settings = Object.entries(input).filter(
+    ([k, v]) => !HIDDEN_SETTINGS.has(k) && v !== "" && v !== null && v !== undefined,
+  );
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      wide
+      title={def?.name ?? gen.model}
+      footer={
+        <>
+          <button
+            className="btn mr-auto"
+            onClick={() => {
+              onRestore(gen);
+              onClose();
+            }}
+            title="Recharger le modèle, les sources et la consigne dans le formulaire"
+          >
+            ↻ Reprendre ces réglages
+          </button>
+          <button
+            className="btn"
+            onClick={() => {
+              onReuse(url, gen.kind === "video" ? "video" : "image");
+              onClose();
+            }}
+          >
+            Utiliser pour le swap
+          </button>
+          <a href={downloadHref(gen, url)} download className="btn btn-primary">
+            ↓ Télécharger
+          </a>
+        </>
+      }
+    >
+      <div className="grid lg:grid-cols-[1fr_290px] gap-4 items-start">
+        <div
+          className="grid place-items-center overflow-hidden"
+          style={{ background: "var(--surface-3)", borderRadius: 10 }}
+        >
+          {gen.kind === "video" ? (
+            <video src={url} controls autoPlay playsInline className="w-full" style={{ maxHeight: "72vh" }} />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt="" className="w-full object-contain" style={{ maxHeight: "72vh" }} />
           )}
         </div>
-        {done && url && (
-          <div className="flex gap-1.5">
-            <a href={url} target="_blank" rel="noreferrer" className="btn btn-sm flex-1">
-              Ouvrir ↗
-            </a>
-            <CopyButton text={url} label="Lien" />
+
+        <div className="flex flex-col gap-3.5 min-w-0">
+          <div>
+            <span className="label-xs block mb-1.5">Technologie</span>
+            <p className="text-[13px] font-medium">{def?.name ?? gen.model}</p>
+            <p className="dim text-[11px] mono break-all">{gen.model}</p>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {def?.vendor && <span className="badge">{def.vendor}</span>}
+              {gen.creditsConsumed > 0 && <span className="badge">{fmtInt(gen.creditsConsumed)} crédits</span>}
+              {gen.costTimeSec > 0 && <span className="badge">{duration(gen.costTimeSec)}</span>}
+              <span className="badge">{relative(gen.createdAt)}</span>
+            </div>
           </div>
-        )}
+
+          {gen.prompt && (
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className="label-xs">Consigne</span>
+                <CopyButton text={gen.prompt} label="Copier" />
+              </div>
+              <p
+                className="text-[11.5px] leading-relaxed p-2.5 rounded-[8px] max-h-[170px] overflow-y-auto whitespace-pre-wrap"
+                style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+              >
+                {gen.prompt}
+              </p>
+            </div>
+          )}
+
+          {(images.length > 0 || videos.length > 0) && (
+            <div>
+              <span className="label-xs block mb-1.5">Sources utilisées</span>
+              <div className="flex gap-1.5 flex-wrap">
+                {images.map((u, i) => (
+                  <Source key={`i${i}`} url={u} kind="image" />
+                ))}
+                {videos.map((u, i) => (
+                  <Source key={`v${i}`} url={u} kind="video" />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {elements.length > 0 && (
+            <div>
+              <span className="label-xs block mb-1.5">Produit déclaré</span>
+              {elements.map((el, i) => (
+                <div key={i} className="flex gap-1.5 items-center flex-wrap">
+                  {(el.element_input_urls ?? []).map((u, j) => (
+                    <Source key={j} url={u} kind="image" />
+                  ))}
+                  {el.description && <span className="dim text-[11.5px]">{el.description}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {settings.length > 0 && (
+            <div>
+              <span className="label-xs block mb-1.5">Réglages</span>
+              <dl className="flex flex-col gap-1">
+                {settings.map(([k, v]) => (
+                  <div key={k} className="flex items-baseline justify-between gap-3 text-[11.5px]">
+                    <dt className="dim shrink-0">{k}</dt>
+                    <dd className="font-medium text-right break-all">{String(v)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+        </div>
       </div>
-    </article>
+    </Modal>
   );
 }
 
 export default function StudioPage() {
   return (
-    <Suspense fallback={<Spinner label="Chargement du studio…" />}>
+    <Suspense fallback={<SkPage />}>
       <StudioInner />
     </Suspense>
   );

@@ -18,21 +18,55 @@ export async function GET(req: NextRequest) {
   if (!pending.length) return NextResponse.json({ updated: [], remaining: 0 });
 
   const updated: string[] = [];
-  for (const gen of pending.slice(0, 12)) {
-    try {
-      const rec = await getTask(gen.taskId);
-      gen.state = rec.state;
-      gen.resultUrls = rec.resultUrls;
-      gen.creditsConsumed = rec.creditsConsumed;
-      gen.failMsg = rec.failMsg;
-      gen.updatedAt = new Date().toISOString();
-      updated.push(gen.taskId);
-    } catch (e) {
+  let changed = false;
+  // Les taches sont interrogees en parallele : en serie, douze appels de
+  // 300 ms depassaient l'intervalle de sondage et empilaient les requetes.
+  const batch = pending.slice(0, 12);
+  const results = await Promise.allSettled(batch.map((gen) => getTask(gen.taskId)));
+  for (const [i, gen] of batch.entries()) {
+    const r = results[i];
+    if (r.status === "rejected") {
       // Une tâche qui échoue à répondre ne doit pas bloquer les autres.
-      gen.failMsg = (e as KieError).message;
+      const msg = (r.reason as KieError)?.message ?? String(r.reason);
+      if (gen.failMsg !== msg) {
+        gen.failMsg = msg;
+        changed = true;
+      }
+      continue;
     }
+    const rec = r.value;
+    const same =
+      gen.state === rec.state &&
+      gen.progress === rec.progress &&
+      gen.failMsg === rec.failMsg &&
+      gen.creditsConsumed === rec.creditsConsumed &&
+      JSON.stringify(gen.resultUrls ?? []) === JSON.stringify(rec.resultUrls);
+    // Rien n'a bouge chez KIE : on ne reecrit pas plusieurs Mo pour rien.
+    if (same) continue;
+    changed = true;
+    gen.state = rec.state;
+    gen.resultUrls = rec.resultUrls;
+    gen.creditsConsumed = rec.creditsConsumed;
+    gen.failMsg = rec.failMsg;
+    gen.progress = rec.progress;
+    /*
+     * On mesure nous-memes, et on ignore le `costTime` de KIE.
+     *
+     * Il est publie sans unite documentee : une tache de 600 s reelles
+     * renvoyait 600, qu'on divisait par 1000 en le croyant en
+     * millisecondes — d'ou les « genere en 0 min 01 » affiches sur des
+     * generations de dix minutes. Notre propre mesure n'a pas d'ambiguite.
+     */
+    if (!gen.costTimeSec && (rec.state === "success" || rec.state === "fail")) {
+      gen.costTimeSec = Math.max(
+        1,
+        Math.round((Date.now() - new Date(gen.createdAt).getTime()) / 1000),
+      );
+    }
+    gen.updatedAt = new Date().toISOString();
+    updated.push(gen.taskId);
   }
-  writeDB(db);
+  if (changed) writeDB(db);
 
   const remaining = db.generations.filter((g) => g.state !== "success" && g.state !== "fail").length;
   return NextResponse.json({ updated, remaining, generations: db.generations.slice(0, 60) });

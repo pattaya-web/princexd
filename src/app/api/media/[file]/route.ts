@@ -16,6 +16,8 @@ const MIME: Record<string, string> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".jfif": "image/jpeg",
+  ".jpe": "image/jpeg",
   ".webp": "image/webp",
   ".gif": "image/gif",
   ".mp3": "audio/mpeg",
@@ -41,6 +43,18 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ file: strin
   const type = MIME[path.extname(file).toLowerCase()] ?? "application/octet-stream";
   const range = req.headers.get("range");
 
+  /**
+   * ?download=1 force le telechargement au lieu de la lecture, et &name=
+   * restitue le nom d'origine : le monteur recupere « hook-terrasse.mp4 » et
+   * pas l'identifiant genere au stockage.
+   */
+  const wantsDownload = req.nextUrl.searchParams.get("download") === "1";
+  const disposition = wantsDownload
+    ? `attachment; filename*=UTF-8''${encodeURIComponent(
+        req.nextUrl.searchParams.get("name")?.replace(/[\r\n"]/g, "") || file,
+      )}`
+    : "";
+
   // Le navigateur exige les requêtes Range pour pouvoir scrubber une vidéo.
   if (range) {
     const match = range.match(/bytes=(\d*)-(\d*)/);
@@ -54,6 +68,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ file: strin
         "Content-Length": String(end - start + 1),
         "Content-Range": `bytes ${start}-${end}/${stat.size}`,
         "Accept-Ranges": "bytes",
+        ...(disposition ? { "Content-Disposition": disposition } : {}),
       },
     });
   }
@@ -65,6 +80,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ file: strin
       "Content-Length": String(stat.size),
       "Accept-Ranges": "bytes",
       "Cache-Control": "private, max-age=3600",
+      ...(disposition ? { "Content-Disposition": disposition } : {}),
     },
   });
 }

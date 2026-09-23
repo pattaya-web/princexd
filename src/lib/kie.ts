@@ -71,6 +71,8 @@ export interface TaskRecord {
   creditsConsumed: number;
   failMsg: string;
   progress: number;
+  /** Duree de generation renvoyee par KIE, en millisecondes. */
+  costTime: number;
 }
 
 /** GET /api/v1/jobs/recordInfo?taskId=... */
@@ -98,7 +100,13 @@ export async function getTask(taskId: string): Promise<TaskRecord> {
     resultUrls,
     creditsConsumed: Number(data?.creditsConsumed ?? 0),
     failMsg: String(data?.failMsg ?? ""),
-    progress: Number(data?.progress ?? 0),
+    // KIE publie tantot 0-1, tantot 0-100 selon le modele : on normalise.
+    progress: (() => {
+      const p = Number(data?.progress ?? 0);
+      if (!Number.isFinite(p) || p <= 0) return 0;
+      return p <= 1 ? Math.round(p * 100) : Math.min(Math.round(p), 100);
+    })(),
+    costTime: Number(data?.costTime ?? 0),
   };
 }
 
@@ -161,6 +169,67 @@ export async function askText(prompt: string, system: string, maxTokens = 8000):
   throw new KieError("Le modele texte a renvoye une reponse vide.");
 }
 
+/**
+ * Variante multimodale de askText : le modele voit les images fournies.
+ *
+ * KIE accepte les parties `image_url` au format OpenAI, en URL publique comme
+ * en data URI. La video et l'audio, eux, ne sont PAS ingeres (verifie : le
+ * modele repond sans consommer de tokens de prompt), donc pas de
+ * transcription possible par ce canal.
+ */
+export async function askVision(
+  prompt: string,
+  system: string,
+  imageUrls: string[],
+  maxTokens = 8000,
+): Promise<string> {
+  const key = getApiKey();
+  if (!key) throw new KieError("Aucune cle API KIE configuree.", 401);
+  const model = getSettings().kieTextModel;
+
+  const content: Record<string, unknown>[] = [{ type: "text", text: prompt }];
+  for (const url of imageUrls.filter(Boolean)) {
+    content.push({ type: "image_url", image_url: { url } });
+  }
+
+  const res = await fetch(`${KIE_BASE}/v1/chat/completions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content },
+      ],
+    }),
+    cache: "no-store",
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    throw new KieError(`Erreur modele vision KIE (HTTP ${res.status}) : ${text.slice(0, 400)}`, res.status);
+  }
+
+  let json: {
+    code?: number;
+    msg?: string;
+    choices?: { message?: { content?: string } }[];
+  };
+  try {
+    json = JSON.parse(text) as typeof json;
+  } catch {
+    throw new KieError(`Reponse vision illisible : ${text.slice(0, 300)}`);
+  }
+  if (json.code && json.code !== 200 && !json.choices) {
+    throw new KieError(json.msg || "Erreur du modele vision.", json.code);
+  }
+
+  const out = json.choices?.[0]?.message?.content;
+  if (!out) throw new KieError("Le modele vision a renvoye une reponse vide.");
+  return out;
+}
+
 /** Extrait le premier objet JSON d'une reponse LLM (tolere les blocs ```json). */
 export function parseJsonLoose<T>(raw: string): T {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -171,4 +240,47 @@ export function parseJsonLoose<T>(raw: string): T {
     throw new KieError("Le modele n'a pas renvoye de JSON exploitable.");
   }
   return JSON.parse(candidate.slice(start, end + 1)) as T;
+}
+
+/**
+ * Televersement d'un fichier chez KIE.
+ *
+ * Les modeles KIE vont CHERCHER les medias sur internet : ils ne lisent jamais
+ * un fichier local, et /api/media n'est servi que sur la machine. On passe donc
+ * par le stockage temporaire de KIE, qui renvoie une URL publique.
+ *
+ * Les fichiers y sont supprimes au bout de 3 jours : c'est du transit, pas du
+ * stockage. Le resultat des generations, lui, reste sur KIE.
+ */
+const KIE_UPLOAD = "https://kieai.redpandaai.co/api/file-stream-upload";
+
+export async function uploadToKie(file: File, uploadPath = "princexd"): Promise<string> {
+  const key = getApiKey();
+  if (!key) throw new KieError("Aucune cle API KIE configuree.", 401);
+
+  const form = new FormData();
+  form.append("file", file, file.name);
+  form.append("uploadPath", uploadPath);
+
+  const res = await fetch(KIE_UPLOAD, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}` },
+    body: form,
+    cache: "no-store",
+  });
+
+  const text = await res.text();
+  let json: { success?: boolean; code?: number; msg?: string; data?: { downloadUrl?: string } };
+  try {
+    json = JSON.parse(text) as typeof json;
+  } catch {
+    throw new KieError(`Reponse d'upload illisible (HTTP ${res.status}) : ${text.slice(0, 200)}`, res.status);
+  }
+  if (!res.ok || json.success === false || (json.code && json.code !== 200)) {
+    throw new KieError(json.msg || `Echec de l'upload (HTTP ${res.status}).`, json.code || res.status);
+  }
+
+  const url = json.data?.downloadUrl;
+  if (!url) throw new KieError("L'upload n'a pas renvoye d'URL.");
+  return url;
 }

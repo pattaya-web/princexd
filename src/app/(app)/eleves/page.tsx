@@ -11,7 +11,6 @@ export default function ElevesPage() {
     <EntityView
       spec={STUDENTS}
       title="Élèves"
-      subtitle="Le suivi de tes coachings. Le champ « Résultat obtenu » alimente directement tes contenus preuve et tes stories Shopify."
       summary={(rows) => {
         const students = rows as unknown as Student[];
         const actifs = students.filter((s) => s.status === "actif" || s.status === "onboarding");
@@ -31,7 +30,6 @@ export default function ElevesPage() {
             <StatTile
               label="Preuves dispo"
               value={fmtInt(withResult.length)}
-              hint="Élèves avec un résultat à raconter"
               accent="var(--good)"
             />
           </div>

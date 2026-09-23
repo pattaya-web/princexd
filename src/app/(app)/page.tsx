@@ -1,39 +1,144 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { api, useCollection } from "@/lib/client";
-import { GoalGauge, LineChart, SERIES, Sparkline } from "@/components/charts";
-import { Card, Empty, PageHeader, Spinner, StatTile } from "@/components/ui";
-import { followerSeries, projectGoal, statsByDimension, verdictFormats } from "@/lib/analytics";
-import { fmtCompact, fmtDate, fmtDateTime, fmtEur, fmtInt, label, relative, todayISO, WEEKDAYS } from "@/lib/format";
-import type { CallEvent, FollowerPoint, Generation, Lead, Post, Settings, Story, Todo } from "@/lib/types";
+import { BarChart, SERIES, Sparkline } from "@/components/charts";
+import { Card, Empty, PageHeader, StatTile } from "@/components/ui";
+import { DailyPanel, FormatPosts, GrowthPanel, IgProfileCard, RecentReels } from "@/components/instagram";
+import { bestSlots, filterByKeywords, followerSeries, statsByDimension, verdictFormats } from "@/lib/analytics";
+import { fmtCompact, fmtDateTime, fmtEur, fmtInt, label, mondayISO, relative, todayISO, WEEKDAYS } from "@/lib/format";
+import { SkPage } from "@/components/Skeleton";
+import type {
+  CallEvent,
+  ProdFolder,
+  SavedItem,
+  FollowerPoint,
+  IgProfileSnapshot,
+  Lead,
+  Post,
+  Settings,
+  Todo,
+} from "@/lib/types";
 
 export default function DashboardPage() {
   const followers = useCollection<FollowerPoint>("followers");
-  const posts = useCollection<Post>("posts");
-  const stories = useCollection<Story>("stories");
+  const posts = useCollection<Post>("posts", { light: true });
   const leads = useCollection<Lead>("leads");
   const calls = useCollection<CallEvent>("calls");
   const todos = useCollection<Todo>("todos");
-  const generations = useCollection<Generation>("generations");
+  const saved = useCollection<SavedItem>("saved");
 
   const [settings, setSettings] = useState<Settings | null>(null);
   useEffect(() => {
     void api<Settings>("/api/settings").then(setSettings).catch(() => setSettings(null));
   }, []);
 
+  // Synchro Instagram à chaque ouverture du dashboard. La route ne redemande à
+  // Meta que si son cache a plus de 10 minutes : le quota est de 200 appels par
+  // heure et il faut en garder pour la synchro des publications.
+  const [ig, setIg] = useState<IgProfileSnapshot | null>(null);
+  const [igWarning, setIgWarning] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Le rattrapage se rappelle lui-meme : on passe par une ref pour ne pas
+  // recreer le callback a chaque rendu.
+  const catchUp = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadIgRef = useRef<(force?: boolean, catchingUp?: boolean) => Promise<void>>(async () => {});
+
+  /*
+   * On ne depend que des fonctions de rechargement, stables d'un rendu a
+   * l'autre. Dependre de `posts` et `followers` entiers recreait `loadIg` a
+   * chaque rendu ; l'effet ci-dessous se relancait, appelait la route, qui
+   * changeait l'etat, qui provoquait un rendu... Plusieurs milliers d'appels
+   * par minute a /api/instagram/profile, et un ecran qui saccadait.
+   */
+  const reloadPosts = posts.reload;
+  const reloadFollowers = followers.reload;
+
+  const loadIg = useCallback(async (force = false, catchingUp = false) => {
+    setRefreshing(true);
+    try {
+      const res = await api<{ profile: IgProfileSnapshot; error?: string; stale?: boolean }>(
+        `/api/instagram/profile${force ? "?force=1" : ""}`,
+      );
+      setIg(res.profile);
+      setIgWarning(res.error ?? null);
+
+      // Cache perime : une synchro tourne en fond. On revient la chercher, et
+      // on recharge les collections pour que les compteurs du jour suivent —
+      // sans quoi il fallait rafraichir la page une seconde fois.
+      // Un seul rattrapage : si le profil est toujours perime apres, c'est que
+      // la synchro echoue (token, quota) et la relancer en boucle n'y changerait rien.
+      if (res.stale && !catchingUp) {
+        if (catchUp.current) clearTimeout(catchUp.current);
+        catchUp.current = setTimeout(() => {
+          void loadIgRef.current(false, true);
+          void reloadPosts();
+          void reloadFollowers();
+        }, 6000);
+      }
+    } catch (e) {
+      setIgWarning((e as Error).message);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [reloadPosts, reloadFollowers]);
+
+  loadIgRef.current = loadIg;
+
+  useEffect(() => () => { if (catchUp.current) clearTimeout(catchUp.current); }, []);
+
+  useEffect(() => {
+    void loadIg();
+  }, [loadIg]);
+
   const today = todayISO();
   const now = Date.now();
 
-  const goal = useMemo(
-    () => projectGoal(followers.rows, settings?.followersGoal ?? 10000, settings?.followersStart ?? 9500),
-    [followers.rows, settings],
-  );
   const series = useMemo(() => followerSeries(followers.rows).slice(-30), [followers.rows]);
-  const verdict = useMemo(() => verdictFormats(statsByDimension(posts.rows, (p) => p.format)), [posts.rows]);
+  // Le classement des formats ne doit porter que sur le contenu qui vend :
+  // un viral hors niche fausse toutes les moyennes sans rien dire d'utile.
+  const businessPosts = useMemo(
+    () => filterByKeywords(posts.rows, settings?.postFilterKeywords ?? "commente"),
+    [posts.rows, settings],
+  );
+  const filtered = businessPosts.length !== posts.rows.length;
 
-  const todayStories = stories.rows.filter((s) => s.date === today);
+  /** Heures ou mes posts performent le mieux, calculees sur leur heure reelle. */
+  const slots = useMemo(() => bestSlots(businessPosts), [businessPosts]);
+
+  const verdict = useMemo(
+    () => verdictFormats(statsByDimension(businessPosts, (p) => p.format)),
+    [businessPosts],
+  );
+
+  /** Les publications du format gagnant, les plus vues d'abord : la preuve visuelle. */
+  const spamPosts = useMemo(() => {
+    const key = verdict.spam?.key;
+    if (!key) return [];
+    // Classement par interactions et non par vues : un reel a CTA se juge au
+    // volume de commentaires et de saves qu'il declenche, pas a sa portee.
+    const engagement = (p: Post) => p.comments + p.saves + p.shares + p.likes;
+    return businessPosts
+      .filter((p) => p.status === "publie" && engagement(p) > 0 && p.format === key)
+      .sort((a, b) => engagement(b) - engagement(a));
+  }, [businessPosts, verdict.spam]);
+
+  const todayPoint = followers.rows.find((f) => f.date === today);
+  // Publies aujourd'hui : la synchro legere reperant les nouveaux medias,
+  // la cadence se met a jour sans intervention.
+  const reelsToday = posts.rows.filter(
+    (p) => p.status === "publie" && p.publishedAt.slice(0, 10) === today,
+  ).length;
+
+  // Photos et carrousels depuis lundi : cadence hebdomadaire, pas quotidienne.
+  const photosThisWeek = posts.rows.filter(
+    (p) =>
+      p.status === "publie" &&
+      (p.format === "post-image" || p.format === "carrousel") &&
+      p.publishedAt.slice(0, 10) >= mondayISO(),
+  ).length;
   const upcomingCalls = calls.rows
     .filter((c) => c.status === "book" && new Date(c.at).getTime() > now)
     .sort((a, b) => a.at.localeCompare(b.at))
@@ -45,156 +150,153 @@ export default function DashboardPage() {
     .filter((t) => !t.done && (!t.due || t.due <= today))
     .sort((a, b) => a.priority.localeCompare(b.priority))
     .slice(0, 6);
-  const inProduction = posts.rows.filter((p) => p.status !== "publie" && p.status !== "idee").slice(0, 5);
-  const recentGens = generations.rows.filter((g) => g.state === "success" && g.resultUrls.length).slice(0, 6);
 
   const published30 = useMemo(() => {
     const cutoff = new Date(now - 30 * 86_400_000).toISOString();
     return posts.rows.filter((p) => p.status === "publie" && p.publishedAt >= cutoff);
   }, [posts.rows, now]);
 
+  /*
+   * Chiffre closé du mois.
+   *
+   * Il vient du module commercial (ventes enregistrees, date de vente, net des
+   * remboursements). L'ancien calcul comptait les leads « closés » d'apres
+   * leur date de creation : un lead cree en aout et closé en septembre
+   * n'apparaissait pas, et l'inverse comptait double. Si le module commercial
+   * ne repond pas, on retombe sur les leads pour ne pas afficher un tiret.
+   */
+  const [closedMonth, setClosedMonth] = useState<{ value: number; count: number; currency: string } | null>(null);
+  useEffect(() => {
+    void api<{ currency: string; kpis: { contractValue: number; sales: number } }>(
+      "/api/sales/dashboard?period=month",
+    )
+      .then((r) => setClosedMonth({ value: r.kpis.contractValue, count: r.kpis.sales, currency: r.currency }))
+      .catch(() => setClosedMonth(null));
+  }, []);
+
   const wonThisMonth = useMemo(() => {
     const month = new Date().toISOString().slice(0, 7);
     return leads.rows.filter((l) => l.stage === "closed-won" && l.createdAt.slice(0, 7) === month);
   }, [leads.rows]);
 
+  const closedValue = closedMonth
+    ? new Intl.NumberFormat("fr-FR", {
+        style: "currency",
+        currency: closedMonth.currency || "EUR",
+        maximumFractionDigits: 0,
+      }).format(closedMonth.value)
+    : fmtEur(wonThisMonth.reduce((a, l) => a + (l.dealValue || 0), 0));
+  const closedCount = closedMonth ? closedMonth.count : wonThisMonth.length;
+
   const loading = followers.loading && posts.loading && leads.loading;
-  if (loading) return <Spinner label="Chargement du cockpit…" />;
+  if (loading) return <SkPage />;
 
   const weekday = new Date().getDay();
+  const todayLabel = new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
 
   return (
     <>
-      <PageHeader
-        title={`${WEEKDAYS[weekday]} — le point`}
-        subtitle="Ton objectif, ce qui doit sortir aujourd'hui, et ce qui attend une action de ta part."
-      />
+      <PageHeader title={`${WEEKDAYS[weekday]} ${todayLabel}`} />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <StatTile
-          label="Abonnés"
-          value={fmtInt(goal.current)}
-          trend={series.length >= 2 ? series[series.length - 1].delta : undefined}
-          hint={
-            goal.daysLeft !== null
-              ? `${fmtInt(goal.remaining)} avant l'objectif · ≈ ${goal.daysLeft} j`
-              : `${fmtInt(goal.remaining)} avant l'objectif`
-          }
+      {ig && (
+        <IgProfileCard
+          profile={ig}
+          verified={settings?.igVerified ?? true}
+          channelMembers={settings?.igChannelMembers ?? 0}
+          onRefresh={() => void loadIg(true)}
+          refreshing={refreshing}
+          warning={igWarning}
         />
-        <StatTile
-          label="Posts (30 j)"
-          value={fmtInt(published30.length)}
-          hint={`${fmtCompact(published30.reduce((a, p) => a + p.views, 0))} vues cumulées`}
+      )}
+
+      {ig && settings?.weekPlan && (
+        <DailyPanel
+          pictureUrl={ig.profilePictureUrl}
+          username={ig.username}
+          story={{
+            count: todayPoint?.storyCount ?? 0,
+            views: todayPoint?.storyViews ?? 0,
+            reach: todayPoint?.storyReach ?? 0,
+            replies: todayPoint?.storyReplies ?? 0,
+            navigation: todayPoint?.storyNavigation ?? 0,
+            profileVisits: todayPoint?.storyProfileVisits ?? 0,
+          }}
+          reelsDone={reelsToday}
+          reelsGoal={settings.dailyReelsGoal ?? 3}
+          channelDone={todayPoint?.channelPosts ?? 0}
+          channelGoal={settings.dailyChannelGoal ?? 6}
+          photosDone={photosThisWeek}
+          photosGoal={settings.weeklyPhotoGoal ?? 4}
+          onChannelChange={(next) => {
+            if (todayPoint) void followers.patch(todayPoint.id, { channelPosts: next });
+          }}
+          plan={settings.weekPlan}
+          weekday={weekday}
+          days={WEEKDAYS}
         />
-        <StatTile
-          label="Calls à venir"
-          value={fmtInt(upcomingCalls.length)}
-          hint={upcomingCalls.length ? `Prochain ${relative(upcomingCalls[0].at)}` : "Aucun call booké"}
-          accent={upcomingCalls.length ? "var(--good)" : undefined}
-        />
-        <StatTile
-          label="Closé ce mois"
-          value={fmtEur(wonThisMonth.reduce((a, l) => a + (l.dealValue || 0), 0))}
-          hint={`${wonThisMonth.length} vente${wonThisMonth.length > 1 ? "s" : ""}`}
-          accent="var(--good)"
-        />
-      </div>
+      )}
 
       <div className="grid lg:grid-cols-[1fr_330px] gap-4 items-start">
         <div className="flex flex-col gap-4">
+          {ig && ig.history.length > 0 && (
+            <Card title="Croissance">
+              <GrowthPanel initial={ig.history} compact />
+            </Card>
+          )}
+
           <Card
-            title="Objectif abonnés"
-            actions={<Link href="/croissance" className="btn btn-sm">Détail</Link>}
+            title="Derniers reels"
+            subtitle="Clique sur une ligne pour le détail et l'audience"
+            actions={<Link href="/contenu" className="btn btn-sm">Tout voir</Link>}
+            padded={false}
           >
-            <div className="grid md:grid-cols-[auto_1fr] gap-5 items-center">
-              <GoalGauge current={goal.current} goal={goal.goal} start={goal.start} />
-              <div className="min-w-0">
-                {series.length >= 2 ? (
-                  <LineChart
-                    points={series.map((p) => ({ label: fmtDate(p.date), values: [p.followers] }))}
-                    series={[{ name: "Abonnés", color: SERIES[0] }]}
-                    height={150}
-                    format={fmtCompact}
-                  />
-                ) : (
-                  <Empty action={<Link href="/croissance" className="btn btn-sm btn-primary">Ajouter un relevé</Link>}>
-                    Enregistre tes abonnés chaque jour pour voir la courbe et la date d&apos;atteinte de l&apos;objectif.
-                  </Empty>
-                )}
-              </div>
-            </div>
+            <RecentReels posts={posts.rows} />
           </Card>
 
           {verdict.spam && (
             <Card
-              title="Ce que disent tes chiffres"
+              title="Top vidéos"
+              subtitle={
+                filtered
+                  ? `${businessPosts.length} posts à CTA retenus sur ${posts.rows.length}`
+                  : undefined
+              }
               actions={<Link href="/insights" className="btn btn-sm">Analyse complète</Link>}
             >
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div
-                  className="p-3 rounded-[9px]"
-                  style={{ background: "color-mix(in srgb, var(--good) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--good) 30%, transparent)" }}
-                >
-                  <div className="label-xs" style={{ color: "var(--good)" }}>Spam ce format</div>
-                  <div className="text-[16px] font-semibold mt-1">{verdict.spam.label}</div>
-                  <p className="muted text-[12px] mt-1 leading-relaxed">
-                    {fmtCompact(verdict.spam.avgViews)} vues/post · {verdict.spam.callsBooked} calls générés
-                  </p>
+              {spamPosts.length > 0 && (
+                <div className="mt-3">
+                  <FormatPosts
+                    posts={spamPosts}
+                    title=""
+                    savedUrls={new Set(saved.rows.map((r) => r.permalink))}
+                    onSave={(p, folder: ProdFolder) =>
+                      void saved.create({
+                        source: "mine",
+                        author: "moi",
+                        permalink: p.url,
+                        thumbnail: p.thumbnail ?? "",
+                        caption: p.caption ?? p.title,
+                        likes: p.likes,
+                        comments: p.comments,
+                        views: p.views,
+                        isReel: p.format.startsWith("reel"),
+                        folder,
+                                          note: "",
+                        postId: p.id,
+                        transcript: p.transcript ?? "",
+                      })
+                    }
+                  />
                 </div>
-                {verdict.stop && verdict.stop.key !== verdict.spam.key && (
-                  <div
-                    className="p-3 rounded-[9px]"
-                    style={{ background: "color-mix(in srgb, var(--critical) 7%, transparent)", border: "1px solid color-mix(in srgb, var(--critical) 28%, transparent)" }}
-                  >
-                    <div className="label-xs" style={{ color: "var(--critical)" }}>Arrête ce format</div>
-                    <div className="text-[16px] font-semibold mt-1">{verdict.stop.label}</div>
-                    <p className="muted text-[12px] mt-1 leading-relaxed">
-                      {fmtCompact(verdict.stop.avgViews)} vues/post · {verdict.stop.callsBooked} calls
-                    </p>
-                  </div>
-                )}
-              </div>
-              {verdict.confiance !== "bonne" && (
-                <p className="dim text-[11.5px] mt-2.5">
-                  Confiance {verdict.confiance} — le classement peut encore bouger.
-                </p>
               )}
             </Card>
           )}
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <Card
-              title="Stories du jour"
-              subtitle={`${todayStories.filter((s) => s.done).length} / ${todayStories.length} postées`}
-              actions={<Link href="/stories" className="btn btn-sm">Ouvrir</Link>}
-              padded={false}
-            >
-              {!todayStories.length ? (
-                <Empty action={<Link href="/stories" className="btn btn-sm btn-primary">Écrire la journée</Link>}>
-                  Aucune story planifiée aujourd&apos;hui.
-                </Empty>
-              ) : (
-                <ul>
-                  {todayStories.map((s, i) => (
-                    <li
-                      key={s.id}
-                      className="px-3.5 py-2.5 flex items-center gap-2.5"
-                      style={{ borderBottom: i < todayStories.length - 1 ? "1px solid var(--border)" : "none" }}
-                    >
-                      <span
-                        className="w-[6px] h-[6px] rounded-full shrink-0"
-                        style={{ background: s.done ? "var(--good)" : "var(--border-strong)" }}
-                      />
-                      <span className="badge !text-[10px] !py-0 shrink-0">{label(s.slot)}</span>
-                      <span className="text-[12.5px] flex-1 min-w-0 truncate" title={s.idea}>
-                        {s.idea || label(s.type)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-
+          <div className="grid gap-4">
             <Card
               title="À faire aujourd'hui"
               actions={<Link href="/todo" className="btn btn-sm">Ouvrir</Link>}
@@ -225,35 +327,46 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          {recentGens.length > 0 && (
-            <Card
-              title="Dernières générations"
-              actions={<Link href="/studio" className="btn btn-sm">Studio</Link>}
-              padded={false}
-            >
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 p-3">
-                {recentGens.map((g) => (
-                  <Link
-                    key={g.id}
-                    href="/studio"
-                    className="block rounded-[7px] overflow-hidden"
-                    style={{ aspectRatio: "4 / 5", background: "var(--surface-3)" }}
-                    title={g.prompt}
-                  >
-                    {g.kind === "video" ? (
-                      <video src={g.resultUrls[0]} className="w-full h-full object-cover" muted />
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={g.resultUrls[0]} alt="" className="w-full h-full object-cover" loading="lazy" />
-                    )}
-                  </Link>
-                ))}
-              </div>
-            </Card>
-          )}
         </div>
 
         <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+        <Link href="/contenu" className="block" title="Ouvrir le calendrier de contenu">
+          <StatTile
+            label="Posts (30 j)"
+            value={fmtInt(published30.length)}
+            hint={`${fmtCompact(published30.reduce((a, p) => a + p.views, 0))} vues cumulées · voir le calendrier`}
+          />
+        </Link>
+        <StatTile
+          label="Calls à venir"
+          value={fmtInt(upcomingCalls.length)}
+          hint={upcomingCalls.length ? `Prochain ${relative(upcomingCalls[0].at)}` : "Aucun call booké"}
+          accent={upcomingCalls.length ? "var(--good)" : undefined}
+        />
+        <StatTile
+          label="Closé ce mois"
+          value={closedValue}
+          hint={`${closedCount} vente${closedCount > 1 ? "s" : ""}`}
+          accent="var(--good)"
+        />
+      </div>
+
+
+          {slots.length > 0 && (
+            <Card title="Meilleurs créneaux">
+              <BarChart
+                rows={slots.slice(0, 6).map((s, i) => ({
+                  label: `${String(s.hour).padStart(2, "0")} h`,
+                  value: s.avgViews,
+                  color: SERIES[i % SERIES.length],
+                  meta: `${s.posts} post${s.posts > 1 ? "s" : ""} publiés sur ce créneau`,
+                }))}
+                format={fmtCompact}
+              />
+            </Card>
+          )}
+
           <Card
             title="Prochains calls"
             actions={<Link href="/calls" className="btn btn-sm">Tout voir</Link>}
@@ -269,10 +382,26 @@ export default function DashboardPage() {
                     className="px-3.5 py-2.5"
                     style={{ borderBottom: i < upcomingCalls.length - 1 ? "1px solid var(--border)" : "none" }}
                   >
-                    <div className="text-[12.5px] font-medium leading-snug">{c.contact || c.title}</div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="dim text-[11.5px] num">{fmtDateTime(c.at)}</span>
-                      <span className="badge badge-accent !text-[10px] !py-0">{relative(c.at)}</span>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[13px] font-semibold leading-snug truncate">
+                        {c.contact || c.title}
+                      </span>
+                      <span className="badge badge-accent !text-[10px] !py-0 shrink-0">{relative(c.at)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="text-[12px] num font-medium">{fmtDateTime(c.at)}</span>
+                      {c.durationMin > 0 && <span className="dim text-[11.5px] num">{c.durationMin} min</span>}
+                      {c.url && (
+                        <a
+                          href={c.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11.5px]"
+                          style={{ color: "var(--accent)" }}
+                        >
+                          Rejoindre
+                        </a>
+                      )}
                     </div>
                   </li>
                 ))}
@@ -300,31 +429,6 @@ export default function DashboardPage() {
                       {l.nextAction && <span className="block dim text-[11px] truncate">{l.nextAction}</span>}
                     </span>
                     <span className="badge !text-[10px] !py-0 shrink-0">{label(l.stage)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-
-          <Card
-            title="En production"
-            actions={<Link href="/contenu" className="btn btn-sm">Calendrier</Link>}
-            padded={false}
-          >
-            {!inProduction.length ? (
-              <Empty>Aucun contenu en cours de production.</Empty>
-            ) : (
-              <ul>
-                {inProduction.map((p, i) => (
-                  <li
-                    key={p.id}
-                    className="px-3.5 py-2.5 flex items-center gap-2"
-                    style={{ borderBottom: i < inProduction.length - 1 ? "1px solid var(--border)" : "none" }}
-                  >
-                    <span className="text-[12.5px] flex-1 min-w-0 truncate" title={p.title}>
-                      {p.title || "Sans titre"}
-                    </span>
-                    <span className="badge !text-[10px] !py-0 shrink-0">{label(p.status)}</span>
                   </li>
                 ))}
               </ul>

@@ -115,12 +115,10 @@ function Input({
 export function EntityView({
   spec,
   title,
-  subtitle,
   summary,
 }: {
   spec: EntitySpec;
   title: string;
-  subtitle?: string;
   /** Bandeau de synthèse calculé par la page appelante. */
   summary?: (rows: Row[]) => React.ReactNode;
 }) {
@@ -194,7 +192,6 @@ export function EntityView({
     <>
       <PageHeader
         title={title}
-        subtitle={subtitle}
         actions={
           <>
             <input

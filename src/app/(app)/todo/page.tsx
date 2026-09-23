@@ -54,7 +54,6 @@ export default function TodoPage() {
     <>
       <PageHeader
         title="To-do"
-        subtitle="Ce qui doit sortir aujourd'hui. Les tâches en retard remontent en rouge."
         actions={
           <Tabs
             value={filter}

@@ -82,6 +82,10 @@ export const STUDENTS: EntitySpec = {
   fields: [
     f("name", "Nom", "text"),
     f("handle", "@ Instagram", "text"),
+    f("phone", "Téléphone", "text", { placeholder: "+33 6 12 34 56 78" }),
+    // Recopie depuis le lead a l'inscription : sans champ, la donnee existait
+    // en base sans jamais etre lisible ni corrigeable.
+    f("email", "Email", "text", { formOnly: true }),
     f("program", "Programme", "text", { placeholder: "Accompagnement 3 mois" }),
     f("status", "Statut", "select", { options: ["onboarding", "actif", "pause", "termine"], default: "onboarding" }),
     f("progress", "Avancement", "pct", { default: 0 }),
@@ -194,7 +198,10 @@ export const TEAM: EntitySpec = {
   sort: { key: "createdAt", dir: "desc" },
   fields: [
     f("name", "Nom", "text"),
-    f("role", "Rôle", "select", { options: ["setter", "closer", "monteur", "assistant"], default: "setter" }),
+    f("role", "Rôle", "select", {
+      options: ["setter", "closer", "admin", "monteur", "assistant"],
+      default: "setter",
+    }),
     f("status", "Statut", "select", { options: ["essai", "actif", "inactif"], default: "essai" }),
     f("commissionPct", "Commission", "pct", { default: 10 }),
     f("target", "Objectif mensuel (€)", "money", { default: 0 }),

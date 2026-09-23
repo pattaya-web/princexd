@@ -162,3 +162,88 @@ Dis-moi précisément sur quoi itérer. Sois brutal : si un format ne performe p
   "alertes": ["ce qui cloche dans mes données ou dans ma production"]
 }`;
 }
+
+export const SYSTEM_SCRIPTER = `Tu es un directeur de creation qui demonte des reels Instagram performants pour les refaire.
+Tu ecris en francais, au tutoiement, sans jargon et sans flatterie.
+Tu ne decris QUE ce que les elements fournis permettent d'etablir : si la legende ne dit rien du visuel, tu proposes un plan plausible et tu le signales comme une proposition, jamais comme un constat.
+Tu reponds uniquement par un objet JSON valide, sans texte autour et sans bloc markdown.`;
+
+export function buildScriptPrompt(input: {
+  caption: string;
+  transcript?: string;
+  format: string;
+  views: number;
+  likes: number;
+  comments: number;
+  saves: number;
+  shares: number;
+  publishedAt: string;
+  brandContext: string;
+  hasFrame?: boolean;
+}): string {
+  const source = input.transcript?.trim()
+    ? `TRANSCRIPTION REELLE (source fiable, appuie-toi dessus en priorite) :
+${input.transcript.trim()}`
+    : input.hasFrame
+      ? `Aucune transcription : l'audio de ce reel est inaccessible. En revanche l'image jointe est la VRAIE premiere image de la video. Lis-la (cadrage, decor, tenue, texte incruste) et decris le plan 1 comme un constat. Prefixe les visuels des plans suivants par "Proposition : ".`
+      : `Aucune transcription ni image : reconstruis a partir de la legende et des chiffres, et prefixe chaque visuel par "Proposition : ".`;
+
+  return `Contexte business : ${input.brandContext}
+
+Publication a demonter — format ${input.format}, publiee le ${input.publishedAt.slice(0, 10)}.
+Performance : ${input.views} vues, ${input.likes} likes, ${input.comments} commentaires, ${input.saves} saves, ${input.shares} partages.
+
+LEGENDE COMPLETE :
+${input.caption || "(vide)"}
+
+${source}
+
+Rends un JSON avec exactement ces cles :
+{
+  "hook": "la premiere phrase a dire face camera, 12 mots max",
+  "angle": "l'angle en une phrase",
+  "duree": "duree cible, ex. 25-35 s",
+  "plans": [
+    { "n": 1, "visuel": "ce qu'on voit a l'ecran", "texteEcran": "texte incruste ou vide", "voix": "ce qui est dit" }
+  ],
+  "cta": "l'appel a l'action final",
+  "pourquoiCaMarche": ["3 a 4 puces TELEGRAPHIQUES, 8 mots maximum chacune, sans phrase complete, chiffres a l'appui"],
+  "aRefaire": ["2 a 4 consignes concretes pour reproduire ce reel sur un autre sujet"]
+}
+
+Entre 3 et 6 plans. Chaque plan doit etre tournable tel quel, sans materiel autre qu'un telephone.
+Les puces de "pourquoiCaMarche" sont des constats bruts, pas des phrases : "2371 commentaires pour 2361 likes", "4363 saves = promesse a garder".`;
+}
+
+export const SYSTEM_PROFILER = `Tu analyses des comptes Instagram a partir des legendes de leurs publications.
+Tu identifies les VRAIS types de contenu produits, pas des categories generiques.
+Tu ecris en francais, court et concret, sans flatterie ni conseils non demandes.
+Tu ne conclus que ce que les legendes permettent d'etablir.
+Tu reponds uniquement par un objet JSON valide, sans texte autour ni bloc markdown.`;
+
+export function buildProfilerPrompt(input: {
+  who: string;
+  posts: { caption: string; likes: number; comments: number }[];
+}): string {
+  const lines = input.posts
+    .map(
+      (p, i) =>
+        `${i + 1}. [${p.likes} likes, ${p.comments} comm.] ${p.caption.replace(/\s+/g, " ").slice(0, 220)}`,
+    )
+    .join("\n");
+
+  return `Compte analyse : ${input.who}. ${input.posts.length} publications, de la plus engageante a la moins.
+
+${lines}
+
+Rends un JSON avec exactement ces cles :
+{
+  "resume": "une phrase qui dit ce que fait ce compte",
+  "types": [{ "nom": "nom du type de contenu", "part": 40, "exemple": "debut d'une legende representative" }],
+  "hooks": ["3 a 5 formulations d'accroche recurrentes"],
+  "cta": ["les appels a l'action utilises"],
+  "aRetenir": ["3 a 4 constats actionnables, appuyes sur les chiffres fournis"]
+}
+
+Entre 3 et 6 types, dont les parts totalisent 100. Classe-les du plus frequent au moins frequent.`;
+}

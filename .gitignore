@@ -10,3 +10,7 @@ data/media
 
 # build info
 tsconfig.tsbuildinfo
+
+# secrets et caches locaux
+data/.session-secret
+.cache/

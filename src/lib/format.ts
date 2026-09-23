@@ -6,7 +6,20 @@ export const fmtUsd = (n: number) =>
 export const fmtEur = (n: number) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n || 0);
 
-export const fmtPct = (n: number, digits = 1) => `${(n || 0).toFixed(digits).replace(".", ",")} %`;
+/**
+ * Montant dans la devise du module commercial.
+ *
+ * Le reste du tool raisonne en euros ; les offres de coaching se vendent en
+ * dollars. Une seule fonction pour les deux evite les conversions sauvages.
+ */
+export const fmtMoney = (n: number, currency = "USD") =>
+  new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: Math.abs(n || 0) < 100 ? 2 : 0,
+  }).format(n || 0);
+
+export const fmtPct =(n: number, digits = 1) => `${(n || 0).toFixed(digits).replace(".", ",")} %`;
 
 /** Compact : 12 400 -> 12,4 k */
 export function fmtCompact(n: number) {
@@ -129,6 +142,8 @@ export const LABELS: Record<string, string> = {
   "closed-lost": "Perdu",
   // montage
   "rush-a-deposer": "Rushs à déposer",
+  reference: "Référence",
+  livrable: "Montage livré",
   "a-monter": "À monter",
   "en-cours": "En cours",
   livre: "Livré",
@@ -161,6 +176,43 @@ export const LABELS: Record<string, string> = {
   analyse: "Analysé",
   "a-tourner": "À tourner",
   fait: "Fait",
+  // module commercial
+  admin: "Admin",
+  booked: "Booké",
+  confirmed: "Confirmé",
+  rescheduled: "Reprogrammé",
+  completed: "Call fait",
+  cancelled: "Annulé",
+  "follow-up": "Relance",
+  "instagram-dm": "DM Instagram",
+  "instagram-story": "Story Instagram",
+  "instagram-reel": "Reel Instagram",
+  inbound: "Inbound",
+  outbound: "Outbound",
+  referral: "Recommandation",
+  other: "Autre",
+  "too-expensive": "Trop cher",
+  "no-money": "Pas de budget",
+  "need-to-think": "Veut réfléchir",
+  "need-partner-approval": "Doit en parler",
+  "not-qualified": "Non qualifié",
+  "not-interested": "Pas intéressé",
+  timing: "Mauvais timing",
+  competitor: "Parti chez un concurrent",
+  "paid-in-full": "Payé en une fois",
+  installments: "Paiement échelonné",
+  deposit: "Acompte",
+  "per-appointment": "Par rendez-vous",
+  "per-show": "Par call honoré",
+  "pct-revenue": "% de la valeur de contrat",
+  "pct-cash": "% du cash encaissé",
+  "fixed-plus-pct": "Fixe + pourcentage",
+  custom: "Personnalisée",
+  active: "Active",
+  "partially-refunded": "Remboursée en partie",
+  refunded: "Remboursée",
+  pending: "En attente",
+  done: "Faite",
   waiting: "En attente",
   queuing: "En file",
   generating: "Génération…",
@@ -169,3 +221,91 @@ export const LABELS: Record<string, string> = {
 };
 
 export const label = (key: string) => LABELS[key] ?? key;
+
+/** Dossiers de production. */
+export const PROD_FOLDERS = [
+  { value: "value", label: "Value" },
+  { value: "lifestyle", label: "Lifestyle" },
+  { value: "clipping", label: "Clipping" },
+  { value: "facecam", label: "FaceCam" },
+  { value: "eleve", label: "Élève" },
+] as const;
+
+/** Ponctuation qui termine une phrase parlee. */
+const SENTENCE_END = new Set([".", "!", "?", "…"]);
+/** Signes qui peuvent suivre cette ponctuation sans ouvrir une phrase. */
+const TRAILING = new Set([".", "!", "?", "…", '"', "»", ")", "]"]);
+
+/**
+ * Aere une transcription brute en paragraphes lisibles.
+ *
+ * La fonction PARCOURT le texte au lieu de le decouper par expression
+ * reguliere : une premiere version a base de match() perdait la ponctuation
+ * isolee sur une cinquantaine de transcriptions. Ici chaque caractere est
+ * conserve, seuls des espaces deviennent des sauts de ligne.
+ */
+export function formatTranscript(raw: string): string {
+  const clean = (raw ?? "").replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+
+  const blocks: string[] = [];
+  let start = 0;
+
+  for (let i = 0; i < clean.length; i++) {
+    if (!SENTENCE_END.has(clean[i])) continue;
+
+    // Absorbe une eventuelle suite de ponctuation et le guillemet fermant.
+    let end = i + 1;
+    while (end < clean.length && TRAILING.has(clean[end])) end++;
+
+    const atBoundary = end >= clean.length || clean[end] === " ";
+    if (atBoundary && end - start >= 160) {
+      blocks.push(clean.slice(start, end));
+      // On saute l'unique espace separateur : les blancs sont deja normalises.
+      start = end + 1;
+      i = end;
+    }
+  }
+
+  if (start < clean.length) blocks.push(clean.slice(start));
+  return blocks.filter(Boolean).join("\n\n");
+}
+
+/** Lundi de la semaine en cours, au format YYYY-MM-DD. */
+export function mondayISO(from = new Date()): string {
+  const d = new Date(Date.UTC(from.getFullYear(), from.getMonth(), from.getDate()));
+  // getUTCDay : 0 = dimanche. On recule jusqu'au lundi.
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Duree attendue d'une generation, deduite de l'historique reel.
+ *
+ * Les fournisseurs ne publient aucune estimation, et une valeur theorique
+ * vieillit mal. Les generations deja faites sur CE compte, avec CE modele,
+ * sont la meilleure source disponible — et elle s'affine toute seule.
+ *
+ * On prend la mediane : une tache partie en heure de pointe peut doubler, et
+ * une moyenne se laisserait tirer par ce genre de valeur isolee.
+ */
+export function estimateSec(
+  model: string,
+  rows: { model: string; state: string; costTimeSec?: number }[],
+): { sec: number; sample: number } | null {
+  const past = rows
+    .filter((r) => r.model === model && r.state === "success" && (r.costTimeSec ?? 0) > 0)
+    .map((r) => r.costTimeSec as number)
+    .sort((a, b) => a - b);
+  if (!past.length) return null;
+  const mid = Math.floor(past.length / 2);
+  const sec = past.length % 2 ? past[mid] : Math.round((past[mid - 1] + past[mid]) / 2);
+  return { sec, sample: past.length };
+}
+
+/** « 6 min 12 » ou « 45 s ». */
+export function duration(total: number): string {
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return m > 0 ? `${m} min ${String(s).padStart(2, "0")}` : `${s} s`;
+}

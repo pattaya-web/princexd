@@ -76,14 +76,13 @@ export default function ContenuPage() {
 
   return (
     <>
-      <Card title="Les 14 prochains jours" subtitle="Renseigne « Prévu le » sur un post pour qu'il apparaisse ici." className="mb-4">
+      <Card title="Les 14 prochains jours" className="mb-4">
         <PlanningStrip posts={rows} />
       </Card>
 
       <EntityView
         spec={POSTS}
         title="Calendrier de contenu"
-        subtitle="De l'idée au post publié. Une fois publié, remplis les stats : c'est ce qui alimente « Quoi spammer »."
         summary={(all) => {
           const posts = all as unknown as Post[];
           const published = posts.filter((p) => p.status === "publie");
@@ -101,7 +100,6 @@ export default function ContenuPage() {
               <StatTile
                 label="Stats manquantes"
                 value={fmtInt(published.length - withStats.length)}
-                hint="Posts publiés sans chiffres"
                 accent={published.length - withStats.length > 0 ? "var(--warning)" : "var(--good)"}
               />
             </div>

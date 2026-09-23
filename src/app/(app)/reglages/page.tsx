@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
-import { Card, CopyButton, ErrorNote, Field, InfoNote, PageHeader, Spinner, useToast } from "@/components/ui";
+import { Card, CopyButton, ErrorNote, Field, InfoNote, PageHeader, Spinner, Toggle, useToast } from "@/components/ui";
 import { label, WEEKDAYS } from "@/lib/format";
 import type { Settings } from "@/lib/types";
 
@@ -11,6 +11,10 @@ type View = Settings & {
   kieApiKeySource?: string;
   iclosedApiKeyMask?: string;
   iclosedApiKeySource?: string;
+  igAccessTokenMask?: string;
+  igAccessTokenSource?: string;
+  openaiApiKeyMask?: string;
+  openaiApiKeySource?: string;
 };
 
 const STORY_TYPES = [
@@ -32,7 +36,9 @@ export default function ReglagesPage() {
   const [s, setS] = useState<View | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [iclosedKey, setIclosedKey] = useState("");
+  const [openaiKey, setOpenaiKey] = useState("");
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
 
@@ -50,14 +56,20 @@ export default function ReglagesPage() {
     setError(null);
     try {
       const payload: Partial<Settings> = { ...s };
+      // Le profil Instagram est écrit par la synchro, jamais par ce formulaire :
+      // le renvoyer écraserait un instantané plus frais.
+      delete payload.igProfile;
       if (apiKey.trim()) payload.kieApiKey = apiKey.trim();
       else delete payload.kieApiKey;
       if (iclosedKey.trim()) payload.iclosedApiKey = iclosedKey.trim();
       else delete payload.iclosedApiKey;
+      if (openaiKey.trim()) payload.openaiApiKey = openaiKey.trim();
+      else delete payload.openaiApiKey;
       const next = await api<View>("/api/settings", { method: "PATCH", body: JSON.stringify(payload) });
       setS(next);
       setApiKey("");
       setIclosedKey("");
+      setOpenaiKey("");
       toast("Réglages enregistrés.");
     } catch (e) {
       setError((e as Error).message);
@@ -66,20 +78,29 @@ export default function ReglagesPage() {
     }
   };
 
-  const setPlanSlot = (day: number, index: number, value: string) => {
-    const plan = { ...s.storyPlan };
-    const types = [...(plan[String(day)] ?? ["", "", ""])];
-    while (types.length < 3) types.push("");
-    types[index] = value;
-    plan[String(day)] = types.filter(Boolean);
-    set("storyPlan", plan);
+  /** Synchro complète : profil, historique 30 j, et stats de chaque publication. */
+  const runSync = async () => {
+    setSyncing(true);
+    try {
+      const r = await api<{ postsCreated: number; postsUpdated: number; followers: number }>(
+        "/api/instagram/sync",
+        { method: "POST", body: JSON.stringify({ mode: "full", limit: 100 }) },
+      );
+      toast(
+        `Instagram synchronisé : ${r.followers} abonnés, ${r.postsCreated} post(s) créé(s), ${r.postsUpdated} mis à jour.`,
+      );
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setSyncing(false);
+    }
   };
+
 
   return (
     <>
       <PageHeader
         title="Réglages"
-        subtitle="Clés, objectifs, rotation des stories et intégrations."
         actions={
           <button className="btn btn-primary" onClick={() => void save()} disabled={saving}>
             {saving ? <span className="spinner" /> : "Enregistrer"}
@@ -91,7 +112,7 @@ export default function ReglagesPage() {
 
       <div className="grid lg:grid-cols-2 gap-4 items-start">
         <div className="flex flex-col gap-4">
-          <Card title="Clé API KIE" subtitle="Elle reste côté serveur : le navigateur ne la voit jamais.">
+          <Card title="Clé API KIE">
             <div className="flex flex-col gap-3.5">
               {s.kieApiKeyMask ? (
                 <InfoNote>
@@ -101,7 +122,7 @@ export default function ReglagesPage() {
                 </InfoNote>
               ) : (
                 <ErrorNote>
-                  Aucune clé configurée. Le Studio, le Swipe file et les recommandations IA ne fonctionneront pas tant
+                  Aucune clé configurée. Le Studio et les recommandations IA ne fonctionneront pas tant
                   qu&apos;elle n&apos;est pas renseignée. Récupère-la sur kie.ai/api-key.
                 </ErrorNote>
               )}
@@ -179,7 +200,7 @@ export default function ReglagesPage() {
             </div>
           </Card>
 
-          <Card title="Contexte de marque" subtitle="Injecté dans tous les prompts IA. Plus il est précis, meilleurs sont les scripts.">
+          <Card title="Contexte de marque">
             <textarea
               className="textarea"
               style={{ minHeight: 150 }}
@@ -216,33 +237,129 @@ export default function ReglagesPage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <Card title="Rotation des stories" subtitle="Trois slots par jour : matin, midi, soir.">
-            <div className="flex flex-col gap-2.5">
-              {[1, 2, 3, 4, 5, 6, 0].map((d) => {
-                const types = s.storyPlan[String(d)] ?? [];
-                return (
-                  <div key={d} className="grid items-center gap-2" style={{ gridTemplateColumns: "58px 1fr 1fr 1fr" }}>
-                    <span className="text-[12px] font-medium">{WEEKDAYS[d].slice(0, 3)}</span>
-                    {[0, 1, 2].map((i) => (
-                      <select
-                        key={i}
-                        className="select !text-[12px] !py-1"
-                        value={types[i] ?? ""}
-                        onChange={(e) => setPlanSlot(d, i, e.target.value)}
-                      >
-                        <option value="">—</option>
-                        {STORY_TYPES.map((t) => (
-                          <option key={t} value={t}>{label(t)}</option>
-                        ))}
-                      </select>
-                    ))}
-                  </div>
-                );
-              })}
+          <Card
+            title="Instagram"
+            actions={
+              <button className="btn btn-sm btn-primary" onClick={() => void runSync()} disabled={syncing}>
+                {syncing ? "Synchro…" : "Synchroniser"}
+              </button>
+            }
+          >
+            <div className="flex flex-col gap-3.5">
+              {s.igAccessTokenMask ? (
+                <InfoNote>
+                  Token actif : <code className="mono">{s.igAccessTokenMask}</code> — source :{" "}
+                  <strong>{s.igAccessTokenSource === "env" ? ".env.local" : "ces réglages"}</strong>. Le profil et
+                  le relevé du jour se rafraîchissent tout seuls à l&apos;ouverture du dashboard (au plus une fois
+                  toutes les 10 minutes). Ce bouton force en plus la relecture des publications.
+                </InfoNote>
+              ) : (
+                <InfoNote>
+                  Aucun token Instagram. Génère-le depuis Meta Business (Utilisateurs système) avec les
+                  autorisations <code className="mono">instagram_basic</code>,{" "}
+                  <code className="mono">instagram_manage_insights</code>,{" "}
+                  <code className="mono">pages_show_list</code> et{" "}
+                  <code className="mono">pages_read_engagement</code>, puis place-le dans{" "}
+                  <code className="mono">.env.local</code> sous <code className="mono">IG_ACCESS_TOKEN</code>.
+                </InfoNote>
+              )}
+
+              <Field
+                label="Badge certifié"
+                hint="L'API Instagram n'expose pas la certification : c'est donc à toi de l'indiquer."
+              >
+                <Toggle
+                  checked={s.igVerified}
+                  onChange={(v) => set("igVerified", v)}
+                  label={s.igVerified ? "Affiché à côté de ton nom" : "Masqué"}
+                />
+              </Field>
+
+              <Field
+                label="Mots-clés des posts business"
+                hint="Séparés par des virgules. Seules les publications dont la légende en contient un alimentent « Ce que disent tes chiffres ». Vide = tout garder."
+              >
+                <input
+                  className="input"
+                  placeholder="commente, shopify, ia"
+                  value={s.postFilterKeywords}
+                  onChange={(e) => set("postFilterKeywords", e.target.value)}
+                />
+              </Field>
+
+              <Field
+                label="Membres du canal de diffusion"
+                hint="L'API Instagram n'expose pas les canaux : recopie le nombre depuis l'app. Affiché à côté de ton pseudo, masqué si 0."
+              >
+                <input
+                  className="input num"
+                  type="number"
+                  min={0}
+                  value={s.igChannelMembers}
+                  onChange={(e) => set("igChannelMembers", Number(e.target.value) || 0)}
+                />
+              </Field>
+
+              {s.igProfile && (
+                <InfoNote>
+                  Dernière synchro : <strong>{new Date(s.igProfile.fetchedAt).toLocaleString("fr-FR")}</strong> —{" "}
+                  {s.igProfile.followers} abonnés, {s.igProfile.history.length} jours d&apos;historique.
+                </InfoNote>
+              )}
             </div>
           </Card>
 
-          <Card title="iClosed" subtitle="L'API officielle ramène les appels, les réponses au questionnaire et crée les leads.">
+          <Card
+            title="Transcription (OpenAI)"
+          >
+            <div className="flex flex-col gap-3.5">
+              {s.openaiApiKeyMask ? (
+                <InfoNote>
+                  Clé active : <code className="mono">{s.openaiApiKeyMask}</code> — source :{" "}
+                  <strong>{s.openaiApiKeySource === "env" ? ".env.local" : "ces réglages"}</strong>. Le bouton
+                  « Transcrire la vidéo » apparaît dans Take Script, sur le dashboard.
+                </InfoNote>
+              ) : (
+                <InfoNote>
+                  Aucune clé OpenAI. Crée-la sur platform.openai.com (API keys), elle commence par{" "}
+                  <code className="mono">sk-</code>. Sans elle, les scripts restent reconstruits depuis la
+                  légende et l&apos;image de couverture, sans les paroles.
+                </InfoNote>
+              )}
+
+              <Field label={s.openaiApiKeyMask ? "Remplacer la clé OpenAI" : "Clé API OpenAI"} hint="Laisse vide pour conserver la clé actuelle.">
+                <input
+                  className="input mono"
+                  type="password"
+                  placeholder="sk-…"
+                  value={openaiKey}
+                  onChange={(e) => setOpenaiKey(e.target.value)}
+                />
+              </Field>
+
+              <Field
+                label="Modèle de transcription"
+                hint="gpt-4o-mini-transcribe est le meilleur rapport prix/qualité. whisper-1 gère les horodatages."
+              >
+                <select
+                  className="input"
+                  value={s.transcribeModel}
+                  onChange={(e) => set("transcribeModel", e.target.value)}
+                >
+                  {["gpt-4o-mini-transcribe", "gpt-4o-transcribe", "gpt-transcribe", "whisper-1"].map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <InfoNote>
+                La vidéo est envoyée telle quelle à OpenAI, dans la limite de <strong>25 Mo</strong> par fichier.
+                Une transcription est conservée : elle n&apos;est jamais refacturée deux fois pour le même reel.
+              </InfoNote>
+            </div>
+          </Card>
+
+          <Card title="iClosed">
             <div className="flex flex-col gap-3.5">
               {s.iclosedApiKeyMask ? (
                 <InfoNote>
@@ -284,6 +401,53 @@ export default function ReglagesPage() {
                   <CopyButton text={`${origin}/api/webhooks/iclosed`} />
                 </div>
               </Field>
+            </div>
+          </Card>
+
+          {/* Le module commercial raisonne dans sa propre devise : les offres se
+              vendent en dollars alors que le reste du tool compte en euros. */}
+          <Card title="Équipe commerciale">
+            <Field label="Devise des ventes et commissions">
+              <select
+                className="select"
+                value={s.salesCurrency ?? "USD"}
+                onChange={(e) => set("salesCurrency", e.target.value)}
+              >
+                <option value="USD">USD — dollar américain</option>
+                <option value="EUR">EUR — euro</option>
+                <option value="GBP">GBP — livre sterling</option>
+                <option value="CHF">CHF — franc suisse</option>
+                <option value="CAD">CAD — dollar canadien</option>
+              </select>
+            </Field>
+          </Card>
+
+          <Card
+            title="Plan éditorial de la semaine"
+          >
+            <div className="flex flex-col gap-3">
+              {[1, 2, 3, 4, 5, 6, 0].map((d) => {
+                const entry = s.weekPlan?.[String(d)] ?? { theme: "", objectif: "" };
+                const setEntry = (patch: Partial<{ theme: string; objectif: string }>) =>
+                  set("weekPlan", { ...s.weekPlan, [String(d)]: { ...entry, ...patch } });
+                return (
+                  <div key={d} className="grid sm:grid-cols-[70px_1fr_180px] gap-2 items-center">
+                    <span className="label-xs">{WEEKDAYS[d]}</span>
+                    <input
+                      className="input"
+                      placeholder="Thème du jour"
+                      value={entry.theme}
+                      onChange={(e) => setEntry({ theme: e.target.value })}
+                    />
+                    <input
+                      className="input"
+                      placeholder="Objectif"
+                      value={entry.objectif}
+                      onChange={(e) => setEntry({ objectif: e.target.value })}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </Card>
 
