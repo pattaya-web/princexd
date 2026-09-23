@@ -1288,7 +1288,7 @@ function ScriptModal({ post, onClose }: { post: Post | null; onClose: () => void
  * rafraichit plus, chaque vignette affichait l'icone d'image cassee. On
  * retombe sur le titre, comme pour une publication sans miniature.
  */
-function Thumb({
+export function Thumb({
   src,
   title,
   className = "w-full h-full",

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { newId, readDB, writeDB } from "@/lib/db";
+import { cacheImages } from "@/lib/thumb-cache";
 import {
   fetchMedia,
   fetchMediaInsights,
@@ -53,7 +54,10 @@ export async function POST(req: NextRequest) {
         slice.forEach((m, j) => insightsById.set(m.id, got[j]));
       }
 
-      for (const m of media) {
+      // Miniatures en cache local : l'URL CDN expire, pas le fichier chez nous.
+      const thumbs = await cacheImages(media.map((m) => ({ url: mapThumbnail(m), key: `t${m.id}` })));
+
+      for (const [i, m] of media.entries()) {
         const insights = insightsById.get(m.id) ?? null;
         const existing = db.posts.find((p) => p.url === m.permalink);
 
@@ -61,8 +65,7 @@ export async function POST(req: NextRequest) {
           // insights null = Meta muet sur ce média : on garde les stats connues.
           if (insights) Object.assign(existing, mapStats(m, insights));
           else postsSkipped++;
-          // L'URL CDN expire : on la rafraîchit à chaque passage.
-          existing.thumbnail = mapThumbnail(m);
+          existing.thumbnail = thumbs[i];
           existing.caption = m.caption ?? "";
           existing.igMediaId = m.id;
           if (!existing.publishedAt) existing.publishedAt = m.timestamp;
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest) {
           postsUpdated++;
         } else {
           if (!insights) postsSkipped++;
-          db.posts.unshift(toPost(m, insights ?? {}, newId()));
+          db.posts.unshift({ ...toPost(m, insights ?? {}, newId()), thumbnail: thumbs[i] });
           postsCreated++;
         }
       }

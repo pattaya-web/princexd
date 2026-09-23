@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { newId, readDB, writeDB } from "@/lib/db";
 import { fetchCreatorPages, InstagramError, mapThumbnail } from "@/lib/instagram";
+import { cacheImage, cacheImages, hashKey } from "@/lib/thumb-cache";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 800;
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     const profile = {
       username: handle,
       name: found.name ?? handle,
-      profilePicture: found.profile_picture_url ?? "",
+      profilePicture: await cacheImage(found.profile_picture_url ?? "", `c${hashKey(handle)}`),
       biography: found.biography ?? "",
       followers: found.followers_count ?? 0,
       mediaCount: found.media_count ?? 0,
@@ -43,14 +44,19 @@ export async function POST(req: NextRequest) {
     let created = 0;
     let updated = 0;
 
-    for (const m of found.media?.data ?? []) {
+    // Les miniatures partent en cache local avant d'etre enregistrees :
+    // l'URL CDN de Meta serait morte dans quelques jours.
+    const medias = found.media?.data ?? [];
+    const thumbs = await cacheImages(medias.map((m) => ({ url: mapThumbnail(m), key: `t${m.id}` })));
+
+    for (const [i, m] of medias.entries()) {
       const known = db.creatorPosts.find((p) => p.igMediaId === m.id);
       const row = {
         creator: handle,
         igMediaId: m.id,
         caption: m.caption ?? "",
         permalink: m.permalink,
-        thumbnail: mapThumbnail(m),
+        thumbnail: thumbs[i],
         mediaType: m.media_type,
         isReel: m.media_product_type === "REELS" || m.media_type === "VIDEO",
         likes: m.like_count ?? 0,

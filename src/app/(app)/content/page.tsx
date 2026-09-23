@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, useCollection } from "@/lib/client";
 import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Tabs, useToast } from "@/components/ui";
 import { fmtCompact, fmtInt } from "@/lib/format";
-import { SaveMenu } from "@/components/instagram";
+import { SaveMenu, Thumb } from "@/components/instagram";
 import type { ContentAnalysis, Creator, CreatorPost, ProdFolder, SavedItem } from "@/lib/types";
 import { SkPage } from "@/components/Skeleton";
 
@@ -361,7 +361,7 @@ export default function ContentPage() {
                       title="Lire la vidéo"
                     >
                       {p.thumbnail ? (
-                        <img src={p.thumbnail} alt="" className="w-full h-full object-cover" loading="lazy" />
+                        <Thumb src={p.thumbnail} title={p.caption.slice(0, 50) || "Sans aperçu"} />
                       ) : (
                         <span className="absolute inset-0 grid place-items-center dim text-[11px] px-2 text-center">
                           {p.caption.slice(0, 50) || "Sans aperçu"}

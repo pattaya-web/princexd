@@ -1,5 +1,6 @@
 import { newId } from "./db";
 import { mapThumbnail, toPost } from "./instagram";
+import { cacheImage } from "./thumb-cache";
 import {
   buildHistory,
   fetchAccountInsights,
@@ -46,13 +47,14 @@ export async function runLightSync(db: DB, unfollowDays = 3) {
     for (const m of await fetchMedia(6)) {
       if (m.media_product_type === "STORY") continue;
       const known = db.posts.find((p) => p.url === m.permalink);
+      const thumbnail = await cacheImage(mapThumbnail(m), `t${m.id}`);
       if (known) {
-        known.thumbnail = mapThumbnail(m);
+        known.thumbnail = thumbnail;
         known.caption = m.caption ?? "";
         known.igMediaId = m.id;
       } else {
         // Stats a zero : la synchro complete les remplira.
-        db.posts.unshift(toPost(m, {}, newId()));
+        db.posts.unshift({ ...toPost(m, {}, newId()), thumbnail });
       }
     }
   } catch {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { newId, readDB, writeDB } from "@/lib/db";
 import { fetchCreatorPages, InstagramError, mapThumbnail } from "@/lib/instagram";
+import { cacheImage, cacheImages, hashKey } from "@/lib/thumb-cache";
 import { DownloadError, fetchMeta } from "@/lib/ytdlp";
 
 export const dynamic = "force-dynamic";
@@ -55,12 +56,13 @@ export async function POST(req: NextRequest) {
 
     try {
       const meta = await fetchMeta(url);
+      const itemId = newId();
       const item = {
-        id: newId(),
+        id: itemId,
         source: "creator" as const,
         author: meta.author,
         permalink: url,
-        thumbnail: meta.thumbnail,
+        thumbnail: await cacheImage(meta.thumbnail, `s${itemId}`),
         caption: meta.title,
         likes: meta.likes,
         comments: meta.comments,
@@ -114,13 +116,15 @@ export async function POST(req: NextRequest) {
     else db.creators.unshift({ id: newId(), ...profile, createdAt: new Date().toISOString() });
 
     let created = 0;
-    for (const m of found.media?.data ?? []) {
+    const medias = found.media?.data ?? [];
+    const thumbs = await cacheImages(medias.map((m) => ({ url: mapThumbnail(m), key: `t${m.id}` })));
+    for (const [i, m] of medias.entries()) {
       const row = {
         creator: username,
         igMediaId: m.id,
         caption: m.caption ?? "",
         permalink: m.permalink,
-        thumbnail: mapThumbnail(m),
+        thumbnail: thumbs[i],
         mediaType: m.media_type,
         isReel: m.media_product_type === "REELS" || m.media_type === "VIDEO",
         likes: m.like_count ?? 0,
