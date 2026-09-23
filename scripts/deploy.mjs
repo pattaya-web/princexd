@@ -49,7 +49,7 @@ async function main() {
     return;
   }
 
-  const started = await api(`deploy?uuid=${APP_UUID}&force=false`);
+  const started = await api(`deploy?uuid=${APP_UUID}&force=false`, { method: "POST" });
   const uuid = started.deployments?.[0]?.deployment_uuid;
   console.log(started.deployments?.[0]?.message ?? "Déploiement demandé.");
   if (!uuid) return;
