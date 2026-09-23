@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
-import { MontageBoard } from "@/components/MontageBoard";
+import { MontageDrive } from "@/components/MontageDrive";
 import { Card, ErrorNote, Field, InfoNote, ToastHost } from "@/components/ui";
 import { ThemeToggle } from "@/components/Shell";
 
@@ -75,11 +75,12 @@ export default function MonteurPage() {
             <>
               <div className="mb-4">
                 <InfoNote>
-                  Chaque carte contient le brief, les rushs et le format attendu. Quand ton montage est prêt, dépose
-                  la vidéo dans <strong>Vidéos montées</strong> puis fais glisser la carte en <strong>Livré</strong>.
+                  Chaque dossier contient les rushs, l&apos;inspiration à reproduire et les consignes. Télécharge les
+                  rushs, monte, puis dépose ta vidéo dans <strong>Montage livré</strong> : le dossier passe tout seul
+                  dans <strong>Vidéos livrées</strong>.
                 </InfoNote>
               </div>
-              <MontageBoard role="editor" />
+              <MontageDrive role="editor" />
             </>
           ) : (
             <div className="max-w-sm mx-auto mt-[8vh]">

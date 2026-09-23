@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
-import { MontageBoard } from "@/components/MontageBoard";
+import { MontageDrive } from "@/components/MontageDrive";
 import { CopyButton, InfoNote, PageHeader } from "@/components/ui";
 import type { Settings } from "@/lib/types";
 
@@ -45,7 +45,7 @@ export default function MontagePage() {
         </InfoNote>
       </div>
 
-      <MontageBoard role="owner" />
+      <MontageDrive role="owner" />
     </>
   );
 }
