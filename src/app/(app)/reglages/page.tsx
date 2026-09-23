@@ -234,6 +234,41 @@ export default function ReglagesPage() {
               )}
             </div>
           </Card>
+
+          <Card title="Téléchargement des vidéos Instagram">
+            <div className="flex flex-col gap-3">
+              <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--text-2)" }}>
+                Instagram refuse les téléchargements venant d&apos;un serveur sans session. Pour que le bouton
+                « Télécharger » marche sur les vidéos des créateurs, colle ici les cookies d&apos;un compte Instagram
+                connecté (de préférence un compte secondaire) : extension navigateur « Get cookies.txt LOCALLY »,
+                ouverte sur instagram.com, bouton Export, puis colle le contenu. La lecture des vidéos, elle,
+                fonctionne sans.
+              </p>
+              <div className="flex items-center gap-2 text-[12.5px]">
+                <span
+                  className="badge"
+                  style={{
+                    color: (s as { igCookiesSet?: boolean }).igCookiesSet ? "var(--good)" : "var(--text-3)",
+                    borderColor: (s as { igCookiesSet?: boolean }).igCookiesSet ? "var(--good)" : "var(--border)",
+                  }}
+                >
+                  {(s as { igCookiesSet?: boolean }).igCookiesSet ? "Cookies configurés" : "Aucun cookie"}
+                </span>
+                {(s as { igCookiesSet?: boolean }).igCookiesSet && (
+                  <button className="btn btn-sm" onClick={() => set("igCookies", "CLEAR")}>
+                    Retirer (au prochain enregistrement)
+                  </button>
+                )}
+              </div>
+              <textarea
+                className="textarea mono"
+                style={{ minHeight: 110, fontSize: 11 }}
+                placeholder="# Netscape HTTP Cookie File&#10;.instagram.com&#9;TRUE&#9;/&#9;TRUE&#9;…"
+                value={s.igCookies === "CLEAR" ? "" : (s.igCookies ?? "")}
+                onChange={(e) => set("igCookies", e.target.value)}
+              />
+            </div>
+          </Card>
         </div>
 
         <div className="flex flex-col gap-4">

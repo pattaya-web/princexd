@@ -2,9 +2,11 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, useCollection } from "@/lib/client";
-import { Card, CopyButton, Empty, ErrorNote, Field, InfoNote, Modal, PageHeader, Tabs } from "@/components/ui";
+import { Card, CopyButton, Empty, ErrorNote, Field, InfoNote, Modal, PageHeader, Tabs, useToast } from "@/components/ui";
+import { Thumb } from "@/components/instagram";
+import { CreatorPlayer, DownloadButton } from "@/components/CreatorPlayer";
 import { fmtCompact, PROD_FOLDERS } from "@/lib/format";
 import type { ProdFolder, SavedItem } from "@/lib/types";
 import { SkPage } from "@/components/Skeleton";
@@ -185,16 +187,17 @@ function PlayerModal({ item, onClose }: { item: SavedItem | null; onClose: () =>
   return (
     <Modal open onClose={onClose} title={item.source === "mine" ? "Ma vidéo" : item.author || "Vidéo"}>
       <div className="flex flex-col gap-3">
-        <video
-          src={mediaUrl(item)}
-          controls
-          autoPlay
-          playsInline
-          className="w-full rounded-[9px]"
-          style={{ maxHeight: "70vh", background: "#000" }}
-        />
+        {item.source === "mine" && item.postId ? (
+          <video src={mediaUrl(item)} controls autoPlay playsInline className="w-full rounded-[9px]" style={{ maxHeight: "70vh", background: "#000" }} />
+        ) : (
+          <CreatorPlayer permalink={item.permalink} src={mediaUrl(item)} />
+        )}
         <div className="flex items-center gap-2 flex-wrap">
-          <a className="btn btn-sm btn-primary" href={mediaUrl(item, true)}>Télécharger la vidéo</a>
+          {item.source === "mine" && item.postId ? (
+            <a className="btn btn-sm btn-primary" href={mediaUrl(item, true)}>Télécharger la vidéo</a>
+          ) : (
+            <DownloadButton href={mediaUrl(item, true)} label="Télécharger la vidéo" />
+          )}
           <a className="btn btn-sm" href={item.permalink || undefined} target="_blank" rel="noreferrer">
             Instagram
           </a>
@@ -207,11 +210,94 @@ function PlayerModal({ item, onClose }: { item: SavedItem | null; onClose: () =>
   );
 }
 
+/**
+ * Ajout rapide : un lien video, un dossier, et c'est range.
+ * Le lien part au meme aiguillage que la page Content (yt-dlp pour les
+ * metadonnees), avec le dossier choisi au lieu de « value » par defaut.
+ */
+function QuickAdd({ onAdded }: { onAdded: () => void }) {
+  const toast = useToast();
+  const [link, setLink] = useState("");
+  const [folder, setFolder] = useState<ProdFolder>("value");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    const input = link.trim();
+    if (!input || busy) return;
+    setBusy(true);
+    try {
+      const r = await api<{ kind: string; already?: boolean; item?: { author?: string } }>("/api/creators/resolve", {
+        method: "POST",
+        body: JSON.stringify({ input, folder }),
+      });
+      const name = PROD_FOLDERS.find((f) => f.value === folder)?.label ?? folder;
+      if (r.kind === "saved") {
+        toast(r.already ? `Déjà en production, déplacé dans ${name}.` : `Ajouté dans ${name}${r.item?.author ? ` (${r.item.author})` : ""}.`);
+        setLink("");
+        onAdded();
+      } else {
+        toast("Ce lien est un profil, pas une vidéo : il a été ajouté dans Content.");
+        setLink("");
+      }
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+        <Field label="Colle un lien de vidéo (Instagram, TikTok, YouTube…)" className="flex-1">
+          <input
+            className="input w-full"
+            placeholder="https://www.instagram.com/reel/…"
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") void submit(); }}
+            disabled={busy}
+          />
+        </Field>
+        <Field label="Format">
+          <select className="input" value={folder} onChange={(e) => setFolder(e.target.value as ProdFolder)} disabled={busy}>
+            {PROD_FOLDERS.map((f) => (
+              <option key={f.value} value={f.value}>{f.label}</option>
+            ))}
+          </select>
+        </Field>
+        <button className="btn btn-primary" onClick={() => void submit()} disabled={busy || !link.trim()} style={{ height: 36 }}>
+          {busy ? <span className="spinner" /> : "Ajouter"}
+        </button>
+      </div>
+    </Card>
+  );
+}
+
 export default function ProductionPage() {
   const saved = useCollection<SavedItem>("saved");
   const [folder, setFolder] = useState("");
   const [showDone, setShowDone] = useState(false);
   const [cursor, setCursor] = useState<number | null>(null);
+
+  /*
+   * Auto-reparation des vignettes.
+   *
+   * Une vignette qui pointe encore vers le CDN Instagram va expirer : des
+   * qu'on en voit une, le serveur la remplace par une copie locale (depuis
+   * les createurs suivis, mes posts, ou yt-dlp). Une seule tentative par
+   * ouverture de page, pour ne pas boucler si une video est introuvable.
+   */
+  const repaired = useRef(false);
+  const reloadSaved = saved.reload;
+  useEffect(() => {
+    if (repaired.current || saved.loading) return;
+    if (!saved.rows.some((r) => r.thumbnail && !r.thumbnail.startsWith("/api/media/"))) return;
+    repaired.current = true;
+    void api<{ fixed: number }>("/api/saved/refresh-thumbs", { method: "POST" })
+      .then((r) => { if (r.fixed > 0) void reloadSaved(); })
+      .catch(() => undefined);
+  }, [saved.rows, saved.loading, reloadSaved]);
   const [playing, setPlaying] = useState<SavedItem | null>(null);
   // Tout est ouvert par defaut : on ne stocke que ce que l'utilisateur replie.
   const [closed, setClosed] = useState<Set<string>>(new Set());
@@ -256,6 +342,10 @@ export default function ProductionPage() {
         title="Production"
       />
 
+      <div className="mb-4">
+        <QuickAdd onAdded={() => void saved.reload()} />
+      </div>
+
       <PlayerModal item={playing} onClose={() => setPlaying(null)} />
 
       <ScriptModal
@@ -273,8 +363,8 @@ export default function ProductionPage() {
       {!saved.rows.length ? (
         <Card>
           <Empty>
-            Rien en production. Depuis Content ou le dashboard, clique le <strong>＋</strong> d&apos;une vignette
-            et choisis un dossier.
+            Rien en production. Colle un lien de vidéo ci-dessus, ou depuis Content clique le <strong>＋</strong>{" "}
+            d&apos;une vignette et choisis un dossier.
           </Empty>
         </Card>
       ) : (
@@ -354,9 +444,7 @@ export default function ProductionPage() {
                               style={{ width: 46, height: 58, background: "var(--surface-3)" }}
                               title="Lire la vidéo"
                             >
-                              {r.thumbnail && (
-                                <img src={r.thumbnail} alt="" className="w-full h-full object-cover" loading="lazy" />
-                              )}
+                              {r.thumbnail && <Thumb src={r.thumbnail} title={r.caption.slice(0, 40)} />}
                             </button>
 
                             <div className="min-w-0 flex-1">
@@ -390,13 +478,13 @@ export default function ProductionPage() {
                                   ⬇ txt
                                 </button>
                               )}
-                              <a
-                                className="btn btn-sm !px-1.5"
-                                href={mediaUrl(r, true)}
-                                title="Télécharger la vidéo"
-                              >
-                                ⬇ mp4
-                              </a>
+                              {r.source === "mine" && r.postId ? (
+                                <a className="btn btn-sm !px-1.5" href={mediaUrl(r, true)} title="Télécharger la vidéo">
+                                  ⬇ mp4
+                                </a>
+                              ) : (
+                                <DownloadButton href={mediaUrl(r, true)} label="⬇ mp4" className="btn btn-sm !px-1.5" />
+                              )}
                               <select
                                 className="select !py-1 !text-[11.5px]"
                                 style={{ width: 108 }}

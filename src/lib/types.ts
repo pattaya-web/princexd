@@ -82,6 +82,8 @@ export interface Settings {
   igProfile: IgProfileSnapshot | null;
   /** Cache de l'audience (24 h), rempli au premier detail de publication. */
   igAudience?: IgAudience | null;
+  /** Cookies Instagram (format Netscape) pour yt-dlp : telechargement des reels depuis le serveur. */
+  igCookies?: string;
   /** Diagnostic de mon propre compte. */
   myAnalysis?: ContentAnalysis;
   /** Fuseaux affichés dans la barre du haut. */

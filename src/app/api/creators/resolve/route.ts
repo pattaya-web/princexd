@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { newId, readDB, writeDB } from "@/lib/db";
 import { fetchCreatorPages, InstagramError, mapThumbnail } from "@/lib/instagram";
 import { cacheImage, cacheImages, hashKey } from "@/lib/thumb-cache";
-import { DownloadError, fetchMeta } from "@/lib/ytdlp";
+import { DownloadError, fetchMeta, isSupportedUrl } from "@/lib/ytdlp";
+import { PROD_FOLDERS } from "@/lib/format";
+import type { ProdFolder } from "@/lib/types";
+
+const isFolder = (v: unknown): v is ProdFolder => PROD_FOLDERS.some((f) => f.value === v);
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 800;
@@ -39,24 +43,56 @@ function readHandle(raw: string): string | null {
  * du createur.
  */
 export async function POST(req: NextRequest) {
-  const { input, deep } = (await req.json().catch(() => ({}))) as {
+  const { input, deep, folder } = (await req.json().catch(() => ({}))) as {
     input?: string;
     deep?: number;
+    /** Dossier de production cible (ajout rapide). Sinon « value ». */
+    folder?: string;
   };
   if (!input?.trim()) return NextResponse.json({ error: "Rien à analyser." }, { status: 400 });
 
   const raw = input.trim();
+  const target: ProdFolder = isFolder(folder) ? folder : "value";
 
-  // ---- Cas 1 : une publication precise, envoyee en production
-  if (POST_PATH.test(raw)) {
+  // ---- Cas 1 : une publication precise, envoyee en production.
+  // Un lien Instagram de reel/post, ou n'importe quel lien video que yt-dlp
+  // sait lire (TikTok, YouTube…) des lors que ce n'est pas un profil.
+  const isPostLink = POST_PATH.test(raw) || (/^https?:\/\//i.test(raw) && !readHandle(raw) && Boolean(isSupportedUrl(raw)));
+  if (isPostLink) {
     const url = raw.split("?")[0];
     const db = readDB();
     const known = db.saved.find((r) => r.permalink === url);
-    if (known) return NextResponse.json({ kind: "saved", item: known, already: true });
+    if (known) {
+      // Deja en production : on le range dans le dossier demande.
+      if (isFolder(folder) && known.folder !== folder) {
+        known.folder = folder;
+        writeDB(db);
+      }
+      return NextResponse.json({ kind: "saved", item: known, already: true });
+    }
 
     try {
-      const meta = await fetchMeta(url);
       const itemId = newId();
+      /*
+       * Metadonnees : yt-dlp d'abord. Si Instagram bloque le serveur, on se
+       * rabat sur ce qu'on sait deja du post (createur suivi), et sinon on
+       * enregistre le lien tel quel : la video reste lisible via l'embed.
+       */
+      const known = db.creatorPosts.find((p) => p.permalink.split("?")[0] === url);
+      let meta: { author: string; title: string; thumbnail: string; likes: number; comments: number };
+      let partial = false;
+      try {
+        meta = await fetchMeta(url);
+      } catch (e) {
+        if (known) {
+          meta = { author: known.creator, title: known.caption, thumbnail: known.thumbnail, likes: known.likes, comments: known.comments };
+        } else if (POST_PATH.test(url)) {
+          meta = { author: "", title: url, thumbnail: "", likes: 0, comments: 0 };
+          partial = true;
+        } else {
+          throw e;
+        }
+      }
       const item = {
         id: itemId,
         source: "creator" as const,
@@ -68,8 +104,8 @@ export async function POST(req: NextRequest) {
         comments: meta.comments,
         views: 0,
         isReel: true,
-        // Dossier par defaut : reclassable d'un menu sur la page Production.
-        folder: "value" as const,
+        // Dossier choisi a l'ajout, sinon « value » ; reclassable ensuite.
+        folder: target,
         note: "",
         done: false,
         createdAt: new Date().toISOString(),
@@ -77,7 +113,7 @@ export async function POST(req: NextRequest) {
       const fresh = readDB();
       fresh.saved.unshift(item);
       writeDB(fresh);
-      return NextResponse.json({ kind: "saved", item });
+      return NextResponse.json({ kind: "saved", item, partial });
     } catch (e) {
       const err = e as DownloadError;
       return NextResponse.json({ error: err.message }, { status: err.code ?? 502 });

@@ -7,6 +7,7 @@ import { api, useCollection } from "@/lib/client";
 import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Tabs, useToast } from "@/components/ui";
 import { fmtCompact, fmtInt } from "@/lib/format";
 import { SaveMenu, Thumb } from "@/components/instagram";
+import { CreatorPlayer, DownloadButton } from "@/components/CreatorPlayer";
 import type { ContentAnalysis, Creator, CreatorPost, ProdFolder, SavedItem } from "@/lib/types";
 import { SkPage } from "@/components/Skeleton";
 
@@ -200,22 +201,12 @@ export default function ContentPage() {
       {playing && (
         <Modal open onClose={() => setPlaying(null)} title={playing.creator}>
           <div className="flex flex-col gap-3">
-            {/* La source resout le flux via yt-dlp puis redirige vers le CDN. */}
-            <video
+            <CreatorPlayer
+              permalink={playing.permalink}
               src={`/api/creators/media?url=${encodeURIComponent(playing.permalink)}`}
-              controls
-              autoPlay
-              playsInline
-              className="w-full rounded-[9px]"
-              style={{ maxHeight: "70vh", background: "#000" }}
             />
             <div className="flex items-center gap-2 flex-wrap">
-              <a
-                className="btn btn-sm btn-primary"
-                href={`/api/creators/media?url=${encodeURIComponent(playing.permalink)}&download=1`}
-              >
-                Télécharger
-              </a>
+              <DownloadButton href={`/api/creators/media?url=${encodeURIComponent(playing.permalink)}&download=1`} />
               <a className="btn btn-sm" href={playing.permalink} target="_blank" rel="noreferrer">
                 Instagram
               </a>
@@ -381,15 +372,14 @@ export default function ContentPage() {
                     </button>
 
                     <span className="tile-actions absolute top-1.5 right-1.5 flex gap-1">
-                      <a
-                        href={`/api/creators/media?url=${encodeURIComponent(p.permalink)}&download=1`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="rounded-[6px] px-1.5 py-1 text-[10.5px] font-semibold"
-                        style={{ background: "rgb(0 0 0 / 0.7)", color: "#fff", backdropFilter: "blur(3px)" }}
-                        title="Télécharger la vidéo"
-                      >
-                        ⬇
-                      </a>
+                      <span onClick={(e) => e.stopPropagation()}>
+                        <DownloadButton
+                          href={`/api/creators/media?url=${encodeURIComponent(p.permalink)}&download=1`}
+                          label="⬇"
+                          className="rounded-[6px] px-1.5 py-1 text-[10.5px] font-semibold"
+                          style={{ background: "rgb(0 0 0 / 0.7)", color: "#fff", backdropFilter: "blur(3px)" }}
+                        />
+                      </span>
                       <SaveMenu
                         saved={savedUrls.has(p.permalink)}
                         onSave={(folder: ProdFolder) =>

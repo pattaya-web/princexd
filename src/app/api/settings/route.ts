@@ -35,6 +35,9 @@ function publicView(s: Settings) {
     openaiApiKeyMask: mask(oaKey),
     openaiApiKeySource: oaEnv ? "env" : oaKey ? "reglages" : "absente",
     editorAccessCode: s.editorAccessCode,
+    // Les cookies restent sur le serveur : on ne renvoie que leur presence.
+    igCookies: "",
+    igCookiesSet: Boolean(s.igCookies?.trim()),
   };
 }
 
@@ -49,5 +52,10 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.iclosedApiKey === "string" && !body.iclosedApiKey.trim()) delete body.iclosedApiKey;
   if (typeof body.igAccessToken === "string" && !body.igAccessToken.trim()) delete body.igAccessToken;
   if (typeof body.openaiApiKey === "string" && !body.openaiApiKey.trim()) delete body.openaiApiKey;
+  // Cookies : vide = on garde ; « CLEAR » = on efface.
+  if (typeof body.igCookies === "string") {
+    if (body.igCookies === "CLEAR") body.igCookies = "";
+    else if (!body.igCookies.trim()) delete body.igCookies;
+  }
   return NextResponse.json(publicView(saveSettings(body)));
 }
