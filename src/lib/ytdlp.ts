@@ -156,7 +156,8 @@ export async function fetchMeta(rawUrl: string): Promise<MediaMeta> {
     );
     const j = JSON.parse(stdout) as Record<string, unknown>;
     return {
-      author: String(j.uploader ?? j.channel ?? j.uploader_id ?? ""),
+      // Le pseudo (channel) avant le nom affiche : c'est lui qu'on montre partout.
+      author: String(j.channel ?? j.uploader ?? j.uploader_id ?? ""),
       title: String(j.description ?? j.title ?? "").slice(0, 400),
       thumbnail: String(j.thumbnail ?? ""),
       likes: Number(j.like_count ?? 0),
