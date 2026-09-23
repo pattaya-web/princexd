@@ -73,8 +73,9 @@ export function PeriodPicker({
   onChange: (v: PeriodState) => void;
 }) {
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <div className="flex gap-1 p-1 rounded-[10px]" style={{ background: "var(--surface-3)" }}>
+    <div className="flex items-center gap-2 flex-wrap min-w-0 max-w-full">
+      {/* Sur téléphone, les périodes défilent horizontalement au lieu d'élargir la page. */}
+      <div className="flex gap-1 p-1 rounded-[10px] max-w-full overflow-x-auto scroll-x" style={{ background: "var(--surface-3)" }}>
         {PERIODS.map((p) => {
           const active = p.key === value.period;
           return (

@@ -355,8 +355,9 @@ export function Brand({ size = "md" }: { size?: "md" | "lg" }) {
           width: box,
           height: box,
           borderRadius: 8,
-          background: "var(--accent)",
+          background: "var(--grad-accent)",
           color: "var(--accent-on)",
+          boxShadow: "0 4px 12px -4px color-mix(in srgb, var(--accent) 60%, transparent)",
           fontSize: size === "lg" ? 11 : 9.5,
           letterSpacing: "0.02em",
         }}
@@ -458,13 +459,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
                       className="nav-link flex items-center gap-2.5 px-3 h-[34px] rounded-full text-[13.5px]"
                       data-active={active}
                       style={{
-                        color: active ? "var(--text)" : "var(--text-2)",
-                        fontWeight: active ? 500 : 400,
+                        color: active ? "var(--accent)" : "var(--text-2)",
+                        fontWeight: active ? 600 : 400,
                       }}
                     >
                       <span
                         className="w-[14px] text-center text-[12px]"
-                        style={{ color: active ? "var(--text)" : "var(--text-3)" }}
+                        style={{ color: active ? "var(--accent)" : "var(--text-3)" }}
                       >
                         {item.icon}
                       </span>
@@ -494,13 +495,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
             borderBottom: "1px solid var(--border)",
           }}
         >
-          <button className="btn btn-ghost btn-sm md:hidden" onClick={() => setOpen(true)} aria-label="Menu">
+          <button className="btn btn-ghost btn-sm md:hidden shrink-0" onClick={() => setOpen(true)} aria-label="Menu">
             ☰
           </button>
-          {!isSalesOnly && <DailyBar />}
-          <div className="flex-1" />
-          <Clocks />
-          <ThemeToggle />
+          {/* Sur téléphone, les objectifs du jour défilent horizontalement au lieu de déborder. */}
+          <div className="min-w-0 flex-1 overflow-x-auto scroll-x">
+            {!isSalesOnly && <DailyBar />}
+          </div>
+          <div className="hidden md:block shrink-0">
+            <Clocks />
+          </div>
+          <div className="shrink-0">
+            <ThemeToggle />
+          </div>
         </header>
 
         {/*
@@ -510,7 +517,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           largeur garde les blocs lisibles d'un seul regard, comme les sections
           de Qoves, avec une respiration latérale qui grandit avec l'écran.
         */}
-        <main className="flex-1 w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+        <main className="relative z-[1] flex-1 w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
           {/* La cle force le rejeu de l'animation a chaque page. */}
           <div key={pathname} className="rise w-full max-w-[1240px] mx-auto">{children}</div>
         </main>

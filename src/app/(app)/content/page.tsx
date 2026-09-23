@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, useCollection } from "@/lib/client";
 import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Tabs, useToast } from "@/components/ui";
 import { fmtCompact, fmtInt } from "@/lib/format";
@@ -103,8 +103,12 @@ export default function ContentPage() {
   const PAGE = 60;
   const [visible, setVisible] = useState(PAGE);
 
+  const followed = useMemo(() => new Set(creators.rows.map((c) => c.username)), [creators.rows]);
+
   const shown = useMemo(() => {
     const rows = posts.rows.filter((p) => {
+      // Un createur retire ne laisse plus trainer ses posts dans la liste.
+      if (!followed.has(p.creator)) return false;
       if (active && p.creator !== active) return false;
       if (reelsOnly && !p.isReel) return false;
       return true;
@@ -115,12 +119,78 @@ export default function ContentPage() {
       if (sort === "likes") return b.likes - a.likes;
       return engagement(b) - engagement(a);
     });
-  }, [posts.rows, active, reelsOnly, sort]);
+  }, [posts.rows, active, reelsOnly, sort, followed]);
 
   // Changer de createur, de tri ou de filtre repart du haut de la liste.
   useEffect(() => {
     setVisible(PAGE);
   }, [active, reelsOnly, sort]);
+
+  /*
+   * Auto-reparation des vignettes.
+   *
+   * Un post dont la vignette pointe encore vers le CDN Instagram va finir en
+   * image cassee. Des qu'on en voit chez un createur suivi, on le
+   * resynchronise en fond (Business Discovery, assez profond pour couvrir ses
+   * posts connus) : la synchro met les vignettes en cache local. Une seule
+   * fois par ouverture de page et par createur.
+   */
+  const repairing = useRef<Set<string>>(new Set());
+  const reloadPosts = posts.reload;
+  const reloadCreators = creators.reload;
+  useEffect(() => {
+    if (posts.loading || creators.loading) return;
+    const counts = new Map<string, { total: number; stale: number }>();
+    for (const p of posts.rows) {
+      const c = counts.get(p.creator) ?? { total: 0, stale: 0 };
+      c.total++;
+      if (p.thumbnail && !p.thumbnail.startsWith("/api/media/")) c.stale++;
+      counts.set(p.creator, c);
+    }
+    /*
+     * Garde-fous quota Meta (200 appels par heure) : on ne resynchronise que
+     * si au moins 5 vignettes ou l'avatar sont perimes, et pas plus d'une
+     * fois toutes les 6 heures par createur (memorise dans le navigateur).
+     */
+    const now = Date.now();
+    const recently = (u: string) => {
+      try {
+        return now - Number(window.localStorage.getItem(`thumb-repair:${u}`) ?? 0) < 6 * 3600_000;
+      } catch {
+        return false;
+      }
+    };
+    const todo = creators.rows
+      .filter((c) => {
+        const stale = counts.get(c.username)?.stale ?? 0;
+        const avatarStale = Boolean(c.profilePicture) && !c.profilePicture.startsWith("/api/media/");
+        return (stale >= 5 || avatarStale) && !repairing.current.has(c.username) && !recently(c.username);
+      })
+      .map((c) => c.username);
+    if (!todo.length) return;
+    for (const u of todo) {
+      repairing.current.add(u);
+      try {
+        window.localStorage.setItem(`thumb-repair:${u}`, String(now));
+      } catch {
+        // Stockage indisponible : on retentera simplement plus souvent.
+      }
+    }
+    void (async () => {
+      for (const u of todo) {
+        try {
+          await api("/api/creators/resolve", {
+            method: "POST",
+            body: JSON.stringify({ input: `@${u}`, deep: Math.max(counts.get(u)?.total ?? 0, 25) }),
+          });
+        } catch {
+          // Quota Meta ou reseau : on retentera a la prochaine ouverture.
+        }
+      }
+      void reloadPosts();
+      void reloadCreators();
+    })();
+  }, [posts.rows, posts.loading, creators.rows, creators.loading, reloadPosts, reloadCreators]);
 
   if (creators.loading && posts.loading) return <SkPage />;
 
@@ -324,7 +394,7 @@ export default function ContentPage() {
             title={active ? `@${active}` : "Tous les reels suivis"}
             subtitle={`${shown.length} sur ${posts.rows.length}`}
             actions={
-              <span className="flex items-center gap-1.5">
+              <span className="flex flex-wrap items-center gap-1.5 min-w-0 max-w-full">
                 <Tabs value={sort} onChange={setSort} options={SORTS} />
                 <button
                   className="btn btn-sm"

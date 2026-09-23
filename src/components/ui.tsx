@@ -15,14 +15,14 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-4 mb-7">
+    <header className="relative z-[1] flex flex-wrap items-end justify-between gap-4 mb-6 sm:mb-8">
       <div className="min-w-0">
-        <h1 className="text-[26px] sm:text-[30px] font-medium leading-[1.1]" style={{ letterSpacing: "-0.03em" }}>
+        <h1 className="grad-text text-[30px] sm:text-[38px] font-semibold leading-[1.08] pb-0.5" style={{ letterSpacing: "-0.035em" }}>
           {title}
         </h1>
-        {subtitle && <p className="muted text-[14px] mt-2 max-w-2xl leading-relaxed">{subtitle}</p>}
+        {subtitle && <p className="muted text-[14px] sm:text-[15px] mt-2 max-w-2xl leading-relaxed">{subtitle}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2 flex-wrap">{actions}</div>}
+      {actions && <div className="flex items-center gap-2 flex-wrap min-w-0 max-w-full">{actions}</div>}
     </header>
   );
 }
@@ -45,15 +45,16 @@ export function Card({
   return (
     <section className={`card ${className}`}>
       {(title || actions) && (
-        <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3.5 border-b" style={{ borderColor: "var(--border)" }}>
+        <div className="flex flex-wrap items-start justify-between gap-3 px-4 sm:px-5 pt-4 sm:pt-5 pb-3.5 border-b" style={{ borderColor: "var(--border)" }}>
           <div className="min-w-0">
-            {title && <h2 className="text-[15px] font-medium">{title}</h2>}
+            {title && <h2 className="text-[17px] sm:text-[18px] font-semibold">{title}</h2>}
             {subtitle && <p className="muted text-[12.5px] mt-1">{subtitle}</p>}
           </div>
-          {actions && <div className="flex items-center gap-1.5 shrink-0">{actions}</div>}
+          {/* Sur téléphone, les actions passent sous le titre au lieu de déborder. */}
+          {actions && <div className="flex flex-wrap items-center gap-1.5 min-w-0 max-w-full sm:shrink-0">{actions}</div>}
         </div>
       )}
-      <div className={padded ? "p-5" : ""}>{children}</div>
+      <div className={padded ? "p-4 sm:p-5" : ""}>{children}</div>
     </section>
   );
 }
@@ -119,11 +120,11 @@ export function StatTile({
   accent?: string;
 }) {
   return (
-    <div className="card px-5 py-4">
+    <div className="card px-4 sm:px-5 py-4">
       <div className="label-xs">{label}</div>
       <div className="flex items-baseline gap-2.5 mt-2.5">
         <span
-          className="text-[28px] font-medium num leading-none"
+          className="text-[28px] sm:text-[32px] font-semibold num leading-none"
           style={{ letterSpacing: "-0.035em", ...(accent ? { color: accent } : {}) }}
         >
           {value}

@@ -124,7 +124,7 @@ export default function InsightsPage() {
           subtitle={`${videos.length} sur ${measured.length} publications mesurées`}
           className="mb-4"
           actions={
-            <span className="flex items-center gap-1.5">
+            <span className="flex flex-wrap items-center gap-1.5 min-w-0 max-w-full">
               <Tabs
                 value={vSort}
                 onChange={setVSort}

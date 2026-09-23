@@ -417,7 +417,7 @@ export default function ProductionPage() {
                         {sec.rows.map((r, i) => (
                           <li
                             key={r.id}
-                            className="row-hover px-3 py-2.5 flex items-center gap-3"
+                            className="row-hover px-3 py-2.5 flex flex-wrap sm:flex-nowrap items-center gap-3"
                             style={{
                               borderBottom: i < sec.rows.length - 1 ? "1px solid var(--border)" : "none",
                               opacity: r.done ? 0.5 : 1,
@@ -461,7 +461,7 @@ export default function ProductionPage() {
                               </p>
                             </div>
 
-                            <span className="flex items-center gap-1.5 shrink-0">
+                            <span className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto sm:shrink-0 pl-9 sm:pl-0">
                               <button
                                 className="btn btn-sm !px-1.5"
                                 onClick={() => setCursor(shown.findIndex((x) => x.id === r.id))}

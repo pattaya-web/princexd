@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
     const profile = {
       username,
       name: found.name ?? username,
-      profilePicture: found.profile_picture_url ?? "",
+      profilePicture: await cacheImage(found.profile_picture_url ?? "", `c${hashKey(username)}`),
       biography: found.biography ?? "",
       followers: found.followers_count ?? 0,
       mediaCount: found.media_count ?? 0,
