@@ -6,11 +6,14 @@ import { useToast } from "./ui";
 /**
  * Lecture et telechargement d'une video de createur.
  *
- * Le lecteur demande d'abord au serveur de mettre la video en cache
- * (`?prepare=1`) : une fois le fichier chez nous, il est lu par plages et
- * on peut avancer dedans librement. Si le serveur n'y arrive pas (Instagram
- * bloque les serveurs sans session), on retombe sur l'embed officiel
- * Instagram, qui lit toujours mais sans barre de progression.
+ * Deux sources, choisies pour ne jamais faire attendre :
+ *  - le fichier en cache sur notre serveur, lu par plages (on peut avancer
+ *    dedans) : s'il est deja la, on le joue tout de suite ;
+ *  - sinon l'embed officiel Instagram s'affiche immediatement pendant que le
+ *    serveur telecharge le fichier en arriere-plan. Des qu'il est pret, un
+ *    bouton propose de passer au lecteur complet. Si le serveur echoue
+ *    (Instagram bloque les serveurs sans session), l'embed reste, et c'est
+ *    tout aussi lisible.
  */
 
 const IG_POST = /instagram\.com\/(?:[^/]+\/)?(reel|reels|p|tv)\/([A-Za-z0-9_-]+)/;
@@ -22,51 +25,61 @@ export function igEmbedUrl(permalink: string): string | null {
   return `https://www.instagram.com/${kind}/${m[2]}/embed/`;
 }
 
-type State = { kind: "loading" } | { kind: "video"; src: string } | { kind: "embed"; src: string } | { kind: "error"; message: string };
+type Ready = { src: string } | null;
 
 export function CreatorPlayer({ permalink, src }: { permalink: string; src: string }) {
-  const [state, setState] = useState<State>({ kind: "loading" });
+  const embed = igEmbedUrl(permalink);
+  const [ready, setReady] = useState<Ready>(null);
+  const [useVideo, setUseVideo] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    setState({ kind: "loading" });
+    setReady(null);
+    setUseVideo(false);
+    setFailed(null);
+    setChecked(false);
     const sep = src.includes("?") ? "&" : "?";
-    fetch(`${src}${sep}prepare=1`, { cache: "no-store" })
+
+    // 1. Deja en cache ? Reponse en un aller-retour, sans telechargement.
+    fetch(`${src}${sep}cached=1`, { cache: "no-store" })
       .then(async (res) => {
-        const body = (await res.json().catch(() => ({}))) as { ok?: boolean; src?: string; error?: string };
+        const body = (await res.json().catch(() => ({}))) as { ok?: boolean; src?: string };
         if (!alive) return;
         if (res.ok && body.ok && body.src) {
-          setState({ kind: "video", src: body.src });
+          setReady({ src: body.src });
+          setUseVideo(true);
+          setChecked(true);
           return;
         }
-        const embed = igEmbedUrl(permalink);
-        if (embed) setState({ kind: "embed", src: embed });
-        else setState({ kind: "error", message: body.error ?? `Erreur ${res.status}` });
+        setChecked(true);
+        // 2. Pas en cache : on prepare en fond. L'embed occupe l'ecran en attendant.
+        return fetch(`${src}${sep}prepare=1`, { cache: "no-store" }).then(async (r2) => {
+          const b2 = (await r2.json().catch(() => ({}))) as { ok?: boolean; src?: string; error?: string };
+          if (!alive) return;
+          if (r2.ok && b2.ok && b2.src) {
+            setReady({ src: b2.src });
+            // Sans embed possible (TikTok, YouTube), on bascule directement.
+            if (!embed) setUseVideo(true);
+          } else {
+            setFailed(b2.error ?? `Erreur ${r2.status}`);
+            if (!embed) setUseVideo(false);
+          }
+        });
       })
       .catch((e: Error) => {
         if (!alive) return;
-        const embed = igEmbedUrl(permalink);
-        if (embed) setState({ kind: "embed", src: embed });
-        else setState({ kind: "error", message: e.message });
+        setChecked(true);
+        setFailed(e.message);
       });
     return () => { alive = false; };
-  }, [src, permalink]);
+  }, [src, permalink, embed]);
 
-  if (state.kind === "loading") {
-    return (
-      <div className="w-full rounded-[9px] grid place-items-center" style={{ height: "min(60vh, 520px)", background: "var(--surface-2)" }}>
-        <div className="flex flex-col items-center gap-2">
-          <span className="spinner" />
-          <span className="dim text-[12px]">Préparation de la vidéo… la première fois, ça prend quelques secondes.</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (state.kind === "video") {
+  if (useVideo && ready) {
     return (
       <video
-        src={state.src}
+        src={ready.src}
         controls
         autoPlay
         playsInline
@@ -77,26 +90,44 @@ export function CreatorPlayer({ permalink, src }: { permalink: string; src: stri
     );
   }
 
-  if (state.kind === "embed") {
+  if (embed) {
     return (
       <div className="w-full flex flex-col items-center gap-2">
         <iframe
-          src={state.src}
+          src={embed}
           title="Instagram"
           allow="autoplay; encrypted-media; picture-in-picture"
           allowFullScreen
           className="rounded-[9px]"
           style={{ width: "min(100%, 400px)", height: "min(72vh, 700px)", border: 0, background: "#000" }}
         />
-        <span className="dim text-[11.5px] text-center">
-          Lecture via Instagram, sans avance rapide : le serveur n&apos;a pas pu récupérer le fichier. Ajoute tes cookies
-          Instagram dans Réglages pour le lecteur complet.
-        </span>
+        {ready ? (
+          <button className="btn btn-sm btn-primary" onClick={() => setUseVideo(true)}>
+            ▶ Lecteur complet prêt (avance rapide)
+          </button>
+        ) : failed ? (
+          <span className="dim text-[11.5px] text-center">
+            Lecture via Instagram, sans avance rapide : le serveur n&apos;a pas pu récupérer le fichier.
+          </span>
+        ) : checked ? (
+          <span className="dim text-[11.5px] inline-flex items-center gap-1.5">
+            <span className="spinner" /> Préparation du lecteur complet en arrière-plan…
+          </span>
+        ) : null}
       </div>
     );
   }
 
-  return <p className="text-[12.5px]" style={{ color: "var(--critical)" }}>{state.message}</p>;
+  if (failed) return <p className="text-[12.5px]" style={{ color: "var(--critical)" }}>{failed}</p>;
+
+  return (
+    <div className="w-full rounded-[9px] grid place-items-center" style={{ height: "min(60vh, 520px)", background: "var(--surface-2)" }}>
+      <div className="flex flex-col items-center gap-2">
+        <span className="spinner" />
+        <span className="dim text-[12px]">Préparation de la vidéo… la première fois, ça prend quelques secondes.</span>
+      </div>
+    </div>
+  );
 }
 
 /** Verifie que le serveur sait obtenir le fichier, puis lance le telechargement. */

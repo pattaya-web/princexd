@@ -31,10 +31,56 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
  */
 const CACHE = new Map<string, unknown[]>();
 
+/*
+ * Copie persistante dans le navigateur.
+ *
+ * Depuis Dubai, chaque aller-retour vers le serveur (Paris) coute 300 ms :
+ * une page qui attend ses collections reste vide une bonne seconde. On garde
+ * donc la derniere version de chaque collection dans localStorage : au retour
+ * sur le site, l'ecran se remplit instantanement avec elle, puis le serveur
+ * la remplace des qu'il repond. Les collections trop lourdes (au-dela de
+ * 1,5 Mo) ne sont pas persistees pour rester sous le quota du navigateur.
+ */
+const PERSIST_PREFIX = "col:";
+const PERSIST_MAX = 1_500_000;
+
+function readPersisted(key: string): unknown[] | null {
+  try {
+    const raw = window.localStorage.getItem(PERSIST_PREFIX + key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function persist(key: string, rows: unknown[]) {
+  try {
+    const raw = JSON.stringify(rows);
+    if (raw.length > PERSIST_MAX) {
+      window.localStorage.removeItem(PERSIST_PREFIX + key);
+      return;
+    }
+    window.localStorage.setItem(PERSIST_PREFIX + key, raw);
+  } catch {
+    // Quota atteint ou stockage indisponible : le cache memoire suffit.
+  }
+}
+
 /** Vide le cache d'une collection, ou tout le cache. */
 export function invalidate(name?: CollectionName) {
   if (!name) CACHE.clear();
   else for (const k of [...CACHE.keys()]) if (k.startsWith(name)) CACHE.delete(k);
+  try {
+    for (const k of Object.keys(window.localStorage)) {
+      if (k.startsWith(PERSIST_PREFIX) && (!name || k.startsWith(PERSIST_PREFIX + name))) {
+        window.localStorage.removeItem(k);
+      }
+    }
+  } catch {
+    // Ignore.
+  }
 }
 
 /**
@@ -54,12 +100,25 @@ export function useCollection<T extends { id: string }>(
   const [rows, setRows] = useState<T[]>(() => (CACHE.get(key) as T[]) ?? []);
   // Deja en cache : rien a attendre, l'ecran s'affiche tout de suite.
   const [loading, setLoading] = useState(!CACHE.has(key));
+
+  // Copie persistante : affichee des le montage, en attendant le serveur.
+  // (Apres l'hydratation, pour que serveur et client rendent la meme chose.)
+  useEffect(() => {
+    if (CACHE.has(key)) return;
+    const saved = readPersisted(key) as T[] | null;
+    if (saved && saved.length) {
+      CACHE.set(key, saved);
+      setRows(saved);
+      setLoading(false);
+    }
+  }, [key]);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     try {
       const data = await api<T[]>(`/api/data/${name}${light ? "?light=1" : ""}`);
       CACHE.set(key, data);
+      persist(key, data);
       setRows(data);
       setError(null);
     } catch (e) {
@@ -79,6 +138,7 @@ export function useCollection<T extends { id: string }>(
       setRows((prev) => {
         const next = [created, ...prev];
         CACHE.set(key, next);
+        persist(key, next);
         return next;
       });
       return created;
@@ -96,6 +156,7 @@ export function useCollection<T extends { id: string }>(
       setRows((prev) => {
         const next = prev.map((r) => (r.id === id ? saved : r));
         CACHE.set(key, next);
+        persist(key, next);
         return next;
       });
       return saved;
@@ -108,6 +169,7 @@ export function useCollection<T extends { id: string }>(
       setRows((prev) => {
         const next = prev.filter((r) => r.id !== id);
         CACHE.set(key, next);
+        persist(key, next);
         return next;
       });
       await api(`/api/data/${name}?id=${encodeURIComponent(id)}`, { method: "DELETE" });
@@ -123,6 +185,7 @@ export function useCollection<T extends { id: string }>(
       setRows((prev) => {
         const next = prev.filter((r) => !doomed.has(r.id));
         CACHE.set(key, next);
+        persist(key, next);
         return next;
       });
       await api(`/api/data/${name}?ids=${encodeURIComponent(ids.join(","))}`, { method: "DELETE" });

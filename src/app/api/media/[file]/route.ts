@@ -68,6 +68,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ file: strin
         "Content-Length": String(end - start + 1),
         "Content-Range": `bytes ${start}-${end}/${stat.size}`,
         "Accept-Ranges": "bytes",
+        "Cache-Control": "public, max-age=31536000, immutable",
         ...(disposition ? { "Content-Disposition": disposition } : {}),
       },
     });
@@ -79,7 +80,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ file: strin
       "Content-Type": type,
       "Content-Length": String(stat.size),
       "Accept-Ranges": "bytes",
-      "Cache-Control": "private, max-age=3600",
+      // Le nom est un identifiant aleatoire jamais reutilise : le navigateur
+      // (et un CDN) peuvent garder le fichier un an sans redemander.
+      "Cache-Control": "public, max-age=31536000, immutable",
       ...(disposition ? { "Content-Disposition": disposition } : {}),
     },
   });
