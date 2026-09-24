@@ -66,6 +66,7 @@ ne change pas.
 | **CRM** | Les leads issus du contenu, jusqu'au closing |
 | **Élèves** | Suivi des coachings ; le champ « Résultat obtenu » alimente tes contenus preuve |
 | **Calls** | Appels de vente, taux de présence, taux de closing, synchro iClosed |
+| **Ads & Scripts** | Drive de créas : dossiers, pubs d'inspiration en mp4, transcription et scripts à tourner sortis de ces pubs |
 | **Meta Ads** | Suivi manuel des campagnes : ROAS et coût par call |
 | **Équipe** | Setters, closers, monteur, commissions |
 | **Ressources / To-do** | La bibliothèque et les tâches |

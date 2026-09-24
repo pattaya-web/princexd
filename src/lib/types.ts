@@ -475,6 +475,67 @@ export interface EditJob {
   createdAt: string;
 }
 
+/* ===================================================================== *
+ *                          ADS & SCRIPTS (drive)                         *
+ * ===================================================================== */
+
+/**
+ * Une pub de reference deposee dans un dossier : un mp4 enregistre (ou un
+ * lien), sa transcription une fois extraite, et une note libre.
+ */
+export interface AdInspiration {
+  name: string;
+  url: string;          // /api/media/xxx si deposee, sinon lien externe
+  size: number;
+  addedAt: string;
+  note: string;
+  /** Texte dit dans la pub, extrait par transcription. Vide tant que non lancee. */
+  transcript: string;
+  transcribedAt: string;
+  language: string;
+}
+
+export type AdScriptStatus = "a-tourner" | "tournee" | "en-ligne" | "archive";
+
+export interface AdScriptPlan {
+  n: number;
+  visuel: string;
+  texteEcran: string;
+  voix: string;
+}
+
+/** Un script de pub a tourner, ecrit a la main ou sorti d'une inspiration. */
+export interface AdScript {
+  id: ID;
+  title: string;
+  status: AdScriptStatus;
+  angle: string;
+  hook: string;
+  /** Variantes de hook a tester en A/B. */
+  hooks: string[];
+  duree: string;
+  plans: AdScriptPlan[];
+  cta: string;
+  /** Texte complet a lire face camera : c'est le champ que j'edite au quotidien. */
+  text: string;
+  pourquoiCaMarche: string[];
+  notes: string;
+  /** URL de l'inspiration dont le script est sorti, sinon vide. */
+  fromInspiration: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Un dossier du drive Ads : ses inspirations (mp4) et ses scripts. */
+export interface AdFolder {
+  id: ID;
+  title: string;
+  description: string;
+  inspirations: AdInspiration[];
+  scripts: AdScript[];
+  createdAt: string;
+}
+
 /** Analyse structurée renvoyée par l'IA sur un contenu swipé. */
 export interface SwipeAnalysis {
   language: string;
@@ -635,6 +696,7 @@ export interface DB {
   creatorPosts: CreatorPost[];
   saved: SavedItem[];
   redo: RedoItem[];
+  adFolders: AdFolder[];
   /* --- Module commercial Setter / Closer --- */
   appointments: Appointment[];
   sales: Sale[];

@@ -22,6 +22,7 @@ const ALLOWED: CollectionName[] = [
   "creatorPosts",
   "saved",
   "redo",
+  "adFolders",
 ];
 
 function resolve(name: string): CollectionName | null {

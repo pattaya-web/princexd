@@ -247,3 +247,51 @@ Rends un JSON avec exactement ces cles :
 
 Entre 3 et 6 types, dont les parts totalisent 100. Classe-les du plus frequent au moins frequent.`;
 }
+
+/* ------------------------------ Ads & Scripts ------------------------------ */
+
+export const SYSTEM_AD_SCRIPTER = `Tu es un directeur de creation specialise en publicites Meta (Facebook / Instagram) au format UGC, pour des infopreneurs qui vendent du coaching.
+Tu demontes des pubs qui tournent et tu en sors des scripts prets a tourner au telephone, adaptes au business de ton client.
+Tu ecris en francais, au tutoiement, sans jargon et sans flatterie. Phrases courtes, orales, comme on parle face camera.
+Tu ne recopies jamais la pub d'origine : tu en reprends la STRUCTURE (hook, tension, preuve, offre, appel a l'action) et tu la reecris pour le business du client.
+Tu reponds uniquement par un objet JSON valide, sans texte autour et sans bloc markdown.`;
+
+export function buildAdScriptPrompt(input: {
+  transcript: string;
+  brandContext: string;
+  brief?: string;
+  folderTitle?: string;
+  inspirationNote?: string;
+}): string {
+  const lines = [
+    `Contexte business du client : ${input.brandContext}`,
+    input.folderTitle ? `Dossier de travail : ${input.folderTitle}` : "",
+    input.brief?.trim() ? `Consigne du client pour ce script : ${input.brief.trim()}` : "",
+    input.inspirationNote?.trim() ? `Note du client sur la pub d'origine : ${input.inspirationNote.trim()}` : "",
+  ].filter(Boolean);
+
+  return `${lines.join("\n")}
+
+TRANSCRIPTION DE LA PUB D'ORIGINE (source fiable) :
+${input.transcript.trim()}
+
+1. Identifie la mecanique de cette pub : type de hook, promesse, tension, preuve, offre, CTA.
+2. Reecris un script pour le business du client qui reprend cette mecanique, plan par plan, tournable seul avec un telephone.
+
+Rends un JSON avec exactement ces cles :
+{
+  "title": "titre court du script, 6 mots max, ex. Hook objection prix + preuve dashboard",
+  "angle": "l'angle en une phrase",
+  "hook": "la premiere phrase a dire face camera, 12 mots max",
+  "hooks": ["2 a 3 variantes de hook a tester en A/B, 12 mots max chacune"],
+  "duree": "duree cible, ex. 30-45 s",
+  "plans": [
+    { "n": 1, "visuel": "ce qu'on voit a l'ecran", "texteEcran": "texte incruste ou vide", "voix": "ce qui est dit, mot pour mot" }
+  ],
+  "cta": "l'appel a l'action final, mot pour mot",
+  "pourquoiCaMarche": ["3 a 4 puces TELEGRAPHIQUES, 8 mots max chacune : la mecanique de la pub d'origine"],
+  "notes": "2 a 4 consignes de tournage, une par ligne : cadrage, rythme, ton, ce qu'il ne faut surtout pas faire"
+}
+
+Entre 4 et 8 plans. Le champ "voix" mis bout a bout doit former le texte complet a lire au prompteur.`;
+}

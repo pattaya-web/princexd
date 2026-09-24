@@ -80,6 +80,7 @@ const EMPTY_DB: DB = {
   creatorPosts: [],
   saved: [],
   redo: [],
+  adFolders: [],
   appointments: [],
   sales: [],
   followUps: [],
