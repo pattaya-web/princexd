@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, DM_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { ToastHost } from "@/components/ui";
 import "./globals.css";
 
@@ -11,16 +11,24 @@ import "./globals.css";
  * sont pas là, Inter et DM Mono prennent le relais : mêmes proportions, même
  * neutralité, chargées et auto-hébergées par next/font.
  */
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+/*
+ * Polices embarquees dans le depot (Inter variable et DM Mono, licence OFL).
+ * next/font/google les telechargeait a chaque build : quand Google Fonts ne
+ * repond pas depuis le serveur, tout le deploiement echoue. En local, plus
+ * aucune dependance reseau a la compilation.
+ */
+const inter = localFont({
+  src: "./fonts/Inter-latin.woff2",
+  weight: "100 900",
   variable: "--font-inter",
   display: "swap",
 });
 
-const dmMono = DM_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
+const dmMono = localFont({
+  src: [
+    { path: "./fonts/DMMono-400-latin.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/DMMono-500-latin.woff2", weight: "500", style: "normal" },
+  ],
   variable: "--font-dm-mono",
   display: "swap",
 });
