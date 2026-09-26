@@ -37,6 +37,7 @@ const EDITOR_APIS = [
   "/api/kie/download",
   "/api/kie/credits",
   "/api/higgsfield/balance",
+  "/api/thumb",
   "/api/ai/image-edit",
 ];
 

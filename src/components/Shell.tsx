@@ -561,7 +561,7 @@ function SessionBadge() {
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const { session } = useSession();
+  const { session, loading: sessionLoading } = useSession();
 
   // Referme le tiroir mobile dès qu'on change de page.
   useEffect(() => setOpen(false), [pathname]);
@@ -612,7 +612,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 pb-3">
-          {nav.map((group) => (
+          {/*
+            Le menu attend la session : rendu tout de suite avec le menu
+            complet, un monteur voyait vingt liens se prefetcher (autant de
+            redirections inutiles) avant de se replier sur ses deux pages.
+          */}
+          {sessionLoading && !session ? (
+            <div className="flex flex-col gap-2 px-3 pt-1" aria-hidden>
+              {[88, 120, 96, 110, 72].map((w, i) => (
+                <span key={i} className="skeleton block h-[14px] rounded-full" style={{ width: w, opacity: 0.6 }} />
+              ))}
+            </div>
+          ) : null}
+          {(!sessionLoading || session) && nav.map((group) => (
             <div key={group.section} className="mb-5">
               <div className="label-xs px-3 mb-2">{group.section}</div>
               <div className="flex flex-col gap-[3px]">

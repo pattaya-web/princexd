@@ -25,6 +25,28 @@ export const GENERATIONS_EVENT = "princexd:generations";
 /** Meme principe pour les jobs du Swap video : le dock sonde, le Studio ecoute. */
 export const STUDIO_JOBS_EVENT = "princexd:studio-jobs";
 
+/** Derniere liste de jobs recue par le dock : la page Studio la reprend sans refaire l'appel. */
+let lastStudioJobs: StudioJob[] | null = null;
+export const readStudioJobsCache = () => lastStudioJobs;
+
+/**
+ * Un seul sondage a la fois : le dock et la page Studio montent ensemble et
+ * demandaient chacun la liste (250 Ko) au meme instant.
+ */
+let studioPending: Promise<{ jobs?: StudioJob[] }> | null = null;
+export function fetchStudioJobs(): Promise<{ jobs?: StudioJob[] }> {
+  if (!studioPending) {
+    studioPending = fetch("/api/studio/jobs", { cache: "no-store" })
+      .then((r) => r.json() as Promise<{ jobs?: StudioJob[] }>)
+      .then((body) => {
+        if (body.jobs) lastStudioJobs = body.jobs;
+        return body;
+      })
+      .finally(() => { studioPending = null; });
+  }
+  return studioPending;
+}
+
 /** Cadence rapide quand quelque chose tourne, lente le reste du temps. */
 const TICK_ACTIVE = 3000;
 const TICK_IDLE = 15000;
@@ -171,8 +193,7 @@ export function JobsDock() {
       }
       try {
         // Le meme appel fait avancer la file du Swap video cote serveur.
-        const res = await fetch("/api/studio/jobs", { cache: "no-store" });
-        const body = (await res.json()) as { jobs?: StudioJob[] };
+        const body = await fetchStudioJobs();
         if (!alive) return;
         if (body.jobs) {
           const sig = JSON.stringify(body.jobs);

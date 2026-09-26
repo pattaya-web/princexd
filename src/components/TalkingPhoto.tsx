@@ -10,6 +10,8 @@ import { TALKING_PHOTO } from "@/lib/studio/config";
 import type { StudioCharacter, StudioJob, TalkRequest, VoiceInfo } from "@/lib/studio/types";
 import { toSupportedImage } from "./MediaField";
 import { ErrorNote, Field, useToast } from "./ui";
+import { ThumbImg } from "@/components/MediaThumb";
+import { loadVoices } from "@/lib/client";
 
 /**
  * Onglet « Photo qui parle » : une photo + une voix → une vidéo où la
@@ -65,7 +67,7 @@ export function TalkingPhoto({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: 
 
   useEffect(() => {
     if (voices !== null) return;
-    api<{ voices: VoiceInfo[]; error?: string; configured: boolean }>("/api/studio/voices")
+    loadVoices()
       .then((r) => {
         setVoices(r.voices);
         if (!r.configured) setVoicesError("Aucune clé ElevenLabs : le texte lu demande une voix du compte. Tu peux quand même déposer un fichier audio.");
@@ -172,7 +174,7 @@ export function TalkingPhoto({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: 
       <Field label="Photo du personnage" hint="Portrait ou buste, de face, visage net, bouche visible. JPG / PNG / WEBP.">
         <div className="flex gap-3 items-start flex-wrap">
           <label className="rounded-[10px] overflow-hidden grid place-items-center shrink-0" style={{ width: 132, height: 165, border: `1.5px ${photo ? "solid" : "dashed"} var(--border-strong)`, background: "var(--surface-2)", cursor: busy ? "not-allowed" : "pointer" }}>
-            {photoBusy ? <span className="spinner" /> : photo ? <img src={photo.url} alt="" className="w-full h-full object-cover" /> : <span className="dim text-[12px] text-center px-2">+ Photo</span>}
+            {photoBusy ? <span className="spinner" /> : photo ? <ThumbImg src={photo.url} className="w-full h-full object-cover" /> : <span className="dim text-[12px] text-center px-2">+ Photo</span>}
             <input type="file" hidden accept="image/*,.jfif,.jpe,.heic,.heif,.avif" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void setPhotoFile(f); }} />
           </label>
           {(characters.rows.length > 0 || recentPhotos.length > 0) && (
@@ -181,13 +183,13 @@ export function TalkingPhoto({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: 
               <div className="flex gap-1.5 flex-wrap">
                 {characters.rows.map((c) => (
                   <button key={c.id} type="button" className="rounded-[8px] overflow-hidden" style={{ width: 52, border: `2px solid ${photo?.url === c.imageUrl ? "var(--accent)" : "var(--border)"}` }} title={c.name} onClick={() => setPhoto({ url: c.imageUrl, name: c.name })}>
-                    <img src={c.imageUrl} alt="" className="w-full object-cover" style={{ height: 62 }} />
+                    <ThumbImg src={c.imageUrl} className="w-full object-cover" style={{ height: 62 }} />
                     <span className="block text-[9.5px] px-1 py-0.5 truncate" style={{ background: "var(--surface)" }}>{c.name}</span>
                   </button>
                 ))}
                 {recentPhotos.map((m) => (
                   <button key={m.url} type="button" className="rounded-[8px] overflow-hidden" style={{ width: 52, height: 62, border: `2px solid ${photo?.url === m.url ? "var(--accent)" : "var(--border)"}` }} title={m.name} onClick={() => setPhoto(m)}>
-                    <img src={m.url} alt="" className="w-full h-full object-cover" />
+                    <ThumbImg src={m.url} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>

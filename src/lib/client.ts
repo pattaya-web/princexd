@@ -246,3 +246,38 @@ export function useLocalState<T>(key: string, initial: T) {
 
   return [value, setValue] as const;
 }
+
+/* ------------------------------ Voix du Studio ------------------------------ */
+
+export interface VoicesPayload {
+  configured: boolean;
+  engine?: "elevenlabs-sts" | "kie-tts" | null;
+  voices: import("./studio/types").VoiceInfo[];
+  error?: string;
+}
+
+let voicesCache: { at: number; data: VoicesPayload } | null = null;
+let voicesPending: Promise<VoicesPayload> | null = null;
+
+/**
+ * Liste des voix, partagee entre le Swap, la Photo qui parle et le choix de
+ * voix d'un rendu : trois composants la demandaient chacun au montage.
+ * Gardee cinq minutes ; `fresh` force un rechargement (apres un clonage).
+ */
+export function loadVoices(fresh = false): Promise<VoicesPayload> {
+  if (!fresh && voicesCache && Date.now() - voicesCache.at < 5 * 60_000) return Promise.resolve(voicesCache.data);
+  if (!voicesPending) {
+    voicesPending = api<VoicesPayload>("/api/studio/voices")
+      .then((data) => {
+        voicesCache = { at: Date.now(), data };
+        return data;
+      })
+      .finally(() => { voicesPending = null; });
+  }
+  return voicesPending;
+}
+
+/** A appeler quand la liste change cote serveur (voix clonee ou supprimee). */
+export function forgetVoices() {
+  voicesCache = null;
+}

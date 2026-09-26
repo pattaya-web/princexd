@@ -11,6 +11,9 @@ import { STYLE_PROMPTS, TRANSFORM_LABELS } from "@/lib/studio/prompts";
 import type { StudioJob } from "@/lib/studio/types";
 import { duration, fmtInt, relative } from "@/lib/format";
 import { CopyButton, Modal, useToast } from "./ui";
+import { thumbUrl, VideoThumb } from "@/components/MediaThumb";
+import { ThumbImg } from "@/components/MediaThumb";
+import { loadVoices } from "@/lib/client";
 
 /**
  * Carte d'un job de Swap vidéo dans « Résultats ».
@@ -149,7 +152,7 @@ export function StudioJobCard({ job, actions }: { job: StudioJob; actions: JobAc
       {done && output ? (
         <>
           <button type="button" onClick={() => actions.onOpen(job)} className="block w-full h-full" title="Voir" style={{ cursor: "zoom-in" }}>
-            <video src={output} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+            <VideoThumb src={output} />
           </button>
           <span
             className="absolute top-1.5 left-1.5 rounded-full grid place-items-center text-[11px] pointer-events-none"
@@ -195,7 +198,7 @@ export function StudioJobCard({ job, actions }: { job: StudioJob; actions: JobAc
       ) : (
         <div className="w-full h-full flex flex-col">
           {/* La référence en fond : on sait d'un coup d'oeil quel personnage tourne. */}
-          <img src={job.referenceImage} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ opacity: 0.18, filter: "grayscale(30%)" }} />
+          <ThumbImg src={job.referenceImage} className="absolute inset-0 w-full h-full object-cover" style={{ opacity: 0.18, filter: "grayscale(30%)" }} />
           <div className="relative flex-1 flex flex-col justify-center gap-2 px-2.5 py-2">
             {failed ? (
               <>
@@ -316,22 +319,22 @@ export function StudioJobPreview({ job, actions, onClose }: { job: StudioJob; ac
             <div className="flex gap-1.5">
               {(job.referenceImages?.length ? job.referenceImages : [job.referenceImage]).map((u, k) => (
                 <a key={u + k} href={u} target="_blank" rel="noreferrer" className="rounded-[7px] overflow-hidden block" style={{ width: 54, height: 66, border: "1px solid var(--border)" }} title={k === 0 ? "Image de référence" : `Vue ${k + 1}`}>
-                  <img src={u} alt="" className="w-full h-full object-cover" />
+                  <ThumbImg src={u} className="w-full h-full object-cover" />
                 </a>
               ))}
               {job.sceneImage && (
                 <a href={job.sceneImage} target="_blank" rel="noreferrer" className="rounded-[7px] overflow-hidden block" style={{ width: 88, height: 66, border: "1px solid var(--border)" }} title="Nouveau décor">
-                  <img src={job.sceneImage} alt="" className="w-full h-full object-cover" />
+                  <ThumbImg src={job.sceneImage} className="w-full h-full object-cover" />
                 </a>
               )}
               {job.referenceSheet && (
                 <a href={job.referenceSheet} target="_blank" rel="noreferrer" className="rounded-[7px] overflow-hidden block" style={{ width: 96, height: 66, border: "1px dashed var(--border-strong)" }} title="Planche assemblée envoyée au modèle">
-                  <img src={job.referenceSheet} alt="" className="w-full h-full object-cover" />
+                  <ThumbImg src={job.referenceSheet} className="w-full h-full object-cover" />
                 </a>
               )}
               {job.sourceVideo && (
                 <a href={job.sourceVideo} target="_blank" rel="noreferrer" className="rounded-[7px] overflow-hidden block relative" style={{ width: 54, height: 66, border: "1px solid var(--border)", background: "var(--surface-3)" }} title="Vidéo source">
-                  <video src={job.sourceVideo} muted preload="metadata" className="w-full h-full object-cover" />
+                  <VideoThumb src={job.sourceVideo} />
                   <span className="absolute inset-0 grid place-items-center text-[11px]" style={{ background: "rgb(0 0 0 / 0.3)", color: "#fff" }}>▶</span>
                 </a>
               )}
@@ -345,7 +348,7 @@ export function StudioJobPreview({ job, actions, onClose }: { job: StudioJob; ac
                 <div className="flex gap-1.5 flex-wrap items-center">
                   {job.productImages.map((u, k) => (
                     <a key={u + k} href={u} target="_blank" rel="noreferrer" className="rounded-[7px] overflow-hidden block" style={{ width: 44, height: 44, border: "1px solid var(--border)" }}>
-                      <img src={u} alt="" className="w-full h-full object-cover" />
+                      <ThumbImg src={u} className="w-full h-full object-cover" />
                     </a>
                   ))}
                   {job.productDescription && <span className="dim text-[11.5px]">{job.productDescription}</span>}
@@ -419,7 +422,7 @@ export function VoicePicker({ job, onClose, onApplied }: { job: StudioJob; onClo
   const [playing, setPlaying] = useState<string | null>(null);
 
   useEffect(() => {
-    api<{ voices: VoiceInfo[]; error?: string; configured: boolean }>("/api/studio/voices")
+    loadVoices()
       .then((r) => {
         setVoices(r.voices);
         if (!r.configured) setError("Aucune clé ElevenLabs configurée.");

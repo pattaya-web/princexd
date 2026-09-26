@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
+import { ensureThumb } from "@/lib/thumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,24 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ file: strin
   const full = path.join(MEDIA_DIR, file);
   if (!full.startsWith(MEDIA_DIR) || !fs.existsSync(full)) {
     return NextResponse.json({ error: "Fichier introuvable" }, { status: 404 });
+  }
+
+  /*
+   * ?poster=1 : vignette JPEG (image fixe d'une video, image reduite), voir
+   * lib/thumbs. Immuable comme le media. 404 si elle ne peut pas etre faite :
+   * le composant retombe alors sur le media lui-meme.
+   */
+  if (req.nextUrl.searchParams.get("poster") === "1") {
+    const thumb = await ensureThumb(file);
+    if (!thumb) return NextResponse.json({ error: "Pas de vignette" }, { status: 404 });
+    const tstat = fs.statSync(thumb);
+    return new NextResponse(fs.createReadStream(thumb) as unknown as ReadableStream, {
+      headers: {
+        "Content-Type": "image/jpeg",
+        "Content-Length": String(tstat.size),
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
   }
 
   const stat = fs.statSync(full);

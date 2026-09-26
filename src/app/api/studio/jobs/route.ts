@@ -8,7 +8,13 @@ export const maxDuration = 120;
 /** Liste + un tour de file : c'est ce sondage qui fait avancer les jobs. */
 export async function GET() {
   const jobs = await tick();
-  return NextResponse.json({ jobs: jobs.slice(0, 120), counts: countByStatus(jobs) });
+  /*
+   * `providerInput` (la requete brute envoyee au fournisseur) pesait la
+   * moitie de la liste et l'interface ne la lit jamais : 190 Ko par sondage
+   * pour 33 rendus, toutes les 15 s. On la retire de la liste.
+   */
+  const slim = jobs.slice(0, 120).map(({ providerInput: _omit, ...rest }) => rest);
+  return NextResponse.json({ jobs: slim, counts: countByStatus(jobs) });
 }
 
 /**

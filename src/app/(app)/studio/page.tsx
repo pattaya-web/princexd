@@ -25,9 +25,10 @@ import { ACTIVE_STATUSES, type StudioJob } from "@/lib/studio/types";
 import { MediaField } from "@/components/MediaField";
 import { ElementField, ELEMENT_NAME, EMPTY_ELEMENT, type ElementValue } from "@/components/ElementField";
 import { SkPage } from "@/components/Skeleton";
-import { GENERATIONS_EVENT, STUDIO_JOBS_EVENT } from "@/components/JobsDock";
+import { fetchStudioJobs, GENERATIONS_EVENT, readStudioJobsCache, STUDIO_JOBS_EVENT } from "@/components/JobsDock";
 import { duration, estimateSec, fmtInt, fmtUsd, label, relative } from "@/lib/format";
 import type { Generation } from "@/lib/types";
+import { ThumbImg, VideoThumb } from "@/components/MediaThumb";
 
 const CREDIT_USD = 0.005;
 
@@ -263,10 +264,14 @@ function StudioInner() {
    */
   useEffect(() => {
     let alive = true;
-    fetch("/api/studio/jobs", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((b: { jobs?: StudioJob[] }) => { if (alive && b.jobs) setJobs(b.jobs); })
-      .catch(() => {});
+    // Le dock sonde deja la file : sa derniere liste suffit, sinon un appel.
+    const cached = readStudioJobsCache();
+    if (cached) setJobs(cached);
+    else {
+      fetchStudioJobs()
+        .then((b) => { if (alive && b.jobs) setJobs(b.jobs); })
+        .catch(() => {});
+    }
     const onStudio = (e: Event) => {
       const list = (e as CustomEvent<StudioJob[]>).detail;
       if (Array.isArray(list)) setJobs(list);
@@ -824,10 +829,10 @@ function GenerationCard({
             style={{ cursor: picking ? "pointer" : "zoom-in" }}
           >
             {isVideo ? (
-              <video src={url} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+              <VideoThumb src={url} />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+              <ThumbImg src={url} />
             )}
           </button>
           <a
@@ -991,7 +996,7 @@ function Source({ url, kind }: { url: string; kind: "image" | "video" }) {
     >
       {kind === "video" ? (
         <>
-          <video src={url} className="w-full h-full object-cover" muted preload="metadata" />
+          <VideoThumb src={url} />
           <span
             className="absolute inset-0 grid place-items-center text-[11px]"
             style={{ background: "rgb(0 0 0 / 0.3)", color: "#fff" }}
@@ -1001,7 +1006,7 @@ function Source({ url, kind }: { url: string; kind: "image" | "video" }) {
         </>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="" className="w-full h-full object-cover" />
+        <ThumbImg src={url} />
       )}
     </a>
   );

@@ -9,6 +9,7 @@ import { relative } from "@/lib/format";
 import { Card, CopyButton, Empty, ErrorNote, Field, Modal, Spinner, Tabs, useToast } from "./ui";
 import { DropZone, ProgressBar, uploadMany, type Progress } from "./upload-ui";
 import type { AdFolder, AdInspiration, AdScript, AdScriptStatus } from "@/lib/types";
+import { thumbUrl, VideoThumb } from "@/components/MediaThumb";
 
 /**
  * Drive Ads & Scripts.
@@ -81,7 +82,7 @@ function FolderCard({ folder, onOpen }: { folder: AdFolder; onOpen: () => void }
     >
       <div className="relative" style={{ background: "var(--surface-3)", aspectRatio: "16 / 10" }}>
         {cover ? (
-          <video src={cover.url} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+          <VideoThumb src={cover.url} />
         ) : (
           <span className="absolute inset-0 grid place-items-center text-[30px]">📁</span>
         )}
@@ -175,7 +176,7 @@ function InspirationTile({
     <div className="card-flat overflow-hidden flex flex-col">
       <div className="relative" style={{ background: "#000", aspectRatio: "9 / 12" }}>
         {isVideo(insp.url) ? (
-          <video src={insp.url} controls playsInline preload="metadata" className="w-full h-full object-contain" />
+          <video src={insp.url} controls playsInline preload="none" poster={thumbUrl(insp.url)} className="w-full h-full object-contain" />
         ) : (
           <a href={insp.url} target="_blank" rel="noreferrer" className="absolute inset-0 grid place-items-center text-[12px] px-3 text-center" style={{ color: "#fff" }}>
             Ouvrir le lien ↗
@@ -828,7 +829,7 @@ export function AdsDrive() {
               <button key={i.url} type="button" className="card-flat overflow-hidden text-left" onClick={() => setOpenId(f.id)} title={`Ouvrir « ${f.title} »`}>
                 <div className="relative" style={{ background: "#000", aspectRatio: "9 / 12" }}>
                   {isVideo(i.url) ? (
-                    <video src={i.url} muted playsInline preload="metadata" className="w-full h-full object-contain" />
+                    <VideoThumb src={i.url} className="w-full h-full object-contain" />
                   ) : (
                     <span className="absolute inset-0 grid place-items-center text-[12px] px-3 text-center" style={{ color: "#fff" }}>Lien ↗</span>
                   )}

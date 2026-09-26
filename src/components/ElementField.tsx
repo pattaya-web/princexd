@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { Field } from "@/components/ui";
 import type { ModelField } from "@/lib/models";
+import { ThumbImg } from "@/components/MediaThumb";
 
 /**
  * Declaration d'un sujet a preserver, pour le champ `elements` de Kling Omni.
@@ -75,7 +76,7 @@ export function ElementField({
               className="relative rounded-[8px] overflow-hidden shrink-0"
               style={{ width: 60, height: 60, background: "var(--surface-3)", border: "1px solid var(--border)" }}
             >
-              <img src={u} alt="" className="w-full h-full object-cover" />
+              <ThumbImg src={u} className="w-full h-full object-cover" />
               <button
                 type="button"
                 onClick={() => onChange({ ...value, urls: urls.filter((_, j) => j !== i) })}

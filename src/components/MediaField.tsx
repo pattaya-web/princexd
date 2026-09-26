@@ -5,6 +5,8 @@
 import { useState } from "react";
 import { Field } from "@/components/ui";
 import type { ModelField } from "@/lib/models";
+import { VideoThumb } from "@/components/MediaThumb";
+import { ThumbImg } from "@/components/MediaThumb";
 
 /**
  * Champ media pour le Studio.
@@ -100,11 +102,11 @@ function Thumb({ item, kind, onRemove }: { item: Item; kind: string; onRemove: (
       title={item.name}
     >
       {kind === "video" ? (
-        <video src={item.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+        <VideoThumb src={item.url} />
       ) : kind === "audio" ? (
         <span className="w-full h-full grid place-items-center text-[18px] dim">♪</span>
       ) : (
-        <img src={item.url} alt="" className="w-full h-full object-cover" />
+        <ThumbImg src={item.url} />
       )}
       <button
         type="button"

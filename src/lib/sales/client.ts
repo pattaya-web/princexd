@@ -15,6 +15,8 @@ import type { PeriodKey } from "./period";
 
 /** Session courante, chargee une fois et partagee par tous les ecrans. */
 let sessionCache: Session | null = null;
+/** Appel en cours : le Shell, le menu et la page montent ensemble et partagent la meme requete. */
+let sessionPending: Promise<Session> | null = null;
 
 export function useSession() {
   /*
@@ -36,7 +38,10 @@ export function useSession() {
       return;
     }
     let alive = true;
-    api<Session>("/api/sales/session")
+    if (!sessionPending) {
+      sessionPending = api<Session>("/api/sales/session").finally(() => { sessionPending = null; });
+    }
+    sessionPending
       .then((s) => {
         sessionCache = s;
         if (alive) setSession(s);

@@ -9,6 +9,7 @@ import { DropZone, ProgressBar, uploadMany, type Progress } from "./upload-ui";
 import { Card, Empty, ErrorNote, Field, Modal, Spinner, Tabs, useToast } from "./ui";
 import { relative } from "@/lib/format";
 import type { EditJob, EditStatus, MediaRef } from "@/lib/types";
+import { thumbUrl, VideoThumb } from "@/components/MediaThumb";
 
 /**
  * Drive de montage, partage entre moi et le monteur.
@@ -70,9 +71,9 @@ function MediaTile({ m, onRemove }: { m: MediaRef; onRemove?: () => void }) {
     <div className="card-flat overflow-hidden flex flex-col">
       <div className="relative" style={{ background: "#000", aspectRatio: "9 / 12" }}>
         {isVideo(m.url) ? (
-          <video src={m.url} controls playsInline preload="metadata" className="w-full h-full object-contain" />
+          <video src={m.url} controls playsInline preload="none" poster={thumbUrl(m.url)} className="w-full h-full object-contain" />
         ) : isImage(m.url) ? (
-          <img src={m.url} alt={m.name} className="w-full h-full object-contain" loading="lazy" />
+          <img src={thumbUrl(m.url)} alt={m.name} className="w-full h-full object-contain" loading="lazy" decoding="async" />
         ) : (
           <a href={m.url} target="_blank" rel="noreferrer" className="absolute inset-0 grid place-items-center text-[12px] px-3 text-center" style={{ color: "#fff" }}>
             Ouvrir le lien ↗
@@ -121,9 +122,9 @@ function FolderCard({ job, onOpen }: { job: EditJob; onOpen: () => void }) {
     >
       <div className="relative" style={{ background: "var(--surface-3)", aspectRatio: "16 / 10" }}>
         {cover && isVideo(cover.url) ? (
-          <video src={cover.url} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+          <VideoThumb src={cover.url} />
         ) : cover && isImage(cover.url) ? (
-          <img src={cover.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+          <img src={thumbUrl(cover.url)} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
         ) : (
           <span className="absolute inset-0 grid place-items-center text-[28px]">🎬</span>
         )}

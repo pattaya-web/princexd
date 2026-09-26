@@ -14,3 +14,6 @@ tsconfig.tsbuildinfo
 # secrets et caches locaux
 data/.session-secret
 .cache/
+
+# Réglages Claude Code personnels
+.claude/settings.local.json

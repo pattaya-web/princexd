@@ -25,6 +25,9 @@ import type {
 } from "@/lib/studio/types";
 import { toSupportedImage } from "./MediaField";
 import { ErrorNote, Field, useToast } from "./ui";
+import { VideoThumb } from "@/components/MediaThumb";
+import { ThumbImg } from "@/components/MediaThumb";
+import { forgetVoices, loadVoices } from "@/lib/client";
 
 /**
  * Onglet « Swap vidéo » du Studio, version simple.
@@ -357,7 +360,7 @@ export function VideoSwap({
     if ((voiceMode !== "transform" && !simple) || voices !== null) return;
     void (async () => {
       try {
-        const r = await api<{ configured: boolean; engine?: "elevenlabs-sts" | "kie-tts" | null; voices: VoiceInfo[]; error?: string }>("/api/studio/voices");
+        const r = await loadVoices();
         setVoices(r.voices);
         setVoicesConfigured(r.configured);
         setVoiceEngine(r.engine ?? null);
@@ -602,6 +605,7 @@ export function VideoSwap({
         method: "POST",
         body: JSON.stringify({ name: cloneName.trim(), url: cloneUrl.trim() || undefined, mediaUrl: cloneMedia?.url }),
       });
+      forgetVoices();
       setVoices((prev) => [r.voice, ...(prev ?? []).filter((v) => v.id !== r.voice.id)]);
       setVoiceStyle("all");
       setVoiceId(r.voice.id);
@@ -717,7 +721,7 @@ export function VideoSwap({
             {/* Video */}
             {video ? (
               <span className="relative rounded-[10px] overflow-hidden shrink-0" style={thumbStyle} title={video.name}>
-                <video src={video.url} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+                <VideoThumb src={video.url} />
                 <span className="absolute bottom-0 left-0 right-0 text-[9px] text-center py-0.5" style={{ background: "rgb(0 0 0 / 0.55)", color: "#fff" }}>
                   Vidéo{video.durationSec ? ` · ${mmss(video.durationSec)}` : ""}
                 </span>
@@ -732,7 +736,7 @@ export function VideoSwap({
             {/* Personnage : vue principale + autres vues */}
             {image ? (
               <span className="relative rounded-[10px] overflow-hidden shrink-0" style={thumbStyle} title={image.name}>
-                <img src={image.url} alt="" className="w-full h-full object-cover" />
+                <ThumbImg src={image.url} className="w-full h-full object-cover" />
                 <span className="absolute bottom-0 left-0 right-0 text-[9px] text-center py-0.5" style={{ background: "rgb(0 0 0 / 0.55)", color: "#fff" }}>Personnage</span>
                 <button type="button" className="absolute top-0.5 right-0.5 grid place-items-center rounded-full text-[11px]" style={{ width: 16, height: 16, background: "rgb(0 0 0 / 0.62)", color: "#fff" }} onClick={() => { setImage(null); setExtraViews([]); }} disabled={disabledAll} title="Retirer">×</button>
               </span>
@@ -744,7 +748,7 @@ export function VideoSwap({
             )}
             {image && extraViews.map((v, k) => (
               <span key={v.url + k} className="relative rounded-[10px] overflow-hidden shrink-0" style={thumbStyle} title={v.name}>
-                <img src={v.url} alt="" className="w-full h-full object-cover" />
+                <ThumbImg src={v.url} className="w-full h-full object-cover" />
                 <span className="absolute bottom-0 left-0 right-0 text-[9px] text-center py-0.5" style={{ background: "rgb(0 0 0 / 0.55)", color: "#fff" }}>Vue {k + 2}</span>
                 <button type="button" className="absolute top-0.5 right-0.5 grid place-items-center rounded-full text-[11px]" style={{ width: 16, height: 16, background: "rgb(0 0 0 / 0.62)", color: "#fff" }} onClick={() => setExtraViews((arr) => arr.filter((_, j) => j !== k))} disabled={disabledAll}>×</button>
               </span>
@@ -753,7 +757,7 @@ export function VideoSwap({
             {/* Produit */}
             {product.map((pImg, k) => (
               <span key={pImg.url + k} className="relative rounded-[10px] overflow-hidden shrink-0" style={thumbStyle} title={pImg.name}>
-                <img src={pImg.url} alt="" className="w-full h-full object-cover" />
+                <ThumbImg src={pImg.url} className="w-full h-full object-cover" />
                 <span className="absolute bottom-0 left-0 right-0 text-[9px] text-center py-0.5" style={{ background: "rgb(0 0 0 / 0.55)", color: "#fff" }}>Produit</span>
                 <button type="button" className="absolute top-0.5 right-0.5 grid place-items-center rounded-full text-[11px]" style={{ width: 16, height: 16, background: "rgb(0 0 0 / 0.62)", color: "#fff" }} onClick={() => setProduct((arr) => arr.filter((_, j) => j !== k))} disabled={disabledAll}>×</button>
               </span>
@@ -767,7 +771,7 @@ export function VideoSwap({
             {/* Decor : photo d'un nouveau lieu (optionnel) */}
             {scene ? (
               <span className="relative rounded-[10px] overflow-hidden shrink-0" style={thumbStyle} title={`Nouveau décor : ${scene.name}`}>
-                <img src={scene.url} alt="" className="w-full h-full object-cover" />
+                <ThumbImg src={scene.url} className="w-full h-full object-cover" />
                 <span className="absolute bottom-0 left-0 right-0 text-[9px] text-center py-0.5" style={{ background: "rgb(0 0 0 / 0.55)", color: "#fff" }}>Décor</span>
                 <button type="button" className="absolute top-0.5 right-0.5 grid place-items-center rounded-full text-[11px]" style={{ width: 16, height: 16, background: "rgb(0 0 0 / 0.62)", color: "#fff" }} onClick={() => setScene(null)} disabled={disabledAll}>×</button>
               </span>
@@ -890,12 +894,12 @@ export function VideoSwap({
             <span className="label-xs mr-1">Personnages récents</span>
             {characters.rows.map((c) => (
               <button key={c.id} type="button" className="rounded-[8px] overflow-hidden shrink-0" style={{ width: 40, height: 48, border: `2px solid ${image?.url === c.imageUrl ? "var(--accent)" : "var(--border)"}` }} title={c.name} onClick={() => { setImage({ url: c.imageUrl, name: c.name }); setExtraViews([]); }}>
-                <img src={c.imageUrl} alt="" className="w-full h-full object-cover" />
+                <ThumbImg src={c.imageUrl} className="w-full h-full object-cover" />
               </button>
             ))}
             {recentImages.map((m) => (
               <button key={m.url} type="button" className="rounded-[8px] overflow-hidden shrink-0" style={{ width: 40, height: 48, border: `2px solid ${image?.url === m.url ? "var(--accent)" : "var(--border)"}` }} title={m.name} onClick={() => { setImage(m); setExtraViews([]); }}>
-                <img src={m.url} alt="" className="w-full h-full object-cover" />
+                <ThumbImg src={m.url} className="w-full h-full object-cover" />
               </button>
             ))}
             {image && !savedUrls.has(image.url) && (
@@ -931,7 +935,7 @@ export function VideoSwap({
               <span className="label-xs mr-1" title="Comme dans l'interface Higgsfield : face, dos, tenue. Les modèles multi-images les reçoivent toutes, les autres une planche assemblée.">Autres vues</span>
               {extraViews.map((v, k) => (
                 <span key={v.url + k} className="relative rounded-[8px] overflow-hidden shrink-0" style={{ width: 44, height: 56, border: "1px solid var(--border)" }} title={v.name}>
-                  <img src={v.url} alt="" className="w-full h-full object-cover" />
+                  <ThumbImg src={v.url} className="w-full h-full object-cover" />
                   <button type="button" className="absolute top-0.5 right-0.5 grid place-items-center rounded-full text-[10px]" style={{ width: 15, height: 15, background: "rgb(0 0 0 / 0.62)", color: "#fff" }} onClick={() => setExtraViews((arr) => arr.filter((_, j) => j !== k))} disabled={disabledAll}>×</button>
                 </span>
               ))}
@@ -963,7 +967,7 @@ export function VideoSwap({
                       if (window.confirm(`Supprimer le personnage « ${c.name} » ?`)) void characters.destroy(c.id);
                     }}
                   >
-                    <img src={c.imageUrl} alt="" className="w-full object-cover" style={{ height: 62 }} />
+                    <ThumbImg src={c.imageUrl} className="w-full object-cover" style={{ height: 62 }} />
                     <span className="block text-[9.5px] px-1 py-0.5 truncate" style={{ background: "var(--surface)" }}>{c.name}</span>
                   </button>
                 ))}
@@ -976,7 +980,7 @@ export function VideoSwap({
                     title={m.name}
                     onClick={() => setImage(m)}
                   >
-                    <img src={m.url} alt="" className="w-full h-full object-cover" />
+                    <ThumbImg src={m.url} className="w-full h-full object-cover" />
                   </button>
                 ))}
                 {image && !savedUrls.has(image.url) && (
@@ -1042,7 +1046,7 @@ export function VideoSwap({
         <div className="flex gap-2 items-center flex-wrap">
           {product.map((p, k) => (
             <span key={p.url + k} className="relative rounded-[8px] overflow-hidden shrink-0" style={{ width: 60, height: 60, border: "1px solid var(--border)", background: "var(--surface-3)" }} title={p.name}>
-              <img src={p.url} alt="" className="w-full h-full object-cover" />
+              <ThumbImg src={p.url} className="w-full h-full object-cover" />
               <button type="button" className="absolute top-0.5 right-0.5 grid place-items-center rounded-full text-[11px]" style={{ width: 17, height: 17, background: "rgb(0 0 0 / 0.62)", color: "#fff" }} onClick={() => setProduct((arr) => arr.filter((_, j) => j !== k))} disabled={disabledAll}>×</button>
             </span>
           ))}
