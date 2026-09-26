@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
 import { onProviderCallback } from "@/lib/studio/jobs";
+import { warmThumb } from "@/lib/thumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
 
   gen.state = (data.state as typeof gen.state) ?? "success";
   gen.resultUrls = urls;
+  for (const u of urls) warmThumb(u);
   gen.failMsg = data.failMsg ?? "";
   gen.creditsConsumed = Number(data.creditsConsumed ?? gen.creditsConsumed);
   gen.updatedAt = new Date().toISOString();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTask, KieError } from "@/lib/kie";
 import { readDB, writeDB } from "@/lib/db";
+import { warmThumb } from "@/lib/thumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest) {
     changed = true;
     gen.state = rec.state;
     gen.resultUrls = rec.resultUrls;
+    for (const u of rec.resultUrls ?? []) warmThumb(u);
     gen.creditsConsumed = rec.creditsConsumed;
     gen.failMsg = rec.failMsg;
     gen.progress = rec.progress;

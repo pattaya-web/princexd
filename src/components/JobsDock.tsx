@@ -34,12 +34,20 @@ export const readStudioJobsCache = () => lastStudioJobs;
  * demandaient chacun la liste (250 Ko) au meme instant.
  */
 let studioPending: Promise<{ jobs?: StudioJob[] }> | null = null;
-export function fetchStudioJobs(): Promise<{ jobs?: StudioJob[] }> {
+let lastStudioAt = 0;
+/** `maxAgeMs` : une liste plus recente que ca est rendue sans appel reseau. */
+export function fetchStudioJobs(maxAgeMs = 0): Promise<{ jobs?: StudioJob[] }> {
+  if (lastStudioJobs && maxAgeMs > 0 && Date.now() - lastStudioAt < maxAgeMs) {
+    return Promise.resolve({ jobs: lastStudioJobs });
+  }
   if (!studioPending) {
     studioPending = fetch("/api/studio/jobs", { cache: "no-store" })
       .then((r) => r.json() as Promise<{ jobs?: StudioJob[] }>)
       .then((body) => {
-        if (body.jobs) lastStudioJobs = body.jobs;
+        if (body.jobs) {
+          lastStudioJobs = body.jobs;
+          lastStudioAt = Date.now();
+        }
         return body;
       })
       .finally(() => { studioPending = null; });
@@ -193,7 +201,8 @@ export function JobsDock() {
       }
       try {
         // Le meme appel fait avancer la file du Swap video cote serveur.
-        const body = await fetchStudioJobs();
+        // Premier tour juste apres l'appel initial de la page Studio : on reprend sa liste.
+        const body = await fetchStudioJobs(2000);
         if (!alive) return;
         if (body.jobs) {
           const sig = JSON.stringify(body.jobs);

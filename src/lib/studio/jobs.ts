@@ -1,6 +1,7 @@
 import { newId, readDB, writeDB } from "@/lib/db";
 import { MAX_CONCURRENT_GENERATIONS, MAX_VARIANTS, PROVIDER_IDS, PROVIDERS, STALE_STEP_MS } from "./config";
 import { quote } from "./costs";
+import { warmThumb } from "@/lib/thumbs";
 import { downloadToMedia, ensureLocal, extractAudioMp3, isAllowedRemote, localMediaPath, MediaError, muxAudio, probe, retimeVideo, storeBuffer, stripAudio } from "./media";
 import { lipSyncVideo, LipSyncError } from "./providers/lipsync";
 import { buildPrompt, DEFAULT_NEGATIVE_PROMPT } from "./prompts";
@@ -230,6 +231,7 @@ async function runFinish(job: StudioJob) {
     // Photo qui parle : la video rendue contient deja la voix, rien a assembler.
     if (current.type === "talking-photo") {
       await patchJob(job.id, { status: "completed", finalOutput: current.videoOutput, progress: 100, completedAt: now(), error: "" });
+      warmThumb(current.videoOutput);
       return;
     }
     let videoPath = localMediaPath(current.videoOutput);
@@ -313,6 +315,7 @@ async function runFinish(job: StudioJob) {
     }
 
     await patchJob(job.id, { status: "completed", finalOutput, progress: 100, completedAt: now(), error: "" });
+    warmThumb(finalOutput);
   } catch (e) {
     const err = e as Error;
     await fail(job.id, err instanceof MediaError ? err.message : `Assemblage impossible : ${err.message}`);

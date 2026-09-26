@@ -24,6 +24,13 @@ const run = promisify(execFile);
 
 export const MEDIA_DIR = path.join(process.cwd(), "data", "media");
 const THUMB_DIR = path.join(MEDIA_DIR, ".thumbs");
+/* Largeur des vignettes : les tuiles font 150-260 px, 360 px couvre les ecrans retina. */
+const WIDTH = 360;
+/* Suffixe de version : le changer regenere tout sans toucher aux anciennes. */
+const SUFFIX = ".v2.jpg";
+/* Echecs recents (URL expiree, ffmpeg en erreur) : on ne retente pas avant une heure. */
+const failed = new Map<string, number>();
+const FAIL_TTL = 60 * 60_000;
 
 const VIDEO = new Set([".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv"]);
 const IMAGE = new Set([".png", ".jpg", ".jpeg", ".jfif", ".jpe", ".webp", ".gif"]);
@@ -56,19 +63,22 @@ export function thumbKind(file: string): "video" | "image" | null {
 
 async function generate(src: string, out: string, kind: "video" | "image"): Promise<boolean> {
   const tmp = `${out}.${process.pid}.${Date.now()}.tmp.jpg`;
-  const base = ["-hide_banner", "-loglevel", "error", "-y"];
+  const remote = /^https?:\/\//.test(src);
+  // Lecture reseau bornee a 10 s : une URL de CDN expiree ne doit pas bloquer la file.
+  const base = ["-hide_banner", "-loglevel", "error", "-y", ...(remote ? ["-rw_timeout", "10000000"] : [])];
+  const scale = `scale='min(${WIDTH},iw)':-2`;
   const attempts: string[][] =
     kind === "video"
       ? [
           // Une demi-seconde apres le debut : evite l'image noire des fondus d'ouverture.
-          [...base, "-ss", "0.5", "-i", src, "-frames:v", "1", "-vf", "scale=480:-2", "-q:v", "5", tmp],
+          [...base, "-ss", "0.5", "-i", src, "-frames:v", "1", "-vf", scale, "-q:v", "6", tmp],
           // Clip plus court que 0,5 s : premiere image.
-          [...base, "-i", src, "-frames:v", "1", "-vf", "scale=480:-2", "-q:v", "5", tmp],
+          [...base, "-i", src, "-frames:v", "1", "-vf", scale, "-q:v", "6", tmp],
         ]
-      : [[...base, "-i", src, "-frames:v", "1", "-vf", "scale='min(480,iw)':-2", "-q:v", "5", tmp]];
+      : [[...base, "-i", src, "-frames:v", "1", "-vf", scale, "-q:v", "6", tmp]];
   for (const args of attempts) {
     try {
-      await run("ffmpeg", args, { timeout: 30_000, maxBuffer: 4 * 1024 * 1024 });
+      await run("ffmpeg", args, { timeout: remote ? 15_000 : 30_000, maxBuffer: 4 * 1024 * 1024 });
       if (fs.existsSync(tmp) && fs.statSync(tmp).size > 0) {
         fs.renameSync(tmp, out);
         return true;
@@ -90,8 +100,10 @@ export async function ensureThumb(file: string): Promise<string | null> {
   if (!kind) return null;
   const src = path.join(MEDIA_DIR, file);
   if (!src.startsWith(MEDIA_DIR) || !fs.existsSync(src)) return null;
-  const out = path.join(THUMB_DIR, `${file}.jpg`);
+  const out = path.join(THUMB_DIR, `${file}${SUFFIX}`);
   if (fs.existsSync(out)) return out;
+  const lastFail = failed.get(file);
+  if (lastFail && Date.now() - lastFail < FAIL_TTL) return null;
 
   const pending = inflight.get(file);
   if (pending) return pending;
@@ -101,7 +113,9 @@ export async function ensureThumb(file: string): Promise<string | null> {
     try {
       if (fs.existsSync(out)) return out;
       fs.mkdirSync(THUMB_DIR, { recursive: true });
-      return (await generate(src, out, kind)) ? out : null;
+      const ok = await generate(src, out, kind);
+      if (!ok) failed.set(file, Date.now());
+      return ok ? out : null;
     } finally {
       release();
       inflight.delete(file);
@@ -123,18 +137,29 @@ export async function ensureRemoteThumb(url: string): Promise<string | null> {
   try { pathname = new URL(url).pathname; } catch { return null; }
   const kind = thumbKind(pathname) ?? "image";
   const key = `remote-${createHash("sha1").update(url).digest("hex")}`;
-  const out = path.join(THUMB_DIR, `${key}.jpg`);
+  const out = path.join(THUMB_DIR, `${key}${SUFFIX}`);
   if (fs.existsSync(out)) return out;
+  const lastFail = failed.get(key);
+  if (lastFail && Date.now() - lastFail < FAIL_TTL) return null;
 
   const pending = inflight.get(key);
   if (pending) return pending;
 
   const job = (async () => {
+    // Un resultat de CDN expire (KIE garde ses fichiers quelques jours) : on
+    // le detecte en 5 s sans occuper un des deux slots ffmpeg.
+    if (!(await stillThere(url))) {
+      failed.set(key, Date.now());
+      inflight.delete(key);
+      return null;
+    }
     await acquire();
     try {
       if (fs.existsSync(out)) return out;
       fs.mkdirSync(THUMB_DIR, { recursive: true });
-      return (await generate(url, out, kind)) ? out : null;
+      const ok = await generate(url, out, kind);
+      if (!ok) failed.set(key, Date.now());
+      return ok ? out : null;
     } finally {
       release();
       inflight.delete(key);
@@ -142,4 +167,39 @@ export async function ensureRemoteThumb(url: string): Promise<string | null> {
   })();
   inflight.set(key, job);
   return job;
+}
+
+async function stillThere(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(5_000), redirect: "follow" });
+    if (res.ok) return true;
+    // Certains CDN refusent HEAD : on tente un GET d'un seul octet.
+    if (res.status === 405 || res.status === 403) {
+      const r2 = await fetch(url, { headers: { Range: "bytes=0-0" }, signal: AbortSignal.timeout(5_000) });
+      return r2.ok;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Prepare la vignette d'un media des qu'il existe (fin de rendu, resultat
+ * recu) : l'utilisateur n'attend jamais ffmpeg en ouvrant la galerie.
+ * Silencieux : un echec ici n'a aucune consequence, la galerie retombera
+ * sur le media lui-meme.
+ */
+export function warmThumb(url: string | undefined | null) {
+  if (!url) return;
+  try {
+    if (url.startsWith("/api/media/")) {
+      const file = url.slice("/api/media/".length).split("?")[0];
+      if (/^[A-Za-z0-9]+\.[A-Za-z0-9]+$/.test(file)) void ensureThumb(file).catch(() => null);
+    } else if (/^https:\/\//.test(url)) {
+      void ensureRemoteThumb(url).catch(() => null);
+    }
+  } catch {
+    // jamais bloquant
+  }
 }

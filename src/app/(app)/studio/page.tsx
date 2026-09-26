@@ -268,7 +268,7 @@ function StudioInner() {
     const cached = readStudioJobsCache();
     if (cached) setJobs(cached);
     else {
-      fetchStudioJobs()
+      fetchStudioJobs(2000)
         .then((b) => { if (alive && b.jobs) setJobs(b.jobs); })
         .catch(() => {});
     }
@@ -338,6 +338,10 @@ function StudioInner() {
   }, [jobs]);
 
   /* Galerie unifiee : jobs de swap et generations classiques, du plus recent au plus ancien. */
+  /* 24 tuiles d'abord : une galerie de 200 rendus ne charge pas 200 vignettes d'un coup. */
+  const PAGE = 24;
+  const [shown, setShown] = useState(PAGE);
+  useEffect(() => setShown(PAGE), [filter]);
   const gallery = useMemo(() => {
     type Item = { at: string; job?: StudioJob; gen?: Generation };
     const genState = (g: Generation) => (g.state === "success" ? "done" : g.state === "fail" ? "failed" : "running");
@@ -478,7 +482,7 @@ function StudioInner() {
             <Empty>{filter === "all" ? "Rien de généré pour l'instant. Lance ta première génération ci-dessous." : "Rien dans ce filtre."}</Empty>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 p-3">
-              {gallery.map((it) =>
+              {gallery.slice(0, shown).map((it) =>
                 it.job ? (
                   <StudioJobCard key={it.job.id} job={it.job} actions={jobActions} />
                 ) : it.gen ? (
@@ -500,6 +504,13 @@ function StudioInner() {
                 />
                 ) : null,
               )}
+            </div>
+          )}
+          {gallery.length > shown && (
+            <div className="px-3 pb-3 flex justify-center">
+              <button type="button" className="btn btn-sm" onClick={() => setShown((n) => n + PAGE)}>
+                Afficher plus ({gallery.length - shown} restants)
+              </button>
             </div>
           )}
         </Card>
