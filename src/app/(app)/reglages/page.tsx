@@ -15,6 +15,10 @@ type View = Settings & {
   igAccessTokenSource?: string;
   openaiApiKeyMask?: string;
   openaiApiKeySource?: string;
+  elevenLabsApiKeyMask?: string;
+  elevenLabsApiKeySource?: string;
+  higgsfieldKeyMask?: string;
+  higgsfieldKeySource?: string;
 };
 
 const STORY_TYPES = [
@@ -37,6 +41,8 @@ export default function ReglagesPage() {
   const [apiKey, setApiKey] = useState("");
   const [iclosedKey, setIclosedKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
+  const [elevenKey, setElevenKey] = useState("");
+  const [hfSecret, setHfSecret] = useState("");
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,11 +71,17 @@ export default function ReglagesPage() {
       else delete payload.iclosedApiKey;
       if (openaiKey.trim()) payload.openaiApiKey = openaiKey.trim();
       else delete payload.openaiApiKey;
+      if (elevenKey.trim()) payload.elevenLabsApiKey = elevenKey.trim();
+      else delete payload.elevenLabsApiKey;
+      if (hfSecret.trim()) payload.higgsfieldKeySecret = hfSecret.trim();
+      else delete payload.higgsfieldKeySecret;
       const next = await api<View>("/api/settings", { method: "PATCH", body: JSON.stringify(payload) });
       setS(next);
       setApiKey("");
       setIclosedKey("");
       setOpenaiKey("");
+      setElevenKey("");
+      setHfSecret("");
       toast("Réglages enregistrés.");
     } catch (e) {
       setError((e as Error).message);
@@ -341,6 +353,82 @@ export default function ReglagesPage() {
                   {s.igProfile.followers} abonnés, {s.igProfile.history.length} jours d&apos;historique.
                 </InfoNote>
               )}
+            </div>
+          </Card>
+
+          <Card title="Voix (ElevenLabs)">
+            <div className="flex flex-col gap-3.5">
+              {s.elevenLabsApiKeyMask ? (
+                <InfoNote>
+                  Clé active : <code className="mono">{s.elevenLabsApiKeyMask}</code> — source :{" "}
+                  <strong>{s.elevenLabsApiKeySource === "env" ? ".env.local" : "ces réglages"}</strong>. Le Swap vidéo
+                  du Studio peut remplacer ta voix par une voix de ton compte (speech-to-speech : mêmes mots, même
+                  rythme, autre timbre).
+                </InfoNote>
+              ) : (
+                <InfoNote>
+                  Aucune clé ElevenLabs. Crée-la sur elevenlabs.io (Profile → API keys). Sans elle, le Swap vidéo
+                  garde ta voix d&apos;origine.
+                </InfoNote>
+              )}
+              <Field label={s.elevenLabsApiKeyMask ? "Remplacer la clé ElevenLabs" : "Clé API ElevenLabs"} hint="Laisse vide pour conserver la clé actuelle.">
+                <input
+                  className="input mono"
+                  type="password"
+                  placeholder="sk_…"
+                  value={elevenKey}
+                  onChange={(e) => setElevenKey(e.target.value)}
+                />
+              </Field>
+            </div>
+          </Card>
+
+          <Card title="Higgsfield (Genjutsu)">
+            <div className="flex flex-col gap-3.5">
+              {s.higgsfieldKeyMask ? (
+                <InfoNote>
+                  Clés actives (ID <code className="mono">{s.higgsfieldKeyId}</code>, secret{" "}
+                  <code className="mono">{s.higgsfieldKeyMask}</code>) — source :{" "}
+                  <strong>{s.higgsfieldKeySource === "env" ? ".env.local" : "ces réglages"}</strong>. Le modèle « Higgsfield
+                  Genjutsu » du Swap vidéo est facturé par Higgsfield en dollars, pas en crédits KIE.
+                </InfoNote>
+              ) : (
+                <InfoNote>
+                  Aucune clé Higgsfield. Crée-la sur console.higgsfield.ai (API keys) et colle-la dans le champ secret :
+                  une clé unique, ou le couple <code className="mono">ID:SECRET</code>. Sans elle, le modèle Genjutsu reste
+                  indisponible ; les autres modèles ne sont pas concernés.
+                </InfoNote>
+              )}
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="Key ID (optionnel si tu colles ID:SECRET ou une clé unique)">
+                  <input
+                    className="input mono"
+                    placeholder="ID de la clé"
+                    value={s.higgsfieldKeyId ?? ""}
+                    onChange={(e) => set("higgsfieldKeyId", e.target.value)}
+                  />
+                </Field>
+                <Field label={s.higgsfieldKeyMask ? "Remplacer la clé" : "Clé API (secret, ID:SECRET ou clé unique)"} hint="Laisse vide pour conserver la clé actuelle.">
+                  <input
+                    className="input mono"
+                    type="password"
+                    placeholder="secret"
+                    value={hfSecret}
+                    onChange={(e) => setHfSecret(e.target.value)}
+                  />
+                </Field>
+              </div>
+              <Field label="Solde Higgsfield (USD)" hint="Higgsfield n'expose pas le solde par API : recopie celui de console.higgsfield.ai. L'app déduit ensuite chaque rendu Genjutsu livré (0,68 $/s en 720p) et l'affiche dans la barre de gauche.">
+                <input
+                  className="input num"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="ex. 25"
+                  value={s.higgsfieldBalanceUsd ?? ""}
+                  onChange={(e) => set("higgsfieldBalanceUsd", e.target.value === "" ? undefined : Number(e.target.value))}
+                />
+              </Field>
             </div>
           </Card>
 

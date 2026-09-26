@@ -71,15 +71,50 @@ ne change pas.
 | **Équipe** | Setters, closers, monteur, commissions |
 | **Ressources / To-do** | La bibliothèque et les tâches |
 
+## Swap vidéo (Studio IA)
+
+Onglet **Swap vidéo** du Studio : une image de référence + ta vidéo → la même vidéo
+avec l'apparence du personnage, la voix gardée, transformée par ElevenLabs, ou coupée.
+
+- Code : `src/lib/studio/` — `config.ts` (modèles, limites, tarifs, priorités du mode
+  Auto : tout se règle là), `prompts.ts`, `providers/` (Wan, Kling, Seedance, Gemini Omni
+  Flash via KIE, ElevenLabs en direct), `media.ts` (ffmpeg), `jobs.ts` (file d'attente).
+- Routes : `/api/studio/jobs` (création, sondage, suppression), `/api/studio/jobs/[id]/retry`,
+  `/api/studio/quote`, `/api/studio/voices`, `/api/studio/frame`.
+- La file avance à chaque sondage du navigateur (JobsDock), comme les générations classiques.
+  Les étapes longues tournent en arrière-plan dans le processus Node ; un job interrompu par un
+  redémarrage reprend au sondage suivant.
+- Voix : `ELEVENLABS_API_KEY` dans `.env.local` ou la clé dans Réglages. Speech-to-speech
+  (`eleven_multilingual_sts_v2`) : mêmes mots, même rythme, autre timbre. Sans clé, la vidéo
+  est livrée avec la voix d'origine et un bouton « Réessayer la voix ».
+- ffmpeg est requis (présent dans l'image Docker) : extraction audio, remplacement de la piste,
+  première image d'un résultat, recalage de durée, compression des sources.
+- Modèles (config.ts) : Seedance 2 (plan fixe, tenue, produit avec photos), Kling 3.0 Omni (gestes exacts +
+  produit), Wan Animate (déplacements, décor gardé), Kling Motion Control (personnage complet), Wan 2.7,
+  Gemini Omni Flash. Option « Synchroniser les lèvres » via `volcengine/video-to-video-lip-sync`.
+- Higgsfield Genjutsu (Object Swap) via l'API publique Higgsfield : `HIGGSFIELD_API_KEY_ID` et
+  `HIGGSFIELD_API_KEY_SECRET` (ou Réglages). Facturé par Higgsfield en dollars. Références multi-vues
+  (jusqu'à 3 photos du personnage) : passées telles quelles aux modèles multi-images, assemblées en planche
+  pour les autres.
+- Onglet « Photo qui parle » : InfiniteTalk (`infinitalk/from-audio`), photo + texte lu par ElevenLabs
+  ou fichier audio. Route `/api/studio/talk`.
+- Chaque rendu expose une fiche complète copiable (modèle, réglages, voix, coûts) pour être reproduit
+  par quelqu'un d'autre.
+
 ## L'espace monteur
 
 1. **Réglages → Accès monteur** : définis un code (ex. `MONTAGE-2026`).
-2. Envoie-lui `http://…/monteur` + le code.
+2. Envoie-lui `http://…/login` : il tape le code dans « Mot de passe » et arrive sur
+   `/monteur`. Un monteur avec un compte nominatif (Équipe, rôle monteur) se connecte
+   avec identifiant + mot de passe.
 
-Une fois le code saisi, un cookie de rôle l'enferme dans ce board : le middleware
-(`src/middleware.ts`) lui refuse le CRM, les réglages, les crédits et les routes IA.
-Il ne peut passer une carte qu'entre **À monter**, **En cours** et **Livré** — le
-statut « Posté » reste ta décision.
+Sa session l'enferme dans deux pages, dans le même menu que toi : **Mes vidéos à
+monter** (`/monteur`, le drive de montage) et le **Studio IA** (`/studio`, swap
+vidéo, photo qui parle, sur les crédits KIE du compte). Le middleware
+(`src/middleware.ts`) lui refuse le CRM, les réglages et les ventes. Il ne peut
+passer une carte qu'entre **À monter**, **En cours** et **Livré** — le statut
+« Posté » reste ta décision. La page `/monteur` lui explique les trois gestes :
+ouvrir le dossier, monter (swap IA si besoin), déposer la vidéo.
 
 Les fichiers uploadés vont dans `data/media/` et sont servis par `/api/media/[file]`
 avec support des requêtes Range (donc scrub de vidéo dans le navigateur). Limite :
@@ -135,8 +170,8 @@ corrompt pas.
 Le tool **n'a pas d'authentification propriétaire** : il est pensé pour tourner en
 local sur ta machine. Si tu le déploies en ligne, mets-le derrière une
 authentification au niveau de l'hébergeur (Vercel Password Protection, Basic Auth
-Cloudflare…), sinon n'importe qui avec l'URL voit ton CRM. Le code monteur ne
-protège que `/monteur`, pas le reste.
+Cloudflare…), sinon n'importe qui avec l'URL voit ton CRM. Le code monteur
+n'ouvre que `/monteur` et `/studio`, pas le reste.
 
 ## Stack
 

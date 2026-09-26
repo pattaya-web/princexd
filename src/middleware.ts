@@ -14,9 +14,31 @@ import { peekClaims, SESSION_COOKIE } from "@/lib/sales/session";
  * tool et tout est ouvert. C'est le comportement historique.
  */
 
-/* --- Monteur : inchange --- */
-const EDITOR_PAGES = ["/monteur"];
-const EDITOR_APIS = ["/api/auth/editor", "/api/sales/session", "/api/data/edits", "/api/upload", "/api/media/"];
+/*
+ * --- Monteur ---
+ *
+ * Son espace de montage, plus le Studio IA depuis le 2026-09-25 : il produit
+ * les videos de swap a la place du proprietaire, sur les credits KIE du
+ * compte. Le reste (CRM, ventes, reglages) lui reste ferme.
+ */
+const EDITOR_PAGES = ["/monteur", "/studio"];
+const EDITOR_APIS = [
+  "/api/auth/editor",
+  "/api/sales/session",
+  "/api/data/edits",
+  "/api/data/generations",
+  "/api/data/studioCharacters",
+  "/api/upload",
+  "/api/media/",
+  "/api/studio/",
+  "/api/kie/upload",
+  "/api/kie/generate",
+  "/api/kie/task",
+  "/api/kie/download",
+  "/api/kie/credits",
+  "/api/higgsfield/balance",
+  "/api/ai/image-edit",
+];
 
 /* --- Equipe commerciale --- */
 const SALES_PAGES = ["/sales"];
@@ -99,7 +121,19 @@ function deny(req: NextRequest, fallback: string) {
   if (req.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
-  return NextResponse.redirect(new URL(fallback, req.url));
+  return NextResponse.redirect(new URL(fallback, publicOrigin(req)));
+}
+
+/**
+ * Derriere le proxy du VPS, `req.url` peut porter l'adresse d'ecoute du
+ * conteneur (http://0.0.0.0:3000). On reconstruit l'origine publique a
+ * partir des en-tetes transmises par le proxy, sinon celle de la requete.
+ */
+function publicOrigin(req: NextRequest) {
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  if (!host || host.startsWith("0.0.0.0")) return req.url;
+  const proto = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
+  return `${proto}://${host}`;
 }
 
 export const config = {

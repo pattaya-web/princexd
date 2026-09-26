@@ -1,3 +1,4 @@
+import type { StudioCharacter, StudioJob } from "./studio/types";
 // Modèle de données du tool. Une seule source de vérité, persistée dans data/db.json.
 
 export type ID = string;
@@ -78,6 +79,17 @@ export interface Settings {
   openaiApiKey: string;
   /** Modele de transcription (gpt-4o-mini-transcribe, whisper-1...). */
   transcribeModel: string;
+  /** Cle ElevenLabs pour la transformation de voix du Swap video. Priorite a ELEVENLABS_API_KEY. */
+  elevenLabsApiKey?: string;
+  /** Cles Higgsfield (Genjutsu). Priorite a HIGGSFIELD_API_KEY_ID / HIGGSFIELD_API_KEY_SECRET. */
+  higgsfieldKeyId?: string;
+  higgsfieldKeySecret?: string;
+  /**
+   * Solde Higgsfield saisi a la main (USD) et date de saisie : l'API Higgsfield
+   * n'expose aucun solde, on deduit ensuite les rendus Genjutsu lances apres.
+   */
+  higgsfieldBalanceUsd?: number;
+  higgsfieldBalanceAt?: string;
   /** Cache du profil, rempli par la synchro. */
   igProfile: IgProfileSnapshot | null;
   /** Cache de l'audience (24 h), rempli au premier detail de publication. */
@@ -697,6 +709,9 @@ export interface DB {
   saved: SavedItem[];
   redo: RedoItem[];
   adFolders: AdFolder[];
+  /* --- Studio : swap video --- */
+  studioJobs: StudioJob[];
+  studioCharacters: StudioCharacter[];
   /* --- Module commercial Setter / Closer --- */
   appointments: Appointment[];
   sales: Sale[];

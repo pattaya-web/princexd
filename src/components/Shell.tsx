@@ -199,6 +199,148 @@ export function CreditsWidget() {
   );
 }
 
+/* ------------------------ Widget solde Higgsfield ----------------------- */
+
+interface HiggsfieldPayload {
+  configured: boolean;
+  balanceUsd: number | null;
+  setAt: string;
+  spentUsd: number;
+  jobs: number;
+  remainingUsd: number | null;
+  secondsLeft720p: number | null;
+  error?: string;
+}
+
+/**
+ * Higgsfield n'a pas d'API de solde : on affiche le montant saisi moins les
+ * rendus Genjutsu livres depuis. Le crayon permet de resaisir le vrai solde
+ * lu sur console.higgsfield.ai.
+ */
+export function HiggsfieldWidget() {
+  const [data, setData] = useState<HiggsfieldPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      setData(await api<HiggsfieldPayload>("/api/higgsfield/balance"));
+    } catch (e) {
+      setData({ configured: false, balanceUsd: null, setAt: "", spentUsd: 0, jobs: 0, remainingUsd: null, secondsLeft720p: null, error: (e as Error).message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+    const id = setInterval(() => void load(), 120_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const save = async () => {
+    const n = Number(draft.replace(",", "."));
+    if (!Number.isFinite(n) || n < 0) return;
+    setLoading(true);
+    try {
+      setData(await api<HiggsfieldPayload>("/api/higgsfield/balance", { method: "PATCH", body: JSON.stringify({ balanceUsd: n }) }));
+      setEditing(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (data && !data.configured) return null;
+
+  const remaining = data?.remainingUsd ?? null;
+  const low = remaining !== null && remaining < 5;
+
+  return (
+    <div
+      className="rounded-[12px] px-3.5 py-3"
+      style={{
+        background: "var(--surface)",
+        border: `1px solid ${low ? "color-mix(in srgb, var(--warning) 45%, transparent)" : "var(--border)"}`,
+      }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="label-xs">Solde Higgsfield</span>
+        <div className="flex items-center gap-1">
+          <button
+            className="btn btn-ghost btn-sm !h-[20px] !px-1.5 !text-[11px]"
+            onClick={() => {
+              setDraft(data?.balanceUsd !== null && data?.balanceUsd !== undefined ? String(data.balanceUsd) : "");
+              setEditing((v) => !v);
+            }}
+            title="Saisir le solde lu sur console.higgsfield.ai"
+          >
+            ✎
+          </button>
+          <button className="btn btn-ghost btn-sm !h-[20px] !px-1.5 !text-[11px]" onClick={() => void load()} disabled={loading} title="Rafraîchir">
+            {loading ? <span className="spinner" /> : "↻"}
+          </button>
+        </div>
+      </div>
+
+      {editing ? (
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <input
+            className="input num !h-[28px] !text-[12px] w-full"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="Solde en $"
+            value={draft}
+            autoFocus
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void save();
+              if (e.key === "Escape") setEditing(false);
+            }}
+          />
+          <button className="btn btn-primary btn-sm !h-[28px]" onClick={() => void save()} disabled={loading}>
+            OK
+          </button>
+        </div>
+      ) : remaining === null ? (
+        <p className="text-[12px] mt-1.5 leading-snug dim">
+          Solde inconnu —{" "}
+          <button className="link" onClick={() => setEditing(true)}>
+            saisir
+          </button>{" "}
+          le montant de{" "}
+          <a className="link" href="https://console.higgsfield.ai" target="_blank" rel="noreferrer">
+            la console
+          </a>
+          .
+        </p>
+      ) : (
+        <>
+          <div className="flex items-baseline gap-1.5 mt-1.5">
+            <span className="text-[22px] font-medium num" style={{ letterSpacing: "-0.03em" }}>
+              {fmtUsd(remaining)}
+            </span>
+            <span className="dim text-[11.5px]">estimés</span>
+          </div>
+          <div className="flex items-center justify-between gap-2 mt-0.5">
+            <span className="mono text-[11.5px]" style={{ color: low ? "var(--warning)" : "var(--text-2)" }}>
+              ≈ {data?.secondsLeft720p ?? 0} s Genjutsu 720p
+            </span>
+            {low && <span className="badge badge-warn !py-0">Bas</span>}
+          </div>
+          {data && data.jobs > 0 && (
+            <p className="text-[11px] mt-1 dim leading-snug">
+              {data.jobs} rendu{data.jobs > 1 ? "s" : ""} déduit{data.jobs > 1 ? "s" : ""} ({fmtUsd(data.spentUsd)}) depuis ta saisie.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 /* -------------------------------- Nav ---------------------------------- */
 
 interface Today {
@@ -382,6 +524,14 @@ export function Brand({ size = "md" }: { size?: "md" | "lg" }) {
  * de vue juste au-dessus qui sert a revenir, un second bouton de sortie
  * n'apporterait que de la confusion.
  */
+const ROLE_LABEL: Record<string, string> = {
+  owner: "propriétaire",
+  admin: "admin",
+  setter: "setter",
+  closer: "closer",
+  editor: "monteur",
+};
+
 function SessionBadge() {
   const { session } = useSession();
   if (!session || session.role === "anonyme") return null;
@@ -399,7 +549,7 @@ function SessionBadge() {
     <div className="flex items-center justify-between gap-2 mb-2.5 px-1">
       <span className="min-w-0">
         <span className="block text-[13px] font-medium truncate">{session.memberName}</span>
-        <span className="label-xs">{session.role}</span>
+        <span className="label-xs">{ROLE_LABEL[session.role] ?? session.role}</span>
       </span>
       <button className="btn btn-ghost btn-sm shrink-0" onClick={() => void logout()} title="Se déconnecter">
         ⏻
@@ -419,7 +569,22 @@ export function Shell({ children }: { children: React.ReactNode }) {
   // Un commercial ne voit que son espace : afficher des liens qui renvoient
   // vers une redirection est une fausse promesse.
   const isSalesOnly = session?.role === "setter" || session?.role === "closer";
-  const nav = isSalesOnly ? NAV.filter((g) => g.section === "Sales") : NAV;
+  // Le monteur ne voit que ses deux outils : son board et le Studio IA.
+  const isEditor = session?.role === "editor";
+  const nav = isSalesOnly
+    ? NAV.filter((g) => g.section === "Sales")
+    : isEditor
+      ? [
+          {
+            section: "Montage",
+            items: [
+              { href: "/monteur", label: "Mes vidéos à monter", icon: "✂" },
+              { href: "/studio?kind=swap", label: "Swap vidéo (IA)", icon: "✦" },
+              { href: "/studio?kind=talk", label: "Photo qui parle", icon: "◉" },
+            ],
+          },
+        ]
+      : NAV;
 
   return (
     <div className="min-h-screen flex">
@@ -452,7 +617,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <div className="label-xs px-3 mb-2">{group.section}</div>
               <div className="flex flex-col gap-[3px]">
                 {group.items.map((item) => {
-                  const active = pathname === item.href;
+                  // Le monteur a des liens avec paramètre (/studio?kind=swap) : on
+                  // compare le chemin seul, et la query désigne l'onglet actif.
+                  const [itemPath, itemQuery] = item.href.split("?");
+                  const active =
+                    pathname === itemPath &&
+                    (!itemQuery || (typeof window !== "undefined" && window.location.search.includes(itemQuery)));
                   return (
                     <Link
                       key={item.href}
@@ -484,6 +654,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <SessionBadge />
           {/* Le solde de credits IA ne concerne pas l'equipe commerciale. */}
           {!isSalesOnly && <CreditsWidget />}
+          {!isSalesOnly && <HiggsfieldWidget />}
         </div>
       </aside>
 
@@ -501,7 +672,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </button>
           {/* Sur téléphone, les objectifs du jour défilent horizontalement au lieu de déborder. */}
           <div className="min-w-0 flex-1 overflow-x-auto scroll-x">
-            {!isSalesOnly && <DailyBar />}
+            {/* Attendre la session : monté trop tôt, le monteur déclenchait un appel refusé à /api/today. */}
+            {session && !isSalesOnly && !isEditor && <DailyBar />}
           </div>
           <div className="hidden md:block shrink-0">
             <Clocks />

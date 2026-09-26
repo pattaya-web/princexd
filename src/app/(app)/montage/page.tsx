@@ -29,17 +29,18 @@ export default function MontagePage() {
             <span className="flex flex-wrap items-center gap-2">
               Lien à donner à ton monteur :
               <code className="mono px-1.5 py-0.5 rounded" style={{ background: "var(--surface-3)" }}>
-                {origin}/monteur
+                {origin}/login
               </code>
-              avec le code
+              il tape le code
               <code className="mono px-1.5 py-0.5 rounded" style={{ background: "var(--surface-3)" }}>{code}</code>
-              <CopyButton text={`${origin}/monteur — code : ${code}`} label="Copier" />
-              — il ne verra que ce board, jamais ton CRM ni tes crédits.
+              dans « Mot de passe »
+              <CopyButton text={`${origin}/login — mot de passe : ${code}`} label="Copier" />
+              — il n&apos;a que ses vidéos à monter et le Studio IA (swap vidéo, photo qui parle), jamais ton CRM.
             </span>
           ) : (
             <>
-              Définis un <strong>code d&apos;accès monteur</strong> dans Réglages pour lui ouvrir la page{" "}
-              <code className="mono">/monteur</code>. Tant qu&apos;aucun code n&apos;est défini, personne ne peut y entrer.
+              Définis un <strong>code d&apos;accès monteur</strong> dans Réglages : il le tape sur la page de connexion
+              et arrive sur ses vidéos à monter. Tant qu&apos;aucun code n&apos;est défini, personne ne peut y entrer.
             </>
           )}
         </InfoNote>

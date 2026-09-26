@@ -79,12 +79,22 @@ export async function GET(req: NextRequest) {
       const known = readDB().creatorPosts.find((p) => p.permalink.split("?")[0] === raw);
       const base = (known?.creator || "reel").replace(/[^\p{L}\p{N}_-]/gu, "") || "reel";
       const fileName = `${base}-${hashKey(raw)}.mp4`;
-      return NextResponse.redirect(new URL(`${local}?download=1&name=${encodeURIComponent(fileName)}`, req.url));
+      return redirectTo(`${local}?download=1&name=${encodeURIComponent(fileName)}`);
     }
 
-    return NextResponse.redirect(new URL(local, req.url));
+    return redirectTo(local);
   } catch (e) {
     const err = e as DownloadError;
     return NextResponse.json({ error: err.message }, { status: err.code ?? 502 });
   }
+}
+
+/**
+ * Redirection relative : derriere le proxy du VPS, `req.url` vaut
+ * http://0.0.0.0:3000/... (l'adresse d'ecoute du conteneur), donc une
+ * URL absolue construite dessus envoie le navigateur dans le vide.
+ * Une en-tete Location relative est resolue sur le domaine public.
+ */
+function redirectTo(path: string) {
+  return new NextResponse(null, { status: 307, headers: { Location: path } });
 }

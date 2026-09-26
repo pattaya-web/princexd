@@ -839,3 +839,24 @@ b {
     animation: none;
   }
 }
+
+/* ------------------------------ File de rendus ------------------------------ */
+
+.jobs-dock {
+  right: 16px;
+  bottom: 16px;
+  width: 268px;
+  max-width: calc(100vw - 32px);
+}
+
+/* Téléphone : le panneau de swap occupe le bas, la file monte sous l'en-tête. */
+@media (max-width: 767px) {
+  .jobs-dock {
+    top: 68px;
+    bottom: auto;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+  }
+}

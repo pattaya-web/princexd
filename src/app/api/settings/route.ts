@@ -18,6 +18,11 @@ function publicView(s: Settings) {
   const igKey = igEnv ? process.env.IG_ACCESS_TOKEN!.trim() : s.igAccessToken;
   const oaEnv = Boolean(process.env.OPENAI_API_KEY?.trim());
   const oaKey = oaEnv ? process.env.OPENAI_API_KEY!.trim() : s.openaiApiKey;
+  const elEnv = Boolean(process.env.ELEVENLABS_API_KEY?.trim());
+  const elKey = elEnv ? process.env.ELEVENLABS_API_KEY!.trim() : (s.elevenLabsApiKey ?? "");
+  const hfSingle = process.env.HIGGSFIELD_API_KEY?.trim();
+  const hfEnv = Boolean(hfSingle || (process.env.HIGGSFIELD_API_KEY_ID?.trim() && process.env.HIGGSFIELD_API_KEY_SECRET?.trim()));
+  const hfSecret = hfSingle || (hfEnv ? process.env.HIGGSFIELD_API_KEY_SECRET!.trim() : (s.higgsfieldKeySecret ?? ""));
 
   return {
     ...s,
@@ -34,6 +39,16 @@ function publicView(s: Settings) {
     openaiApiKey: "",
     openaiApiKeyMask: mask(oaKey),
     openaiApiKeySource: oaEnv ? "env" : oaKey ? "reglages" : "absente",
+    elevenLabsApiKey: "",
+    elevenLabsApiKeyMask: mask(elKey),
+    elevenLabsApiKeySource: elEnv ? "env" : elKey ? "reglages" : "absente",
+    // Cle unique « id:secret » : l'ID est la partie avant les deux-points.
+    higgsfieldKeyId: hfEnv
+      ? (process.env.HIGGSFIELD_API_KEY_ID?.trim() || (hfSingle?.includes(":") ? hfSingle.split(":")[0] : ""))
+      : (s.higgsfieldKeyId ?? ""),
+    higgsfieldKeySecret: "",
+    higgsfieldKeyMask: mask(hfSecret),
+    higgsfieldKeySource: hfEnv ? "env" : hfSecret ? "reglages" : "absente",
     editorAccessCode: s.editorAccessCode,
     // Les cookies restent sur le serveur : on ne renvoie que leur presence.
     igCookies: "",
@@ -52,6 +67,14 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.iclosedApiKey === "string" && !body.iclosedApiKey.trim()) delete body.iclosedApiKey;
   if (typeof body.igAccessToken === "string" && !body.igAccessToken.trim()) delete body.igAccessToken;
   if (typeof body.openaiApiKey === "string" && !body.openaiApiKey.trim()) delete body.openaiApiKey;
+  if (typeof body.elevenLabsApiKey === "string" && !body.elevenLabsApiKey.trim()) delete body.elevenLabsApiKey;
+  if (typeof body.higgsfieldKeySecret === "string" && !body.higgsfieldKeySecret.trim()) delete body.higgsfieldKeySecret;
+  // Nouveau solde Higgsfield saisi : on date la saisie pour ne deduire que les rendus suivants.
+  if (typeof body.higgsfieldBalanceUsd === "number") {
+    if (body.higgsfieldBalanceUsd !== getSettings().higgsfieldBalanceUsd) body.higgsfieldBalanceAt = new Date().toISOString();
+  } else if (body.higgsfieldBalanceUsd === null || body.higgsfieldBalanceUsd === undefined) {
+    delete body.higgsfieldBalanceUsd;
+  }
   // Cookies : vide = on garde ; « CLEAR » = on efface.
   if (typeof body.igCookies === "string") {
     if (body.igCookies === "CLEAR") body.igCookies = "";

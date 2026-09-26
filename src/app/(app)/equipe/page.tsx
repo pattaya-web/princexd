@@ -10,8 +10,9 @@ export default function EquipePage() {
       <div className="mb-4">
         <InfoNote>
           La brique que tu montes pour te libérer : setters qui qualifient en DM, closers qui prennent les calls,
-          monteur qui traite les rushs. Le monteur ajouté ici doit aussi recevoir le code d&apos;accès défini dans
-          Réglages — il n&apos;ouvre que le board Montage, rien d&apos;autre du tool.
+          monteur qui traite les rushs. Un monteur ajouté ici se connecte avec son identifiant et son mot de passe ;
+          sans compte, le code d&apos;accès défini dans Réglages suffit. Dans les deux cas il n&apos;ouvre que ses
+          vidéos à monter et le Studio IA, rien d&apos;autre du tool.
         </InfoNote>
       </div>
       <EntityView

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
+import { onProviderCallback } from "@/lib/studio/jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,11 @@ export async function POST(req: NextRequest) {
 
   const db = readDB();
   const gen = db.generations.find((g) => g.taskId === data.taskId);
-  if (!gen) return NextResponse.json({ ok: true, ignored: true });
+  if (!gen) {
+    // Pas une generation classique : peut-etre un job du Swap video.
+    const handled = await onProviderCallback(data.taskId).catch(() => false);
+    return NextResponse.json({ ok: true, ignored: !handled });
+  }
 
   let urls: string[] = [];
   if (data.resultJson) {

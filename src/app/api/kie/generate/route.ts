@@ -58,12 +58,31 @@ export async function POST(req: NextRequest) {
   });
   const target = def.withImages && hasRefs ? def.withImages : model;
 
+  /*
+   * « Fond : Auto » n'est pas une valeur, c'est l'absence de consigne. KIE le
+   * refuse pourtant sur GPT Image 2 en 2K (« generation with background is
+   * temporarily unavailable at the current resolution ») : on ne l'envoie pas.
+   */
+  if (payload.background === "auto") delete payload.background;
+
   const base = process.env.PUBLIC_BASE_URL?.trim();
   // Le callback n'est utile que si le tool est joignable depuis Internet.
   const callback = base && !base.includes("localhost") ? `${base}/api/kie/callback` : undefined;
 
   try {
-    const taskId = await createTask(target, payload, callback);
+    let taskId: string;
+    try {
+      taskId = await createTask(target, payload, callback);
+    } catch (e) {
+      // Fond explicite refuse a cette definition : on retente sans, plutot que d'echouer.
+      const msg = (e as KieError).message ?? "";
+      if (payload.background && /generation with background/i.test(msg)) {
+        delete payload.background;
+        taskId = await createTask(target, payload, callback);
+      } else {
+        throw e;
+      }
+    }
     const row = insert("generations", {
       taskId,
       model: target,

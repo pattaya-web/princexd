@@ -525,8 +525,13 @@ export function MontageDrive({ role }: { role: "owner" | "editor" }) {
     const m: Record<Tab, EditJob[]> = { rushs: [], livrees: [], terminees: [] };
     for (const j of visible) m[TAB_OF[j.status]].push(j);
     for (const k of Object.keys(m) as Tab[]) m[k].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    // Monteur : les retouches demandées passent devant, c'est ce qui bloque Mady.
+    if (role === "editor") {
+      const rank = (j: EditJob) => (j.status === "retouches" ? 0 : j.status === "en-cours" ? 1 : 2);
+      m.rushs.sort((a, b) => rank(a) - rank(b) || b.createdAt.localeCompare(a.createdAt));
+    }
     return m;
-  }, [visible]);
+  }, [visible, role]);
 
   const job = rows.find((j) => j.id === openId) ?? null;
   const list = byTab[tab];

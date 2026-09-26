@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readDB, writeDB } from "@/lib/db";
+import { getSettings, readDB, writeDB } from "@/lib/db";
 import {
   issueOwnerToken,
   issueToken,
@@ -55,6 +55,28 @@ export async function POST(req: NextRequest) {
       redirect: "/",
     });
     res.cookies.set(SESSION_COOKIE, issueOwnerToken(), cookieOptions(SESSION_MAX_AGE_S));
+    res.cookies.delete(LEGACY_ROLE_COOKIE);
+    return res;
+  }
+
+  /*
+   * Monteur sans compte nominatif : le code d'accès défini dans Réglages,
+   * tapé dans n'importe quel champ. En ligne, /monteur n'est plus joignable
+   * sans session : la porte d'entrée du monteur est donc bien cette page.
+   * Vérifié avant l'exigence d'identifiant, le code seul suffit.
+   */
+  const editorCode = getSettings().editorAccessCode.trim();
+  if (editorCode && [code, password, username].some((v) => v && v === editorCode)) {
+    const res = NextResponse.json({
+      ok: true,
+      role: "editor",
+      roles: [],
+      memberId: "",
+      memberName: "Monteur",
+      isAdmin: false,
+      redirect: "/monteur",
+    });
+    res.cookies.set(SESSION_COOKIE, issueToken({ role: "editor", memberId: "", memberName: "Monteur" }), cookieOptions(SESSION_MAX_AGE_S));
     res.cookies.delete(LEGACY_ROLE_COOKIE);
     return res;
   }

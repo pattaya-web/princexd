@@ -21,6 +21,9 @@ export const DEFAULT_SETTINGS: Settings = {
   postFilterKeywords: "commente",
   openaiApiKey: "",
   transcribeModel: "gpt-4o-mini-transcribe",
+  elevenLabsApiKey: "",
+  higgsfieldKeyId: "",
+  higgsfieldKeySecret: "",
   igProfile: null,
   timezones: [
     { label: "Paris", tz: "Europe/Paris" },
@@ -81,6 +84,8 @@ const EMPTY_DB: DB = {
   saved: [],
   redo: [],
   adFolders: [],
+  studioJobs: [],
+  studioCharacters: [],
   appointments: [],
   sales: [],
   followUps: [],

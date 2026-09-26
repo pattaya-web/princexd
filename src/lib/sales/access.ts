@@ -177,7 +177,8 @@ export function readSession(req: NextRequest): Session {
     return sessionFor(member, Boolean(claims.impersonated));
   }
 
-  // Repli sur le cookie historique du monteur.
+  // Monteur entre par le code global (jeton sans membre) ou par l'ancien cookie.
+  if (claims?.role === "editor") return EDITOR;
   if (req.cookies.get(LEGACY_ROLE_COOKIE)?.value === "editor") return EDITOR;
 
   // Site en ligne : sans jeton, personne. En local : moi.

@@ -4,6 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getModel } from "@/lib/models";
 import { estimateSec, label } from "@/lib/format";
 import type { Generation } from "@/lib/types";
+import { engineLabel } from "@/lib/studio/config";
+import { STATUS_LABEL } from "@/lib/studio/labels";
+import { ACTIVE_STATUSES, type StudioJob } from "@/lib/studio/types";
 
 /**
  * Suivi des generations en cours, present sur toutes les pages.
@@ -19,6 +22,8 @@ import type { Generation } from "@/lib/types";
 
 /** Evenement de diffusion vers les pages interessees. */
 export const GENERATIONS_EVENT = "princexd:generations";
+/** Meme principe pour les jobs du Swap video : le dock sonde, le Studio ecoute. */
+export const STUDIO_JOBS_EVENT = "princexd:studio-jobs";
 
 /** Cadence rapide quand quelque chose tourne, lente le reste du temps. */
 const TICK_ACTIVE = 3000;
@@ -97,9 +102,36 @@ function Job({ gen, history }: { gen: Generation; history: Generation[] }) {
   );
 }
 
+function StudioLine({ job }: { job: StudioJob }) {
+  const elapsed = useElapsed(job.startedAt || job.createdAt);
+  const name = `${job.type === "talking-photo" ? "Photo qui parle" : "Swap vidéo"} · ${engineLabel(job.provider)}`;
+  const real = job.status === "generating_video" && job.progress > 0;
+  return (
+    <li className="px-3 py-2.5" style={{ borderTop: "1px solid var(--border)" }}>
+      <div className="flex items-baseline justify-between gap-2 mb-1">
+        <span className="text-[12.5px] font-medium truncate" title={name}>{name}</span>
+        <span className="num text-[12px] tabular-nums shrink-0">{mmss(elapsed)}</span>
+      </div>
+      <div className="rounded-full overflow-hidden mb-1" style={{ height: 4, background: "var(--border)" }}>
+        {real ? (
+          <div className="h-full rounded-full" style={{ width: `${Math.max(job.progress, 4)}%`, background: "var(--accent)", transition: "width .6s ease" }} />
+        ) : (
+          <div className="h-full rounded-full sliding" style={{ width: "35%", background: "var(--accent)" }} />
+        )}
+      </div>
+      <span className="dim text-[10.5px]">
+        {STATUS_LABEL[job.status]}
+        {real ? ` · ${job.progress} %` : ""}
+      </span>
+    </li>
+  );
+}
+
 export function JobsDock() {
   const [jobs, setJobs] = useState<Generation[]>([]);
   const [history, setHistory] = useState<Generation[]>([]);
+  const [studio, setStudio] = useState<StudioJob[]>([]);
+  const lastStudioSig = useRef("");
   const [open, setOpen] = useState(true);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Empreinte de la derniere reponse : identique, on ne touche a rien.
@@ -137,6 +169,23 @@ export function JobsDock() {
       } catch {
         // Coupure reseau ponctuelle : on retentera au prochain tour.
       }
+      try {
+        // Le meme appel fait avancer la file du Swap video cote serveur.
+        const res = await fetch("/api/studio/jobs", { cache: "no-store" });
+        const body = (await res.json()) as { jobs?: StudioJob[] };
+        if (!alive) return;
+        if (body.jobs) {
+          const sig = JSON.stringify(body.jobs);
+          if (sig !== lastStudioSig.current) {
+            lastStudioSig.current = sig;
+            window.dispatchEvent(new CustomEvent(STUDIO_JOBS_EVENT, { detail: body.jobs }));
+            setStudio(body.jobs.filter((j) => ACTIVE_STATUSES.includes(j.status)));
+          }
+          if (body.jobs.some((j) => ACTIVE_STATUSES.includes(j.status))) active = true;
+        }
+      } catch {
+        // Idem : on retentera.
+      }
       if (alive) timer.current = setTimeout(tick, active ? TICK_ACTIVE : TICK_IDLE);
     };
 
@@ -147,13 +196,13 @@ export function JobsDock() {
     };
   }, []);
 
-  if (!jobs.length) return null;
+  const total = jobs.length + studio.length;
+  if (!total) return null;
 
+  // Position : .jobs-dock dans globals.css — en bas à droite, sauf sur téléphone
+  // où il passe sous l'en-tête pour ne pas couvrir le panneau de swap.
   return (
-    <div
-      className="fixed z-30 rise"
-      style={{ right: 16, bottom: 16, width: 268, maxWidth: "calc(100vw - 32px)" }}
-    >
+    <div className="jobs-dock fixed z-30 rise">
       <div className="card overflow-hidden" style={{ boxShadow: "var(--shadow-lg)" }}>
         <button
           type="button"
@@ -163,13 +212,16 @@ export function JobsDock() {
         >
           <span className="spinner shrink-0" />
           <span className="text-[12.5px] font-semibold flex-1">
-            {jobs.length} génération{jobs.length > 1 ? "s" : ""} en cours
+            {total} génération{total > 1 ? "s" : ""} en cours
           </span>
           <span className="dim text-[11px]">{open ? "▾" : "▸"}</span>
         </button>
 
         {open && (
           <ul className="max-h-[260px] overflow-y-auto">
+            {studio.map((j) => (
+              <StudioLine key={j.id} job={j} />
+            ))}
             {jobs.map((g) => (
               <Job key={g.id} gen={g} history={history} />
             ))}

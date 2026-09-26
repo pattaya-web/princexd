@@ -54,7 +54,7 @@ async function sniff(file: File): Promise<"jpeg" | "png" | "other"> {
  *  - Indecodable (HEIC hors Safari) : on laisse passer, et le modele repondra
  *    avec un message que la route de generation traduit en francais.
  */
-async function toSupportedImage(file: File): Promise<File> {
+export async function toSupportedImage(file: File): Promise<File> {
   const real = await sniff(file);
   const lower = file.name.toLowerCase();
 

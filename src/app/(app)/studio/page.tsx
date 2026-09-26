@@ -2,7 +2,8 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { api, useCollection } from "@/lib/client";
+import { api, useCollection, useLocalState } from "@/lib/client";
+import { useSession } from "@/lib/sales/client";
 import { getModel, MODELS, modelsOfKind, type ModelDef, type ModelKind } from "@/lib/models";
 import {
   Card,
@@ -17,10 +18,14 @@ import {
   useToast,
 } from "@/components/ui";
 import { FaceSwap } from "@/components/FaceSwap";
+import { prefillFromJob, VideoSwap, type SwapPrefill } from "@/components/VideoSwap";
+import { StudioJobCard, StudioJobPreview, VoicePicker, type JobActions } from "@/components/StudioJobCard";
+import { TalkingPhoto } from "@/components/TalkingPhoto";
+import { ACTIVE_STATUSES, type StudioJob } from "@/lib/studio/types";
 import { MediaField } from "@/components/MediaField";
 import { ElementField, ELEMENT_NAME, EMPTY_ELEMENT, type ElementValue } from "@/components/ElementField";
 import { SkPage } from "@/components/Skeleton";
-import { GENERATIONS_EVENT } from "@/components/JobsDock";
+import { GENERATIONS_EVENT, STUDIO_JOBS_EVENT } from "@/components/JobsDock";
 import { duration, estimateSec, fmtInt, fmtUsd, label, relative } from "@/lib/format";
 import type { Generation } from "@/lib/types";
 
@@ -31,6 +36,9 @@ const KIND_LABEL: Record<ModelKind, string> = {
   video: "Vidéo",
   swap: "Swap vidéo",
 };
+
+/** Onglets du Studio : les trois familles de modeles, plus la photo qui parle. */
+type StudioTab = ModelKind | "talk";
 
 function defaultsFor(model: ModelDef): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -67,9 +75,22 @@ function StudioInner() {
   const { rows, setRows, reload, destroyMany } = useCollection<Generation>("generations");
 
   const [kind, setKind] = useState<ModelKind>("image");
+  const [talkTab, setTalkTab] = useState(false);
+  /* Monteur : un rappel des trois gestes du swap, qu'il peut fermer. */
+  const { session } = useSession();
+  const isEditor = session?.role === "editor";
+  const [guideClosed, setGuideClosed] = useLocalState("studio-editor-guide-closed", false);
   const [modelId, setModelId] = useState(() => firstOfKind("image").id);
   const [input, setInput] = useState<Record<string, unknown>>(() => defaultsFor(firstOfKind("image")));
   const [swap, setSwap] = useState(false);
+  /* Swap video : la version simple par defaut, l'ancien formulaire en « avance ». */
+  const [advancedSwap, setAdvancedSwap] = useState(false);
+  const [prefill, setPrefill] = useState<SwapPrefill | null>(null);
+  const [prefillKey, setPrefillKey] = useState(0);
+  const [jobs, setJobs] = useState<StudioJob[]>([]);
+  const [jobPreview, setJobPreview] = useState<string | null>(null);
+  const [voiceJob, setVoiceJob] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "running" | "done" | "failed">("all");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -106,7 +127,10 @@ function StudioInner() {
     if (seeded.current) return;
     const prompt = params.get("prompt");
     const wanted = params.get("kind");
-    if (wanted === "video" || wanted === "image" || wanted === "swap") {
+    if (wanted === "talk") {
+      setTalkTab(true);
+    } else if (wanted === "video" || wanted === "image" || wanted === "swap") {
+      setTalkTab(false);
       const first = firstOfKind(wanted);
       setKind(wanted);
       setModelId(first.id);
@@ -143,19 +167,14 @@ function StudioInner() {
    */
   const reuse = useCallback(
     (url: string, from: "image" | "video") => {
-      const first = firstOfKind("swap");
-      const accept = from;
-      const slot = first.fields.find((f) => (f.type === "file" || f.type === "files") && f.accept === accept);
-      if (!slot) {
-        toast("Aucun emplacement compatible.");
-        return;
-      }
+      const name = url.split("/").pop() ?? (from === "video" ? "vidéo" : "image");
       setKind("swap");
       setSwap(false);
-      setModelId(first.id);
-      setInput({ ...defaultsFor(first), [slot.key]: slot.type === "files" ? [url] : url });
-      toast(`Envoyé dans « ${slot.label} ».`);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setAdvancedSwap(false);
+      setPrefill(from === "video" ? { sourceVideo: { url, name } } : { referenceImage: { url, name } });
+      setPrefillKey((k) => k + 1);
+      toast(from === "video" ? "Envoyée comme vidéo originale." : "Envoyée comme image de référence.");
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
     },
     [toast],
   );
@@ -238,6 +257,95 @@ function StudioInner() {
     return () => window.removeEventListener(GENERATIONS_EVENT, onJobs);
   }, [setRows]);
 
+  /*
+   * Jobs du Swap video : un premier chargement (le dock n'a peut-etre rien
+   * diffuse depuis qu'on est arrive), puis on ecoute ce qu'il diffuse.
+   */
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/studio/jobs", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((b: { jobs?: StudioJob[] }) => { if (alive && b.jobs) setJobs(b.jobs); })
+      .catch(() => {});
+    const onStudio = (e: Event) => {
+      const list = (e as CustomEvent<StudioJob[]>).detail;
+      if (Array.isArray(list)) setJobs(list);
+    };
+    window.addEventListener(STUDIO_JOBS_EVENT, onStudio);
+    return () => { alive = false; window.removeEventListener(STUDIO_JOBS_EVENT, onStudio); };
+  }, []);
+
+  const jobActions = useMemo<JobActions>(
+    () => ({
+      onOpen: (j) => setJobPreview(j.id),
+      onRedo: (j) => {
+        setKind("swap");
+        setSwap(false);
+        setAdvancedSwap(false);
+        setPrefill(prefillFromJob(j));
+        setPrefillKey((k) => k + 1);
+        toast("Réglages du job rechargés : vidéo, image, consigne, modèle et voix.");
+        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      },
+      onUseAsReference: async (j) => {
+        try {
+          const r = await api<{ url: string }>("/api/studio/frame", { method: "POST", body: JSON.stringify({ jobId: j.id }) });
+          setKind("swap");
+          setSwap(false);
+          setAdvancedSwap(false);
+          setPrefill({ referenceImage: { url: r.url, name: `image de ${j.id}` } });
+          setPrefillKey((k) => k + 1);
+          toast("Première image du résultat posée en référence.");
+          window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+        } catch (e) {
+          toast((e as Error).message, "err");
+        }
+      },
+      onChangeVoice: (j) => setVoiceJob(j.id),
+      onRetry: async (j, scope) => {
+        try {
+          const r = await api<{ job: StudioJob }>(`/api/studio/jobs/${j.id}/retry`, { method: "POST", body: JSON.stringify({ scope }) });
+          setJobs((prev) => prev.map((x) => (x.id === r.job.id ? r.job : x)));
+          toast(scope === "voice" ? "Voix relancée." : "Génération relancée.");
+        } catch (e) {
+          toast((e as Error).message, "err");
+        }
+      },
+      onDelete: async (j) => {
+        if (!window.confirm("Supprimer ce résultat ?")) return;
+        setJobs((prev) => prev.filter((x) => x.id !== j.id));
+        setJobPreview(null);
+        await api(`/api/studio/jobs?id=${encodeURIComponent(j.id)}`, { method: "DELETE" }).catch((e: Error) => toast(e.message, "err"));
+      },
+    }),
+    [toast],
+  );
+
+  const jobCounts = useMemo(() => {
+    const c = { queued: 0, running: 0, done: 0, failed: 0 };
+    for (const j of jobs) {
+      if (j.status === "queued") c.queued++;
+      else if (ACTIVE_STATUSES.includes(j.status)) c.running++;
+      else if (j.status === "completed") c.done++;
+      else c.failed++;
+    }
+    return c;
+  }, [jobs]);
+
+  /* Galerie unifiee : jobs de swap et generations classiques, du plus recent au plus ancien. */
+  const gallery = useMemo(() => {
+    type Item = { at: string; job?: StudioJob; gen?: Generation };
+    const genState = (g: Generation) => (g.state === "success" ? "done" : g.state === "fail" ? "failed" : "running");
+    const jobState = (j: StudioJob) => (j.status === "completed" ? "done" : j.status === "failed" ? "failed" : "running");
+    const items: Item[] = [
+      ...jobs.filter((j) => filter === "all" || jobState(j) === filter).map((j) => ({ at: j.createdAt, job: j })),
+      ...rows.filter((g) => filter === "all" || genState(g) === filter).map((g) => ({ at: g.createdAt, gen: g })),
+    ];
+    return items.sort((a, b) => b.at.localeCompare(a.at));
+  }, [jobs, rows, filter]);
+  const previewedJob = jobs.find((j) => j.id === jobPreview) ?? null;
+  const voicePickedJob = jobs.find((j) => j.id === voiceJob) ?? null;
+
   const launch = async () => {
     const missing = model.fields.filter((f) => {
       if (!f.required) return false;
@@ -318,7 +426,9 @@ function StudioInner() {
           subtitle={
             picking
               ? `${picked.size} sélectionnée${picked.size > 1 ? "s" : ""}`
-              : `${rows.length} génération${rows.length > 1 ? "s" : ""}`
+              : jobs.length
+                ? `En attente : ${jobCounts.queued} · En cours : ${jobCounts.running} · Terminées : ${jobCounts.done + rows.filter((g) => g.state === "success").length} · Échec : ${jobCounts.failed + rows.filter((g) => g.state === "fail").length}`
+                : `${rows.length} génération${rows.length > 1 ? "s" : ""}`
           }
           padded={false}
           actions={
@@ -345,53 +455,111 @@ function StudioInner() {
                   Supprimer ({picked.size})
                 </button>
               </>
-            ) : undefined
+            ) : (
+              <Tabs
+                value={filter}
+                onChange={setFilter}
+                options={[
+                  { value: "all", label: "Toutes" },
+                  { value: "running", label: "En cours" },
+                  { value: "done", label: "Terminées" },
+                  { value: "failed", label: "Échec" },
+                ]}
+              />
+            )
           }
         >
-          {!rows.length ? (
-            <Empty>Rien de généré pour l&apos;instant. Lance ta première image à gauche.</Empty>
+          {!gallery.length ? (
+            <Empty>{filter === "all" ? "Rien de généré pour l'instant. Lance ta première génération ci-dessous." : "Rien dans ce filtre."}</Empty>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 p-3">
-              {rows.map((g) => (
+              {gallery.map((it) =>
+                it.job ? (
+                  <StudioJobCard key={it.job.id} job={it.job} actions={jobActions} />
+                ) : it.gen ? (
                 <GenerationCard
-                  key={g.id}
-                  gen={g}
-                  eta={etaByModel.get(g.model) ?? null}
+                  key={it.gen.id}
+                  gen={it.gen}
+                  eta={etaByModel.get(it.gen.model) ?? null}
                   picking={picking}
-                  picked={picked.has(g.id)}
+                  picked={picked.has(it.gen.id)}
                   onPick={() =>
                     setPicked((prev) => {
                       const next = new Set(prev);
-                      if (next.has(g.id)) next.delete(g.id);
-                      else next.add(g.id);
+                      if (next.has(it.gen!.id)) next.delete(it.gen!.id);
+                      else next.add(it.gen!.id);
                       return next;
                     })
                   }
-                  onOpen={() => setPreview(g.id)}
+                  onOpen={() => setPreview(it.gen!.id)}
                 />
-              ))}
+                ) : null,
+              )}
             </div>
           )}
         </Card>
 
-        <div>
+        {/*
+          Le panneau de swap reste collé en bas de l'écran : on parcourt les
+          résultats au-dessus sans redescendre pour relancer. Borné en hauteur,
+          il défile à l'intérieur si le mode détaillé est déplié.
+        */}
+        <div
+          className={kind === "swap" && !advancedSwap && !talkTab ? "sticky z-20" : undefined}
+          style={kind === "swap" && !advancedSwap && !talkTab ? { bottom: 12, maxHeight: "78vh", overflowY: "auto", borderRadius: 14, boxShadow: "var(--shadow-lg)" } : undefined}
+        >
           <Card>
             <div className="flex flex-col gap-3.5">
-              <Tabs
-                value={kind}
-                onChange={switchKind}
-                options={(["image", "video", "swap"] as ModelKind[]).map((k) => ({
-                  value: k,
-                  label: KIND_LABEL[k],
-                }))}
+              <Tabs<StudioTab>
+                value={talkTab ? "talk" : kind}
+                onChange={(t) => {
+                  if (t === "talk") { setTalkTab(true); return; }
+                  setTalkTab(false);
+                  switchKind(t);
+                }}
+                options={[
+                  ...(["image", "video", "swap"] as ModelKind[]).map((k) => ({ value: k as StudioTab, label: KIND_LABEL[k] })),
+                  { value: "talk" as StudioTab, label: "Photo qui parle" },
+                ]}
               />
 
-              {kind === "image" && (
+              {isEditor && !guideClosed && kind === "swap" && !talkTab && (
+                <div
+                  className="rounded-[10px] px-3.5 py-2.5 flex items-start gap-3 text-[12.5px] leading-relaxed"
+                  style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--accent) 25%, transparent)" }}
+                >
+                  <p className="flex-1 min-w-0">
+                    <strong>Swap vidéo en 3 gestes.</strong> 1) <strong>Vidéo</strong> : le rush à transformer. 2){" "}
+                    <strong>Personnage</strong> : la photo de la personne à mettre à la place. 3) <strong>Transformer</strong>.
+                    Le rendu arrive dans « Résultats » en haut : passe la souris dessus, ↓ pour le télécharger, puis monte avec.
+                    Sans consigne, l&apos;IA remplace simplement la personne ; « Rédiger la consigne » l&apos;écrit pour toi.
+                  </p>
+                  <button type="button" className="btn btn-ghost btn-sm shrink-0" onClick={() => setGuideClosed(true)} aria-label="Fermer le guide">
+                    ✕
+                  </button>
+                </div>
+              )}
+              {kind === "image" && !talkTab && (
                 <Toggle checked={swap} onChange={setSwap} label="Swap de visage" />
               )}
+              {kind === "swap" && advancedSwap && (
+                <button type="button" className="link text-[12px] self-start" onClick={() => setAdvancedSwap(false)}>
+                  ← Retour au mode simple
+                </button>
+              )}
 
-              {swap && kind === "image" ? (
+              {talkTab ? (
+                <TalkingPhoto jobs={jobs} onQueued={(created) => setJobs((prev) => [...created, ...prev])} />
+              ) : swap && kind === "image" ? (
                 <FaceSwap onQueued={(g) => setRows((prev) => [g, ...prev])} />
+              ) : kind === "swap" && !advancedSwap ? (
+                <VideoSwap
+                  prefill={prefill}
+                  prefillKey={prefillKey}
+                  jobs={jobs}
+                  onQueued={(created) => setJobs((prev) => [...created, ...prev])}
+                  onAdvanced={() => setAdvancedSwap(true)}
+                />
               ) : (
                 <>
                   <div className="flex items-end gap-2.5 flex-wrap">
@@ -572,6 +740,14 @@ function StudioInner() {
       </div>
 
       {previewed && <Preview gen={previewed} onClose={() => setPreview(null)} onReuse={reuse} onRestore={restore} />}
+      {previewedJob && <StudioJobPreview job={previewedJob} actions={jobActions} onClose={() => setJobPreview(null)} />}
+      {voicePickedJob && (
+        <VoicePicker
+          job={voicePickedJob}
+          onClose={() => setVoiceJob(null)}
+          onApplied={(updated) => setJobs((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))}
+        />
+      )}
     </>
   );
 }
