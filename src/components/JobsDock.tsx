@@ -220,8 +220,26 @@ export function JobsDock() {
     };
 
     void tick();
+
+    /*
+     * Telephone : l'onglet en arriere-plan est gele, le minuteur ne tourne
+     * plus. Au retour (onglet visible, fenetre au premier plan, reseau
+     * revenu), on sonde tout de suite au lieu d'attendre le prochain tour :
+     * un rendu fini pendant l'absence apparait a la seconde.
+     */
+    const wake = () => {
+      if (document.visibilityState !== "visible") return;
+      if (timer.current) clearTimeout(timer.current);
+      void tick();
+    };
+    document.addEventListener("visibilitychange", wake);
+    window.addEventListener("focus", wake);
+    window.addEventListener("online", wake);
     return () => {
       alive = false;
+      document.removeEventListener("visibilitychange", wake);
+      window.removeEventListener("focus", wake);
+      window.removeEventListener("online", wake);
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);

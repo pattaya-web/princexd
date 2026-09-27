@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
-import { ensureRemoteThumb } from "@/lib/thumbs";
+import { ensureRemoteThumb, thumbWidth } from "@/lib/thumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url") ?? "";
   if (!/^https:\/\//.test(url)) return NextResponse.json({ error: "URL invalide" }, { status: 400 });
-  const thumb = await ensureRemoteThumb(url);
+  const thumb = await ensureRemoteThumb(url, thumbWidth(req.nextUrl.searchParams.get("w")));
   if (!thumb) return NextResponse.json({ error: "Pas de vignette" }, { status: 404 });
   const stat = fs.statSync(thumb);
   return new NextResponse(fs.createReadStream(thumb) as unknown as ReadableStream, {

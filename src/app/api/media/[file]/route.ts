@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
-import { ensureThumb } from "@/lib/thumbs";
+import { ensureThumb, thumbWidth } from "@/lib/thumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ file: strin
    * le composant retombe alors sur le media lui-meme.
    */
   if (req.nextUrl.searchParams.get("poster") === "1") {
-    const thumb = await ensureThumb(file);
+    const thumb = await ensureThumb(file, thumbWidth(req.nextUrl.searchParams.get("w")));
     if (!thumb) return NextResponse.json({ error: "Pas de vignette" }, { status: 404 });
     const tstat = fs.statSync(thumb);
     return new NextResponse(fs.createReadStream(thumb) as unknown as ReadableStream, {

@@ -61,12 +61,19 @@ export function thumbKind(file: string): "video" | "image" | null {
   return null;
 }
 
-async function generate(src: string, out: string, kind: "video" | "image"): Promise<boolean> {
+const ALLOWED_WIDTHS = new Set([240, 360, 480]);
+export function thumbWidth(raw: string | null): number {
+  const n = Number(raw);
+  return ALLOWED_WIDTHS.has(n) ? n : WIDTH;
+}
+const suffixFor = (width: number) => `${width === WIDTH ? "" : `.w${width}`}${SUFFIX}`;
+
+async function generate(src: string, out: string, kind: "video" | "image", width = WIDTH): Promise<boolean> {
   const tmp = `${out}.${process.pid}.${Date.now()}.tmp.jpg`;
   const remote = /^https?:\/\//.test(src);
   // Lecture reseau bornee a 10 s : une URL de CDN expiree ne doit pas bloquer la file.
   const base = ["-hide_banner", "-loglevel", "error", "-y", ...(remote ? ["-rw_timeout", "10000000"] : [])];
-  const scale = `scale='min(${WIDTH},iw)':-2`;
+  const scale = `scale='min(${width},iw)':-2`;
   const attempts: string[][] =
     kind === "video"
       ? [
@@ -95,17 +102,18 @@ async function generate(src: string, out: string, kind: "video" | "image"): Prom
  * Chemin de la vignette JPEG d'un media local, generee si besoin.
  * `null` quand le fichier n'est ni image ni video, ou que ffmpeg n'y arrive pas.
  */
-export async function ensureThumb(file: string): Promise<string | null> {
+export async function ensureThumb(file: string, width = WIDTH): Promise<string | null> {
   const kind = thumbKind(file);
   if (!kind) return null;
   const src = path.join(MEDIA_DIR, file);
   if (!src.startsWith(MEDIA_DIR) || !fs.existsSync(src)) return null;
-  const out = path.join(THUMB_DIR, `${file}${SUFFIX}`);
+  const out = path.join(THUMB_DIR, `${file}${suffixFor(width)}`);
   if (fs.existsSync(out)) return out;
   const lastFail = failed.get(file);
   if (lastFail && Date.now() - lastFail < FAIL_TTL) return null;
 
-  const pending = inflight.get(file);
+  const flightKey = `${file}@${width}`;
+  const pending = inflight.get(flightKey);
   if (pending) return pending;
 
   const job = (async () => {
@@ -113,15 +121,15 @@ export async function ensureThumb(file: string): Promise<string | null> {
     try {
       if (fs.existsSync(out)) return out;
       fs.mkdirSync(THUMB_DIR, { recursive: true });
-      const ok = await generate(src, out, kind);
+      const ok = await generate(src, out, kind, width);
       if (!ok) failed.set(file, Date.now());
       return ok ? out : null;
     } finally {
       release();
-      inflight.delete(file);
+      inflight.delete(flightKey);
     }
   })();
-  inflight.set(file, job);
+  inflight.set(flightKey, job);
   return job;
 }
 
@@ -131,13 +139,13 @@ export async function ensureThumb(file: string): Promise<string | null> {
  * necessaires a la premiere image : un PNG de 3 Mo ou un mp4 de 40 Mo
  * deviennent un JPEG de 30 Ko, garde sur disque sous le hachage de l'URL.
  */
-export async function ensureRemoteThumb(url: string): Promise<string | null> {
+export async function ensureRemoteThumb(url: string, width = WIDTH): Promise<string | null> {
   if (!isAllowedRemote(url)) return null;
   let pathname = "";
   try { pathname = new URL(url).pathname; } catch { return null; }
   const kind = thumbKind(pathname) ?? "image";
-  const key = `remote-${createHash("sha1").update(url).digest("hex")}`;
-  const out = path.join(THUMB_DIR, `${key}${SUFFIX}`);
+  const key = `remote-${createHash("sha1").update(url).digest("hex")}${width === WIDTH ? "" : `@${width}`}`;
+  const out = path.join(THUMB_DIR, `${key.split("@")[0]}${suffixFor(width)}`);
   if (fs.existsSync(out)) return out;
   const lastFail = failed.get(key);
   if (lastFail && Date.now() - lastFail < FAIL_TTL) return null;
@@ -157,7 +165,7 @@ export async function ensureRemoteThumb(url: string): Promise<string | null> {
     try {
       if (fs.existsSync(out)) return out;
       fs.mkdirSync(THUMB_DIR, { recursive: true });
-      const ok = await generate(url, out, kind);
+      const ok = await generate(url, out, kind, width);
       if (!ok) failed.set(key, Date.now());
       return ok ? out : null;
     } finally {

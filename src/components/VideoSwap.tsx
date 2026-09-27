@@ -299,6 +299,16 @@ export function VideoSwap({
   const [simple, setSimple] = useLocalState<boolean>("swap-simple", true);
   /* Panneau replie : medias + bouton seulement, pour garder les resultats visibles. */
   const [collapsed, setCollapsed] = useLocalState<boolean>("swap-collapsed", false);
+  // Telephone : replie par defaut la premiere fois, sinon le panneau mange tout l'ecran.
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem("swap-collapsed") === null && window.innerWidth < 768) setCollapsed(true);
+    } catch {
+      // stockage indisponible : on garde l'etat courant
+    }
+    // Une seule fois au montage.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [voiceStyle, setVoiceStyle] = useState("all");
   const [voiceAmbience, setVoiceAmbience] = useLocalState<VoiceAmbience>("swap-ambience", "room");
   const [lipSync, setLipSync] = useLocalState<boolean>("swap-lipsync", true);
@@ -714,10 +724,10 @@ export function VideoSwap({
 
   if (simple) {
     return (
-      <div className="flex flex-col gap-3 pt-1" onDragOver={(e) => e.preventDefault()} onDrop={onDropAnywhere}>
+      <div className="swap-simple flex flex-col gap-3 pt-1" data-collapsed={collapsed} onDragOver={(e) => e.preventDefault()} onDrop={onDropAnywhere}>
         {/* Boite prompt : medias attaches, phrase, barre d'options. */}
         <div className="rounded-[14px] p-3 flex flex-col gap-3" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="swap-attachments flex items-center gap-2 flex-wrap">
             {/* Video */}
             {video ? (
               <span className="relative rounded-[10px] overflow-hidden shrink-0" style={thumbStyle} title={video.name}>
@@ -862,14 +872,14 @@ export function VideoSwap({
           )}
           {error && <ErrorNote>{error}</ErrorNote>}
           {collapsed && (
-            <p className="dim text-[11.5px] truncate" title={userPrompt}>
+            <p className="swap-summary dim text-[11.5px] truncate" title={userPrompt}>
               {userPrompt ? `Consigne : ${userPrompt}` : "Sans consigne · "}{PROVIDERS[provider === "auto" ? (quote?.provider ?? "seedance25") : provider].label} · {resolution}
               {voiceMode === "transform" && selectedVoice ? ` · voix ${selectedVoice.name}` : voiceMode === "keep" ? " · ma voix" : " · sans audio"}
             </p>
           )}
 
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <span className="dim text-[12px] leading-snug">
+          <div className="swap-actions flex items-center justify-between gap-3 flex-wrap">
+            <span className="swap-quote dim text-[12px] leading-snug">
               {quote ? (
                 quote.billedBy
                   ? <>≈ {fmtUsd(quote.usd)} · {quote.billedBy}{quote.variants > 1 ? ` · ${quote.variants} vidéos` : ""}</>
@@ -879,7 +889,7 @@ export function VideoSwap({
             </span>
             <span className="flex items-center gap-2">
               <button className="btn btn-sm btn-ghost" onClick={() => setCollapsed((v) => !v)} title={collapsed ? "Afficher la consigne et les options" : "Réduire : garder seulement les médias et le bouton"}>
-                {collapsed ? "▴ Options" : "▾ Réduire"}
+                {collapsed ? "▴ Ouvrir" : "▾ Réduire"}
               </button>
               <button className="btn" onClick={() => void submit("queue")} disabled={!ready || busy} title="Lance et garde le personnage : tu déposes la vidéo suivante">+ File</button>
               <button className="btn btn-primary" onClick={() => void submit("now")} disabled={!ready || busy}>
@@ -890,7 +900,7 @@ export function VideoSwap({
         </div>
 
         {(characters.rows.length > 0 || recentImages.length > 0) && (
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="swap-extras flex items-center gap-1.5 flex-wrap">
             <span className="label-xs mr-1">Personnages récents</span>
             {characters.rows.map((c) => (
               <button key={c.id} type="button" className="rounded-[8px] overflow-hidden shrink-0" style={{ width: 40, height: 48, border: `2px solid ${image?.url === c.imageUrl ? "var(--accent)" : "var(--border)"}` }} title={c.name} onClick={() => { setImage({ url: c.imageUrl, name: c.name }); setExtraViews([]); }}>
@@ -915,7 +925,7 @@ export function VideoSwap({
           </div>
         )}
 
-        <div className="flex items-center gap-3 text-[11.5px]">
+        <div className="swap-extras flex items-center gap-3 text-[11.5px]">
           <button type="button" className="link" onClick={() => setSimple(false)}>Mode détaillé (préréglages, style, rendu voix, produit, guide des modèles)</button>
           <span className="dim">·</span>
           <button type="button" className="link" onClick={onAdvanced}>Formulaire avancé</button>

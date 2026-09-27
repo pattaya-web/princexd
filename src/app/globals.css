@@ -860,3 +860,29 @@ b {
     max-width: none;
   }
 }
+
+/* ------------------------- Panneau de swap sur telephone ------------------------- */
+
+@media (max-width: 767px) {
+  /* Colle au bord bas, coins arrondis en haut seulement, moins haut pour laisser voir la galerie. */
+  .swap-dock {
+    bottom: 0 !important;
+    max-height: 72vh !important;
+    border-radius: 14px 14px 0 0 !important;
+    margin-left: -16px;
+    margin-right: -16px;
+  }
+  /* Replie : une seule ligne (estimation + Ouvrir + Transformer), les medias et la phrase sont caches. */
+  .swap-simple[data-collapsed="true"] .swap-attachments,
+  .swap-simple[data-collapsed="true"] .swap-summary,
+  .swap-simple[data-collapsed="true"] .swap-extras {
+    display: none;
+  }
+  .swap-simple[data-collapsed="true"] .swap-quote {
+    font-size: 11px;
+    max-width: 40vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

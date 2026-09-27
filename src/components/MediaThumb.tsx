@@ -21,10 +21,24 @@ export const isLocalMedia = (url: string) => url.startsWith("/api/media/");
  * n'accepte que ses hotes), l'URL intacte pour tout le reste (blob local,
  * data URL, lien quelconque).
  */
-export function thumbUrl(url: string): string {
-  if (isLocalMedia(url)) return `${url}?poster=1`;
-  if (/^https:\/\//.test(url)) return `/api/thumb?url=${encodeURIComponent(url)}`;
+export function thumbUrl(url: string, width?: 240 | 360 | 480): string {
+  const w = width ? `&w=${width}` : "";
+  if (isLocalMedia(url)) return `${url}?poster=1${w}`;
+  if (/^https:\/\//.test(url)) return `/api/thumb?url=${encodeURIComponent(url)}${w}`;
   return url;
+}
+
+/**
+ * Deux tailles pour les tuiles : 240 px suffit a une colonne de telephone,
+ * 360 px aux tuiles de bureau. Le navigateur choisit selon `sizes`.
+ */
+function srcSetFor(url: string): { srcSet?: string; sizes?: string } {
+  if (thumbUrl(url) === url) return {};
+  return {
+    srcSet: `${thumbUrl(url, 240)} 240w, ${thumbUrl(url, 360)} 360w`,
+    // 30vw sur telephone : trois tuiles par ligne, 240 px suffisent meme en ecran retina.
+    sizes: "(max-width: 640px) 30vw, 200px",
+  };
 }
 
 /**
@@ -47,6 +61,7 @@ export function ThumbImg({
   return (
     <img
       src={url}
+      {...(failed ? {} : srcSetFor(src))}
       alt={alt}
       className={className}
       style={style}
@@ -79,6 +94,7 @@ export function VideoThumb({
   return (
     <img
       src={thumbUrl(src)}
+      {...srcSetFor(src)}
       alt=""
       className={className}
       style={style}

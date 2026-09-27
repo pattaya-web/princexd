@@ -17,10 +17,12 @@ import {
   Toggle,
   useToast,
 } from "@/components/ui";
-import { FaceSwap } from "@/components/FaceSwap";
+const FaceSwap = dynamic(() => import("@/components/FaceSwap").then((m) => m.FaceSwap), { ssr: false });
 import { prefillFromJob, VideoSwap, type SwapPrefill } from "@/components/VideoSwap";
 import { StudioJobCard, StudioJobPreview, VoicePicker, type JobActions } from "@/components/StudioJobCard";
-import { TalkingPhoto } from "@/components/TalkingPhoto";
+import dynamic from "next/dynamic";
+// Onglets secondaires charges a la demande : le premier ecran du Studio n'a pas a les embarquer.
+const TalkingPhoto = dynamic(() => import("@/components/TalkingPhoto").then((m) => m.TalkingPhoto), { ssr: false });
 import { ACTIVE_STATUSES, type StudioJob } from "@/lib/studio/types";
 import { MediaField } from "@/components/MediaField";
 import { ElementField, ELEMENT_NAME, EMPTY_ELEMENT, type ElementValue } from "@/components/ElementField";
@@ -521,7 +523,7 @@ function StudioInner() {
           il défile à l'intérieur si le mode détaillé est déplié.
         */}
         <div
-          className={kind === "swap" && !advancedSwap && !talkTab ? "sticky z-20" : undefined}
+          className={kind === "swap" && !advancedSwap && !talkTab ? "swap-dock sticky z-20" : undefined}
           style={kind === "swap" && !advancedSwap && !talkTab ? { bottom: 12, maxHeight: "78vh", overflowY: "auto", borderRadius: 14, boxShadow: "var(--shadow-lg)" } : undefined}
         >
           <Card>
