@@ -133,6 +133,15 @@ export interface Settings {
   salesDefaultSetterId: string;
   /** Derniere synchro reussie, pour ne pas retaper l'API a chaque navigation. */
   salesLastSyncAt: string;
+  /* --- Systeme.io : leads de la landing page. Priorite a SYSTEMEIO_API_KEY. --- */
+  systemeioApiKey?: string;
+  /** Secret du webhook, genere ici et transmis a Systeme.io a la creation. */
+  systemeioWebhookSecret?: string;
+  /** Filtre optionnel : morceaux d'URL de page ou noms de tag, separes par des virgules. Vide = tous les contacts. */
+  systemeioSourceFilter?: string;
+  systemeioLastSyncAt?: string;
+  /** Attribution des leads LP : setter par defaut, ou tour de role entre setters actifs. */
+  salesLeadAssignment?: "default" | "round-robin";
 }
 
 export type ContentFormat =
@@ -302,6 +311,16 @@ export interface Lead {
   setterId?: ID;
   /** Dernier closer assigne. L'attribution des ventes vit sur la vente. */
   closerId?: ID;
+  /* --- Landing page (Systeme.io). --- */
+  /** Identifiant du contact chez Systeme.io : cle de dedoublonnage. */
+  systemeioId?: string;
+  /** Date d'inscription sur la landing page. */
+  optInAt?: string;
+  /** Page d'origine de l'opt-in. */
+  sourceUrl?: string;
+  /** Appels passes sans reponse, depuis la liste « A appeler ». */
+  callAttempts?: number;
+  lastCallAt?: string;
 }
 
 export interface Student {

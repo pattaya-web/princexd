@@ -21,6 +21,7 @@ interface Tab {
 
 const TABS: Tab[] = [
   { href: "/sales", label: "Dashboard" },
+  { href: "/sales/leads", label: "À appeler" },
   { href: "/sales/rendez-vous", label: "Rendez-vous" },
   { href: "/sales/relances", label: "Relances" },
   { href: "/sales/setters", label: "Setters", admin: true },

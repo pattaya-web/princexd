@@ -121,6 +121,24 @@ avec support des requêtes Range (donc scrub de vidéo dans le navigateur). Limi
 2 Go par fichier, extensions vidéo / image / audio uniquement. Pour des rushs
 volumineux, colle plutôt un lien Drive ou WeTransfer.
 
+## Systeme.io (leads de la landing page)
+
+Chaque inscrit de la landing page devient un lead « À appeler » (`/sales/leads`)
+attribué à un setter, avec téléphone, email, pays et page d'origine.
+
+1. Systeme.io → Paramètres → Clé API publique et webhooks : copie la clé dans
+   `SYSTEMEIO_API_KEY` (`.env.local`, et la variable Coolify en ligne) ou dans
+   Réglages → Systeme.io.
+2. Réglages → Systeme.io → « Créer le webhook vers ce site » : le webhook
+   `CONTACT_OPT_IN` / `CONTACT_CREATED` est créé chez Systeme.io vers
+   `https://ton-domaine/api/webhooks/systemeio`, avec un secret généré ici.
+3. Sans webhook, ouvrir « À appeler » synchronise l'API au plus toutes les 3 min.
+
+Le webhook relit toujours le contact par l'API avant de créer le lead : rien
+n'entre sans exister chez Systeme.io. Dédoublonnage par identifiant Systeme.io,
+puis email, puis téléphone. Filtre optionnel sur l'URL de la page ou un tag,
+attribution au setter par défaut ou en tour de rôle.
+
 ## iClosed
 
 **L'API publique est branchée** (`ICLOSED_API_KEY` dans `.env.local`). Bouton

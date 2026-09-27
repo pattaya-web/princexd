@@ -18,6 +18,9 @@ type View = Settings & {
   elevenLabsApiKeyMask?: string;
   elevenLabsApiKeySource?: string;
   higgsfieldKeyMask?: string;
+  systemeioApiKeyMask?: string;
+  systemeioApiKeySource?: string;
+  systemeioWebhookSecretSet?: boolean;
   higgsfieldKeySource?: string;
 };
 
@@ -43,6 +46,9 @@ export default function ReglagesPage() {
   const [openaiKey, setOpenaiKey] = useState("");
   const [elevenKey, setElevenKey] = useState("");
   const [hfSecret, setHfSecret] = useState("");
+  const [sioKey, setSioKey] = useState("");
+  const [sioBusy, setSioBusy] = useState(false);
+  const [sioMsg, setSioMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +81,9 @@ export default function ReglagesPage() {
       else delete payload.elevenLabsApiKey;
       if (hfSecret.trim()) payload.higgsfieldKeySecret = hfSecret.trim();
       else delete payload.higgsfieldKeySecret;
+      if (sioKey.trim()) payload.systemeioApiKey = sioKey.trim();
+      else delete payload.systemeioApiKey;
+      delete payload.systemeioWebhookSecret;
       const next = await api<View>("/api/settings", { method: "PATCH", body: JSON.stringify(payload) });
       setS(next);
       setApiKey("");
@@ -479,6 +488,82 @@ export default function ReglagesPage() {
                 La vidéo est envoyée telle quelle à OpenAI, dans la limite de <strong>25 Mo</strong> par fichier.
                 Une transcription est conservée : elle n&apos;est jamais refacturée deux fois pour le même reel.
               </InfoNote>
+            </div>
+          </Card>
+
+          <Card title="Systeme.io (leads de la landing page)">
+            <div className="flex flex-col gap-3.5">
+              {s.systemeioApiKeyMask ? (
+                <InfoNote>
+                  Clé active : <code className="mono">{s.systemeioApiKeyMask}</code> — source :{" "}
+                  <strong>{s.systemeioApiKeySource === "env" ? ".env.local" : "ces réglages"}</strong>. Chaque inscrit de la
+                  landing page devient un lead « À appeler » pour ton setter. Webhook :{" "}
+                  <strong>{s.systemeioWebhookSecretSet ? "créé" : "pas encore créé"}</strong>.
+                </InfoNote>
+              ) : (
+                <InfoNote>
+                  Aucune clé Systeme.io. Génère-la dans Systeme.io → Paramètres → Clé API publique et webhooks, puis colle-la ici
+                  (ou dans <code className="mono">SYSTEMEIO_API_KEY</code>).
+                </InfoNote>
+              )}
+              <Field label={s.systemeioApiKeyMask ? "Remplacer la clé Systeme.io" : "Clé API Systeme.io"} hint="Laisse vide pour conserver la clé actuelle.">
+                <input className="input mono" type="password" placeholder="clé publique" value={sioKey} onChange={(e) => setSioKey(e.target.value)} />
+              </Field>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="Ne garder que les inscrits de…" hint="Morceau d'URL de la page ou nom de tag, plusieurs séparés par des virgules. Vide : tous les contacts.">
+                  <input className="input" placeholder="ex. authenticitemady" value={s.systemeioSourceFilter ?? ""} onChange={(e) => set("systemeioSourceFilter", e.target.value)} />
+                </Field>
+                <Field label="Attribution des leads" hint="« Setter par défaut » utilise celui de la synchro iClosed.">
+                  <select className="select" value={s.salesLeadAssignment ?? "default"} onChange={(e) => set("salesLeadAssignment", e.target.value as "default" | "round-robin")}>
+                    <option value="default">Setter par défaut</option>
+                    <option value="round-robin">Tour de rôle entre les setters actifs</option>
+                  </select>
+                </Field>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  className="btn"
+                  disabled={sioBusy || !s.systemeioApiKeyMask}
+                  onClick={async () => {
+                    setSioBusy(true);
+                    setSioMsg(null);
+                    try {
+                      const r = await api<{ alreadyExisted: boolean; webhook: { url: string } }>("/api/sales/systemeio", { method: "PUT", body: JSON.stringify({ origin }) });
+                      setSioMsg(r.alreadyExisted ? `Webhook déjà en place : ${r.webhook.url}` : `Webhook créé chez Systeme.io : ${r.webhook.url}`);
+                      void api<View>("/api/settings").then(setS);
+                    } catch (e) {
+                      setSioMsg((e as Error).message);
+                    } finally {
+                      setSioBusy(false);
+                    }
+                  }}
+                  title="Crée le webhook CONTACT_OPT_IN / CONTACT_CREATED vers ce site, avec un secret généré ici"
+                >
+                  {sioBusy ? <span className="spinner" /> : "Créer le webhook vers ce site"}
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  disabled={sioBusy || !s.systemeioApiKeyMask}
+                  onClick={async () => {
+                    setSioBusy(true);
+                    setSioMsg(null);
+                    try {
+                      const r = await api<{ created: number; updated: number; skipped: number }>("/api/sales/systemeio", { method: "POST" });
+                      setSioMsg(`Synchro : ${r.created} nouveau(x), ${r.updated} complété(s), ${r.skipped} ignoré(s).`);
+                    } catch (e) {
+                      setSioMsg((e as Error).message);
+                    } finally {
+                      setSioBusy(false);
+                    }
+                  }}
+                >
+                  Synchroniser maintenant
+                </button>
+                {sioMsg && <span className="text-[12px] dim">{sioMsg}</span>}
+              </div>
+              <p className="dim text-[11.5px]">
+                Le webhook doit viser le site en ligne (https). En local, la synchro toutes les 3 minutes suffit.
+              </p>
             </div>
           </Card>
 

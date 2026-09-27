@@ -179,7 +179,9 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as Partial<AppointmentInput>;
 
     const input: AppointmentInput = {
-      igUsername: required(body.igUsername, "Le pseudo Instagram"),
+      leadId: body.leadId ?? "",
+      // Un prospect de la landing page n'a pas forcement d'Instagram.
+      igUsername: body.leadId ? (body.igUsername ?? "") : required(body.igUsername, "Le pseudo Instagram"),
       name: body.name ?? "",
       email: body.email ?? "",
       phone: body.phone ?? "",

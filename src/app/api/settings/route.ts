@@ -20,6 +20,8 @@ function publicView(s: Settings) {
   const oaKey = oaEnv ? process.env.OPENAI_API_KEY!.trim() : s.openaiApiKey;
   const elEnv = Boolean(process.env.ELEVENLABS_API_KEY?.trim());
   const elKey = elEnv ? process.env.ELEVENLABS_API_KEY!.trim() : (s.elevenLabsApiKey ?? "");
+  const sioEnv = Boolean(process.env.SYSTEMEIO_API_KEY?.trim());
+  const sioKey = sioEnv ? process.env.SYSTEMEIO_API_KEY!.trim() : (s.systemeioApiKey ?? "");
   const hfSingle = process.env.HIGGSFIELD_API_KEY?.trim();
   const hfEnv = Boolean(hfSingle || (process.env.HIGGSFIELD_API_KEY_ID?.trim() && process.env.HIGGSFIELD_API_KEY_SECRET?.trim()));
   const hfSecret = hfSingle || (hfEnv ? process.env.HIGGSFIELD_API_KEY_SECRET!.trim() : (s.higgsfieldKeySecret ?? ""));
@@ -49,6 +51,11 @@ function publicView(s: Settings) {
     higgsfieldKeySecret: "",
     higgsfieldKeyMask: mask(hfSecret),
     higgsfieldKeySource: hfEnv ? "env" : hfSecret ? "reglages" : "absente",
+    systemeioApiKey: "",
+    systemeioApiKeyMask: mask(sioKey),
+    systemeioApiKeySource: sioEnv ? "env" : sioKey ? "reglages" : "absente",
+    systemeioWebhookSecret: "",
+    systemeioWebhookSecretSet: Boolean(process.env.SYSTEMEIO_WEBHOOK_SECRET?.trim() || s.systemeioWebhookSecret),
     editorAccessCode: s.editorAccessCode,
     // Les cookies restent sur le serveur : on ne renvoie que leur presence.
     igCookies: "",
@@ -69,6 +76,8 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.openaiApiKey === "string" && !body.openaiApiKey.trim()) delete body.openaiApiKey;
   if (typeof body.elevenLabsApiKey === "string" && !body.elevenLabsApiKey.trim()) delete body.elevenLabsApiKey;
   if (typeof body.higgsfieldKeySecret === "string" && !body.higgsfieldKeySecret.trim()) delete body.higgsfieldKeySecret;
+  if (typeof body.systemeioApiKey === "string" && !body.systemeioApiKey.trim()) delete body.systemeioApiKey;
+  if (typeof body.systemeioWebhookSecret === "string" && !body.systemeioWebhookSecret.trim()) delete body.systemeioWebhookSecret;
   // Nouveau solde Higgsfield saisi : on date la saisie pour ne deduire que les rendus suivants.
   if (typeof body.higgsfieldBalanceUsd === "number") {
     if (body.higgsfieldBalanceUsd !== getSettings().higgsfieldBalanceUsd) body.higgsfieldBalanceAt = new Date().toISOString();

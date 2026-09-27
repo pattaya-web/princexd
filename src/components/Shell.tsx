@@ -461,7 +461,8 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     section: "Sales",
     items: [
       { href: "/sales", label: "Sales Dashboard", icon: "◈" },
-      { href: "/sales/rendez-vous", label: "Rendez-vous", icon: "☏" },
+      { href: "/sales/leads", label: "À appeler", icon: "☏" },
+      { href: "/sales/rendez-vous", label: "Rendez-vous", icon: "▤" },
       { href: "/sales/relances", label: "Relances", icon: "↻" },
       { href: "/sales/commissions", label: "Commissions", icon: "▦" },
     ],

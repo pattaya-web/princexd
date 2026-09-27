@@ -76,6 +76,8 @@ const cleanHandle = (raw: string) => raw.trim().replace(/^@+/, "").toLowerCase()
 export function upsertLead(
   db: DB,
   input: {
+    /** Lead deja en base (prospect de la landing page sans Instagram) : on le prend tel quel. */
+    leadId?: string;
     igUsername: string;
     name?: string;
     email?: string;
@@ -86,13 +88,15 @@ export function upsertLead(
     setterId?: string;
   },
 ): Lead {
-  const handle = cleanHandle(input.igUsername);
+  const handle = cleanHandle(input.igUsername ?? "");
 
-  const existing = handle
-    ? db.leads.find(
-        (l) => cleanHandle(l.igUsername ?? l.handle ?? "") === handle,
-      )
-    : undefined;
+  const existing =
+    (input.leadId ? db.leads.find((l) => l.id === input.leadId) : undefined) ??
+    (handle
+      ? db.leads.find(
+          (l) => cleanHandle(l.igUsername ?? l.handle ?? "") === handle,
+        )
+      : undefined);
 
   if (existing) {
     // On complete les trous sans jamais ecraser une donnee deja saisie :
@@ -137,6 +141,8 @@ export function upsertLead(
 /* ----------------------------- Rendez-vous ------------------------------- */
 
 export interface AppointmentInput {
+  /** Rendez-vous pour un lead deja en base (landing page) : le pseudo devient facultatif. */
+  leadId?: string;
   igUsername: string;
   name?: string;
   email?: string;
