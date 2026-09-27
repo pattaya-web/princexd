@@ -52,15 +52,23 @@ function looksValid(head: Buffer, ext: string): boolean {
   }
 }
 
-async function rejectIfUnreadable(target: string, stored: string): Promise<NextResponse | null> {
+async function rejectIfUnreadable(target: string, stored: string, req: NextRequest, branch: string): Promise<NextResponse | null> {
   const fh = await fs.open(target, "r");
   const head = Buffer.alloc(16);
+  let read = 0;
   try {
-    await fh.read(head, 0, 16, 0);
+    read = (await fh.read(head, 0, 16, 0)).bytesRead;
   } finally {
     await fh.close();
   }
-  if (looksValid(head, path.extname(stored).toLowerCase())) return null;
+  const onDisk = (await fs.stat(target)).size;
+  if (looksValid(head.subarray(0, read), path.extname(stored).toLowerCase())) return null;
+  // Trace de diagnostic : ce que la route a vraiment recu.
+  console.warn(
+    `[upload] illisible branche=${branch} stored=${stored} taille=${onDisk} tete=${head.subarray(0, read).toString("hex")} ` +
+      `ct=${req.headers.get("content-type")} len=${req.headers.get("content-length")} te=${req.headers.get("transfer-encoding")} ` +
+      `enc=${req.headers.get("content-encoding")} ua=${(req.headers.get("user-agent") ?? "").slice(0, 60)}`,
+  );
   await fs.rm(target, { force: true });
   return NextResponse.json(
     { error: "Fichier illisible reçu : le contenu envoyé n'est pas une image ou une vidéo valide. Réessaie, ou envoie-le depuis un ordinateur.", unreadable: true },
@@ -116,7 +124,10 @@ export async function POST(req: NextRequest) {
   if (contentType.startsWith("multipart/form-data")) {
     const form = await req.formData();
     const file = form.get("file");
-    if (!(file instanceof File)) return NextResponse.json({ error: "Aucun fichier reçu" }, { status: 400 });
+    if (!(file instanceof File)) {
+      console.warn(`[upload] multipart sans fichier : champs=${[...form.keys()].join(",") || "(aucun)"} type=${typeof file} len=${req.headers.get("content-length")} te=${req.headers.get("transfer-encoding")} ua=${(req.headers.get("user-agent") ?? "").slice(0, 60)}`);
+      return NextResponse.json({ error: "Aucun fichier reçu" }, { status: 400 });
+    }
     if (file.size > MAX_BYTES) {
       return NextResponse.json({ error: "Fichier trop lourd (2 Go max)." }, { status: 413 });
     }
@@ -130,7 +141,7 @@ export async function POST(req: NextRequest) {
       await fs.rm(target, { force: true });
       return NextResponse.json({ error: "Envoi interrompu." }, { status: 400 });
     }
-    const bad = await rejectIfUnreadable(target, stored);
+    const bad = await rejectIfUnreadable(target, stored, req, "multipart");
     if (bad) return bad;
     return respond(file.name, stored, file.size);
   }
@@ -164,7 +175,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Envoi interrompu." }, { status: 400 });
   }
 
-  const bad = await rejectIfUnreadable(target, stored);
+  const bad = await rejectIfUnreadable(target, stored, req, "brut");
   if (bad) return bad;
   return respond(name, stored, size);
 }
