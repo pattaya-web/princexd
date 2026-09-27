@@ -29,6 +29,7 @@ import { VideoThumb } from "@/components/MediaThumb";
 import { ThumbImg } from "@/components/MediaThumb";
 import { forgetVoices, loadVoices } from "@/lib/client";
 import { takeFiles } from "@/lib/upload-client";
+import { clipboardFiles, droppedFiles } from "@/lib/upload-client";
 
 /**
  * Onglet « Swap vidéo » du Studio, version simple.
@@ -512,14 +513,77 @@ export function VideoSwap({
   };
 
   /** Dépôt n'importe où dans le bloc : l'extension décide de la case. */
-  const onDropAnywhere = (e: DragEvent) => {
-    e.preventDefault();
-    const files = Array.from(e.dataTransfer.files ?? []);
+  /*
+   * Ou va un fichier qui arrive sans case precise (depot n'importe ou, Ctrl+V) ?
+   * Une video : la video. Une image : le personnage s'il manque, sinon une vue
+   * supplementaire (jusqu'a deux), sinon une photo du produit. L'etat est lu
+   * dans une ref : le collage vient d'un ecouteur global, pas d'un rendu.
+   */
+  const slotsRef = useRef({ image, extraViews, product });
+  slotsRef.current = { image, extraViews, product };
+  const routeFiles = (files: File[], source: "collé" | "déposé") => {
+    let views = slotsRef.current.extraViews.length;
+    let products = slotsRef.current.product.length;
+    let hasImage = Boolean(slotsRef.current.image);
     for (const f of files) {
-      if (isVideoName(f.name) || f.type.startsWith("video/")) void setVideoFile(f);
-      else if (isImageName(f.name) || f.type.startsWith("image/")) void setImageFile(f);
+      if (isVideoName(f.name) || f.type.startsWith("video/")) {
+        void setVideoFile(f);
+        toast(`Vidéo ${source}e → Vidéo.`);
+      } else if (isImageName(f.name) || f.type.startsWith("image/")) {
+        if (!hasImage) {
+          hasImage = true;
+          void setImageFile(f);
+          toast(`Image ${source}e → Personnage.`);
+        } else if (views < 2) {
+          views++;
+          void addViewFiles([f]);
+          toast(`Image ${source}e → vue supplémentaire du personnage.`);
+        } else if (products < 4) {
+          products++;
+          void addProductFiles([f]);
+          toast(`Image ${source}e → Produit.`);
+        } else {
+          toast("Toutes les cases sont pleines : retire une image d'abord.", "err");
+        }
+      }
     }
   };
+
+  const onDropAnywhere = (e: DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    if (disabledAll) return;
+    routeFiles(droppedFiles(e), "déposé");
+  };
+
+  /* Depot cible sur une case : la case decide, pas la regle generale. */
+  const slotDrop = (handler: (files: File[]) => void) => ({
+    onDragOver: (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); },
+    onDrop: (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragging(false);
+      if (disabledAll) return;
+      const files = droppedFiles(e);
+      if (files.length) handler(files);
+    },
+  });
+
+  /* Ctrl+V n'importe ou dans la page pendant que l'onglet Swap est ouvert. */
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (e.defaultPrevented) return;
+      const files = clipboardFiles(e);
+      if (!files.length) return;
+      e.preventDefault();
+      routeFiles(files, "collé");
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // routeFiles lit l'etat via slotsRef : pas besoin de reabonner.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ---- Personnages et voix récents, dérivés de l'historique ---- */
 
@@ -723,7 +787,14 @@ export function VideoSwap({
 
   if (simple) {
     return (
-      <div className="swap-simple flex flex-col gap-3 pt-1" data-collapsed={collapsed} onDragOver={(e) => e.preventDefault()} onDrop={onDropAnywhere}>
+      <div
+        className="swap-simple flex flex-col gap-3 pt-1 rounded-[14px]"
+        data-collapsed={collapsed}
+        style={dragging ? { outline: "2px dashed var(--accent)", outlineOffset: 4 } : undefined}
+        onDragOver={(e) => { e.preventDefault(); if (!dragging) setDragging(true); }}
+        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false); }}
+        onDrop={onDropAnywhere}
+      >
         {/* Boite prompt : medias attaches, phrase, barre d'options. */}
         <div className="rounded-[14px] p-3 flex flex-col gap-3" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
           <div className="swap-attachments flex items-center gap-2 flex-wrap">
@@ -737,7 +808,7 @@ export function VideoSwap({
                 <button type="button" className="absolute top-0.5 right-0.5 grid place-items-center rounded-full text-[11px]" style={{ width: 16, height: 16, background: "rgb(0 0 0 / 0.62)", color: "#fff" }} onClick={() => setVideo(null)} disabled={disabledAll} title="Retirer">×</button>
               </span>
             ) : (
-              <label className="rounded-[10px] grid place-items-center text-center shrink-0" style={{ ...thumbStyle, border: "1.5px dashed var(--border-strong)", cursor: disabledAll ? "not-allowed" : "pointer" }} title="Ta vidéo originale (MP4 / MOV, 100 Mo max)">
+              <label className="rounded-[10px] grid place-items-center text-center shrink-0" style={{ ...thumbStyle, border: "1.5px dashed var(--border-strong)", cursor: disabledAll ? "not-allowed" : "pointer" }} title="Ta vidéo originale (MP4 / MOV, 100 Mo max). Tu peux aussi la déposer ici ou la coller (Ctrl+V)." {...slotDrop((f) => void setVideoFile(f[0]))}>
                 {vidProgress !== null ? <span className="text-[10px] num">{Math.round(vidProgress * 100)} %</span> : <span className="text-[10px] leading-tight">🎬<br />Vidéo</span>}
                 {attachInput("video/*,.mp4,.mov,.webm,.m4v", false, (f) => void setVideoFile(f[0]))}
               </label>
@@ -750,7 +821,7 @@ export function VideoSwap({
                 <button type="button" className="absolute top-0.5 right-0.5 grid place-items-center rounded-full text-[11px]" style={{ width: 16, height: 16, background: "rgb(0 0 0 / 0.62)", color: "#fff" }} onClick={() => { setImage(null); setExtraViews([]); }} disabled={disabledAll} title="Retirer">×</button>
               </span>
             ) : (
-              <label className="rounded-[10px] grid place-items-center text-center shrink-0" style={{ ...thumbStyle, border: "1.5px dashed var(--border-strong)", cursor: disabledAll ? "not-allowed" : "pointer" }} title="La personne à obtenir (JPG / PNG)">
+              <label className="rounded-[10px] grid place-items-center text-center shrink-0" style={{ ...thumbStyle, border: "1.5px dashed var(--border-strong)", cursor: disabledAll ? "not-allowed" : "pointer" }} title="La personne à obtenir (JPG / PNG). Dépose une image ici, ou colle une capture (Ctrl+V)." {...slotDrop((f) => void setImageFile(f[0]))}>
                 {imgProgress !== null ? <span className="text-[10px] num">{Math.round(imgProgress * 100)} %</span> : <span className="text-[10px] leading-tight">🖼<br />Personnage</span>}
                 {attachInput("image/*,.jfif,.jpe,.heic,.heif,.avif", false, (f) => void setImageFile(f[0]))}
               </label>
@@ -772,7 +843,7 @@ export function VideoSwap({
               </span>
             ))}
             {product.length + productBusy < 4 && (
-              <label className="rounded-[10px] grid place-items-center text-center shrink-0" style={{ ...thumbStyle, border: "1.5px dashed var(--border-strong)", cursor: disabledAll ? "not-allowed" : "pointer", opacity: product.length ? 1 : 0.75 }} title="Photos du produit tenu en main (2 à 4) : il est reproduit à l'identique">
+              <label className="rounded-[10px] grid place-items-center text-center shrink-0" style={{ ...thumbStyle, border: "1.5px dashed var(--border-strong)", cursor: disabledAll ? "not-allowed" : "pointer", opacity: product.length ? 1 : 0.75 }} title="Photos du produit tenu en main (2 à 4) : il est reproduit à l'identique. Dépose-les ici." {...slotDrop((f) => void addProductFiles(f))}>
                 {productBusy > 0 ? <span className="spinner" /> : <span className="text-[10px] leading-tight">📦<br />{product.length ? "+ photo" : "Produit"}</span>}
                 {attachInput("image/*,.jfif,.jpe,.heic,.heif,.avif", true, (f) => void addProductFiles(f))}
               </label>
@@ -785,7 +856,7 @@ export function VideoSwap({
                 <button type="button" className="absolute top-0.5 right-0.5 grid place-items-center rounded-full text-[11px]" style={{ width: 16, height: 16, background: "rgb(0 0 0 / 0.62)", color: "#fff" }} onClick={() => setScene(null)} disabled={disabledAll}>×</button>
               </span>
             ) : (
-              <label className="rounded-[10px] grid place-items-center text-center shrink-0" style={{ ...thumbStyle, border: "1.5px dashed var(--border-strong)", cursor: disabledAll ? "not-allowed" : "pointer", opacity: 0.75 }} title="Photo d'un autre lieu : le décor de ta vidéo est remplacé par celui-ci (Seedance, Kling Omni, Genjutsu). Sans photo, ton décor est gardé.">
+              <label className="rounded-[10px] grid place-items-center text-center shrink-0" style={{ ...thumbStyle, border: "1.5px dashed var(--border-strong)", cursor: disabledAll ? "not-allowed" : "pointer", opacity: 0.75 }} title="Photo d'un autre lieu : le décor de ta vidéo est remplacé par celui-ci (Seedance, Kling Omni, Genjutsu). Sans photo, ton décor est gardé. Dépose-la ici." {...slotDrop((f) => void setSceneFile(f[0]))}>
                 {sceneBusy ? <span className="spinner" /> : <span className="text-[10px] leading-tight">🏠<br />Décor</span>}
                 {attachInput("image/*,.jfif,.jpe,.heic,.heif,.avif", false, (f) => void setSceneFile(f[0]))}
               </label>

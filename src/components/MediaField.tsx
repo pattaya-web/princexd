@@ -2,12 +2,13 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Field } from "@/components/ui";
 import type { ModelField } from "@/lib/models";
 import { VideoThumb } from "@/components/MediaThumb";
 import { ThumbImg } from "@/components/MediaThumb";
 import { takeFiles } from "@/lib/upload-client";
+import { clipboardFiles, droppedFiles } from "@/lib/upload-client";
 
 /**
  * Champ media pour le Studio.
@@ -176,6 +177,36 @@ export function MediaField({
   };
 
   const full = items.length >= max;
+
+  /* Ctrl+V : une capture d'ecran devient une image de reference. Le premier champ libre la prend. */
+  const stateRef = useRef({ full, disabled });
+  stateRef.current = { full, disabled };
+  useEffect(() => {
+    if (kind !== "image") return;
+    const onPaste = (e: ClipboardEvent) => {
+      if (e.defaultPrevented || stateRef.current.full || stateRef.current.disabled) return;
+      const files = clipboardFiles(e).filter((f) => f.type.startsWith("image/"));
+      if (!files.length) return;
+      e.preventDefault();
+      void upload(files);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind]);
+  const [over, setOver] = useState(false);
+  const dropProps = {
+    onDragOver: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); if (!over) setOver(true); },
+    onDragLeave: () => setOver(false),
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setOver(false);
+      if (disabled || full) return;
+      const files = droppedFiles(e);
+      if (files.length) void upload(files);
+    },
+  };
   const word = kind === "video" ? "vidéo" : kind === "audio" ? "audio" : "photo";
 
   return (
@@ -202,9 +233,12 @@ export function MediaField({
             style={{
               width: 68,
               height: 84,
-              border: "1px dashed var(--border-strong)",
+              border: `1px dashed ${over ? "var(--accent)" : "var(--border-strong)"}`,
+              background: over ? "color-mix(in srgb, var(--accent) 8%, transparent)" : undefined,
               cursor: disabled ? "not-allowed" : "pointer",
             }}
+            title="Clique, dépose une image ici, ou colle une capture (Ctrl+V)"
+            {...dropProps}
           >
             <span className="text-[17px] dim leading-none">+</span>
             <span className="dim text-[10px]">{word}</span>

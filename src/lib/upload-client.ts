@@ -111,6 +111,33 @@ export async function takeFiles(input: HTMLInputElement): Promise<File[]> {
   return files;
 }
 
+/**
+ * Fichiers images (et videos) d'un collage Ctrl+V.
+ *
+ * Une capture d'ecran arrive sans nom, ou nommee « image.png » : on lui
+ * donne un nom date pour la retrouver dans les vignettes et les fiches.
+ */
+export function clipboardFiles(e: ClipboardEvent): File[] {
+  const out: File[] = [];
+  const items = e.clipboardData?.items ? Array.from(e.clipboardData.items) : [];
+  for (const it of items) {
+    if (it.kind !== "file") continue;
+    const f = it.getAsFile();
+    if (!f) continue;
+    if (!f.type.startsWith("image/") && !f.type.startsWith("video/")) continue;
+    const generic = !f.name || /^image\.(png|jpe?g|webp|gif)$/i.test(f.name) || /^blob$/i.test(f.name);
+    const ext = f.type === "image/jpeg" ? "jpg" : f.type.split("/")[1]?.replace("quicktime", "mov") || "png";
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
+    out.push(generic ? new File([f], `capture-${stamp}.${ext}`, { type: f.type, lastModified: Date.now() }) : f);
+  }
+  return out;
+}
+
+/** Fichiers deposes par glisser-deposer, images et videos seulement. */
+export function droppedFiles(e: { dataTransfer: DataTransfer | null }): File[] {
+  return Array.from(e.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/") || /\.(png|jpe?g|webp|gif|heic|heif|avif|mp4|mov|webm|m4v)$/i.test(f.name));
+}
+
 export function formatBytes(n: number) {
   if (n > 1e9) return `${(n / 1e9).toFixed(1)} Go`;
   if (n > 1e6) return `${Math.round(n / 1e6)} Mo`;

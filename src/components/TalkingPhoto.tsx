@@ -13,6 +13,7 @@ import { ErrorNote, Field, useToast } from "./ui";
 import { ThumbImg } from "@/components/MediaThumb";
 import { loadVoices } from "@/lib/client";
 import { takeFiles } from "@/lib/upload-client";
+import { clipboardFiles, droppedFiles } from "@/lib/upload-client";
 
 /**
  * Onglet « Photo qui parle » : une photo + une voix → une vidéo où la
@@ -100,6 +101,22 @@ export function TalkingPhoto({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: 
   const seconds = mode === "text" ? Math.max(1, Math.ceil(text.trim().length / 15)) : 0;
   const credits = seconds ? Math.round(TALKING_PHOTO.creditsPerSec[resolution] * seconds * variants) : 0;
 
+  /* Ctrl+V : une capture devient la photo du personnage. */
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (e.defaultPrevented || busyRef.current) return;
+      const f = clipboardFiles(e).find((x) => x.type.startsWith("image/"));
+      if (!f) return;
+      e.preventDefault();
+      void setPhotoFile(f);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const setPhotoFile = async (f: File) => {
     if (!isImageName(f.name) && !f.type.startsWith("image/")) { toast("Choisis une image.", "err"); return; }
     setPhotoBusy(true);
@@ -174,7 +191,13 @@ export function TalkingPhoto({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: 
       {/* Photo */}
       <Field label="Photo du personnage" hint="Portrait ou buste, de face, visage net, bouche visible. JPG / PNG / WEBP.">
         <div className="flex gap-3 items-start flex-wrap">
-          <label className="rounded-[10px] overflow-hidden grid place-items-center shrink-0" style={{ width: 132, height: 165, border: `1.5px ${photo ? "solid" : "dashed"} var(--border-strong)`, background: "var(--surface-2)", cursor: busy ? "not-allowed" : "pointer" }}>
+          <label
+            className="rounded-[10px] overflow-hidden grid place-items-center shrink-0"
+            style={{ width: 132, height: 165, border: `1.5px ${photo ? "solid" : "dashed"} var(--border-strong)`, background: "var(--surface-2)", cursor: busy ? "not-allowed" : "pointer" }}
+            title="Clique, dépose une photo ici, ou colle une capture (Ctrl+V)"
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (busy) return; const f = droppedFiles(e).find((x) => x.type.startsWith("image/") || /\.(png|jpe?g|webp|heic|heif|avif)$/i.test(x.name)); if (f) void setPhotoFile(f); }}
+          >
             {photoBusy ? <span className="spinner" /> : photo ? <ThumbImg src={photo.url} className="w-full h-full object-cover" /> : <span className="dim text-[12px] text-center px-2">+ Photo</span>}
             <input type="file" hidden accept="image/*,.jfif,.jpe,.heic,.heif,.avif" disabled={busy} onChange={async (e) => { const f = (await takeFiles(e.currentTarget))[0]; if (f) void setPhotoFile(f); }} />
           </label>
