@@ -23,6 +23,51 @@ const JPEG_ALIASES: Record<string, string> = { ".jfif": ".jpg", ".jpe": ".jpg" }
 
 class TooBig extends Error {}
 
+/**
+ * Verification de l'entete du fichier recu.
+ *
+ * Des telephones ont envoye des corps de requete qui n'etaient pas le
+ * fichier (octets sans rapport, tailles plausibles) : acceptes tels quels,
+ * ils cassaient la generation bien plus tard avec « Invalid data found ».
+ * On lit les premiers octets et on refuse tout de suite ce qui n'est pas
+ * une image, une video ou un son connu ; le navigateur retente autrement.
+ */
+const ASCII = (b: Buffer, from: number, text: string) => b.subarray(from, from + text.length).toString("latin1") === text;
+function looksValid(head: Buffer, ext: string): boolean {
+  if (head.length < 12) return false;
+  const hex = head.subarray(0, 4).toString("hex");
+  switch (ext) {
+    case ".jpg": case ".jpeg": return hex.startsWith("ffd8ff");
+    case ".png": return hex === "89504e47";
+    case ".gif": return ASCII(head, 0, "GIF8");
+    case ".webp": return ASCII(head, 0, "RIFF") && ASCII(head, 8, "WEBP");
+    case ".mp4": case ".mov": case ".m4v": case ".m4a":
+      return ["ftyp", "moov", "mdat", "wide", "free", "skip"].some((t) => ASCII(head, 4, t));
+    case ".webm": case ".mkv": return hex === "1a45dfa3";
+    case ".avi": return ASCII(head, 0, "RIFF") && ASCII(head, 8, "AVI ");
+    case ".mp3": return ASCII(head, 0, "ID3") || (head[0] === 0xff && (head[1] & 0xe6) === 0xe2);
+    case ".wav": return ASCII(head, 0, "RIFF") && ASCII(head, 8, "WAVE");
+    case ".aac": return head[0] === 0xff && (head[1] & 0xf6) === 0xf0;
+    default: return true;
+  }
+}
+
+async function rejectIfUnreadable(target: string, stored: string): Promise<NextResponse | null> {
+  const fh = await fs.open(target, "r");
+  const head = Buffer.alloc(16);
+  try {
+    await fh.read(head, 0, 16, 0);
+  } finally {
+    await fh.close();
+  }
+  if (looksValid(head, path.extname(stored).toLowerCase())) return null;
+  await fs.rm(target, { force: true });
+  return NextResponse.json(
+    { error: "Fichier illisible reçu : le contenu envoyé n'est pas une image ou une vidéo valide. Réessaie, ou envoie-le depuis un ordinateur.", unreadable: true },
+    { status: 415 },
+  );
+}
+
 function storedName(original: string): { stored: string; error?: NextResponse } {
   const ext = path.extname(original).toLowerCase();
   if (!SAFE_EXT.has(ext)) {
@@ -77,8 +122,16 @@ export async function POST(req: NextRequest) {
     }
     const { stored, error } = storedName(file.name);
     if (error) return error;
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await fs.writeFile(path.join(MEDIA_DIR, stored), buffer);
+    // En flux vers le disque : un fichier de 200 Mo ne coute pas 200 Mo de memoire.
+    const target = path.join(MEDIA_DIR, stored);
+    try {
+      await pipeline(Readable.fromWeb(file.stream() as never), createWriteStream(target));
+    } catch {
+      await fs.rm(target, { force: true });
+      return NextResponse.json({ error: "Envoi interrompu." }, { status: 400 });
+    }
+    const bad = await rejectIfUnreadable(target, stored);
+    if (bad) return bad;
     return respond(file.name, stored, file.size);
   }
 
@@ -111,5 +164,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Envoi interrompu." }, { status: 400 });
   }
 
+  const bad = await rejectIfUnreadable(target, stored);
+  if (bad) return bad;
   return respond(name, stored, size);
 }
