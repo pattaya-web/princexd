@@ -12,6 +12,7 @@ import { toSupportedImage } from "./MediaField";
 import { ErrorNote, Field, useToast } from "./ui";
 import { ThumbImg } from "@/components/MediaThumb";
 import { loadVoices } from "@/lib/client";
+import { takeFiles } from "@/lib/upload-client";
 
 /**
  * Onglet « Photo qui parle » : une photo + une voix → une vidéo où la
@@ -175,7 +176,7 @@ export function TalkingPhoto({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: 
         <div className="flex gap-3 items-start flex-wrap">
           <label className="rounded-[10px] overflow-hidden grid place-items-center shrink-0" style={{ width: 132, height: 165, border: `1.5px ${photo ? "solid" : "dashed"} var(--border-strong)`, background: "var(--surface-2)", cursor: busy ? "not-allowed" : "pointer" }}>
             {photoBusy ? <span className="spinner" /> : photo ? <ThumbImg src={photo.url} className="w-full h-full object-cover" /> : <span className="dim text-[12px] text-center px-2">+ Photo</span>}
-            <input type="file" hidden accept="image/*,.jfif,.jpe,.heic,.heif,.avif" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void setPhotoFile(f); }} />
+            <input type="file" hidden accept="image/*,.jfif,.jpe,.heic,.heif,.avif" disabled={busy} onChange={async (e) => { const f = (await takeFiles(e.currentTarget))[0]; if (f) void setPhotoFile(f); }} />
           </label>
           {(characters.rows.length > 0 || recentPhotos.length > 0) && (
             <div className="flex flex-col gap-1.5">
@@ -241,7 +242,7 @@ export function TalkingPhoto({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: 
             <div className="flex items-center gap-2 flex-wrap">
               <label className="btn" style={{ cursor: busy ? "not-allowed" : "pointer" }}>
                 {audioBusy ? <span className="spinner" /> : audio ? "Remplacer le fichier" : "Déposer un mp3, m4a, wav ou mp4"}
-                <input type="file" hidden accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.mov" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void setAudioFile(f); }} />
+                <input type="file" hidden accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.mov" disabled={busy} onChange={async (e) => { const f = (await takeFiles(e.currentTarget))[0]; if (f) void setAudioFile(f); }} />
               </label>
               {audio && <span className="text-[12.5px] truncate max-w-[280px]">{audio.name}</span>}
               <span className="dim text-[11px]">D&apos;une vidéo, seule la piste audio est utilisée. {TALKING_PHOTO.maxAudioSec} s maximum.</span>

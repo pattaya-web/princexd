@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ErrorNote, Field, useToast } from "@/components/ui";
 import type { Generation } from "@/lib/types";
+import { takeFiles } from "@/lib/upload-client";
 
 /**
  * Modèles d'image OpenAI.
@@ -166,9 +167,8 @@ function Uploader({
                 multiple
                 accept="image/png,image/jpeg,image/webp,.jfif,.jpe"
                 disabled={disabled}
-                onChange={(e) => {
-                  const files = Array.from(e.target.files ?? []);
-                  e.target.value = "";
+                onChange={async (e) => {
+                  const files = await takeFiles(e.currentTarget);
                   if (!files.length) return;
                   const added = files.slice(0, 4 - list.length).map((f) => ({
                     file: f,
@@ -194,9 +194,8 @@ function Uploader({
           type="file"
           accept="image/png,image/jpeg,image/webp,.jfif,.jpe"
           disabled={disabled}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
+          onChange={async (e) => {
+            const f = (await takeFiles(e.currentTarget))[0];
             if (!f) return;
             // Le fichier part tel quel vers OpenAI : aucun stockage intermediaire.
             if (slot) URL.revokeObjectURL(slot.preview);

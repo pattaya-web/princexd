@@ -2,6 +2,7 @@
 
 import { useRef, useState, type DragEvent } from "react";
 import { uploadFile, type Uploaded } from "@/lib/upload-client";
+import { takeFiles } from "@/lib/upload-client";
 
 /**
  * Briques d'envoi de fichiers partagees entre les drives (montage, ads) :
@@ -101,9 +102,8 @@ export function DropZone({
         hidden
         multiple={multiple}
         accept={accept}
-        onChange={(e) => {
-          const files = Array.from(e.target.files ?? []);
-          e.target.value = "";
+        onChange={async (e) => {
+          const files = await takeFiles(e.currentTarget);
           if (files.length) onFiles(files);
         }}
       />

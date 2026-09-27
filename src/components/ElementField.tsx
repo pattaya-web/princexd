@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Field } from "@/components/ui";
 import type { ModelField } from "@/lib/models";
 import { ThumbImg } from "@/components/MediaThumb";
+import { takeFiles } from "@/lib/upload-client";
 
 /**
  * Declaration d'un sujet a preserver, pour le champ `elements` de Kling Omni.
@@ -118,9 +119,8 @@ export function ElementField({
                 multiple
                 accept="image/*,.jfif,.jpe,.heic,.heif,.avif"
                 disabled={disabled}
-                onChange={(e) => {
-                  const files = Array.from(e.target.files ?? []);
-                  e.target.value = "";
+                onChange={async (e) => {
+                  const files = await takeFiles(e.currentTarget);
                   if (files.length) void upload(files);
                 }}
               />

@@ -80,6 +80,37 @@ export async function uploadFile(file: File, onProgress?: (fraction: number) => 
   }
 }
 
+/** Au-dela, on ne copie pas en memoire : un rush de 800 Mo reste un simple handle. */
+const CLONE_MAX = 64 * 1024 * 1024;
+
+/**
+ * Recupere les fichiers d'un <input type="file"> de facon sure.
+ *
+ * Vider `input.value` tout de suite apres le choix (pour pouvoir rechoisir le
+ * meme fichier) invalidait le fichier sur telephone : le navigateur liberait
+ * la copie temporaire de la galerie avant que l'envoi ne l'ait lue, et le
+ * serveur recevait un corps vide ou des octets sans rapport. On copie donc
+ * d'abord les fichiers raisonnables en memoire, puis seulement on vide le
+ * champ ; un gros fichier garde son handle et le champ n'est pas vide.
+ */
+export async function takeFiles(input: HTMLInputElement): Promise<File[]> {
+  const picked = Array.from(input.files ?? []);
+  const files = await Promise.all(
+    picked.map(async (f) => {
+      if (f.size > CLONE_MAX) return f;
+      try {
+        return new File([await f.arrayBuffer()], f.name, { type: f.type, lastModified: f.lastModified });
+      } catch {
+        return f;
+      }
+    }),
+  );
+  if (files.every((f, i) => f !== picked[i])) {
+    try { input.value = ""; } catch { /* certains navigateurs refusent : sans consequence */ }
+  }
+  return files;
+}
+
 export function formatBytes(n: number) {
   if (n > 1e9) return `${(n / 1e9).toFixed(1)} Go`;
   if (n > 1e6) return `${Math.round(n / 1e6)} Mo`;

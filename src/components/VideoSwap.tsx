@@ -28,6 +28,7 @@ import { ErrorNote, Field, useToast } from "./ui";
 import { VideoThumb } from "@/components/MediaThumb";
 import { ThumbImg } from "@/components/MediaThumb";
 import { forgetVoices, loadVoices } from "@/lib/client";
+import { takeFiles } from "@/lib/upload-client";
 
 /**
  * Onglet « Swap vidéo » du Studio, version simple.
@@ -250,9 +251,8 @@ function SourceZone({
         hidden
         accept={accept}
         disabled={disabled}
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          e.target.value = "";
+        onChange={async (e) => {
+          const f = (await takeFiles(e.currentTarget))[0];
           if (f) onFile(f);
         }}
       />
@@ -712,9 +712,8 @@ export function VideoSwap({
       accept={accept}
       multiple={multiple}
       disabled={disabledAll}
-      onChange={(e) => {
-        const files = Array.from(e.target.files ?? []);
-        e.target.value = "";
+      onChange={async (e) => {
+        const files = await takeFiles(e.currentTarget);
         if (files.length) onFiles(files);
       }}
     />
@@ -955,7 +954,7 @@ export function VideoSwap({
               {extraViews.length < 2 && (
                 <label className="btn btn-sm" style={{ cursor: disabledAll ? "not-allowed" : "pointer" }} title="Profil, dos ou tenue complète du même personnage">
                   + dos / tenue
-                  <input type="file" hidden multiple accept="image/*,.jfif,.jpe,.heic,.heif,.avif" disabled={disabledAll} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ""; if (files.length) void addViewFiles(files); }} />
+                  <input type="file" hidden multiple accept="image/*,.jfif,.jpe,.heic,.heif,.avif" disabled={disabledAll} onChange={async (e) => { const files = await takeFiles(e.currentTarget); if (files.length) void addViewFiles(files); }} />
                 </label>
               )}
             </div>
@@ -1067,7 +1066,7 @@ export function VideoSwap({
             <label className="rounded-[8px] flex flex-col items-center justify-center shrink-0" style={{ width: 60, height: 60, border: "1px dashed var(--border-strong)", cursor: disabledAll ? "not-allowed" : "pointer" }}>
               <span className="text-[16px] dim leading-none">+</span>
               <span className="dim text-[9.5px]">produit</span>
-              <input type="file" hidden multiple accept="image/*,.jfif,.jpe,.heic,.heif,.avif" disabled={disabledAll} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ""; if (files.length) void addProductFiles(files); }} />
+              <input type="file" hidden multiple accept="image/*,.jfif,.jpe,.heic,.heif,.avif" disabled={disabledAll} onChange={async (e) => { const files = await takeFiles(e.currentTarget); if (files.length) void addProductFiles(files); }} />
             </label>
           )}
           {product.length > 0 && (
@@ -1201,7 +1200,7 @@ export function VideoSwap({
                         ) : (
                           <label className="btn btn-sm" style={{ cursor: cloneBusy ? "not-allowed" : "pointer" }}>
                             {cloneBusy === "upload" ? <span className="spinner" /> : "Fichier"}
-                            <input type="file" hidden accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.mov" disabled={cloneBusy !== null} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void cloneFile(f); }} />
+                            <input type="file" hidden accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.mov" disabled={cloneBusy !== null} onChange={async (e) => { const f = (await takeFiles(e.currentTarget))[0]; if (f) void cloneFile(f); }} />
                           </label>
                         )}
                         <button className="btn btn-sm btn-primary" onClick={() => void runClone()} disabled={cloneBusy !== null || !cloneName.trim() || (!cloneUrl.trim() && !cloneMedia)}>

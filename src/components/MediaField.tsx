@@ -7,6 +7,7 @@ import { Field } from "@/components/ui";
 import type { ModelField } from "@/lib/models";
 import { VideoThumb } from "@/components/MediaThumb";
 import { ThumbImg } from "@/components/MediaThumb";
+import { takeFiles } from "@/lib/upload-client";
 
 /**
  * Champ media pour le Studio.
@@ -213,9 +214,8 @@ export function MediaField({
               multiple={multiple}
               accept={ACCEPT[kind]}
               disabled={disabled}
-              onChange={(e) => {
-                const files = Array.from(e.target.files ?? []);
-                e.target.value = "";
+              onChange={async (e) => {
+                const files = await takeFiles(e.currentTarget);
                 if (files.length) void upload(files);
               }}
             />
