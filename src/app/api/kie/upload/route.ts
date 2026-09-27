@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { refuseUnless } from "@/lib/sales/access";
 import { uploadToKie, KieError } from "@/lib/kie";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,10 @@ const MAX_BYTES = 100 * 1024 * 1024;
  * qui purge au bout de trois jours.
  */
 export async function POST(req: NextRequest) {
+  // Hors middleware (voir lib/sales/access) : memes roles qu'avant.
+  const refused = refuseUnless(req, ["editor"]);
+  if (refused) return refused;
+
   let form: FormData;
   try {
     form = await req.formData();

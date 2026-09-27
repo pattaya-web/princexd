@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { refuseUnless } from "@/lib/sales/access";
 import { readDB, writeDB } from "@/lib/db";
 import { MAX_UPLOAD_BYTES, OpenAiError, transcribe } from "@/lib/openai";
 
@@ -25,6 +26,10 @@ const ACCEPTED = /\.(mp3|mp4|mpeg|mpga|m4a|wav|webm|mov)$/i;
  * sur ce swipe et devient exploitable par l'analyse.
  */
 export async function POST(req: NextRequest) {
+  // Hors middleware (voir lib/sales/access) : memes roles qu'avant.
+  const refused = refuseUnless(req, []);
+  if (refused) return refused;
+
   let form: FormData;
   try {
     form = await req.formData();

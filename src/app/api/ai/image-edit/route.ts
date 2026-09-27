@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { refuseUnless } from "@/lib/sales/access";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { insert, newId } from "@/lib/db";
@@ -41,6 +42,10 @@ const SIZES = new Set([
  * rapport avec les sources). D'où le passage direct par OpenAI.
  */
 export async function POST(req: NextRequest) {
+  // Hors middleware (voir lib/sales/access) : memes roles qu'avant.
+  const refused = refuseUnless(req, ["editor"]);
+  if (refused) return refused;
+
   const key = getOpenAiKey();
   if (!key) {
     return NextResponse.json(

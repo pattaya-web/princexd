@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { refuseUnless } from "@/lib/sales/access";
 import fs from "node:fs/promises";
 import { createWriteStream } from "node:fs";
 import { Readable, Transform } from "node:stream";
@@ -118,6 +119,10 @@ function respond(name: string, stored: string, size: number) {
  *    au serveur, et l'envoi peut afficher sa progression cote navigateur.
  */
 export async function POST(req: NextRequest) {
+  // Hors middleware (voir lib/sales/access) : memes roles qu'avant.
+  const refused = refuseUnless(req, ["editor", "setter", "closer"]);
+  if (refused) return refused;
+
   await fs.mkdir(MEDIA_DIR, { recursive: true });
   const contentType = req.headers.get("content-type") ?? "";
 

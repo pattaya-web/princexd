@@ -240,3 +240,19 @@ export function canWriteSetterFields(session: Session, row: { setterId?: string 
 export function canSeeMember(session: Session, memberId: string): boolean {
   return session.isAdmin || session.memberId === memberId;
 }
+
+/**
+ * Controle d'acces fait dans la route elle-meme.
+ *
+ * Les routes qui recoivent un fichier (upload, image-edit, transcription)
+ * sont sorties du middleware : en mode Node, celui-ci consommait le debut du
+ * corps de la requete (les 12 premiers Ko d'un fichier arrivaient amputes et
+ * un multipart perdait son premier champ). Elles verifient donc leur session
+ * ici, avec les memes roles que le middleware leur accordait.
+ */
+export function refuseUnless(req: NextRequest, roles: SessionRole[]): Response | null {
+  const session = readSession(req);
+  if (session.isAdmin || session.role === "owner") return null;
+  if (roles.includes(session.role)) return null;
+  return Response.json({ error: "Accès refusé." }, { status: 403 });
+}

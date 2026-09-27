@@ -138,7 +138,10 @@ function publicOrigin(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Les routes qui recoivent un fichier sont exclues : le middleware Node
+  // consommait le debut du corps de la requete (fichiers amputes). Elles
+  // verifient leur session elles-memes (refuseUnless dans lib/sales/access).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/upload|api/kie/upload|api/ai/image-edit|api/ai/transcribe-file).*)"],
   // Runtime Node : les variables d'environnement du serveur (OWNER_PASSWORD)
   // sont lues a l'execution, pas figees au build.
   runtime: "nodejs",
