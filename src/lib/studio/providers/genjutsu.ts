@@ -101,7 +101,12 @@ export function genjutsuPrompt(i: ProviderInput): string {
   const user = i.userPrompt?.trim() ?? "";
   // Une consigne deja structuree (bouton « Rédiger la consigne ») part telle quelle.
   if (/^edit @video/i.test(user)) return user.slice(0, 3900);
-  const parts = ["Replace the main character with the character from my references."];
+  const several = (i.referenceImageUrls?.length ?? 0) > 1;
+  const parts = [
+    several
+      ? "Replace the main character entirely with the person shown in my reference images (the same person: close-up face first, then full-body views): reproduce her exact face (eyes, nose, lips, jawline, skin tone), hair and outfit. Nothing of the original person's face may remain."
+      : "Replace the main character entirely with the person from my reference image: reproduce her exact face (eyes, nose, lips, jawline, skin tone), hair and outfit. Nothing of the original person's face may remain.",
+  ];
   if (i.sceneImageUrl) parts.push("Replace the scene location with the environment from my references.");
   if (i.product?.urls.length) {
     parts.push(`Keep the product held in the hand exactly as shown in the product reference images (${i.product.description?.trim() || "the product"}): same label, colors and shape.`);

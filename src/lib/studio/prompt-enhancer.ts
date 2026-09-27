@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { askVision, KieError } from "@/lib/kie";
+import { askText, askVision, KieError } from "@/lib/kie";
 import { getOpenAiKey, OPENAI_BASE } from "@/lib/openai";
 import { ensureLocal, probe, publishToKie, runFf } from "./media";
 
@@ -181,5 +181,72 @@ Write the prompt now.`;
         : err.message,
       err.code === 401 ? 401 : 502,
     );
+  }
+}
+
+/* ------------------------- Planche de référence ------------------------- */
+
+export interface SheetPanel {
+  x0: number;
+  x1: number;
+  kind: "portrait" | "front" | "back" | "other";
+}
+
+/**
+ * Une image de référence large est-elle une planche (face, dos, portrait
+ * côte à côte) ? Le modèle vision renvoie les bornes de chaque panneau.
+ * Aucune détection locale fiable : les gouttières ne sont pas toujours
+ * blanches, les panneaux pas toujours égaux. Vide si ce n'est pas une planche.
+ */
+export async function analyzeSheet(imageUrl: string): Promise<SheetPanel[]> {
+  const system = "You analyse reference images for a video tool. Answer with JSON only, no prose.";
+  const prompt =
+    "Is this image a character sheet made of several separate photos placed side by side (for example: full-body front view, back view, close-up portrait)? " +
+    "If yes, list the panels from left to right with their horizontal bounds as fractions of the image width (0 to 1), and their kind: " +
+    '"portrait" (close-up of the face), "front" (full body from the front), "back" (from behind) or "other". ' +
+    'Reply exactly like {"panels":[{"x0":0,"x1":0.33,"kind":"front"},...]} . If it is a single photo, reply {"panels":[]}.';
+  let raw = "";
+  try {
+    raw = await askVisionOpenAi(prompt, system, [imageUrl], 300);
+  } catch {
+    try {
+      raw = await askVision(prompt, system, [imageUrl], 300);
+    } catch {
+      return [];
+    }
+  }
+  try {
+    const json = JSON.parse(raw.replace(/^```(?:json)?/m, "").replace(/```$/m, "").trim()) as { panels?: SheetPanel[] };
+    const panels = (json.panels ?? [])
+      .map((p) => ({ x0: Number(p.x0), x1: Number(p.x1), kind: p.kind }))
+      .filter((p) => Number.isFinite(p.x0) && Number.isFinite(p.x1) && p.x1 - p.x0 >= 0.12 && p.x0 >= 0 && p.x1 <= 1.001);
+    return panels.length >= 2 && panels.length <= 4 ? panels : [];
+  } catch {
+    return [];
+  }
+}
+
+/* ------------------------------ Traduction ------------------------------ */
+
+const FRENCH_HINT = /\b(remplace|remplacer|garde|garder|mon|ma|mes|le|la|les|avec|dans|même|comme|elle|tient|décor|cadrage|vidéo|visage|tenue)\b/i;
+
+/**
+ * Les modèles vidéo comprennent l'anglais bien mieux que le français : une
+ * consigne écrite en français est traduite avant l'envoi, sans rien changer
+ * au sens ni aux balises (@Video 1, @Image 2). Déjà en anglais : inchangée.
+ * En cas de panne du modèle texte, la consigne part telle quelle.
+ */
+export async function toEnglish(text: string): Promise<string> {
+  const t = text.trim();
+  if (!t || !FRENCH_HINT.test(t)) return t;
+  const system = "You translate video-generation instructions from French to English. Keep the meaning, the imperative tone and every @Video / @Image tag exactly. Reply with the translation only.";
+  try {
+    return (await askVisionOpenAi(t, system, [], 800)).trim() || t;
+  } catch {
+    try {
+      return (await askText(t, system, 800)).trim() || t;
+    } catch {
+      return t;
+    }
   }
 }

@@ -1,6 +1,8 @@
 import { PROVIDERS } from "./config";
 import { quote } from "./costs";
-import { compressVideo, ensureLocal, firstFrame, makeReferenceSheet, nearestAspect, probe, publishToKie } from "./media";
+import { compressVideo, cropPanels, ensureLocal, firstFrame, makeReferenceSheet, nearestAspect, probe, publishToKie, refinePanelBounds } from "./media";
+import { analyzeSheet, toEnglish } from "./prompt-enhancer";
+import { buildPrompt } from "./prompts";
 import { getProvider, type PollResult } from "./providers";
 import { noProviderReason, providerRejects, selectBestProvider } from "./select-provider";
 import type { ProviderId, ProviderInput, StudioJob } from "./types";
@@ -80,7 +82,7 @@ export async function startTransformation(
    */
   const views = (job.referenceImages?.length ? job.referenceImages : [job.referenceImage]).slice(0, 3);
   let remoteReferenceUrls = job.remoteReferenceUrls ?? [];
-  if (remoteReferenceUrls.length !== views.length) {
+  if (!job.referenceSplit && remoteReferenceUrls.length !== views.length) {
     remoteReferenceUrls = [];
     for (const [k, u] of views.entries()) {
       const local = k === 0 ? ref : await ensureLocal(u);
@@ -89,6 +91,35 @@ export async function startTransformation(
     await onProgress({ remoteReferenceUrls });
   }
   const multi = Boolean(PROVIDERS[provider].multiRef);
+
+  /*
+   * Une seule photo, large : c'est souvent une planche (face, dos, portrait
+   * côte à côte). Sur une planche, le visage n'occupe qu'un coin et les
+   * modèles le reproduisent mal (« ma tête en fille »). On demande au modèle
+   * vision où sont les panneaux, on les découpe, et les modèles multi-images
+   * reçoivent le portrait en première position, puis les autres vues, puis la
+   * planche entière. Une seule fois par job : les relances réutilisent.
+   */
+  if (multi && views.length === 1 && !job.referenceSplit && remoteReferenceUrls.length === 1) {
+    try {
+      const dims = await probe(ref.path);
+      if (dims.width && dims.height && dims.width / dims.height >= 1.35) {
+        const panels = await analyzeSheet(remoteReferenceUrls[0]);
+        if (panels.length) {
+          const refined = await refinePanelBounds(ref.path, [...panels].sort((a, b) => a.x0 - b.x0));
+          const ordered = [...refined].sort((a, b) => (a.kind === "portrait" ? -1 : b.kind === "portrait" ? 1 : 0));
+          const crops = await cropPanels(ref.path, ordered);
+          const published: string[] = [];
+          for (const [k, c] of crops.entries()) published.push(await publishToKie(c.path, `${ordered[k].kind}-${k + 1}.jpg`));
+          remoteReferenceUrls = [...published, remoteReferenceUrls[0]];
+          await onProgress({ remoteReferenceUrls, referenceSplit: true, referenceSheet: ref.url });
+        }
+      }
+    } catch {
+      // Planche non reconnue ou découpe impossible : la photo part telle quelle.
+    }
+  }
+
   if (!remoteReferenceUrl) {
     if (views.length > 1 && !multi) {
       const paths = [ref.path];
@@ -129,12 +160,25 @@ export async function startTransformation(
     await onProgress({ remoteSceneUrl });
   }
 
+  // Consigne en anglais : traduite une fois, gardée pour les relances.
+  let userPromptEn = job.userPromptEn ?? "";
+  let prompt = job.prompt;
+  if (!userPromptEn && job.userPrompt?.trim()) {
+    userPromptEn = await toEnglish(job.userPrompt);
+    if (userPromptEn !== job.userPrompt.trim()) {
+      prompt = buildPrompt(job.transform, job.style, userPromptEn, hasProduct ? { description: job.productDescription } : null);
+      await onProgress({ userPromptEn, prompt });
+    } else {
+      await onProgress({ userPromptEn });
+    }
+  }
+
   const input: ProviderInput = {
     sourceVideoUrl: remoteSourceUrl,
     referenceImageUrl: remoteReferenceUrl,
     referenceImageUrls: multi ? remoteReferenceUrls : [remoteReferenceUrl],
-    userPrompt: job.userPrompt,
-    prompt: job.prompt,
+    userPrompt: userPromptEn || job.userPrompt,
+    prompt,
     negativePrompt: job.negativePrompt,
     resolution: job.resolution,
     aspectRatio: job.aspectRatio === "original" ? nearestAspect(info.width, info.height) : job.aspectRatio,

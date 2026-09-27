@@ -314,6 +314,77 @@ export async function makeReferenceSheet(paths: string[]): Promise<{ url: string
   }
 }
 
+/**
+ * Affine des bornes de panneaux approximatives.
+ *
+ * Le modèle vision place les séparations à peu près (souvent en tiers égaux) ;
+ * la vraie gouttière est la colonne la plus claire à proximité. On lit la
+ * luminosité moyenne de chaque colonne (ffmpeg réduit l'image à une ligne) et
+ * on déplace chaque borne vers la colonne la plus claire dans une fenêtre de
+ * ±12 % de la largeur. Sans gouttière nette, la borne reste où elle est.
+ */
+export async function refinePanelBounds<T extends { x0: number; x1: number }>(imagePath: string, panels: T[]): Promise<T[]> {
+  if (panels.length < 2) return panels;
+  const dir = await tmpDir();
+  try {
+    const raw = path.join(dir, "cols.raw");
+    await runFf("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", imagePath, "-vf", "scale=iw:1:flags=area,format=gray", "-f", "rawvideo", "-pix_fmt", "gray", raw], 60_000);
+    const cols = await fs.readFile(raw);
+    const w = cols.length;
+    if (w < 50) return panels;
+    const refine = (frac: number) => {
+      const lo = Math.max(1, Math.floor(w * (frac - 0.12)));
+      const hi = Math.min(w - 1, Math.ceil(w * (frac + 0.12)));
+      let best = Math.round(w * frac);
+      for (let x = lo; x < hi; x++) if (cols[x] > cols[best]) best = x;
+      // Une gouttière se distingue nettement (proche du blanc) ; sinon on ne bouge pas.
+      return cols[best] >= 225 ? best / w : frac;
+    };
+    // Bornes internes partagées entre panneaux voisins : on les affine une fois chacune.
+    const out = panels.map((p) => ({ ...p }));
+    for (let k = 0; k < out.length - 1; k++) {
+      const cut = refine((out[k].x1 + out[k + 1].x0) / 2);
+      out[k].x1 = cut;
+      out[k + 1].x0 = cut;
+    }
+    out[0].x0 = 0;
+    out[out.length - 1].x1 = 1;
+    return out;
+  } catch {
+    return panels;
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/**
+ * Découpe une planche (plusieurs photos côte à côte) en panneaux séparés,
+ * selon des bornes horizontales en fraction de la largeur. Chaque panneau
+ * devient une image de référence à part entière : un modèle qui reçoit le
+ * portrait serré seul reproduit le visage bien mieux que sur une vignette
+ * perdue dans une planche large.
+ */
+export async function cropPanels(imagePath: string, panels: { x0: number; x1: number }[]): Promise<{ url: string; path: string }[]> {
+  const dir = await tmpDir();
+  const out: { url: string; path: string }[] = [];
+  try {
+    for (const [k, p] of panels.entries()) {
+      const x0 = Math.max(0, Math.min(0.98, p.x0));
+      const x1 = Math.max(x0 + 0.02, Math.min(1, p.x1));
+      const tmp = path.join(dir, `panel-${k}.jpg`);
+      await runFf("ffmpeg", [
+        "-hide_banner", "-loglevel", "error", "-y", "-i", imagePath,
+        "-vf", `crop=floor(iw*${(x1 - x0).toFixed(4)}/2)*2:ih:floor(iw*${x0.toFixed(4)}):0`,
+        "-frames:v", "1", "-q:v", "2", tmp,
+      ], 60_000);
+      out.push(await storeFile(tmp, ".jpg"));
+    }
+    return out;
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 /** Piste audio d'une vidéo, en mp3 44,1 kHz : ce qu'ElevenLabs lit le mieux. */
 export async function extractAudioMp3(videoPath: string): Promise<Buffer> {
   const dir = await tmpDir();

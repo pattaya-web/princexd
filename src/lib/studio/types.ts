@@ -130,6 +130,10 @@ export interface StudioJob {
   remoteReferenceUrls: string[];
   /** Planche multi-vues assemblée (locale), quand plusieurs photos ont été fournies. */
   referenceSheet: string;
+  /** La référence unique était une planche : découpée en panneaux (portrait d'abord) dans remoteReferenceUrls. */
+  referenceSplit?: boolean;
+  /** Consigne traduite en anglais, telle qu'envoyée au modèle. */
+  userPromptEn?: string;
   /** Nouveau lieu (locale) et sa copie publiée. Vide : le décor de la vidéo est gardé. */
   sceneImage: string;
   remoteSceneImageUrl: string;
