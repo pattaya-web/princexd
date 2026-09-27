@@ -131,8 +131,8 @@ export async function createWebhook(url: string, secret: string): Promise<SioWeb
       secret,
       active: true,
       subscriptions: [
-        { event: "CONTACT_OPT_IN", schemaVersion: 2 },
-        { event: "CONTACT_CREATED", schemaVersion: 2 },
+        { event: "CONTACT_OPT_IN", schemaVersion: 1 },
+        { event: "CONTACT_CREATED", schemaVersion: 1 },
       ],
     }),
   });
