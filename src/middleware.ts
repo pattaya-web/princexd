@@ -75,7 +75,7 @@ const SALES_APIS = ["/api/sales/", "/api/auth/editor", "/api/upload", "/api/medi
  *    et les navigateurs des membres vont les chercher sans jeton ;
  *  - les webhooks et callbacks, appeles par des services tiers.
  */
-const PUBLIC = ["/login", "/api/sales/session", "/api/media/", "/api/webhooks/", "/api/kie/callback"];
+const PUBLIC = ["/login", "/api/sales/session", "/api/media/", "/api/webhooks/", "/api/kie/callback", "/api/version"];
 
 /**
  * Site en ligne : `OWNER_PASSWORD` est defini et l'absence de cookie ne vaut

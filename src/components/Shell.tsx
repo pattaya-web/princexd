@@ -711,6 +711,61 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
       {/* Hors du <main> : il ne doit pas etre remonte a chaque navigation. */}
       <JobsDock />
+      <NewVersionBanner />
+    </div>
+  );
+}
+
+/* ------------------------- Nouvelle version en ligne ------------------------ */
+
+/**
+ * Un onglet ouvert avant un deploiement garde l'ancien code : l'envoi de
+ * fichiers d'un seul bloc, l'ancienne liste « A appeler »… et rien ne le
+ * dit. On compare l'identifiant de build a celui du chargement, toutes les
+ * cinq minutes et au retour sur l'onglet, et on propose de recharger.
+ */
+function NewVersionBanner() {
+  const [stale, setStale] = useState(false);
+
+  useEffect(() => {
+    let initial = "";
+    let alive = true;
+    const check = async () => {
+      try {
+        const r = await fetch("/api/version", { cache: "no-store" });
+        const { build } = (await r.json()) as { build?: string };
+        if (!alive || !build || build === "dev") return;
+        if (!initial) initial = build;
+        else if (build !== initial) setStale(true);
+      } catch {
+        // Reseau coupe : on reessaiera au prochain tour.
+      }
+    };
+    void check();
+    const id = setInterval(() => void check(), 5 * 60_000);
+    const wake = () => {
+      if (document.visibilityState === "visible") void check();
+    };
+    document.addEventListener("visibilitychange", wake);
+    window.addEventListener("focus", wake);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", wake);
+      window.removeEventListener("focus", wake);
+    };
+  }, []);
+
+  if (!stale) return null;
+  return (
+    <div
+      className="fixed left-1/2 -translate-x-1/2 z-40 rise flex items-center gap-3 px-4 py-2.5 rounded-[10px]"
+      style={{ top: 12, background: "var(--surface)", border: "1px solid var(--accent)", boxShadow: "var(--shadow-lg)" }}
+    >
+      <span className="text-[12.5px]">Une nouvelle version du tool est en ligne.</span>
+      <button className="btn btn-sm btn-primary" onClick={() => window.location.reload()}>
+        Recharger
+      </button>
     </div>
   );
 }
