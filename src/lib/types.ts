@@ -321,7 +321,22 @@ export interface Lead {
   /** Appels passes sans reponse, depuis la liste « A appeler ». */
   callAttempts?: number;
   lastCallAt?: string;
+  /** Dernier statut d'appel pose par le setter (liste « A appeler »). */
+  callStatus?: LeadCallStatus;
+  /** Rappel demande par le prospect : date et heure (ISO). */
+  callbackAt?: string;
 }
+
+/**
+ * Statut d'appel d'un prospect de la landing page.
+ *  - no-answer      : ne repond pas ;
+ *  - message-sent   : message laisse (SMS, WhatsApp, vocal) ;
+ *  - callback       : demande a etre rappele, a la date `callbackAt` ;
+ *  - reached        : appele et joint, rendez-vous a fixer ;
+ *  - not-interested : pas interesse, sort de la liste.
+ * « Rendez-vous pris » n'est pas un statut : c'est un rendez-vous cree.
+ */
+export type LeadCallStatus = "no-answer" | "message-sent" | "callback" | "reached" | "not-interested";
 
 export interface Student {
   id: ID;

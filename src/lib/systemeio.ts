@@ -24,7 +24,8 @@ import type { DB, Lead, TeamMember } from "@/lib/types";
 const BASE = "https://api.systeme.io/api";
 const SYNC_MIN_INTERVAL_MS = 3 * 60_000;
 const SYNC_MAX_CONTACTS = 300;
-const FIRST_SYNC_DAYS = 3;
+// Premiere synchro : un mois d'inscrits, pour que la liste ne demarre pas vide.
+const FIRST_SYNC_DAYS = 30;
 
 export class SystemeioError extends Error {
   code: number;
@@ -331,8 +332,8 @@ export async function syncSystemeio(opts: { force?: boolean } = {}): Promise<Imp
       const last = settings.systemeioLastSyncAt ?? "";
       if (!opts.force && last && Date.now() - new Date(last).getTime() < SYNC_MIN_INTERVAL_MS) return null;
       // Marge de 24 h sur la borne : les horloges et les webhooks en retard ne font perdre personne.
-      // Premiere synchro : seulement les trois derniers jours. Un setter appelle
-      // les inscrits frais, pas six mois d'historique d'un coup.
+      // Premiere synchro : le dernier mois. Un setter appelle les inscrits
+      // recents, pas des annees d'historique d'un coup.
       const stopBefore = last
         ? new Date(new Date(last).getTime() - 24 * 3600_000).toISOString()
         : new Date(Date.now() - FIRST_SYNC_DAYS * 24 * 3600_000).toISOString();

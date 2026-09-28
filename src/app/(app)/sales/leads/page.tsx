@@ -2,19 +2,32 @@
 
 import { useMemo, useState } from "react";
 import { api } from "@/lib/client";
-import { relative } from "@/lib/format";
+import { fmtDateTime, relative } from "@/lib/format";
 import { useSalesData } from "@/lib/sales/client";
 import { hasRole } from "@/lib/sales/roles";
 import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, StatTile, useToast } from "@/components/ui";
 import { useSales } from "@/components/sales/context";
-import type { CallLeadRow } from "@/app/api/sales/leads/route";
+import type { CallBucket, CallLeadRow } from "@/app/api/sales/leads/route";
 import type { PublicMember } from "@/lib/sales/repo";
+import type { LeadCallStatus } from "@/lib/types";
 
-const BUCKETS = [
-  { key: "new", title: "Nouveaux, à appeler maintenant", tone: "var(--accent)" },
-  { key: "retry", title: "À rappeler", tone: "var(--warning)" },
-  { key: "talking", title: "Joints, rendez-vous à fixer", tone: "var(--good)" },
-] as const;
+/** Groupes, dans l'ordre de traitement : ce qu'il faut faire maintenant en haut. */
+const BUCKETS: { key: CallBucket; title: string; hint: string; tone: string }[] = [
+  { key: "due", title: "Rappels à passer maintenant", hint: "Ils ont demandé à être rappelés, l'heure est passée.", tone: "var(--critical)" },
+  { key: "new", title: "Nouveaux, jamais appelés", hint: "Le plus récent en premier : il vient de s'inscrire, il est chaud.", tone: "var(--accent)" },
+  { key: "retry", title: "À retenter", hint: "Pas de réponse ou message laissé. Le plus ancien essai en premier.", tone: "var(--warning)" },
+  { key: "later", title: "Rappels prévus", hint: "Ils ont donné un créneau, ne pas appeler avant.", tone: "var(--text-2)" },
+  { key: "talking", title: "Joints, rendez-vous à fixer", hint: "Tu les as eus au téléphone : il manque la date du call.", tone: "var(--good)" },
+  { key: "booked", title: "Call de vente pris", hint: "Rendez-vous enregistré, le closer prend le relais.", tone: "var(--emerald)" },
+];
+
+const STATUS_LABEL: Record<LeadCallStatus, string> = {
+  "no-answer": "Ne répond pas",
+  "message-sent": "Message envoyé",
+  callback: "Demande à être rappelé",
+  reached: "Appelé, joint",
+  "not-interested": "Pas intéressé",
+};
 
 const COUNTRY: Record<string, string> = { FR: "France", BE: "Belgique", CH: "Suisse", CA: "Canada", AE: "Émirats", MA: "Maroc", DZ: "Algérie", TN: "Tunisie", LU: "Luxembourg" };
 
@@ -30,32 +43,65 @@ function localHint(country?: string): string {
   }
 }
 
+/** Valeur d'un <input type="datetime-local"> pour une heure locale donnee. */
+function localInputValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /**
- * Les prospects de la landing page, a appeler dans l'ordre d'arrivee.
+ * Les prospects de la landing page (Systeme.io), a appeler dans l'ordre.
  *
- * Un lead vient de laisser son numero : il est chaud maintenant, pas demain.
- * La page ne montre que ce qui reste a faire, avec le numero cliquable et
- * trois boutons, pour que le setter enchaine les appels sans naviguer.
+ * La liste se resynchronise a chaque ouverture (au plus toutes les trois
+ * minutes), ne montre que ce qui reste a faire, dans l'ordre ou il faut le
+ * faire, et chaque ligne se statue en un clic : ne repond pas, message
+ * envoye, a rappeler a telle heure, joint, pas interesse, rendez-vous pris.
  */
 export default function CallLeadsPage() {
   const { session, members, version, bump } = useSales();
   const toast = useToast();
   const [booking, setBooking] = useState<CallLeadRow | null>(null);
+  const [callbackFor, setCallbackFor] = useState<CallLeadRow | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [busy, setBusy] = useState("");
+
+  const setters = useMemo(() => members.filter((m) => hasRole(m, "setter") && m.status !== "inactif"), [members]);
 
   const { data, loading, error, reload } = useSalesData<{
     rows: CallLeadRow[];
-    counts: { new: number; retry: number; talking: number };
+    counts: Record<CallBucket, number> & { notInterested: number };
     lastSyncAt: string;
     syncError: string;
   }>(`/api/sales/leads?v=${version}`);
 
-  const act = async (lead: CallLeadRow, action: "attempt" | "reached" | "lost", reason?: string) => {
+  const setStatus = async (lead: CallLeadRow, status: LeadCallStatus, callbackAt?: string, note?: string) => {
+    setBusy(lead.id);
     try {
-      await api(`/api/sales/leads/${lead.id}`, { method: "PATCH", body: JSON.stringify({ action, reason }) });
-      toast(action === "attempt" ? "Noté : pas de réponse, à rappeler demain." : action === "reached" ? "Noté : prospect joint." : "Lead classé perdu.");
+      await api(`/api/sales/leads/${lead.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ action: "status", status, callbackAt, note }),
+      });
+      toast(
+        status === "callback" && callbackAt
+          ? `Rappel noté pour le ${fmtDateTime(callbackAt)}.`
+          : status === "not-interested"
+            ? `${lead.name} sort de la liste.`
+            : `Noté : ${STATUS_LABEL[status].toLowerCase()}.`,
+      );
       void reload();
       bump();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const assign = async (lead: CallLeadRow, setterId: string) => {
+    try {
+      await api(`/api/sales/leads/${lead.id}`, { method: "PATCH", body: JSON.stringify({ action: "assign", setterId }) });
+      toast("Lead réattribué.");
+      void reload();
     } catch (e) {
       toast((e as Error).message, "err");
     }
@@ -76,14 +122,20 @@ export default function CallLeadsPage() {
   };
 
   const rows = data?.rows ?? [];
+  const c = data?.counts;
+  const todo = (c?.due ?? 0) + (c?.new ?? 0) + (c?.retry ?? 0);
 
   return (
     <>
       <PageHeader
         title="À appeler"
-        subtitle="Les prospects qui viennent de laisser leurs coordonnées sur la landing page. Appelle dans les cinq minutes : c'est là que ça décroche."
+        subtitle={
+          data?.lastSyncAt
+            ? `Contacts Systeme.io synchronisés ${relative(data.lastSyncAt)}. Appelle dans les cinq minutes qui suivent l'inscription : c'est là que ça décroche.`
+            : "Les prospects qui viennent de laisser leurs coordonnées sur la landing page."
+        }
         actions={
-          <button className="btn" onClick={() => void sync()} disabled={syncing} title={data?.lastSyncAt ? `Dernière synchro ${relative(data.lastSyncAt)}` : "Jamais synchronisé"}>
+          <button className="btn" onClick={() => void sync()} disabled={syncing} title="Relire Systeme.io tout de suite">
             {syncing ? <span className="spinner" /> : "↻ Vérifier les nouveaux"}
           </button>
         }
@@ -95,10 +147,13 @@ export default function CallLeadsPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        <StatTile label="Nouveaux" value={data?.counts.new ?? 0} accent={data?.counts.new ? "var(--accent)" : undefined} />
-        <StatTile label="À rappeler" value={data?.counts.retry ?? 0} accent={data?.counts.retry ? "var(--warning)" : undefined} />
-        <StatTile label="Joints" value={data?.counts.talking ?? 0} />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+        <StatTile label="À appeler" value={todo} accent={todo ? "var(--accent)" : undefined} hint={c?.due ? `${c.due} rappel${c.due > 1 ? "s" : ""} en retard` : undefined} />
+        <StatTile label="Nouveaux" value={c?.new ?? 0} />
+        <StatTile label="À retenter" value={c?.retry ?? 0} accent={c?.retry ? "var(--warning)" : undefined} />
+        <StatTile label="Rappels prévus" value={c?.later ?? 0} />
+        <StatTile label="Joints" value={c?.talking ?? 0} accent={c?.talking ? "var(--good)" : undefined} />
+        <StatTile label="Calls pris" value={c?.booked ?? 0} accent={c?.booked ? "var(--emerald)" : undefined} hint={c?.notInterested ? `${c.notInterested} pas intéressé${c.notInterested > 1 ? "s" : ""}` : undefined} />
       </div>
 
       {loading && !data ? (
@@ -115,25 +170,39 @@ export default function CallLeadsPage() {
             const items = rows.filter((r) => r.bucket === bucket.key);
             if (!items.length) return null;
             return (
-              <Card key={bucket.key} title={bucket.title} padded={false}>
+              <Card key={bucket.key} title={`${bucket.title} · ${items.length}`} subtitle={bucket.hint} padded={false}>
                 <ul>
                   {items.map((l, i) => {
                     const hint = localHint(l.country);
+                    const booked = bucket.key === "booked";
                     return (
                       <li
                         key={l.id}
                         className="px-3.5 py-3 flex items-center gap-3 flex-wrap"
-                        style={{ borderBottom: i < items.length - 1 ? "1px solid var(--border)" : "none" }}
+                        style={{ borderBottom: i < items.length - 1 ? "1px solid var(--border)" : "none", borderLeft: `3px solid ${bucket.tone}` }}
                       >
-                        <span className="min-w-0 flex-1 basis-[220px]">
+                        <span className="min-w-0 flex-1 basis-[240px]">
                           <span className="block text-[13.5px] font-medium truncate">{l.name}</span>
                           <span className="dim text-[11.5px] flex flex-wrap gap-x-2">
                             <span title={l.optInAt || l.createdAt}>inscrit {relative(l.optInAt || l.createdAt)}</span>
                             {l.country && <span>· {COUNTRY[l.country] ?? l.country}{hint ? ` (il est ${hint} chez lui)` : ""}</span>}
-                            {(l.callAttempts ?? 0) > 0 && <span>· {l.callAttempts} appel{l.callAttempts! > 1 ? "s" : ""} sans réponse</span>}
-                            {session.isAdmin && l.setterName && <span>· {l.setterName}</span>}
+                            {l.callStatus && !booked && (
+                              <span>
+                                · {STATUS_LABEL[l.callStatus]}
+                                {l.callStatus === "callback" && l.callbackAt ? ` le ${fmtDateTime(l.callbackAt)}` : ""}
+                                {l.callStatus === "no-answer" && (l.callAttempts ?? 0) > 1 ? ` (${l.callAttempts} essais)` : ""}
+                                {l.lastCallAt ? `, ${relative(l.lastCallAt)}` : ""}
+                              </span>
+                            )}
+                            {booked && l.appointmentAt && (
+                              <span style={{ color: "var(--emerald)" }}>
+                                · call le {fmtDateTime(l.appointmentAt)}{l.closerName ? ` avec ${l.closerName}` : ", closer à attribuer"}
+                              </span>
+                            )}
+                            {!l.setterId && <span style={{ color: "var(--warning)" }}>· sans setter, premier qui appelle le prend</span>}
                           </span>
                         </span>
+
                         <span className="flex items-center gap-2 flex-wrap">
                           {l.phone ? (
                             <a className="btn btn-sm btn-primary" href={`tel:${l.phone}`} title="Appeler">
@@ -147,30 +216,54 @@ export default function CallLeadsPage() {
                               ✉ {l.email.length > 26 ? `${l.email.slice(0, 24)}…` : l.email}
                             </a>
                           )}
-                        </span>
-                        <span className="flex gap-1.5 shrink-0 ml-auto">
-                          <button className="btn btn-sm" onClick={() => setBooking(l)} title="Le prospect a accepté un rendez-vous">
-                            ✓ RDV pris
-                          </button>
-                          {l.bucket !== "talking" && (
-                            <button className="btn btn-sm" onClick={() => void act(l, "reached")} title="Joint, mais pas encore de rendez-vous">
-                              Joint
-                            </button>
+                          {session.isAdmin && setters.length > 0 && (
+                            <select
+                              className="select !h-[26px] !text-[11.5px] !w-auto"
+                              value={l.setterId ?? ""}
+                              title="Setter chargé de ce lead"
+                              onChange={(e) => void assign(l, e.target.value)}
+                            >
+                              <option value="">Setter…</option>
+                              {setters.map((m) => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
                           )}
-                          <button className="btn btn-sm btn-ghost" onClick={() => void act(l, "attempt")} title="Pas de réponse : rappel demain">
-                            Pas de réponse
-                          </button>
-                          <button
-                            className="btn btn-sm btn-ghost"
-                            onClick={() => {
-                              const reason = window.prompt("Pourquoi ? (pas intéressé, faux numéro…)") ?? "";
-                              void act(l, "lost", reason);
-                            }}
-                            title="Pas intéressé ou injoignable définitivement"
-                          >
-                            ✕
-                          </button>
                         </span>
+
+                        {!booked && (
+                          <span className="flex gap-1.5 shrink-0 ml-auto flex-wrap">
+                            <button className="btn btn-sm" onClick={() => setBooking(l)} disabled={busy === l.id} title="Le prospect a accepté un rendez-vous">
+                              ✓ Call pris
+                            </button>
+                            {l.callStatus !== "reached" && (
+                              <button className="btn btn-sm" onClick={() => void setStatus(l, "reached")} disabled={busy === l.id} title="Appelé et joint, rendez-vous à fixer">
+                                Joint
+                              </button>
+                            )}
+                            <button className="btn btn-sm" onClick={() => setCallbackFor(l)} disabled={busy === l.id} title="Il demande à être rappelé : choisir la date et l'heure">
+                              ⏰ À rappeler
+                            </button>
+                            <button className="btn btn-sm btn-ghost" onClick={() => void setStatus(l, "no-answer")} disabled={busy === l.id} title="Pas de réponse">
+                              Ne répond pas
+                            </button>
+                            <button className="btn btn-sm btn-ghost" onClick={() => void setStatus(l, "message-sent")} disabled={busy === l.id} title="Message laissé (SMS, WhatsApp, vocal)">
+                              Message envoyé
+                            </button>
+                            <button
+                              className="btn btn-sm btn-ghost"
+                              disabled={busy === l.id}
+                              onClick={() => {
+                                const reason = window.prompt("Pas intéressé : pourquoi ? (optionnel)") ?? null;
+                                if (reason === null) return;
+                                void setStatus(l, "not-interested", undefined, reason);
+                              }}
+                              title="Pas intéressé : sort de la liste"
+                            >
+                              ✕ Pas intéressé
+                            </button>
+                          </span>
+                        )}
                       </li>
                     );
                   })}
@@ -179,6 +272,18 @@ export default function CallLeadsPage() {
             );
           })}
         </div>
+      )}
+
+      {callbackFor && (
+        <CallbackModal
+          lead={callbackFor}
+          onClose={() => setCallbackFor(null)}
+          onPick={async (at, note) => {
+            const l = callbackFor;
+            setCallbackFor(null);
+            await setStatus(l, "callback", at, note);
+          }}
+        />
       )}
 
       {booking && (
@@ -196,6 +301,86 @@ export default function CallLeadsPage() {
         />
       )}
     </>
+  );
+}
+
+/* ------------------------------ À rappeler ------------------------------ */
+
+function CallbackModal({
+  lead,
+  onClose,
+  onPick,
+}: {
+  lead: CallLeadRow;
+  onClose: () => void;
+  onPick: (atIso: string, note: string) => Promise<void>;
+}) {
+  const defaultAt = useMemo(() => {
+    const d = new Date(Date.now() + 2 * 3600_000);
+    d.setMinutes(0, 0, 0);
+    return localInputValue(d);
+  }, []);
+  const [at, setAt] = useState(defaultAt);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  // Raccourcis : les cas qui reviennent a chaque appel.
+  const quick = (label: string, when: () => Date) => (
+    <button
+      type="button"
+      className="btn btn-sm"
+      onClick={() => {
+        const d = when();
+        d.setSeconds(0, 0);
+        setAt(localInputValue(d));
+      }}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Rappeler ${lead.name}`}
+      footer={
+        <>
+          <button className="btn" onClick={onClose} disabled={busy}>Annuler</button>
+          <button
+            className="btn btn-primary"
+            disabled={busy || !at}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await onPick(new Date(at).toISOString(), note);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? <span className="spinner" /> : "Noter le rappel"}
+          </button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3.5">
+        <div className="flex gap-1.5 flex-wrap">
+          {quick("Dans 1 h", () => new Date(Date.now() + 3600_000))}
+          {quick("Ce soir 18 h", () => { const d = new Date(); d.setHours(18, 0); return d; })}
+          {quick("Demain 10 h", () => { const d = new Date(Date.now() + 24 * 3600_000); d.setHours(10, 0); return d; })}
+          {quick("Demain 14 h", () => { const d = new Date(Date.now() + 24 * 3600_000); d.setHours(14, 0); return d; })}
+          {quick("Lundi 10 h", () => { const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); d.setHours(10, 0); return d; })}
+        </div>
+        <Field label="Date et heure du rappel (ton heure)">
+          <input className="input" type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
+        </Field>
+        <Field label="Note" hint="Ce qu'il a dit, pour reprendre la conversation au bon endroit.">
+          <textarea className="input w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
+        <p className="dim text-[12px]">Il remontera en haut de la liste, dans « Rappels à passer maintenant », dès que l&apos;heure sera passée.</p>
+      </div>
+    </Modal>
   );
 }
 
@@ -222,8 +407,7 @@ function BookModal({
   const defaultAt = useMemo(() => {
     const d = new Date(Date.now() + 24 * 3600_000);
     d.setMinutes(0, 0, 0);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return localInputValue(d);
   }, []);
   const [at, setAt] = useState(defaultAt);
   const [closerId, setCloserId] = useState("");
@@ -251,7 +435,7 @@ function BookModal({
           setterNotes: notes,
         }),
       });
-      toast("Rendez-vous enregistré.");
+      toast("Call de vente enregistré.");
       onDone();
     } catch (e) {
       toast((e as Error).message, "err");
@@ -264,18 +448,18 @@ function BookModal({
     <Modal
       open
       onClose={onClose}
-      title={`Rendez-vous avec ${lead.name}`}
+      title={`Call de vente avec ${lead.name}`}
       footer={
         <>
           <button className="btn" onClick={onClose} disabled={busy}>Annuler</button>
           <button className="btn btn-primary" onClick={() => void submit()} disabled={busy || !at}>
-            {busy ? <span className="spinner" /> : "Enregistrer le rendez-vous"}
+            {busy ? <span className="spinner" /> : "Enregistrer le call"}
           </button>
         </>
       }
     >
       <div className="flex flex-col gap-3.5">
-        <Field label="Date et heure (heure de Paris)">
+        <Field label="Date et heure du call (heure de Paris)">
           <input className="input" type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
         </Field>
         <div className="grid sm:grid-cols-2 gap-3">
