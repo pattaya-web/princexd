@@ -129,6 +129,14 @@ export async function GET(req: NextRequest) {
 
     const count = (k: CallBucket) => rows.filter((r) => r.bucket === k).length;
     const notInterested = db.leads.filter((l) => visible(l) && l.callStatus === "not-interested").length;
+    // Leads a appeler qui existent mais appartiennent a un autre setter : un
+    // membre qui voit une page vide doit savoir qu'il y a matiere, et que
+    // c'est une question d'attribution, pas de synchro.
+    const hidden = session.isAdmin
+      ? 0
+      : db.leads.filter(
+          (l) => !visible(l) && (l.stage === "nouveau" || l.stage === "contacte" || l.stage === "conversation") && l.callStatus !== "not-interested",
+        ).length;
 
     return {
       rows,
@@ -140,6 +148,7 @@ export async function GET(req: NextRequest) {
         talking: count("talking"),
         booked: count("booked"),
         notInterested,
+        hidden,
       },
       lastSyncAt: db.settings.systemeioLastSyncAt ?? "",
       syncError,

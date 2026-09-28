@@ -66,7 +66,7 @@ export default function CallLeadsPage() {
 
   const { data, loading, error, reload } = useSalesData<{
     rows: CallLeadRow[];
-    counts: Record<CallBucket, number> & { notInterested: number };
+    counts: Record<CallBucket, number> & { notInterested: number; hidden: number };
     lastSyncAt: string;
     syncError: string;
     defaultCloserId: string;
@@ -195,7 +195,17 @@ export default function CallLeadsPage() {
         </Card>
       ) : !rows.length ? (
         <Card>
-          <Empty>Personne à appeler pour l&apos;instant. Les nouveaux inscrits de la landing page apparaîtront ici tout seuls.</Empty>
+          <Empty>
+            {c?.hidden ? (
+              <>
+                {c.hidden} lead{c.hidden > 1 ? "s" : ""} à appeler existe{c.hidden > 1 ? "nt" : ""}, mais {c.hidden > 1 ? "ils sont attribués" : "il est attribué"} à un autre setter.
+                <br />
+                L&apos;admin peut te les donner : « À appeler », menu « Tout attribuer à… », ou setter par setter sur chaque ligne.
+              </>
+            ) : (
+              <>Personne à appeler pour l&apos;instant. Les nouveaux inscrits de la landing page apparaîtront ici tout seuls.</>
+            )}
+          </Empty>
         </Card>
       ) : (
         <div className="flex flex-col gap-4">
