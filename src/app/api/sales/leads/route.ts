@@ -3,7 +3,7 @@ import { readDB } from "@/lib/db";
 import { canSee, readSession, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
-import { syncSystemeio } from "@/lib/systemeio";
+import { getSystemeioKey, syncSystemeio } from "@/lib/systemeio";
 import type { Lead } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -40,10 +40,15 @@ export async function GET(req: NextRequest) {
     const session = requireSales(readSession(req));
 
     let syncError = "";
-    try {
-      await syncSystemeio();
-    } catch (e) {
-      syncError = (e as Error).message;
+    if (!getSystemeioKey()) {
+      // Sans cle, la synchro se taisait et la liste restait vide sans explication.
+      syncError = "aucune clé API Systeme.io sur ce serveur. Colle-la dans Réglages → Systeme.io (ou SYSTEMEIO_API_KEY dans Coolify), puis clique « Vérifier les nouveaux ».";
+    } else {
+      try {
+        await syncSystemeio();
+      } catch (e) {
+        syncError = (e as Error).message;
+      }
     }
 
     const db = readDB();
