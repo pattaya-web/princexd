@@ -15,6 +15,7 @@ import {
   type CommissionDraft,
 } from "@/components/sales/CommissionFields";
 import { IclosedMapping } from "@/components/sales/IclosedMapping";
+import { enterView } from "@/components/sales/ViewSwitcher";
 import { ShiftPlanner } from "@/components/sales/ShiftPlanner";
 import { useSales } from "@/components/sales/context";
 import { describeRule, type LedgerRow } from "@/lib/sales/commissions";
@@ -467,7 +468,7 @@ export default function TeamAccountsPage() {
                   <th className="text-right">Ventes</th>
                   <th className="text-right">Cash</th>
                   <th className="text-right">À lui verser</th>
-                  <th style={{ width: 150 }} />
+                  <th style={{ width: 260 }} />
                 </tr>
               </thead>
               <tbody>
@@ -531,7 +532,21 @@ export default function TeamAccountsPage() {
                         {p ? fmtMoney(p.due, currency) : <span className="dim">—</span>}
                       </td>
                       <td>
-                        <div className="flex gap-1.5 justify-end">
+                        <div className="flex gap-1.5 justify-end flex-wrap">
+                          {/* Ouvrir l'espace de CE compte, dans chacun de ses metiers :
+                              le raccourci du menu ne prend que le premier de la liste. */}
+                          {commercial &&
+                            !inactive &&
+                            m.roles.map((r) => (
+                              <button
+                                key={r}
+                                className="btn btn-sm btn-ghost"
+                                title={`Voir le tool comme ${m.name}, en ${ROLE_NAMES[r].toLowerCase()}`}
+                                onClick={() => void enterView(m.id, r, false)}
+                              >
+                                {m.roles.length > 1 ? `Voir en ${ROLE_NAMES[r].toLowerCase()}` : "Voir son espace"}
+                              </button>
+                            ))}
                           {commercial && (
                             <button className="btn btn-sm" onClick={() => openRule(m)}>
                               Tarif

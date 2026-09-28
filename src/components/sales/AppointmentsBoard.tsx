@@ -5,7 +5,8 @@ import { useMemo, useState } from "react";
 import { fmtDate, fmtMoney, label } from "@/lib/format";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { APPOINTMENT_SOURCES, APPOINTMENT_STATUSES } from "@/lib/sales/constants";
-import { Card, Empty, ErrorNote, Spinner } from "@/components/ui";
+import { api } from "@/lib/client";
+import { Card, Empty, ErrorNote, Spinner, useToast } from "@/components/ui";
 import { IgHandle, PeriodPicker, StatusBadge, type PeriodState } from "./bits";
 import { AppointmentDetail } from "./AppointmentDetail";
 import type { AppointmentRow } from "@/app/api/sales/appointments/route";
@@ -52,9 +53,32 @@ export function AppointmentsBoard({
   const [outcome, setOutcome] = useState("");
   const [q, setQ] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState("");
+  const toast = useToast();
 
   const setters = useMemo(() => members.filter((m) => hasRole(m, "setter")), [members]);
   const closers = useMemo(() => members.filter((m) => hasRole(m, "closer")), [members]);
+
+  /*
+   * Attribution directe depuis le tableau (admin).
+   *
+   * Repartir les calls du jour entre closers se fait ligne par ligne : ouvrir
+   * une fiche pour chacun etait trop long. Le closer choisi retrouve le call
+   * dans « Tes prochains calls » a son prochain chargement.
+   */
+  const assign = async (id: string, closerId: string) => {
+    setAssigning(id);
+    try {
+      await api(`/api/sales/appointments/${id}`, { method: "PATCH", body: JSON.stringify({ closerId }) });
+      const name = closers.find((c) => c.id === closerId)?.name;
+      toast(name ? `Call attribué à ${name}.` : "Closer retiré.");
+      onChanged();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setAssigning("");
+    }
+  };
 
   const effectiveSetterId = forceSetterId ?? setterId;
   const effectiveCloserId = forceCloserId ?? closerId;
@@ -220,8 +244,26 @@ export function AppointmentsBoard({
                       <IgHandle username={r.igUsername} />
                     </td>
                     <td className="text-[12.5px]">{r.setterName}</td>
-                    <td className="text-[12.5px]">
-                      {r.closerName || <span className="dim">Non assigné</span>}
+                    <td className="text-[12.5px]" onClick={session.isAdmin ? (e) => e.stopPropagation() : undefined}>
+                      {session.isAdmin ? (
+                        <select
+                          className="select !h-[26px] !text-[12px] !w-auto"
+                          value={r.closerId}
+                          disabled={assigning === r.id}
+                          title="Attribuer ce call à un closer"
+                          onChange={(e) => void assign(r.id, e.target.value)}
+                          style={r.closerId ? undefined : { color: "var(--warning)" }}
+                        >
+                          <option value="">Non assigné</option>
+                          {closers.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        r.closerName || <span className="dim">Non assigné</span>
+                      )}
                     </td>
                     <td>
                       <span className="badge !text-[10.5px] !py-0">{label(r.source)}</span>

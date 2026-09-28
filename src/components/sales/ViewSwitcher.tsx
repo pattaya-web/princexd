@@ -17,6 +17,28 @@ import { hasRole } from "@/lib/sales/roles";
  * apparait en apercu, c'est qu'elle apparaitrait aussi pour de vrai — c'est ce
  * qui en fait un test valable et pas une maquette.
  */
+/**
+ * Ouvre l'espace d'un membre, dans un metier donne, puis recharge le tool.
+ *
+ * Partage avec la page Comptes (« Voir son espace »). Un apercu en cours n'a
+ * que les droits du membre incarne : on repasse d'abord par l'admin, sinon
+ * passer d'un membre a l'autre echouerait en 403.
+ */
+export async function enterView(memberId: string, role: "setter" | "closer", impersonated: boolean) {
+  if (impersonated) {
+    await api("/api/sales/session", { method: "DELETE" });
+  }
+  await api("/api/sales/session/view-as", {
+    method: "POST",
+    body: JSON.stringify({ memberId, role }),
+  });
+  forgetSession();
+  // Rechargement complet plutot que router.refresh : le middleware doit
+  // rejouer ses redirections avec le nouveau cookie, et tous les caches
+  // memoire des collections doivent repartir de zero.
+  window.location.href = "/sales";
+}
+
 export function ViewSwitcher() {
   const { session } = useSession();
   const [members, setMembers] = useState<PublicMember[]>([]);
@@ -51,33 +73,32 @@ export function ViewSwitcher() {
       .filter((m) => hasRole(m, role) && m.status !== "inactif")
       .sort((a, b) => a.name.localeCompare(b.name, "fr"))[0];
 
-  const viewAs = async (role: "setter" | "closer") => {
-    const target = firstOf(role);
+  const viewAs = async (role: "setter" | "closer", memberId?: string) => {
+    const target = memberId ? members.find((m) => m.id === memberId) : firstOf(role);
     if (!target) return;
     setBusy(role);
     try {
-      /*
-       * Un apercu n'a que les droits du membre incarne : il ne peut donc pas
-       * en ouvrir un autre. On repasse d'abord par l'admin, sinon passer de
-       * la vue setter a la vue closer echouerait en 403.
-       */
-      if (session.impersonated) {
-        await api("/api/sales/session", { method: "DELETE" });
-      }
-      // Le metier est explicite : un setter + closer s'ouvre bien en closer.
-      await api("/api/sales/session/view-as", {
-        method: "POST",
-        body: JSON.stringify({ memberId: target.id, role }),
-      });
-      forgetSession();
-      // Rechargement complet plutot que router.refresh : le middleware doit
-      // rejouer ses redirections avec le nouveau cookie, et tous les caches
-      // memoire des collections doivent repartir de zero.
-      window.location.href = "/sales";
+      await enterView(target.id, role, Boolean(session.impersonated));
     } finally {
       setBusy("");
     }
   };
+
+  /*
+   * Tous les comptes, un choix par metier : « Noa H · closer » et « Noa H ·
+   * setter » sont deux entrees. Les boutons Setter / Closer restent un
+   * raccourci vers le premier compte de chaque metier ; cette liste sert
+   * quand on veut verifier ce que voit UNE personne precise.
+   */
+  const choices = members
+    .filter((m) => m.status !== "inactif")
+    .sort((a, b) => a.name.localeCompare(b.name, "fr"))
+    .flatMap((m) =>
+      (["setter", "closer"] as const)
+        .filter((r) => hasRole(m, r))
+        .map((r) => ({ key: `${m.id}:${r}`, memberId: m.id, role: r, label: `${m.name} · ${r}` })),
+    );
+  const currentKey = session.impersonated ? `${session.memberId}:${session.role}` : "";
 
   const backToAdmin = async () => {
     setBusy("admin");
@@ -140,10 +161,31 @@ export function ViewSwitcher() {
         })}
       </div>
 
+      {/* Le compte precis a incarner, quel que soit son metier. */}
+      {choices.length > 0 && (
+        <select
+          className="select !h-[26px] !text-[11px] mt-1.5"
+          value={currentKey}
+          disabled={Boolean(busy)}
+          onChange={(e) => {
+            const c = choices.find((x) => x.key === e.target.value);
+            if (c) void viewAs(c.role, c.memberId);
+            else void backToAdmin();
+          }}
+        >
+          <option value="">Voir comme…</option>
+          {choices.map((c) => (
+            <option key={c.key} value={c.key}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      )}
+
       {/* Qui l'on incarne : sans ce rappel, on oublie qu'on est en apercu et on
           s'etonne de ne plus voir la moitie du tool. */}
       <div className="dim text-[10.5px] mt-1.5 truncate">
-        {current === "admin" ? "Accès complet" : `Dans la peau de ${session.memberName}`}
+        {current === "admin" ? "Accès complet" : `Dans la peau de ${session.memberName} (${session.role})`}
       </div>
     </div>
   );
