@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { readDB } from "@/lib/db";
-import { canSee, readSession, requireSales } from "@/lib/sales/access";
+import { newId, readDB, writeDB } from "@/lib/db";
+import { canSee, readSession, requireAdmin, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
 import { getSystemeioKey, syncSystemeio } from "@/lib/systemeio";
@@ -144,5 +144,47 @@ export async function GET(req: NextRequest) {
       lastSyncAt: db.settings.systemeioLastSyncAt ?? "",
       syncError,
     };
+  });
+}
+
+/**
+ * Réattribution en bloc (admin) : tous les leads encore à appeler, ou une
+ * liste d'identifiants, passent au setter choisi. Sert quand un setter
+ * arrive après les premiers imports : les leads étaient tous chez le
+ * premier de la liste et il n'en voyait aucun.
+ */
+export async function PATCH(req: NextRequest) {
+  return handle(async () => {
+    const session = requireAdmin(readSession(req));
+    const body = (await req.json().catch(() => ({}))) as { setterId?: string; ids?: string[] };
+    const db = readDB();
+    const setter = db.team.find((m) => m.id === body.setterId);
+    if (!setter) throw new Error("Setter inconnu.");
+
+    const wanted = body.ids?.length ? new Set(body.ids) : null;
+    const booked = new Set(db.appointments.map((a) => a.leadId));
+    let moved = 0;
+    for (const l of db.leads) {
+      if (wanted ? !wanted.has(l.id) : !(l.stage === "nouveau" || l.stage === "contacte" || l.stage === "conversation") || booked.has(l.id)) continue;
+      if (l.setterId === setter.id) continue;
+      l.setterId = setter.id;
+      l.ownerName = setter.name;
+      l.ownerRole = "setter";
+      moved++;
+    }
+    if (moved) {
+      db.activityLogs.unshift({
+        id: newId(),
+        at: new Date().toISOString(),
+        actorId: session.memberId,
+        actorName: session.memberName || "Moi",
+        action: "lead.assign",
+        entity: "lead",
+        entityId: "",
+        summary: `${moved} lead${moved > 1 ? "s" : ""} à appeler attribué${moved > 1 ? "s" : ""} à ${setter.name}`,
+      });
+      writeDB(db);
+    }
+    return { moved, setter: setter.name };
   });
 }

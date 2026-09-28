@@ -107,6 +107,17 @@ export default function CallLeadsPage() {
     }
   };
 
+  const assignAll = async (setterId: string) => {
+    try {
+      const r = await api<{ moved: number; setter: string }>("/api/sales/leads", { method: "PATCH", body: JSON.stringify({ setterId }) });
+      toast(r.moved ? `${r.moved} lead${r.moved > 1 ? "s" : ""} attribué${r.moved > 1 ? "s" : ""} à ${r.setter}.` : `Tout était déjà chez ${r.setter}.`);
+      void reload();
+      bump();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
   const sync = async () => {
     setSyncing(true);
     try {
@@ -139,9 +150,29 @@ export default function CallLeadsPage() {
             : "Les prospects qui viennent de laisser leurs coordonnées sur la landing page."
         }
         actions={
-          <button className="btn" onClick={() => void sync()} disabled={syncing} title="Relire Systeme.io tout de suite">
-            {syncing ? <span className="spinner" /> : "↻ Vérifier les nouveaux"}
-          </button>
+          <>
+            {session.isAdmin && setters.length > 0 && rows.some((r) => r.bucket !== "booked") && (
+              <select
+                className="select !w-auto !h-[30px] !text-[12.5px]"
+                value=""
+                title="Donner tous les leads encore à appeler à un setter"
+                onChange={(e) => {
+                  const id = e.target.value;
+                  if (!id) return;
+                  const name = setters.find((m) => m.id === id)?.name ?? "";
+                  if (window.confirm(`Attribuer tous les leads à appeler à ${name} ?`)) void assignAll(id);
+                }}
+              >
+                <option value="">Tout attribuer à…</option>
+                {setters.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            )}
+            <button className="btn" onClick={() => void sync()} disabled={syncing} title="Relire Systeme.io tout de suite">
+              {syncing ? <span className="spinner" /> : "↻ Vérifier les nouveaux"}
+            </button>
+          </>
         }
       />
 
