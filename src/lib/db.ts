@@ -61,6 +61,7 @@ export const DEFAULT_SETTINGS: Settings = {
   salesCurrency: "USD",
   salesAutoImport: false,
   salesDefaultSetterId: "",
+  salesDefaultCloserId: "",
   salesLastSyncAt: "",
 };
 

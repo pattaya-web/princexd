@@ -131,6 +131,12 @@ export interface Settings {
    */
   salesAutoImport: boolean;
   salesDefaultSetterId: string;
+  /**
+   * Closer qui recoit les calls iClosed quand aucune correspondance hote →
+   * closer ne s'applique (un seul siege iClosed, plusieurs closers). Sert
+   * aussi de closer propose quand un setter pose un rendez-vous.
+   */
+  salesDefaultCloserId?: string;
   /** Derniere synchro reussie, pour ne pas retaper l'API a chaque navigation. */
   salesLastSyncAt: string;
   /* --- Systeme.io : leads de la landing page. Priorite a SYSTEMEIO_API_KEY. --- */

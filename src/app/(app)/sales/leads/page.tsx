@@ -69,6 +69,7 @@ export default function CallLeadsPage() {
     counts: Record<CallBucket, number> & { notInterested: number };
     lastSyncAt: string;
     syncError: string;
+    defaultCloserId: string;
   }>(`/api/sales/leads?v=${version}`);
 
   const setStatus = async (lead: CallLeadRow, status: LeadCallStatus, callbackAt?: string, note?: string) => {
@@ -323,6 +324,9 @@ export default function CallLeadsPage() {
           lead={booking}
           isAdmin={session.isAdmin}
           memberId={session.memberId}
+          // Le setter qui est aussi closer se propose lui-meme ; sinon le
+          // closer par defaut des reglages. Le call arrive sur le bon dash.
+          defaultCloserId={hasRole(session, "closer") && session.memberId ? session.memberId : (data?.defaultCloserId ?? "")}
           members={members}
           onClose={() => setBooking(null)}
           onDone={() => {
@@ -416,6 +420,7 @@ function BookModal({
   lead,
   isAdmin,
   memberId,
+  defaultCloserId,
   members,
   onClose,
   onDone,
@@ -423,6 +428,7 @@ function BookModal({
   lead: CallLeadRow;
   isAdmin: boolean;
   memberId: string;
+  defaultCloserId: string;
   members: PublicMember[];
   onClose: () => void;
   onDone: () => void;
@@ -436,7 +442,7 @@ function BookModal({
     return localInputValue(d);
   }, []);
   const [at, setAt] = useState(defaultAt);
-  const [closerId, setCloserId] = useState("");
+  const [closerId, setCloserId] = useState(closers.some((m) => m.id === defaultCloserId) ? defaultCloserId : "");
   const [setterId, setSetterId] = useState(lead.setterId || memberId);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);

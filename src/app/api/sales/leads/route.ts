@@ -143,6 +143,8 @@ export async function GET(req: NextRequest) {
       },
       lastSyncAt: db.settings.systemeioLastSyncAt ?? "",
       syncError,
+      /** Closer propose quand un setter pose un rendez-vous (reglages iClosed). */
+      defaultCloserId: db.settings.salesDefaultCloserId ?? "",
     };
   });
 }

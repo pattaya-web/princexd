@@ -66,6 +66,13 @@ export async function POST(req: NextRequest) {
       throw new Error(e instanceof IclosedError ? e.message : (e as Error).message);
     }
 
+    // Closer de repli : la correspondance hote → closer d'abord, sinon le
+    // closer par defaut des reglages, sinon personne (l'admin repartit).
+    const defaultCloser = (db: ReturnType<typeof readDB>) =>
+      db.team.find((m) => m.id === settings.salesDefaultCloserId && m.status !== "inactif");
+    const closerFor = (db: ReturnType<typeof readDB>, call: (typeof calls)[number]) =>
+      resolveCloser(db, call) ?? defaultCloser(db);
+
     let created = 0;
     let updated = 0;
     for (const call of calls) {
@@ -81,7 +88,7 @@ export async function POST(req: NextRequest) {
          * saisies humaines (statut, notes, montants) restent intouchees.
          */
         const url = call.locationLinkInvitee || call.locationLink || "";
-        const closer = existing.closerId ? undefined : resolveCloser(db, call);
+        const closer = existing.closerId ? undefined : closerFor(db, call);
         let touched = false;
         if (url && existing.iclosedUrl !== url) {
           existing.iclosedUrl = url;
@@ -100,9 +107,8 @@ export async function POST(req: NextRequest) {
 
       const input = fromIclosedCall(call, {
         setterId,
-        // Le closer vient de la correspondance iClosed s'il y en a une ; sinon
-        // le rendez-vous arrive non assigne et l'admin le repartit.
-        closerId: resolveCloser(db, call)?.id ?? "",
+        // Correspondance iClosed, sinon closer par defaut, sinon non assigne.
+        closerId: closerFor(db, call)?.id ?? "",
       });
       if (!input) continue;
       if (!input.igUsername) {
@@ -125,6 +131,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     enabled: s.salesAutoImport,
     setterId: s.salesDefaultSetterId,
+    closerId: s.salesDefaultCloserId ?? "",
     lastSyncAt: s.salesLastSyncAt,
   });
 }

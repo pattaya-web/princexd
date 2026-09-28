@@ -80,6 +80,11 @@ export async function GET(req: NextRequest) {
      */
     let rows = db.appointments.filter((a) => canSee(session, a));
 
+    // Bascule setter / closer d'un membre qui cumule les deux (voir dashboard).
+    const as = p.get("as");
+    if (!session.isAdmin && as === "setter") rows = rows.filter((a) => a.setterId === session.memberId);
+    if (!session.isAdmin && as === "closer") rows = rows.filter((a) => a.closerId === session.memberId);
+
     rows = rows.filter((a) => {
       if (!inRange(a.scheduledAt, range)) return false;
       if (setterFilter && a.setterId !== setterFilter) return false;

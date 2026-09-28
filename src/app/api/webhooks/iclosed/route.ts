@@ -136,7 +136,8 @@ export async function POST(req: NextRequest) {
       id: newId(),
       leadId: lead.id,
       setterId,
-      closerId: "",
+      // Closer par defaut des reglages, s'il existe : le call arrive direct sur son dash.
+      closerId: db.team.some((m) => m.id === settings.salesDefaultCloserId && m.status !== "inactif") ? settings.salesDefaultCloserId! : "",
       scheduledAt: iso,
       timezone: pick(flat, ["timezone", "inviteTimeZone"]) || "Europe/Paris",
       source: "inbound",

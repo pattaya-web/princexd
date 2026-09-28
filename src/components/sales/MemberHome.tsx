@@ -30,24 +30,52 @@ interface MemberPayload {
  * maintenant, et ou j'en suis de mes objectifs. Les tableaux detailles vivent
  * dans les autres onglets — ici on ne montre que ce sur quoi on peut agir.
  */
+const HAT_KEY = "princexd:sales-hat";
+
 export function MemberHome() {
   const { session, members, period, version, bump } = useSales();
   const toast = useToast();
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
-  // Un setter-closer arrive sur la vue setter : c'est la plus operationnelle
-  // (rendez-vous a poser, relances) ; ses calls y figurent aussi.
-  const isSetter = sessionHas(session, "setter");
+  /*
+   * Casquette du moment.
+   *
+   * Un membre setter ET closer bascule entre ses deux ecrans : en setter, ses
+   * leads a appeler et les rendez-vous qu'il pose ; en closer, les calls qui
+   * lui sont attribues et ce qu'il encaisse. Le choix est memorise sur
+   * l'appareil. Un membre a une seule casquette n'a pas de bascule.
+   */
+  const both = sessionHas(session, "setter") && sessionHas(session, "closer");
+  const [hat, setHat] = useState<"setter" | "closer">(() => {
+    if (!sessionHas(session, "setter")) return "closer";
+    if (!both) return "setter";
+    try {
+      const saved = window.localStorage.getItem(HAT_KEY);
+      return saved === "closer" ? "closer" : "setter";
+    } catch {
+      return "setter";
+    }
+  });
+  const switchHat = (h: "setter" | "closer") => {
+    setHat(h);
+    try {
+      window.localStorage.setItem(HAT_KEY, h);
+    } catch {
+      // Stockage indisponible : la bascule vaut pour la session en cours.
+    }
+  };
+  const isSetter = hat === "setter";
+  const scope: Record<string, string> = both ? { as: hat } : {};
 
   const { data, loading, error } = useSalesData<MemberPayload>(
-    `/api/sales/dashboard?${periodQuery(period.period, period.from, period.to, { v: String(version) })}`,
+    `/api/sales/dashboard?${periodQuery(period.period, period.from, period.to, { v: String(version), ...scope })}`,
   );
 
   // Les rendez-vous a venir sont la matiere premiere de cet ecran : c'est ce
   // qu'on ouvre le matin, bien avant les statistiques du mois.
   const { data: upcoming } = useSalesData<{ rows: AppointmentRow[] }>(
-    `/api/sales/appointments?period=upcoming&limit=8&v=${version}`,
+    `/api/sales/appointments?period=upcoming&limit=8&v=${version}${both ? `&as=${hat}` : ""}`,
   );
 
   const { data: shifts, reload: reloadShifts } = useSalesData<{ rows: ShiftRow[] }>(
@@ -132,11 +160,32 @@ export function MemberHome() {
               </p>
             </div>
 
-            {isSetter && (
-              <button className="btn btn-primary shrink-0" onClick={() => setAdding(true)}>
-                + Rendez-vous
-              </button>
-            )}
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              {both && (
+                <div className="flex gap-0.5 p-0.5 rounded-[8px]" style={{ background: "var(--surface-3)" }} title="Ta casquette du moment">
+                  {(["setter", "closer"] as const).map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => switchHat(h)}
+                      className="px-3 h-[28px] rounded-[6px] text-[12px] font-medium transition-colors"
+                      style={{
+                        background: hat === h ? "var(--surface)" : "transparent",
+                        color: hat === h ? "var(--text)" : "var(--text-2)",
+                        boxShadow: hat === h ? "var(--shadow)" : "none",
+                      }}
+                    >
+                      {h === "setter" ? "Vue setter" : "Vue closer"}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {isSetter && (
+                <button className="btn btn-primary shrink-0" onClick={() => setAdding(true)}>
+                  + Rendez-vous
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Objectif du jour, seulement s'il en existe un. Une barre vide en

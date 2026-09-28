@@ -43,9 +43,15 @@ export async function GET(req: NextRequest) {
     let sales: Sale[] = db.sales;
 
     if (!session.isAdmin) {
-      // Un setter-closer voit l'union : ce qu'il a pose et ce qu'il close.
-      const asSetter = sessionHas(session, "setter");
-      const asCloser = sessionHas(session, "closer");
+      /*
+       * Un setter-closer voit l'union par defaut : ce qu'il a pose et ce
+       * qu'il close. `?as=setter|closer` restreint a une seule casquette :
+       * c'est la bascule de son accueil, pour lire ses chiffres de closer
+       * sans ses rendez-vous poses, et inversement.
+       */
+      const as = req.nextUrl.searchParams.get("as");
+      const asSetter = sessionHas(session, "setter") && as !== "closer";
+      const asCloser = sessionHas(session, "closer") && as !== "setter";
       appointments = appointments.filter(
         (a) => (asSetter && a.setterId === session.memberId) || (asCloser && a.closerId === session.memberId),
       );

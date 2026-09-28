@@ -31,6 +31,7 @@ export default function AppointmentsPage() {
   const [maxCalls, setMaxCalls] = useState("25");
   const [auto, setAuto] = useState(false);
   const [autoSetter, setAutoSetter] = useState("");
+  const [autoCloser, setAutoCloser] = useState("");
 
   const setters = useMemo(() => members.filter((m) => hasRole(m, "setter")), [members]);
   const closers = useMemo(() => members.filter((m) => hasRole(m, "closer")), [members]);
@@ -39,21 +40,23 @@ export default function AppointmentsPage() {
   const openImport = async () => {
     setImporting(true);
     try {
-      const s = await api<{ enabled: boolean; setterId: string }>("/api/sales/iclosed/sync");
+      const s = await api<{ enabled: boolean; setterId: string; closerId: string }>("/api/sales/iclosed/sync");
       setAuto(s.enabled);
       setAutoSetter(s.setterId);
+      setAutoCloser(s.closerId ?? "");
     } catch {
       // Reglages illisibles : on laisse les valeurs par defaut.
     }
   };
 
-  const saveAuto = async (enabled: boolean, setter: string) => {
+  const saveAuto = async (enabled: boolean, setter: string, closer = autoCloser) => {
     setAuto(enabled);
     setAutoSetter(setter);
+    setAutoCloser(closer);
     try {
       await api("/api/settings", {
         method: "PATCH",
-        body: JSON.stringify({ salesAutoImport: enabled, salesDefaultSetterId: setter }),
+        body: JSON.stringify({ salesAutoImport: enabled, salesDefaultSetterId: setter, salesDefaultCloserId: closer }),
       });
       toast(
         enabled && setter
@@ -188,7 +191,7 @@ export default function AppointmentsPage() {
             </div>
 
             {auto && (
-              <div className="mt-2.5">
+              <div className="mt-2.5 grid sm:grid-cols-2 gap-3">
                 <Field label="Setter attribué aux rendez-vous synchronisés">
                   <select
                     className="select"
@@ -197,6 +200,20 @@ export default function AppointmentsPage() {
                   >
                     <option value="">— Choisir (obligatoire) —</option>
                     {setters.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Closer qui reçoit ces calls" hint="Ils arrivent sur son dashboard. Tu peux réattribuer chaque call ensuite.">
+                  <select
+                    className="select"
+                    value={autoCloser}
+                    onChange={(e) => void saveAuto(true, autoSetter, e.target.value)}
+                  >
+                    <option value="">— À répartir à la main —</option>
+                    {closers.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name}
                       </option>
