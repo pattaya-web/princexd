@@ -11,7 +11,11 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 600;
 
 const MEDIA_DIR = path.join(process.cwd(), "data", "media");
+/** Morceaux en cours d'assemblage (envoi par morceaux, voir plus bas). */
+const PARTS_DIR = path.join(MEDIA_DIR, ".parts");
 const MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2 Go
+/** Un envoi par morceaux abandonne depuis plus longtemps que ca est jete. */
+const PARTS_TTL_MS = 24 * 60 * 60 * 1000;
 
 const SAFE_EXT = new Set([
   ".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv",
@@ -110,6 +114,91 @@ function respond(name: string, stored: string, size: number) {
 }
 
 /**
+ * Envoi par morceaux (`?upload=<id>&part=n&parts=N&offset=o&size=S`).
+ *
+ * Cloudflare (plan gratuit) coupe toute requete dont le corps depasse
+ * 100 Mo : un rush de 800 Mo n'arrivait jamais jusqu'ici. Le navigateur
+ * envoie donc des tranches de 32 Mo, dans l'ordre, que l'on ajoute a un
+ * fichier temporaire ; la derniere tranche declenche l'assemblage et les
+ * memes verifications qu'un envoi d'un seul tenant.
+ *
+ * Un morceau renvoye apres une coupure reseau retrouve le fichier a l'offset
+ * attendu : on tronque ce qui avait ete ecrit au-dela avant de reprendre.
+ */
+async function receiveChunk(req: NextRequest, name: string, stored: string): Promise<NextResponse> {
+  const q = req.nextUrl.searchParams;
+  const id = q.get("upload") ?? "";
+  const part = Number(q.get("part"));
+  const parts = Number(q.get("parts"));
+  const offset = Number(q.get("offset"));
+  const total = Number(q.get("size"));
+  const bad = (why: string) => NextResponse.json({ error: `Envoi par morceaux invalide : ${why}.` }, { status: 400 });
+  if (!/^[a-z0-9]{8,40}$/.test(id)) return bad("identifiant");
+  if (!Number.isInteger(part) || !Number.isInteger(parts) || part < 1 || parts < 1 || part > parts || parts > 200) return bad("numéro de morceau");
+  if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(total) || total <= 0) return bad("position");
+  if (total > MAX_BYTES) return NextResponse.json({ error: "Fichier trop lourd (2 Go max)." }, { status: 413 });
+
+  await fs.mkdir(PARTS_DIR, { recursive: true });
+  const tmp = path.join(PARTS_DIR, `${id}.part`);
+
+  // Reprise : le disque doit etre exactement a l'offset annonce.
+  const onDisk = await fs.stat(tmp).then((s) => s.size).catch(() => -1);
+  if (part === 1) {
+    if (onDisk >= 0) await fs.rm(tmp, { force: true });
+  } else if (onDisk < offset) {
+    return NextResponse.json({ error: "Envoi par morceaux invalide : morceau manquant, recommence l'envoi." }, { status: 409 });
+  } else if (onDisk > offset) {
+    await fs.truncate(tmp, offset);
+  }
+
+  let size = offset;
+  const meter = new Transform({
+    transform(chunk: Buffer, _enc, cb) {
+      size += chunk.length;
+      if (size > total) cb(new TooBig());
+      else cb(null, chunk);
+    },
+  });
+  try {
+    await pipeline(Readable.fromWeb(req.body as never), meter, createWriteStream(tmp, { flags: part === 1 ? "w" : "a" }));
+  } catch (e) {
+    if (e instanceof TooBig) {
+      await fs.rm(tmp, { force: true });
+      return NextResponse.json({ error: "Envoi par morceaux invalide : plus d'octets qu'annoncé." }, { status: 400 });
+    }
+    // Coupure en plein morceau : on garde ce qui est arrive, le navigateur renverra ce morceau.
+    return NextResponse.json({ error: "Envoi interrompu." }, { status: 400 });
+  }
+
+  if (part < parts) return NextResponse.json({ ok: true, received: size });
+
+  if (size !== total) {
+    await fs.rm(tmp, { force: true });
+    return NextResponse.json({ error: `Envoi incomplet (${size} octets reçus sur ${total}).` }, { status: 400 });
+  }
+  const target = path.join(MEDIA_DIR, stored);
+  await fs.rename(tmp, target);
+  void sweepParts();
+  const unreadable = await rejectIfUnreadable(target, stored, req, "morceaux");
+  if (unreadable) return unreadable;
+  return respond(name, stored, size);
+}
+
+/** Jette les assemblages abandonnes (navigateur ferme en cours d'envoi). */
+async function sweepParts() {
+  try {
+    const now = Date.now();
+    for (const f of await fs.readdir(PARTS_DIR)) {
+      const p = path.join(PARTS_DIR, f);
+      const st = await fs.stat(p).catch(() => null);
+      if (st && now - st.mtimeMs > PARTS_TTL_MS) await fs.rm(p, { force: true });
+    }
+  } catch {
+    // Nettoyage de confort : un echec n'a pas d'importance.
+  }
+}
+
+/**
  * Deux facons d'envoyer un fichier :
  *
  *  - multipart/form-data (champ `file`) : l'historique, utilise par le Studio.
@@ -156,6 +245,8 @@ export async function POST(req: NextRequest) {
   if (!req.body) return NextResponse.json({ error: "Aucun fichier reçu" }, { status: 400 });
   const { stored, error } = storedName(name);
   if (error) return error;
+
+  if (req.nextUrl.searchParams.has("upload")) return receiveChunk(req, name, stored);
 
   const declared = Number(req.headers.get("content-length") ?? 0);
   if (declared > MAX_BYTES) {

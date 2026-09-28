@@ -22,38 +22,114 @@ function prefersMultipart(): boolean {
   return iosLike;
 }
 
-function send(file: File, multipart: boolean, onProgress?: (fraction: number) => void): Promise<Uploaded> {
+/**
+ * Cloudflare (plan gratuit) refuse tout corps de requete au-dela de 100 Mo :
+ * il coupe la connexion apres le premier mega-octet, et le navigateur ne
+ * voit qu'une erreur reseau. Au-dela de ce seuil, on decoupe le fichier en
+ * morceaux envoyes l'un apres l'autre ; le serveur les recolle.
+ */
+const CHUNKED_FROM = 90 * 1024 * 1024;
+const CHUNK_SIZE = 32 * 1024 * 1024;
+/** Tentatives par morceau sur coupure reseau : la liaison est instable. */
+const CHUNK_RETRIES = 3;
+
+interface Reply { name?: string; url?: string; size?: number; error?: string; unreadable?: boolean; ok?: boolean }
+
+function request(
+  url: string,
+  body: Blob | FormData,
+  contentType: string | null,
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<{ status: number; body: Reply }> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", multipart ? "/api/upload" : `/api/upload?name=${encodeURIComponent(file.name)}`);
-    if (!multipart) xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    xhr.open("POST", url);
+    if (contentType) xhr.setRequestHeader("Content-Type", contentType);
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+      if (e.lengthComputable && onProgress) onProgress(e.loaded, e.total);
     };
     xhr.onerror = () => reject(new Error("Connexion perdue pendant l'envoi."));
     xhr.onload = () => {
-      let body: { name?: string; url?: string; size?: number; error?: string; unreadable?: boolean } = {};
+      let parsed: Reply = {};
       try {
-        body = JSON.parse(xhr.responseText);
+        parsed = JSON.parse(xhr.responseText);
       } catch {
-        body = {};
+        parsed = {};
       }
-      if (xhr.status >= 200 && xhr.status < 300 && body.url) {
-        resolve({ name: body.name ?? file.name, url: body.url, size: body.size ?? file.size });
-      } else {
-        const err = new Error(body.error ?? `Envoi refusé (HTTP ${xhr.status}).`) as Error & { unreadable?: boolean };
-        err.unreadable = Boolean(body.unreadable);
-        reject(err);
-      }
+      resolve({ status: xhr.status, body: parsed });
     };
-    if (multipart) {
-      const form = new FormData();
-      form.append("file", file, file.name);
-      xhr.send(form);
-    } else {
-      xhr.send(file);
-    }
+    xhr.send(body);
   });
+}
+
+function refusal(status: number, body: Reply): Error & { unreadable?: boolean } {
+  const err = new Error(body.error ?? `Envoi refusé (HTTP ${status}).`) as Error & { unreadable?: boolean };
+  err.unreadable = Boolean(body.unreadable);
+  return err;
+}
+
+async function send(file: File, multipart: boolean, onProgress?: (fraction: number) => void): Promise<Uploaded> {
+  let body: Blob | FormData = file;
+  if (multipart) {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    body = form;
+  }
+  const { status, body: reply } = await request(
+    multipart ? "/api/upload" : `/api/upload?name=${encodeURIComponent(file.name)}`,
+    body,
+    multipart ? null : file.type || "application/octet-stream",
+    (loaded, total) => onProgress?.(loaded / total),
+  );
+  if (status >= 200 && status < 300 && reply.url) {
+    return { name: reply.name ?? file.name, url: reply.url, size: reply.size ?? file.size };
+  }
+  throw refusal(status, reply);
+}
+
+/** Identifiant d'envoi cote navigateur : lettres et chiffres, valide par le serveur. */
+function uploadId(): string {
+  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let id = "";
+  for (let i = 0; i < 20; i++) id += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return id;
+}
+
+async function sendChunked(file: File, onProgress?: (fraction: number) => void): Promise<Uploaded> {
+  const id = uploadId();
+  const parts = Math.ceil(file.size / CHUNK_SIZE);
+  const type = file.type || "application/octet-stream";
+  for (let part = 1; part <= parts; part++) {
+    const offset = (part - 1) * CHUNK_SIZE;
+    const chunk = file.slice(offset, Math.min(file.size, offset + CHUNK_SIZE), type);
+    const url =
+      `/api/upload?name=${encodeURIComponent(file.name)}&upload=${id}` +
+      `&part=${part}&parts=${parts}&offset=${offset}&size=${file.size}`;
+    let lastError: Error | null = null;
+    for (let attempt = 1; attempt <= CHUNK_RETRIES; attempt++) {
+      try {
+        const { status, body } = await request(url, chunk, type, (loaded) => onProgress?.((offset + loaded) / file.size));
+        if (status >= 200 && status < 300) {
+          if (part === parts) {
+            if (!body.url) throw refusal(status, body);
+            return { name: body.name ?? file.name, url: body.url, size: body.size ?? file.size };
+          }
+          lastError = null;
+          break;
+        }
+        // Refus franc du serveur (extension, taille, fichier illisible) : inutile d'insister.
+        throw refusal(status, body);
+      } catch (e) {
+        const err = e as Error;
+        if (!err.message.startsWith("Connexion perdue")) throw err;
+        lastError = err;
+        // Petite pause avant de renvoyer le meme morceau.
+        await new Promise((r) => setTimeout(r, 1500 * attempt));
+      }
+    }
+    if (lastError) throw lastError;
+  }
+  throw new Error("Envoi incomplet.");
 }
 
 /**
@@ -69,6 +145,8 @@ function send(file: File, multipart: boolean, onProgress?: (fraction: number) =>
  * par un envoi multipart (le serveur verifie l'entete du fichier recu).
  */
 export async function uploadFile(file: File, onProgress?: (fraction: number) => void): Promise<Uploaded> {
+  // Gros rush : par morceaux, seule facon de passer Cloudflare (voir CHUNKED_FROM).
+  if (file.size > CHUNKED_FROM) return sendChunked(file, onProgress);
   const small = file.size <= MULTIPART_MAX;
   if (prefersMultipart() && small) return send(file, true, onProgress);
   try {
