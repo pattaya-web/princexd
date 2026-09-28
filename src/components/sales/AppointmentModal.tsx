@@ -3,7 +3,7 @@
 import { hasRole } from "@/lib/sales/roles";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
-import { label } from "@/lib/format";
+import { isoToParisInput, label, parisToIso } from "@/lib/format";
 import { APPOINTMENT_SOURCES } from "@/lib/sales/constants";
 import { Field, Modal, useToast } from "@/components/ui";
 import type { PublicMember } from "@/lib/sales/repo";
@@ -30,16 +30,13 @@ const TIMEZONES = [
   "Australia/Sydney",
 ];
 
-/** Creneau par defaut : aujourd'hui, a la prochaine heure ronde. */
+/** Creneau par defaut : aujourd'hui, a la prochaine heure ronde, heure de Paris. */
 function defaultSlot() {
   const d = new Date();
   d.setMinutes(0, 0, 0);
   d.setHours(d.getHours() + 1);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return {
-    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
-    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
-  };
+  const [date, time] = isoToParisInput(d).split("T");
+  return { date, time };
 }
 
 export interface AppointmentModalProps {
@@ -116,9 +113,9 @@ export function AppointmentModal({ open, onClose, onSaved, session, members }: A
           phone: phone.trim(),
           country: country.trim(),
           timezone,
-          // Le creneau est saisi dans l'heure locale du navigateur puis
-          // converti en ISO : la base ne stocke que de l'UTC.
-          scheduledAt: new Date(`${date}T${time}`).toISOString(),
+          // Le creneau est saisi en heure de Paris, quel que soit l'ordinateur,
+          // puis converti en ISO : la base ne stocke que de l'UTC.
+          scheduledAt: parisToIso(`${date}T${time}`),
           setterId,
           closerId,
           source,
@@ -190,7 +187,7 @@ export function AppointmentModal({ open, onClose, onSaved, session, members }: A
           <Field label="Date">
             <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
-          <Field label="Heure">
+          <Field label="Heure (Paris)">
             <input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
           </Field>
         </div>

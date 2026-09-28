@@ -2,7 +2,7 @@
 
 import { hasRole, sessionHas } from "@/lib/sales/roles";
 import { useMemo, useState } from "react";
-import { fmtDate, fmtMoney, label } from "@/lib/format";
+import { fmtDate, fmtMoney, fmtTime, label } from "@/lib/format";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { APPOINTMENT_SOURCES, APPOINTMENT_STATUSES } from "@/lib/sales/constants";
 import { api } from "@/lib/client";
@@ -232,11 +232,8 @@ export function AppointmentsBoard({
                   <tr key={r.id} className="cursor-pointer" onClick={() => setOpenId(r.id)}>
                     <td>
                       <span className="num">{fmtDate(r.scheduledAt)}</span>
-                      <span className="dim num ml-1.5 text-[11.5px]">
-                        {new Date(r.scheduledAt).toLocaleTimeString("fr-FR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                      <span className="dim num ml-1.5 text-[11.5px]" title="Heure de Paris">
+                        {fmtTime(r.scheduledAt)}
                       </span>
                     </td>
                     <td className="max-w-[170px] truncate">{r.leadName}</td>

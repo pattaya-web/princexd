@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { api } from "@/lib/client";
-import { fmtDateTime, relative } from "@/lib/format";
+import { fmtDateTime, isoToParisInput, parisDay, parisToIso, parisWeekday, relative } from "@/lib/format";
 import { useSalesData } from "@/lib/sales/client";
 import { hasRole } from "@/lib/sales/roles";
 import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, StatTile, useToast } from "@/components/ui";
@@ -43,11 +43,8 @@ function localHint(country?: string): string {
   }
 }
 
-/** Valeur d'un <input type="datetime-local"> pour une heure locale donnee. */
-function localInputValue(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+/** Valeur d'un <input type="datetime-local"> pour un instant, en heure de Paris. */
+const localInputValue = (d: Date): string => isoToParisInput(d);
 
 /**
  * Les prospects de la landing page (Systeme.io), a appeler dans l'ordre.
@@ -359,20 +356,14 @@ function CallbackModal({
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Raccourcis : les cas qui reviennent a chaque appel.
-  const quick = (label: string, when: () => Date) => (
-    <button
-      type="button"
-      className="btn btn-sm"
-      onClick={() => {
-        const d = when();
-        d.setSeconds(0, 0);
-        setAt(localInputValue(d));
-      }}
-    >
+  // Raccourcis : les cas qui reviennent a chaque appel, en heure de Paris.
+  const quick = (label: string, value: () => string) => (
+    <button type="button" className="btn btn-sm" onClick={() => setAt(value())}>
       {label}
     </button>
   );
+  // Prochain lundi a Paris (dans 7 jours si on est lundi).
+  const nextMonday = () => parisDay(((8 - parisWeekday()) % 7) || 7);
 
   return (
     <Modal
@@ -388,7 +379,7 @@ function CallbackModal({
             onClick={async () => {
               setBusy(true);
               try {
-                await onPick(new Date(at).toISOString(), note);
+                await onPick(parisToIso(at), note);
               } finally {
                 setBusy(false);
               }
@@ -401,13 +392,13 @@ function CallbackModal({
     >
       <div className="flex flex-col gap-3.5">
         <div className="flex gap-1.5 flex-wrap">
-          {quick("Dans 1 h", () => new Date(Date.now() + 3600_000))}
-          {quick("Ce soir 18 h", () => { const d = new Date(); d.setHours(18, 0); return d; })}
-          {quick("Demain 10 h", () => { const d = new Date(Date.now() + 24 * 3600_000); d.setHours(10, 0); return d; })}
-          {quick("Demain 14 h", () => { const d = new Date(Date.now() + 24 * 3600_000); d.setHours(14, 0); return d; })}
-          {quick("Lundi 10 h", () => { const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); d.setHours(10, 0); return d; })}
+          {quick("Dans 1 h", () => isoToParisInput(new Date(Date.now() + 3600_000)).slice(0, 14) + "00")}
+          {quick("Ce soir 18 h", () => `${parisDay(0)}T18:00`)}
+          {quick("Demain 10 h", () => `${parisDay(1)}T10:00`)}
+          {quick("Demain 14 h", () => `${parisDay(1)}T14:00`)}
+          {quick("Lundi 10 h", () => `${nextMonday()}T10:00`)}
         </div>
-        <Field label="Date et heure du rappel (ton heure)">
+        <Field label="Date et heure du rappel (heure de Paris)">
           <input className="input" type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
         </Field>
         <Field label="Note" hint="Ce qu'il a dit, pour reprendre la conversation au bon endroit.">
@@ -463,7 +454,7 @@ function BookModal({
           phone: lead.phone ?? "",
           country: lead.country ?? "",
           timezone: lead.timezone || "Europe/Paris",
-          scheduledAt: new Date(at).toISOString(),
+          scheduledAt: parisToIso(at),
           setterId,
           closerId,
           source: "inbound",

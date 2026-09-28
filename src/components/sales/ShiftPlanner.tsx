@@ -2,16 +2,14 @@
 
 import { useState } from "react";
 import { api } from "@/lib/client";
-import { fmtInt } from "@/lib/format";
+import { fmtDay, fmtInt, fmtTime, parisDay, parisToIso } from "@/lib/format";
 import { useSalesData } from "@/lib/sales/client";
 import { Empty, Field, InfoNote, Modal, Spinner, useToast } from "@/components/ui";
 import type { ShiftRow } from "@/app/api/sales/shifts/route";
 
-/** Prochain jour ouvre, pour ne pas proposer un creneau deja passe. */
+/** Demain a Paris, pour ne pas proposer un creneau deja passe. */
 function tomorrow() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+  return parisDay(1);
 }
 
 /**
@@ -53,10 +51,10 @@ export function ShiftPlanner({
         method: "POST",
         body: JSON.stringify({
           memberId,
-          // Saisi dans l'heure locale, converti en ISO : la base ne stocke
+          // Saisi en heure de Paris, converti en ISO : la base ne stocke
           // que de l'UTC, comme partout ailleurs dans le module.
-          startAt: new Date(`${date}T${from}`).toISOString(),
-          endAt: new Date(`${date}T${to}`).toISOString(),
+          startAt: parisToIso(`${date}T${from}`),
+          endAt: parisToIso(`${date}T${to}`),
           goal: Number(goal) || 0,
           note,
         }),
@@ -170,18 +168,12 @@ function ShiftTable({ rows, showYield = false }: { rows: ShiftRow[]; showYield?:
         </thead>
         <tbody>
           {rows.map((s) => {
-            const start = new Date(s.startAt);
-            const end = new Date(s.endAt);
-            const hours = (end.getTime() - start.getTime()) / 3_600_000;
-            const time = (d: Date) =>
-              d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+            const hours = (new Date(s.endAt).getTime() - new Date(s.startAt).getTime()) / 3_600_000;
             return (
               <tr key={s.id}>
+                <td className="num">{fmtDay(s.startAt)}</td>
                 <td className="num">
-                  {start.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}
-                </td>
-                <td className="num">
-                  {time(start)} → {time(end)}
+                  {fmtTime(s.startAt)} → {fmtTime(s.endAt)}
                   <span className="dim ml-1.5 text-[11px]">{Math.round(hours * 10) / 10} h</span>
                 </td>
                 <td className="text-right num">{s.goal || <span className="dim">—</span>}</td>

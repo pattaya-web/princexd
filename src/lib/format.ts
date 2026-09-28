@@ -36,14 +36,99 @@ export function daysAgoISO(days: number) {
   return d.toISOString().slice(0, 10);
 }
 
-export function fmtDate(iso: string) {
+/**
+ * Fuseau de reference de l'equipe commerciale.
+ *
+ * Tout ce qui touche aux rendez-vous s'affiche et se saisit en heure de
+ * Paris, quel que soit l'ordinateur : le proprietaire travaille depuis
+ * Dubai, les setters depuis la France, iClosed est regle sur Paris. Sans ce
+ * fuseau fixe, un call a 9 h 45 s'affichait 11 h 45 a Dubai, et une saisie
+ * « 10 h » depuis Dubai tombait a 8 h pour tout le monde.
+ */
+export const TEAM_TZ = "Europe/Paris";
+
+export function fmtDate(iso: string, tz = TEAM_TZ) {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short" }).format(d);
+  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", timeZone: tz }).format(d);
 }
 
-export function fmtDateTime(iso: string, tz = "Europe/Paris") {
+/** « 09:45 », heure de Paris. */
+export function fmtTime(iso: string, tz = TEAM_TZ) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(d);
+}
+
+/** « lun. 29 sept. », heure de Paris. */
+export function fmtDay(iso: string, tz = TEAM_TZ) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short", timeZone: tz }).format(d);
+}
+
+/** Composantes d'un instant dans un fuseau : annee, mois (1-12), jour, heure, minute, jour de semaine (0 = dimanche). */
+function zonedParts(d: Date, tz: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    weekday: "short",
+  }).formatToParts(d);
+  const num = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(parts.find((p) => p.type === "weekday")?.value ?? "Sun");
+  return { y: num("year"), m: num("month"), d: num("day"), hh: num("hour"), mm: num("minute"), weekday: wd };
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * Valeur d'un <input type="datetime-local"> (« AAAA-MM-JJTHH:mm ») exprimant
+ * cet instant en heure de Paris. L'inverse de `parisToIso`.
+ */
+export function isoToParisInput(iso: string | Date, tz = TEAM_TZ): string {
+  const d = typeof iso === "string" ? new Date(iso) : iso;
+  if (Number.isNaN(d.getTime())) return "";
+  const p = zonedParts(d, tz);
+  return `${p.y}-${pad2(p.m)}-${pad2(p.d)}T${pad2(p.hh)}:${pad2(p.mm)}`;
+}
+
+/** « AAAA-MM-JJ » du jour a Paris, decale de `offsetDays` jours. */
+export function parisDay(offsetDays = 0, tz = TEAM_TZ): string {
+  const p = zonedParts(new Date(Date.now() + offsetDays * 86_400_000), tz);
+  return `${p.y}-${pad2(p.m)}-${pad2(p.d)}`;
+}
+
+/** Jour de semaine a Paris (0 = dimanche). */
+export function parisWeekday(tz = TEAM_TZ): number {
+  return zonedParts(new Date(), tz).weekday;
+}
+
+/**
+ * Interprete « AAAA-MM-JJTHH:mm » comme une heure de Paris et renvoie l'ISO
+ * UTC correspondant. Sans cela, `new Date("2026-09-29T10:00")` prend l'heure
+ * de l'ordinateur : 10 h a Dubai, c'est 8 h a Paris.
+ */
+export function parisToIso(local: string, tz = TEAM_TZ): string {
+  const m = local.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+  if (!m) return "";
+  const [, y, mo, d, hh = "00", mi = "00"] = m;
+  const guess = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(hh), Number(mi));
+  // Decalage du fuseau a cet instant (heure d'ete comprise), puis correction.
+  const p = zonedParts(new Date(guess), tz);
+  const asTz = Date.UTC(p.y, p.m - 1, p.d, p.hh, p.mm);
+  const offset = asTz - guess;
+  return new Date(guess - offset).toISOString();
+}
+
+export function fmtDateTime(iso: string, tz = TEAM_TZ) {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";

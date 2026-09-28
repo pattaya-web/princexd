@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/client";
-import { fmtDateTime, fmtInt, fmtMoney } from "@/lib/format";
+import { fmtDateTime, fmtDay, fmtInt, fmtMoney, fmtTime } from "@/lib/format";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { Card, Empty, ErrorNote, Spinner, useToast } from "@/components/ui";
 import { IgHandle, StatusBadge } from "./bits";
@@ -176,15 +176,13 @@ export function MemberHome() {
                 return (
                   <div key={s.id} className="mh-shift px-3.5 py-3" data-state={s.status}>
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-[12.5px] font-semibold">
-                        {start.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}
-                      </span>
+                      <span className="text-[12.5px] font-semibold">{fmtDay(s.startAt)}</span>
                       <span className="dim text-[11px] num">{hours} h</span>
                     </div>
-                    <div className="num text-[15px] font-semibold mt-0.5">
-                      {start.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                    <div className="num text-[15px] font-semibold mt-0.5" title="Heure de Paris">
+                      {fmtTime(s.startAt)}
                       <span className="dim"> → </span>
-                      {end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                      {fmtTime(s.endAt)}
                     </div>
                     {s.goal > 0 && (
                       <div className="dim text-[11.5px] mt-0.5 num">

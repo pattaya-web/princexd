@@ -3,7 +3,7 @@
 import { hasRole, sessionHas } from "@/lib/sales/roles";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client";
-import { fmtDateTime, fmtMoney, label } from "@/lib/format";
+import { fmtDateTime, fmtMoney, label, parisToIso } from "@/lib/format";
 import { CALL_OUTCOMES, LOST_REASONS, PAYMENT_TYPES } from "@/lib/sales/constants";
 import { Field, Modal, Spinner, useToast } from "@/components/ui";
 import { IgHandle, StatusBadge } from "./bits";
@@ -172,7 +172,7 @@ export function AppointmentDetail({
           program,
           startedAt,
           objective,
-          nextSessionAt: nextSessionAt ? new Date(nextSessionAt).toISOString() : "",
+          nextSessionAt: nextSessionAt ? parisToIso(nextSessionAt) : "",
         }),
       });
       toast(res.created ? "Élève inscrit au coaching." : "Cet élève était déjà inscrit.");
@@ -225,11 +225,12 @@ export function AppointmentDetail({
 
     if (outcome === "follow-up" || outcome === "rescheduled") {
       if (followUpAt) {
-        payload.followUp = { dueAt: new Date(followUpAt).toISOString(), notes: followUpNotes };
+        payload.followUp = { dueAt: parisToIso(followUpAt), notes: followUpNotes };
       }
       if (outcome === "rescheduled") {
         if (!rescheduledAt) return toast("Indique la nouvelle date du rendez-vous.", "err");
-        payload.rescheduledAt = new Date(rescheduledAt).toISOString();
+        // Saisie en heure de Paris, quel que soit l'ordinateur.
+        payload.rescheduledAt = parisToIso(rescheduledAt);
       }
     }
 
@@ -370,7 +371,7 @@ export function AppointmentDetail({
           )}
 
           {outcome === "rescheduled" && (
-            <Field label="Nouvelle date du rendez-vous">
+            <Field label="Nouvelle date du rendez-vous (heure de Paris)">
               <input
                 className="input"
                 type="datetime-local"
