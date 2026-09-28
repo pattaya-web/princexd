@@ -166,6 +166,8 @@ export function JobsDock() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Empreinte de la derniere reponse : identique, on ne touche a rien.
   const lastSig = useRef("");
+  // Vrai tant que la derniere liste diffusee contenait un rendu en cours.
+  const inFlight = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -173,11 +175,18 @@ export function JobsDock() {
     const tick = async () => {
       let active = false;
       try {
-        const res = await fetch("/api/kie/task", { cache: "no-store" });
+        /*
+         * Quand on suivait un rendu, on reclame la liste meme si le serveur
+         * n'a plus rien en attente : KIE a pu le terminer par rappel entre
+         * deux tours, et c'est cette diffusion qui remplace le chrono par la
+         * vignette. Sans ca, la page restait sur « en cours » jusqu'a F5.
+         */
+        const res = await fetch(inFlight.current ? "/api/kie/task?list=1" : "/api/kie/task", { cache: "no-store" });
         const body = (await res.json()) as { remaining?: number; generations?: Generation[] };
         if (!alive) return;
 
         if (body.generations) {
+          inFlight.current = body.generations.some((g) => g.state !== "success" && g.state !== "fail");
           /*
            * Chaque diffusion faisait re-rendre toute la galerie du Studio,
            * meme quand KIE n'avait rien de neuf : c'est ce qui donnait

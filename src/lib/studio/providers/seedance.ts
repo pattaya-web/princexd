@@ -40,7 +40,12 @@ export const seedancePayload = (i: ProviderInput) => ({
   reference_video_urls: [i.sourceVideoUrl],
   generate_audio: false,
   resolution: i.resolution,
-  aspect_ratio: i.aspectRatio,
+  /*
+   * Avec une video de reference, Seedance classe la tache en montage video
+   * et refuse tout ratio fixe (« The parameter ratio ... is not valid »).
+   * « adaptive » le laisse suivre le format de la source, comme duration -1.
+   */
+  aspect_ratio: "adaptive",
   // La doc n'accepte que 4-15 s ou -1 : -1 laisse le modele suivre la video de reference.
   duration: -1,
 });

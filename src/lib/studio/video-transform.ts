@@ -225,6 +225,11 @@ export function readableProviderError(provider: StudioJob["provider"], raw: stri
   let why = raw?.trim() ?? "";
   if (m.includes("file type") || m.includes("not supported")) {
     why = "format de fichier refusé (vidéo en MP4/MOV, image en JPG/PNG).";
+  } else if (m.includes("ratio")) {
+    // Avant « duration » : le refus de ratio de Seedance cite aussi la duree.
+    why = "format de sortie refusé par le modèle (il doit suivre la vidéo source).";
+  } else if (m.includes("not within the range") || m.includes("allowed options")) {
+    why = "un réglage envoyé n'est pas accepté par le modèle.";
   } else if (m.includes("duration")) {
     why = cfg ? `durée de vidéo hors limites (${cfg.minDurationSec}–${cfg.maxDurationSec} s).` : "durée hors limites.";
   } else if (m.includes("size") || m.includes("large")) {

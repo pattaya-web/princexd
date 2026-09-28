@@ -25,8 +25,13 @@ Avoid: ${i.negativePrompt}`
   ).slice(0, 2500),
   input_urls: [i.referenceImageUrl],
   video_urls: [i.sourceVideoUrl],
-  // La doc attend std (720p) / pro (1080p), pas la resolution en clair.
-  mode: i.resolution === "1080p" ? "pro" : "std",
+  /*
+   * La description de la doc parle de std / pro, mais son exemple envoie
+   * « 720p » et l'API refuse « std » (« mode is not within the range of
+   * allowed options »). Pour la 3.0 c'est bien la resolution en clair ;
+   * seule la 2.6 attend std / pro.
+   */
+  mode: i.resolution === "1080p" ? "1080p" : "720p",
   character_orientation: "video",
   background_source: "input_video",
 }));
