@@ -34,13 +34,29 @@ export async function GET(req: NextRequest) {
   });
 }
 
-/** Synchro manuelle, forcee. */
+/**
+ * Synchro manuelle, forcee.
+ *
+ * Renvoie aussi l'etat de la base : combien de leads landing page existent,
+ * combien restent a appeler, combien n'ont pas de setter. « 0 nouveau » seul
+ * ne dit pas si les contacts sont deja la ou n'ont jamais ete lus.
+ */
 export async function POST(req: NextRequest) {
   return handle(async () => {
     requireSales(readSession(req));
     if (!getSystemeioKey()) throw new Error("Clé API Systeme.io manquante.");
     const report = await syncSystemeio({ force: true });
-    return { created: report?.created ?? 0, updated: report?.updated ?? 0, skipped: report?.skipped ?? 0 };
+    const db = readDB();
+    const lp = db.leads.filter((l) => l.source === "lp" || l.systemeioId);
+    const toCall = lp.filter((l) => l.stage === "nouveau" || l.stage === "contacte" || l.stage === "conversation");
+    return {
+      examined: report?.examined ?? 0,
+      created: report?.created ?? 0,
+      updated: report?.updated ?? 0,
+      known: report?.known ?? 0,
+      skipped: report?.skipped ?? 0,
+      inBase: { total: lp.length, toCall: toCall.length, unassigned: toCall.filter((l) => !l.setterId).length },
+    };
   });
 }
 

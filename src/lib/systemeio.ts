@@ -219,15 +219,19 @@ function pickSetter(db: DB): string {
 }
 
 export interface ImportReport {
+  /** Contacts lus chez Systeme.io. */
+  examined: number;
   created: number;
   updated: number;
+  /** Deja en base et rien a completer. */
+  known: number;
   skipped: number;
   leads: Lead[];
 }
 
 /** Integre des contacts dans la base (sans ecrire : l'appelant fait le writeDB). */
 export function importContacts(db: DB, contacts: SioContact[], actorName = "Systeme.io"): ImportReport {
-  const report: ImportReport = { created: 0, updated: 0, skipped: 0, leads: [] };
+  const report: ImportReport = { examined: contacts.length, created: 0, updated: 0, known: 0, skipped: 0, leads: [] };
   const filter = db.settings.systemeioSourceFilter ?? "";
   const today = new Date().toISOString().slice(0, 10);
 
@@ -262,6 +266,7 @@ export function importContacts(db: DB, contacts: SioContact[], actorName = "Syst
       fill("sourceUrl", c.sourceURL ?? "");
       if ((existing.name === "Sans nom" || !existing.name) && name) { existing.name = name; changed = true; }
       if (changed) report.updated++;
+      else report.known++;
       continue;
     }
 

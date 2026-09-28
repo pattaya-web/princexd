@@ -548,8 +548,12 @@ export default function ReglagesPage() {
                     setSioBusy(true);
                     setSioMsg(null);
                     try {
-                      const r = await api<{ created: number; updated: number; skipped: number }>("/api/sales/systemeio", { method: "POST" });
-                      setSioMsg(`Synchro : ${r.created} nouveau(x), ${r.updated} complété(s), ${r.skipped} ignoré(s).`);
+                      const r = await api<{ examined: number; created: number; updated: number; known: number; skipped: number; inBase: { total: number; toCall: number; unassigned: number } }>("/api/sales/systemeio", { method: "POST" });
+                      setSioMsg(
+                        `${r.examined} contact(s) lu(s) chez Systeme.io : ${r.created} nouveau(x), ${r.updated} complété(s), ${r.known} déjà en base, ${r.skipped} ignoré(s). ` +
+                          `En base : ${r.inBase.total} lead(s) landing page, dont ${r.inBase.toCall} à appeler` +
+                          (r.inBase.unassigned ? ` (${r.inBase.unassigned} sans setter)` : "") + ".",
+                      );
                     } catch (e) {
                       setSioMsg((e as Error).message);
                     } finally {

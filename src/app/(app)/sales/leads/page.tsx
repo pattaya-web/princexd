@@ -110,8 +110,12 @@ export default function CallLeadsPage() {
   const sync = async () => {
     setSyncing(true);
     try {
-      const r = await api<{ created: number; updated: number }>("/api/sales/systemeio", { method: "POST" });
-      toast(r.created ? `${r.created} nouveau${r.created > 1 ? "x" : ""} lead${r.created > 1 ? "s" : ""} récupéré${r.created > 1 ? "s" : ""}.` : "Rien de nouveau côté Systeme.io.");
+      const r = await api<{ examined: number; created: number; known: number; inBase: { toCall: number } }>("/api/sales/systemeio", { method: "POST" });
+      toast(
+        r.created
+          ? `${r.created} nouveau${r.created > 1 ? "x" : ""} lead${r.created > 1 ? "s" : ""} récupéré${r.created > 1 ? "s" : ""}.`
+          : `${r.examined} contact${r.examined > 1 ? "s" : ""} lu${r.examined > 1 ? "s" : ""} chez Systeme.io, ${r.known} déjà en base. ${r.inBase.toCall} à appeler au total.`,
+      );
       void reload();
       bump();
     } catch (e) {
