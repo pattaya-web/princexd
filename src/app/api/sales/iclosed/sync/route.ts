@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSettings, readDB, saveSettings, writeDB } from "@/lib/db";
 import { fetchUpcoming, IclosedError } from "@/lib/iclosed";
-import { readSession, requireAdmin } from "@/lib/sales/access";
+import { readSession, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { findByIclosedId, fromIclosedCall, resolveCloser } from "@/lib/sales/iclosed-link";
 import { createAppointment } from "@/lib/sales/repo";
@@ -31,7 +31,14 @@ const COOLDOWN_MIN = 10;
 
 export async function POST(req: NextRequest) {
   return handle(async () => {
-    const session = requireAdmin(readSession(req));
+    /*
+     * Ouverte a toute l'equipe commerciale, pas seulement a l'admin : un closer
+     * qui ouvre son espace le matin doit y trouver ses calls du jour meme si
+     * l'admin n'a pas encore ouvert le sien. La synchro ne fait que creer des
+     * rendez-vous avec l'attribution par defaut, elle ne lit ni n'ecrase rien
+     * que le membre ne pourrait deja voir.
+     */
+    const session = requireSales(readSession(req));
     const settings = getSettings();
     const force = req.nextUrl.searchParams.get("force") === "1";
 

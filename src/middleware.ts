@@ -50,8 +50,12 @@ const SALES_PAGES = ["/sales"];
  * Le sous-menu les masque deja et les API refusent les donnees, mais l'adresse
  * reste tapable : sans ce filtre, un setter curieux atterrit sur un ecran vide
  * aux boutons inertes et croit a un bug.
+ *
+ * Les sections Setters et Closers, elles, sont ouvertes aux membres : chacun
+ * y retrouve ses propres chiffres (la page se restreint a lui-meme et l'API
+ * ne lui rend que ses lignes).
  */
-const SALES_ADMIN_PAGES = ["/sales/setters", "/sales/closers", "/sales/equipe", "/sales/membre"];
+const SALES_ADMIN_PAGES = ["/sales/equipe", "/sales/membre"];
 
 /**
  * Exception : sa propre fiche.

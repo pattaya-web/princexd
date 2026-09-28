@@ -33,13 +33,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Action réservée à l'administrateur." }, { status: 403 });
   }
 
-  const { memberId } = (await req.json().catch(() => ({}))) as { memberId?: string };
+  const { memberId, role: wanted } = (await req.json().catch(() => ({}))) as {
+    memberId?: string;
+    role?: "setter" | "closer";
+  };
   if (!memberId) return NextResponse.json({ error: "memberId manquant." }, { status: 400 });
 
   const member = readDB().team.find((m) => m.id === memberId);
   if (!member) return NextResponse.json({ error: "Membre introuvable." }, { status: 404 });
 
-  const role: SessionRole = primaryRole(memberRoles(member)) ?? "anonyme";
+  /*
+   * Metier demande.
+   *
+   * Un membre setter + closer a « setter » pour metier principal : sans ce
+   * choix explicite, « voir comme closer » ouvrait la vue setter. Le jeton
+   * porte le metier voulu, et readSession restreint la session a celui-ci.
+   */
+  const roles = memberRoles(member);
+  const role: SessionRole = wanted && roles.includes(wanted) ? wanted : (primaryRole(roles) ?? "anonyme");
   if (role === "anonyme") {
     return NextResponse.json({ error: "Ce rôle n'a pas d'espace à visualiser." }, { status: 400 });
   }

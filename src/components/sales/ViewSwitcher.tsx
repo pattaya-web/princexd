@@ -64,9 +64,10 @@ export function ViewSwitcher() {
       if (session.impersonated) {
         await api("/api/sales/session", { method: "DELETE" });
       }
+      // Le metier est explicite : un setter + closer s'ouvre bien en closer.
       await api("/api/sales/session/view-as", {
         method: "POST",
-        body: JSON.stringify({ memberId: target.id }),
+        body: JSON.stringify({ memberId: target.id, role }),
       });
       forgetSession();
       // Rechargement complet plutot que router.refresh : le middleware doit

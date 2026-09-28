@@ -139,12 +139,24 @@ export function memberSessionRole(member: TeamMember): SessionRole {
   return primaryRole(memberRoles(member)) ?? "anonyme";
 }
 
-/** Construit la session complete d'un membre. */
-export function sessionFor(member: TeamMember, impersonated = false): Session {
-  const role = memberSessionRole(member);
+/**
+ * Construit la session complete d'un membre.
+ *
+ * `only` restreint la session a un seul metier : c'est ce que fait l'apercu
+ * « voir comme closer » d'un membre setter + closer. Sans cela, l'apercu
+ * retombait toujours sur le metier principal (setter) et la vue closer etait
+ * impossible a verifier. Ignore si le membre n'a pas ce metier.
+ */
+export function sessionFor(member: TeamMember, impersonated = false, only?: CommercialRole): Session {
+  let role = memberSessionRole(member);
+  let roles = role === "setter" || role === "closer" ? memberRoles(member) : [];
+  if (only && roles.includes(only)) {
+    role = only;
+    roles = [only];
+  }
   return {
     role,
-    roles: role === "setter" || role === "closer" ? memberRoles(member) : [],
+    roles,
     memberId: member.id,
     memberName: member.name,
     isAdmin: role === "admin",
@@ -174,7 +186,9 @@ export function readSession(req: NextRequest): Session {
     // acces.
     const member = readDB().team.find((m) => m.id === claims.memberId);
     if (!member || member.status === "inactif") return ANON;
-    return sessionFor(member, Boolean(claims.impersonated));
+    // En apercu, le jeton peut demander un seul metier (voir sessionFor).
+    const only = claims.impersonated && (claims.role === "setter" || claims.role === "closer") ? claims.role : undefined;
+    return sessionFor(member, Boolean(claims.impersonated), only);
   }
 
   // Monteur entre par le code global (jeton sans membre) ou par l'ancien cookie.

@@ -113,7 +113,12 @@ async function call<T>(path: string): Promise<T> {
 
 /**
  * Récupère les appels page par page.
- * iClosed pagine avec `page` (le paramètre `offset` est ignoré par l'API).
+ *
+ * iClosed pagine avec `page`, et la PREMIERE page est la page 0 (vérifié le
+ * 2026-09-28 : `page=0` renvoie les 50 calls les plus récents, `page=1` les
+ * 50 suivants). Le tool demandait la page 1 et sautait donc les 50 derniers
+ * calls ; avec `eventType=UPCOMING`, dont le compte tient en une page, la
+ * liste sortait toujours vide alors que `count` annonçait des rendez-vous.
  */
 export async function fetchCalls(
   eventType: "UPCOMING" | "PAST",
@@ -121,7 +126,7 @@ export async function fetchCalls(
   perPage = 50,
 ): Promise<IclosedCall[]> {
   const out: IclosedCall[] = [];
-  for (let page = 1; page <= maxPages; page++) {
+  for (let page = 0; page < maxPages; page++) {
     const res = await call<{ data: { eventCalls: IclosedCall[]; count: number } }>(
       `/v1/eventCalls?eventType=${eventType}&limit=${perPage}&page=${page}`,
     );
@@ -272,27 +277,24 @@ export function toLead(c: IclosedCall, status: CallEvent["status"]): Lead {
 /**
  * Rendez-vous a venir, avec repli.
  *
- * Le filtre `eventType=UPCOMING` de l'API iClosed est peu fiable : sur le
- * compte connecte il renvoie `count: 1` avec une liste VIDE, quelle que soit
- * la page ou la taille demandee. Verifie sur les 12 pages du compte.
- *
- * On tente donc le filtre — une seule requete, le cas normal — et s'il annonce
- * des resultats sans en fournir, on balaie la liste complete et on filtre sur
- * la date nous-memes. Plus couteux, mais c'est la seule facon de ne pas rater
- * un booking a cause d'un bug de leur cote.
+ * Le filtre `eventType=UPCOMING` fonctionne des lors qu'on lit la page 0 (voir
+ * `fetchCalls`) : c'etait la page 1 qui rendait une liste vide avec un `count`
+ * non nul. On garde neanmoins le repli : si le filtre annonce des resultats
+ * sans en fournir, on balaie la liste complete et on tranche sur la date
+ * nous-memes, pour ne jamais rater un booking a cause d'un caprice de l'API.
  */
 export async function fetchUpcoming(maxPages = 12, perPage = 50): Promise<IclosedCall[]> {
-  const direct = await call<{ data: { eventCalls: IclosedCall[]; count: number } }>(
-    `/v1/eventCalls?eventType=UPCOMING&limit=${perPage}&page=1`,
+  const direct = await fetchCalls("UPCOMING", 4, perPage);
+  if (direct.length > 0) return direct;
+  const probe = await call<{ data: { eventCalls: IclosedCall[]; count: number } }>(
+    `/v1/eventCalls?eventType=UPCOMING&limit=1&page=0`,
   );
-  const rows = direct.data?.eventCalls ?? [];
-  if (rows.length > 0) return rows;
-  if (!direct.data?.count) return [];
+  if (!probe.data?.count) return [];
 
   // Le filtre ment : on relit tout et on tranche sur la date.
   const now = new Date().toISOString();
   const seen = new Map<number, IclosedCall>();
-  for (let page = 1; page <= maxPages; page++) {
+  for (let page = 0; page < maxPages; page++) {
     const res = await call<{ data: { eventCalls: IclosedCall[]; count: number } }>(
       `/v1/eventCalls?limit=${perPage}&page=${page}`,
     );

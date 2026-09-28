@@ -9,6 +9,8 @@ import { Card, ErrorNote, Spinner } from "@/components/ui";
 import { SalesContext, type SalesCtx } from "@/components/sales/context";
 import type { PeriodState } from "@/components/sales/bits";
 import type { PublicMember } from "@/lib/sales/repo";
+import { sessionHas } from "@/lib/sales/roles";
+import type { Session } from "@/lib/types";
 
 /* ------------------------------ Sous-menu ------------------------------- */
 
@@ -17,6 +19,8 @@ interface Tab {
   label: string;
   /** Onglets reserves a l'admin. */
   admin?: boolean;
+  /** Onglet ouvert aux membres qui exercent ce metier (et a l'admin). */
+  role?: "setter" | "closer";
 }
 
 const TABS: Tab[] = [
@@ -24,26 +28,34 @@ const TABS: Tab[] = [
   { href: "/sales/leads", label: "À appeler" },
   { href: "/sales/rendez-vous", label: "Rendez-vous" },
   { href: "/sales/relances", label: "Relances" },
-  { href: "/sales/setters", label: "Setters", admin: true },
-  { href: "/sales/closers", label: "Closers", admin: true },
+  { href: "/sales/setters", label: "Setters", role: "setter" },
+  { href: "/sales/closers", label: "Closers", role: "closer" },
   { href: "/sales/commissions", label: "Commissions" },
   { href: "/sales/equipe", label: "Comptes", admin: true },
 ];
 
+/** L'onglet est-il ouvert a cette session ? */
+function allowed(t: Tab, session: Session): boolean {
+  if (session.isAdmin) return true;
+  if (t.admin) return false;
+  if (t.role) return sessionHas(session, t.role);
+  return true;
+}
+
 /**
- * Un onglet reserve a l'admin couvre-t-il cette adresse ?
+ * Une adresse fermee a cette session ?
  *
  * Masquer l'onglet ne suffit pas : l'adresse reste tapable. Les API refusent
  * deja les donnees, mais un membre qui tombe sur une page vide aux boutons
  * inertes croit a un bug — autant lui dire franchement.
  */
-function isAdminRoute(pathname: string): boolean {
-  return TABS.some((t) => t.admin && (pathname === t.href || pathname.startsWith(`${t.href}/`)));
+function isBlockedRoute(pathname: string, session: Session): boolean {
+  return TABS.some((t) => !allowed(t, session) && (pathname === t.href || pathname.startsWith(`${t.href}/`)));
 }
 
-function SubNav({ isAdmin }: { isAdmin: boolean }) {
+function SubNav({ session }: { session: Session }) {
   const pathname = usePathname();
-  const visible = TABS.filter((t) => !t.admin || isAdmin);
+  const visible = TABS.filter((t) => allowed(t, session));
 
   return (
     <nav
@@ -103,7 +115,9 @@ export default function SalesLayout({ children }: { children: ReactNode }) {
    */
   const synced = useRef(false);
   useEffect(() => {
-    if (!session?.isAdmin || synced.current) return;
+    // Toute l'equipe declenche la synchro : un closer doit voir ses calls du
+    // jour sans attendre que l'admin ouvre le tool.
+    if (!session || session.role === "anonyme" || session.role === "editor" || synced.current) return;
     synced.current = true;
     void api<{ created: number }>("/api/sales/iclosed/sync", { method: "POST" })
       .then((r) => {
@@ -150,15 +164,15 @@ export default function SalesLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  const blocked = !value.session.isAdmin && isAdminRoute(pathname);
+  const blocked = isBlockedRoute(pathname, value.session);
 
   return (
     <SalesContext.Provider value={value}>
-      <SubNav isAdmin={value.session.isAdmin} />
+      <SubNav session={value.session} />
       {blocked ? (
         <Card>
           <ErrorNote>
-            Cette page est réservée à l&apos;administrateur.{" "}
+            Cette page ne concerne pas ton rôle.{" "}
             <Link href="/sales" className="link">
               Retour à mon espace
             </Link>

@@ -29,7 +29,16 @@ interface DashboardPayload {
  */
 export function TeamScope({ role }: { role: "setter" | "closer" }) {
   const { members, session, period, setPeriod, version, bump } = useSales();
-  const [selected, setSelected] = useState("");
+  const [picked, setPicked] = useState("");
+
+  /*
+   * Un membre n'y voit que lui-meme : pas de choix de personne, pas de
+   * classement. L'API ne lui rend de toute facon que ses propres lignes ; la
+   * page se contente de ne pas afficher des commandes qui ne serviraient a
+   * rien.
+   */
+  const mine = !session.isAdmin;
+  const selected = mine ? session.memberId : picked;
 
   const people = useMemo(() => members.filter((m) => hasRole(m, role)), [members, role]);
 
@@ -55,21 +64,23 @@ export function TeamScope({ role }: { role: "setter" | "closer" }) {
   return (
     <>
       <PageHeader
-        title={isSetter ? "Setters" : "Closers"}
+        title={mine ? (isSetter ? "Mes chiffres de setter" : "Mes chiffres de closer") : isSetter ? "Setters" : "Closers"}
         actions={
           <>
-            <select
-              className="select !w-auto !h-[30px] !text-[12.5px]"
-              value={selected}
-              onChange={(e) => setSelected(e.target.value)}
-            >
-              <option value="">Toute l&apos;équipe</option>
-              {people.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+            {!mine && (
+              <select
+                className="select !w-auto !h-[30px] !text-[12.5px]"
+                value={picked}
+                onChange={(e) => setPicked(e.target.value)}
+              >
+                <option value="">Toute l&apos;équipe</option>
+                {people.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <PeriodPicker value={period} onChange={setPeriod} />
           </>
         }
@@ -121,12 +132,12 @@ export function TeamScope({ role }: { role: "setter" | "closer" }) {
                   accent="var(--emerald)"
                 />
                 <StatTile
-                  label="Commissions setters"
+                  label={mine ? "Ma commission" : "Commissions setters"}
                   value={fmtMoney(data?.commissions.setters ?? 0, currency)}
-                  hint={selected ? "Équipe entière" : undefined}
+                  hint={selected && !mine ? "Équipe entière" : undefined}
                 />
                 <StatTile
-                  label="Total dû à l'équipe"
+                  label={mine ? "Reste à me verser" : "Total dû à l'équipe"}
                   value={fmtMoney(data?.commissions.due ?? 0, currency)}
                   hint={
                     <Link href="/sales/commissions" className="link">
@@ -177,8 +188,8 @@ export function TeamScope({ role }: { role: "setter" | "closer" }) {
             )}
           </div>
 
-          {/* Classement, seulement en vue equipe. */}
-          {!selected && (
+          {/* Classement, seulement en vue equipe (admin). */}
+          {!selected && !mine && (
             <Card title={isSetter ? "Classement setters" : "Classement closers"} padded={false} className="mb-4">
               {(isSetter ? data?.setters.length : data?.closers.length) ? (
                 <div className="scroll-x">
