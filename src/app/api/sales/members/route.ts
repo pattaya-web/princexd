@@ -79,6 +79,7 @@ function ruleFromBody(
     type,
     pct,
     fixed: Math.max(0, Number(c.fixed) || 0),
+    monthlyFixed: Math.max(0, Number(c.monthlyFixed) || 0),
     basis: c.basis === "contract" ? "contract" : "cash",
     onlyQualified: Boolean(c.onlyQualified),
     currency: (c.currency as string) || defaultCurrency,

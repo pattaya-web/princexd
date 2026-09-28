@@ -31,8 +31,8 @@ import { memberRoles, type CommercialRole } from "./roles";
 export interface CommissionEntry {
   memberId: string;
   role: "setter" | "closer";
-  kind: "appointment" | "show" | "sale";
-  /** Rendez-vous ou vente a l'origine de la ligne. */
+  kind: "appointment" | "show" | "sale" | "fixed";
+  /** Rendez-vous ou vente a l'origine de la ligne ; `fixed-<role>-<AAAA-MM>` pour un fixe mensuel. */
   sourceId: string;
   /** Date d'attribution : c'est elle qui decide de la periode. */
   at: string;
@@ -227,7 +227,65 @@ export function entriesForRole(
     });
   }
 
+  out.push(...monthlyFixedEntries(member, role, rules));
+
   return out.sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/** Mois suivant d'un `AAAA-MM`. */
+function nextMonth(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+}
+
+const MONTH_LABEL = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });
+
+/**
+ * Fixe mensuel.
+ *
+ * Une ligne par mois civil, du mois d'entree en vigueur de la premiere regle
+ * qui en prevoit un jusqu'au mois courant inclus : le fixe du mois est du des
+ * le premier jour, il n'attend pas la fin du mois. La regle retenue pour un
+ * mois est celle en vigueur a sa fin, donc un fixe qui change le 15 vaut pour
+ * le mois entier a partir de ce mois-la.
+ *
+ * Aucune date de sortie n'est connue : pour arreter le fixe d'un membre
+ * parti, on lui enregistre un tarif sans fixe mensuel (ou on desactive sa
+ * regle).
+ */
+export function monthlyFixedEntries(
+  member: TeamMember,
+  role: CommercialRole,
+  rules: CommissionRule[],
+): CommissionEntry[] {
+  const withMonthly = rules.filter(
+    (r) => r.memberId === member.id && r.role === role && r.active && (r.monthlyFixed || 0) > 0,
+  );
+  if (!withMonthly.length) return [];
+
+  const first = withMonthly.map((r) => r.effectiveFrom || "").filter(Boolean).sort()[0];
+  if (!first) return [];
+  const current = new Date().toISOString().slice(0, 7);
+  const out: CommissionEntry[] = [];
+
+  for (let ym = first.slice(0, 7); ym <= current; ym = nextMonth(ym)) {
+    // « -31 » couvre tous les jours du mois en comparaison de chaines.
+    const rule = effectiveRule(rules, member.id, `${ym}-31`, role);
+    const amount = rule?.monthlyFixed || 0;
+    if (!rule || amount <= 0) continue;
+    out.push({
+      memberId: member.id,
+      role,
+      kind: "fixed",
+      sourceId: `fixed-${role}-${ym}`,
+      at: `${ym}-01T12:00:00.000Z`,
+      amount: money(amount),
+      currency: rule.currency,
+      ruleId: rule.id,
+      detail: `Fixe mensuel — ${MONTH_LABEL.format(new Date(`${ym}-01T12:00:00.000Z`))}`,
+    });
+  }
+  return out;
 }
 
 /* ------------------------------ Grand livre ------------------------------ */
@@ -327,18 +385,22 @@ export function buildLedger(
 export function describeRule(rule: CommissionRule | null, currency: string): string {
   if (!rule) return "Aucune règle";
   const c = rule.currency || currency;
+  const monthly = rule.monthlyFixed || 0;
+  const withMonthly = (s: string) => (monthly > 0 ? `${monthly} ${c} / mois + ${s}` : s);
   switch (rule.type) {
+    case "monthly-fixed":
+      return monthly > 0 ? `${monthly} ${c} / mois` : "Fixe mensuel (montant à définir)";
     case "per-appointment":
-      return `${rule.fixed} ${c} / rendez-vous${rule.onlyQualified ? " qualifié" : ""}`;
+      return withMonthly(`${rule.fixed} ${c} / rendez-vous${rule.onlyQualified ? " qualifié" : ""}`);
     case "per-show":
-      return `${rule.fixed} ${c} / call honoré`;
+      return withMonthly(`${rule.fixed} ${c} / call honoré`);
     case "pct-revenue":
-      return `${rule.pct} % de la valeur de contrat`;
+      return withMonthly(`${rule.pct} % de la valeur de contrat`);
     case "pct-cash":
-      return `${rule.pct} % du cash encaissé`;
+      return withMonthly(`${rule.pct} % du cash encaissé`);
     case "fixed-plus-pct":
     case "custom":
-      return `${rule.fixed} ${c} + ${rule.pct} % ${rule.basis === "contract" ? "du contrat" : "du cash"}`;
+      return withMonthly(`${rule.fixed} ${c} + ${rule.pct} % ${rule.basis === "contract" ? "du contrat" : "du cash"}`);
     default:
       return "Règle personnalisée";
   }

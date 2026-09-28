@@ -251,7 +251,7 @@ export default function CommissionsPage() {
                     <td className="num">{fmtDate(e.at)}</td>
                     <td>
                       <span className="badge !text-[10.5px] !py-0">
-                        {e.kind === "sale" ? "Vente" : e.kind === "show" ? "Call honoré" : "Rendez-vous"}
+                        {e.kind === "sale" ? "Vente" : e.kind === "show" ? "Call honoré" : e.kind === "fixed" ? "Fixe" : "Rendez-vous"}
                       </span>
                     </td>
                     <td className="text-[12px]">{e.detail}</td>

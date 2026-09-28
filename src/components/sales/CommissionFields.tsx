@@ -16,6 +16,8 @@ export interface CommissionDraft {
   type: CommissionType;
   pct: string;
   fixed: string;
+  /** Fixe mensuel : seul montant du mode « Fixe mensuel », optionnel ailleurs. */
+  monthly: string;
   basis: "cash" | "contract";
   onlyQualified: boolean;
   effectiveFrom: string;
@@ -28,6 +30,7 @@ export function blankCommission(role: "setter" | "closer"): CommissionDraft {
     type: role === "setter" ? "per-show" : "pct-cash",
     pct: role === "setter" ? "5" : "10",
     fixed: role === "setter" ? "30" : "0",
+    monthly: "0",
     basis: "cash",
     onlyQualified: false,
     effectiveFrom: new Date().toISOString().slice(0, 10),
@@ -43,18 +46,22 @@ const usesFixed = (t: CommissionType) =>
 export function previewCommission(d: CommissionDraft, currency: string): string {
   const pct = Number(d.pct) || 0;
   const fixed = Number(d.fixed) || 0;
+  const monthly = Number(d.monthly) || 0;
+  const withMonthly = (s: string) => (monthly > 0 ? `${monthly} ${currency} par mois + ${s}` : s);
   switch (d.type) {
+    case "monthly-fixed":
+      return monthly > 0 ? `${monthly} ${currency} par mois, quel que soit le résultat` : "un fixe mensuel à définir";
     case "per-appointment":
-      return `${fixed} ${currency} par rendez-vous${d.onlyQualified ? " qualifié" : ""} posé`;
+      return withMonthly(`${fixed} ${currency} par rendez-vous${d.onlyQualified ? " qualifié" : ""} posé`);
     case "per-show":
-      return `${fixed} ${currency} par call réellement honoré`;
+      return withMonthly(`${fixed} ${currency} par call réellement honoré`);
     case "pct-revenue":
-      return `${pct} % de la valeur des contrats signés`;
+      return withMonthly(`${pct} % de la valeur des contrats signés`);
     case "pct-cash":
-      return `${pct} % du cash réellement encaissé`;
+      return withMonthly(`${pct} % du cash réellement encaissé`);
     case "fixed-plus-pct":
     case "custom":
-      return `${fixed} ${currency} par vente + ${pct} % ${d.basis === "contract" ? "du contrat" : "du cash encaissé"}`;
+      return withMonthly(`${fixed} ${currency} par vente + ${pct} % ${d.basis === "contract" ? "du contrat" : "du cash encaissé"}`);
     default:
       return "";
   }
@@ -94,6 +101,21 @@ export function CommissionFields({
             </option>
           ))}
         </select>
+      </Field>
+
+      {/* Fixe mensuel : le seul montant du mode « Fixe mensuel », un complement
+          optionnel partout ailleurs (fixe + variable). */}
+      <Field
+        label={value.type === "monthly-fixed" ? `Fixe par mois (${currency})` : `Fixe mensuel, optionnel (${currency})`}
+        hint={value.type === "monthly-fixed" ? undefined : "Versé chaque mois en plus du variable. 0 = aucun."}
+      >
+        <input
+          className="input num"
+          type="number"
+          min={0}
+          value={value.monthly}
+          onChange={(e) => set({ monthly: e.target.value })}
+        />
       </Field>
 
       {usesFixed(value.type) && (

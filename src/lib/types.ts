@@ -929,6 +929,7 @@ export interface FollowUp {
  * paient en plusieurs fois.
  */
 export type CommissionType =
+  | "monthly-fixed"
   | "per-appointment"
   | "per-show"
   | "pct-revenue"
@@ -952,6 +953,12 @@ export interface CommissionRule {
   pct: number;
   /** Montant fixe : par rendez-vous, par show, ou par vente selon le type. */
   fixed: number;
+  /**
+   * Fixe mensuel, verse chaque mois quel que soit le resultat. Seul montant
+   * du type `monthly-fixed` ; optionnel en complement des autres types
+   * (fixe + variable). Absent sur les regles anterieures = 0.
+   */
+  monthlyFixed?: number;
   /** Assiette du pourcentage pour `fixed-plus-pct` et `custom`. */
   basis: "contract" | "cash";
   /** `per-appointment` : ne compter que les rendez-vous marques qualifies. */

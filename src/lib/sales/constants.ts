@@ -53,6 +53,7 @@ export const PAYMENT_TYPES: PaymentType[] = ["paid-in-full", "installments", "de
 export const SALE_STATUSES: SaleStatus[] = ["active", "partially-refunded", "refunded", "cancelled"];
 
 export const COMMISSION_TYPES: CommissionType[] = [
+  "monthly-fixed",
   "per-appointment",
   "per-show",
   "pct-revenue",

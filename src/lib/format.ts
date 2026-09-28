@@ -202,6 +202,7 @@ export const LABELS: Record<string, string> = {
   "paid-in-full": "Payé en une fois",
   installments: "Paiement échelonné",
   deposit: "Acompte",
+  "monthly-fixed": "Fixe mensuel",
   "per-appointment": "Par rendez-vous",
   "per-show": "Par call honoré",
   "pct-revenue": "% de la valeur de contrat",

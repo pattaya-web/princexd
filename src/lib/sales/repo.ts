@@ -529,8 +529,10 @@ export function setCommissionRule(
   const db = readDB();
   const rule: CommissionRule = { ...input, id: newId(), createdAt: new Date().toISOString() };
 
+  // Seules les regles du MEME metier sont remplacees : enregistrer le tarif
+  // closer d'un setter-closer ne doit pas eteindre son tarif setter.
   for (const old of db.commissionRules) {
-    if (old.memberId === rule.memberId && old.active) old.active = false;
+    if (old.memberId === rule.memberId && old.role === rule.role && old.active) old.active = false;
   }
   db.commissionRules.unshift(rule);
 

@@ -95,6 +95,7 @@ export async function POST(req: NextRequest) {
       type,
       pct,
       fixed: Math.max(0, num(body.fixed)),
+      monthlyFixed: Math.max(0, num(body.monthlyFixed)),
       basis: body.basis === "contract" ? "contract" : "cash",
       onlyQualified: Boolean(body.onlyQualified),
       currency: (body.currency as string) || db.settings.salesCurrency || "USD",
