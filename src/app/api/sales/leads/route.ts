@@ -117,6 +117,33 @@ export async function GET(req: NextRequest) {
      */
     const cold = (l: Lead) => l.source === "lp" || Boolean(l.systemeioId);
 
+    // ?declared=1 : les prospects envoyes vers le calendrier (Instagram), avec
+    // leur rendez-vous quand il est arrive. Rien a voir avec les leads froids.
+    if (req.nextUrl.searchParams.get("declared") === "1") {
+      const mine = db.leads
+        .filter((l) => Boolean(l.declaredAt) && visible(l))
+        .map((l) => {
+          const appt = db.appointments
+            .filter((a) => a.leadId === l.id && a.status !== "cancelled")
+            .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))[0];
+          return {
+            id: l.id,
+            name: l.name,
+            igUsername: l.igUsername ?? "",
+            phone: l.phone ?? "",
+            email: l.email ?? "",
+            setterName: l.setterId ? (names.get(l.setterId) ?? "—") : "",
+            declaredAt: l.declaredAt ?? l.createdAt,
+            appointmentAt: appt?.scheduledAt ?? "",
+            appointmentStatus: appt?.status ?? "",
+            closerName: appt?.closerId ? (names.get(appt.closerId) ?? "") : "",
+            notes: l.notes ?? "",
+          };
+        })
+        .sort((a, b) => b.declaredAt.localeCompare(a.declaredAt));
+      return { declared: mine };
+    }
+
     const rows: CallLeadRow[] = [];
     for (const l of db.leads) {
       if (!cold(l) || !visible(l)) continue;
@@ -230,5 +257,85 @@ export async function PATCH(req: NextRequest) {
       writeDB(db);
     }
     return { moved, setter: setter.name };
+  });
+}
+
+/**
+ * Prospect declare par un setter : « j'ai envoye le lien du calendrier a
+ * @pseudo ». Cree (ou complete) un lead a son nom. Quand la reservation
+ * iClosed arrive, la synchro la rapproche de ce lead et le rendez-vous lui
+ * est attribue (voir lib/sales/iclosed-sync). L'admin peut declarer pour un
+ * setter donne.
+ */
+export async function POST(req: NextRequest) {
+  return handle(async () => {
+    const session = requireSales(readSession(req));
+    const body = (await req.json().catch(() => ({}))) as { igUsername?: string; name?: string; phone?: string; email?: string; note?: string; setterId?: string };
+    const db = readDB();
+    const setterId = session.isAdmin && body.setterId ? body.setterId : session.memberId;
+    if (!setterId || !db.team.some((m) => m.id === setterId)) throw new Error("Setter introuvable.");
+    const ig = String(body.igUsername ?? "").trim().replace(/^@+/, "").toLowerCase();
+    const name = String(body.name ?? "").trim();
+    if (!ig && !name) throw new Error("Indique au moins le pseudo Instagram ou le nom.");
+
+    const email = String(body.email ?? "").trim().toLowerCase();
+    const phone = String(body.phone ?? "").trim();
+    const existing =
+      (ig ? db.leads.find((l) => (l.igUsername ?? l.handle ?? "").replace(/^@+/, "").toLowerCase() === ig) : undefined) ??
+      (email ? db.leads.find((l) => (l.email ?? "").toLowerCase() === email) : undefined);
+
+    const now = new Date().toISOString();
+    let lead: Lead;
+    if (existing) {
+      lead = existing;
+      if (!lead.setterId) lead.setterId = setterId;
+      if (name && (!lead.name || lead.name === "Sans nom" || lead.name.startsWith("@"))) lead.name = name;
+      if (email && !lead.email) lead.email = email;
+      if (phone && !lead.phone) lead.phone = phone;
+      if (ig && !lead.igUsername) {
+        lead.igUsername = ig;
+        lead.handle = `@${ig}`;
+      }
+    } else {
+      lead = {
+        id: newId(),
+        name: name || `@${ig}`,
+        handle: ig ? `@${ig}` : "",
+        source: "instagram-dm",
+        stage: "conversation",
+        dealValue: 0,
+        callAt: "",
+        ownerRole: "setter",
+        ownerName: db.team.find((m) => m.id === setterId)?.name ?? "",
+        painPoint: "",
+        nextAction: "Attendre sa réservation",
+        nextActionAt: now.slice(0, 10),
+        notes: "",
+        createdAt: now,
+        igUsername: ig,
+        email,
+        phone,
+        setterId,
+        timezone: "Europe/Paris",
+        callStatus: "reached",
+        lastCallAt: now,
+        declaredAt: now,
+      };
+      db.leads.unshift(lead);
+    }
+    if (!lead.declaredAt) lead.declaredAt = now;
+    if (body.note?.trim()) lead.notes = [lead.notes, body.note.trim()].filter(Boolean).join("\n");
+    db.activityLogs.unshift({
+      id: newId(),
+      at: now,
+      actorId: session.memberId,
+      actorName: session.memberName || "Moi",
+      action: "lead.declared",
+      entity: "lead",
+      entityId: lead.id,
+      summary: `${session.memberName || "Moi"} a envoyé le lien du calendrier à ${lead.handle || lead.name}`,
+    });
+    writeDB(db);
+    return { lead };
   });
 }

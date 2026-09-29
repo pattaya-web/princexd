@@ -40,6 +40,54 @@ let inflight: Promise<IclosedSyncReport> | null = null;
 
 const active = (m: TeamMember) => m.status !== "inactif";
 
+const norm = (s: string) => s.trim().toLowerCase().replace(/^@+/, "");
+const digits = (s: string) => s.replace(/\D/g, "");
+
+/**
+ * Setter signe dans le lien de reservation.
+ *
+ * Chaque setter envoie le calendrier avec sa signature en parametre UTM
+ * (`?utm_source=setter&utm_content=<identifiant>`), et iClosed la garde sur
+ * la reservation. C'est l'attribution la plus sure : rien a declarer.
+ */
+function setterFromUtm(db: DB, call: IclosedCall): string {
+  const values = (call.utm ?? []).map((u) => norm(u.utmValue ?? "")).filter(Boolean);
+  if (!values.length) return "";
+  for (const m of db.team) {
+    if (!active(m) || !memberRoles(m).includes("setter")) continue;
+    const keys = [m.username, m.id, m.name].filter(Boolean).map((k) => norm(String(k)));
+    if (values.some((v) => keys.includes(v))) return m.id;
+  }
+  return "";
+}
+
+/**
+ * Prospect declare par un setter (« j'ai envoye le lien a @pseudo »).
+ *
+ * On rapproche la reservation d'un lead existant par pseudo Instagram du
+ * questionnaire, puis email, telephone, et enfin nom complet s'il est unique.
+ * Le rendez-vous se rattache alors a ce lead, et au setter qui l'a declare.
+ */
+function matchLead(db: DB, call: IclosedCall): DB["leads"][number] | undefined {
+  const ig = norm(
+    (call.questions ?? []).find((q) => /instagram|pseudo|@/i.test(q.statement))?.answer?.match(/@?([A-Za-z0-9._]{2,30})/)?.[1] ?? "",
+  );
+  const email = (call.inviteeEmail ?? "").trim().toLowerCase();
+  const phone = digits(call.phoneNumber ?? "");
+  const name = norm(call.inviteeName ?? "");
+  const byIg = ig ? db.leads.find((l) => norm(l.igUsername ?? l.handle ?? "") === ig) : undefined;
+  if (byIg) return byIg;
+  const byEmail = email ? db.leads.find((l) => (l.email ?? "").toLowerCase() === email) : undefined;
+  if (byEmail) return byEmail;
+  const byPhone = phone.length >= 8 ? db.leads.find((l) => l.phone && digits(l.phone).endsWith(phone.slice(-9))) : undefined;
+  if (byPhone) return byPhone;
+  if (name.length >= 5) {
+    const same = db.leads.filter((l) => norm(l.name) === name);
+    if (same.length === 1) return same[0];
+  }
+  return undefined;
+}
+
 function pickSetter(db: DB): string {
   const s = db.settings;
   const ok = (id?: string) => Boolean(id) && db.team.some((m) => m.id === id && active(m));
@@ -158,11 +206,17 @@ export async function syncIclosedUpcoming(opts: { force?: boolean } = {}): Promi
           continue;
         }
 
-        const setterId = pickSetter(db);
+        /*
+         * Qui a chauffe le prospect : la signature du lien d'abord, puis le
+         * lead declare par un setter, puis les reglages.
+         */
+        const known = matchLead(db, call);
+        const setterId = setterFromUtm(db, call) || known?.setterId || pickSetter(db);
         const closerId = pickCloser(db, call);
         const input = fromIclosedCall(call, { setterId, closerId });
         if (!input) continue;
-        if (!input.igUsername) input.igUsername = (input.email || input.name || `iclosed-${call.id}`).split("@")[0];
+        if (known) input.leadId = known.id;
+        if (!input.igUsername) input.igUsername = known?.igUsername || (input.email || input.name || `iclosed-${call.id}`).split("@")[0];
         if (setterId) {
           createAppointment(SYSTEM, input);
         } else {

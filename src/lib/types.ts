@@ -148,6 +148,8 @@ export interface Settings {
   salesOwnerMemberId?: string;
   /** Calls iClosed supprimes a la main : la synchro ne les recree pas. */
   salesDeletedIclosedEventIds?: string[];
+  /** Lien de reservation iClosed. Chaque setter recoit ce lien signe a son nom (UTM). */
+  salesBookingUrl?: string;
   /** Derniere synchro reussie, pour ne pas retaper l'API a chaque navigation. */
   salesLastSyncAt: string;
   /* --- Systeme.io : leads de la landing page. Priorite a SYSTEMEIO_API_KEY. --- */
@@ -342,6 +344,8 @@ export interface Lead {
   callStatus?: LeadCallStatus;
   /** Rappel demande par le prospect : date et heure (ISO). */
   callbackAt?: string;
+  /** Declare par un setter (« j'ai envoye le lien du calendrier ») : date de la declaration. */
+  declaredAt?: string;
 }
 
 /**

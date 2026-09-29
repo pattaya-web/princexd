@@ -3,12 +3,12 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/client";
-import { fmtDualDateTime, fmtDay, fmtInt, fmtMoney, fmtTime } from "@/lib/format";
+import { fmtDualDateTime, fmtDay, fmtInt, fmtMoney, fmtTime, relative } from "@/lib/format";
 import { CallsCalendar } from "./CallsCalendar";
 import { useEffect } from "react";
 import type { WorkSession } from "@/lib/types";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
-import { Card, Empty, ErrorNote, Spinner, useToast } from "@/components/ui";
+import { Card, Empty, ErrorNote, Field, Modal, Spinner, useToast } from "@/components/ui";
 import { IgHandle, StatusBadge } from "./bits";
 import { AppointmentDetail } from "./AppointmentDetail";
 import { AppointmentModal } from "./AppointmentModal";
@@ -269,6 +269,11 @@ export function MemberHome() {
           onOpen={(id) => setOpenId(id)}
         />
 
+        {/* ------------------- Prospects envoyés vers le calendrier ------------------- */}
+        {isSetter && (
+          <DeclaredProspects version={version} onChanged={bump} />
+        )}
+
         {/* ------------------------------ Créneaux ---------------------------- */}
         {myShifts.length > 0 && (
           <div>
@@ -482,6 +487,145 @@ export function MemberHome() {
         members={members}
       />
     </>
+  );
+}
+
+/* -------------------- Prospects envoyés vers le calendrier -------------------- */
+
+interface Declared {
+  id: string;
+  name: string;
+  igUsername: string;
+  phone: string;
+  email: string;
+  declaredAt: string;
+  appointmentAt: string;
+  appointmentStatus: string;
+  closerName: string;
+}
+
+/**
+ * Le setter declare a qui il a envoye le lien du calendrier. Quand la
+ * reservation iClosed arrive, le tool la rapproche (pseudo Instagram du
+ * questionnaire, email, telephone, nom) et le rendez-vous lui est attribue :
+ * la ligne passe de « en attente » a la date du call.
+ */
+function DeclaredProspects({ version, onChanged }: { version: number; onChanged: () => void }) {
+  const toast = useToast();
+  const [adding, setAdding] = useState(false);
+  const [ig, setIg] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { data, reload } = useSalesData<{ declared: Declared[] }>(`/api/sales/leads?declared=1&v=${version}`);
+  const rows = data?.declared ?? [];
+  const pending = rows.filter((r) => !r.appointmentAt);
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      await api("/api/sales/leads", { method: "POST", body: JSON.stringify({ igUsername: ig, name, phone, email, note }) });
+      toast("Noté. Dès qu'il réserve, le rendez-vous te sera attribué.");
+      setAdding(false);
+      setIg("");
+      setName("");
+      setPhone("");
+      setEmail("");
+      setNote("");
+      void reload();
+      onChanged();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card
+      title="Prospects à qui j'ai envoyé le calendrier"
+      subtitle="Déclare chaque prospect Instagram à qui tu envoies le lien : quand il réserve, le rendez-vous t'est attribué automatiquement."
+      padded={false}
+      actions={
+        <button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
+          + J&apos;ai envoyé le lien
+        </button>
+      }
+    >
+      {!rows.length ? (
+        <Empty>
+          Personne pour l&apos;instant. Dès que tu envoies ton lien à quelqu&apos;un sur Instagram, note-le ici avec son
+          pseudo.
+        </Empty>
+      ) : (
+        <ul>
+          {rows.slice(0, 12).map((r, i) => (
+            <li
+              key={r.id}
+              className="px-3.5 py-2.5 flex items-center gap-3 flex-wrap"
+              style={{ borderBottom: i < Math.min(rows.length, 12) - 1 ? "1px solid var(--border)" : "none" }}
+            >
+              <span className="min-w-0 flex-1 basis-[200px]">
+                <span className="block text-[13px] font-medium truncate">{r.name}</span>
+                <span className="dim text-[11.5px]">
+                  {r.igUsername ? <IgHandle username={r.igUsername} muted /> : null}
+                  {r.igUsername ? " · " : ""}envoyé {relative(r.declaredAt)}
+                </span>
+              </span>
+              {r.appointmentAt ? (
+                <span className="text-[12px] font-medium" style={{ color: "var(--emerald)" }}>
+                  ✓ Call le {fmtDualDateTime(r.appointmentAt)}{r.closerName ? ` avec ${r.closerName}` : ""}
+                </span>
+              ) : (
+                <span className="badge badge-warn !text-[10.5px] !py-0">en attente de réservation</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {pending.length > 0 && (
+        <div className="dim text-[11.5px] px-3.5 py-2" style={{ borderTop: "1px solid var(--border)" }}>
+          {pending.length} en attente. Si un prospect réserve sans que la ligne bouge, vérifie qu&apos;il a donné le même
+          pseudo, email ou téléphone dans le questionnaire.
+        </div>
+      )}
+
+      <Modal
+        open={adding}
+        onClose={() => setAdding(false)}
+        title="J'ai envoyé le lien du calendrier à…"
+        footer={
+          <>
+            <button className="btn" onClick={() => setAdding(false)} disabled={busy}>
+              Annuler
+            </button>
+            <button className="btn btn-primary" onClick={() => void submit()} disabled={busy || (!ig.trim() && !name.trim())}>
+              {busy ? <span className="spinner" /> : "Enregistrer"}
+            </button>
+          </>
+        }
+      >
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Field label="Pseudo Instagram" hint="Le plus fiable pour le rapprochement.">
+            <input className="input" placeholder="@pseudo" value={ig} onChange={(e) => setIg(e.target.value)} autoFocus />
+          </Field>
+          <Field label="Prénom et nom" hint="Tel qu'il l'écrira en réservant.">
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <Field label="Téléphone (optionnel)">
+            <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </Field>
+          <Field label="Email (optionnel)">
+            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </Field>
+          <Field label="Note pour le closer (optionnel)" className="sm:col-span-2">
+            <textarea className="input w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ce qu'il cherche, son budget, son objection…" />
+          </Field>
+        </div>
+      </Modal>
+    </Card>
   );
 }
 

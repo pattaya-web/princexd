@@ -633,6 +633,7 @@ export default function TeamAccountsPage() {
       )}
 
       <div className="mt-4">
+        <BookingLinks members={members} version={version} />
         <IclosedMapping />
       </div>
 
@@ -858,5 +859,96 @@ export default function TeamAccountsPage() {
         </div>
       </Modal>
     </>
+  );
+}
+
+/* --------------------- Liens de reservation signes --------------------- */
+
+/**
+ * Un lien iClosed par setter.
+ *
+ * Le calendrier est le meme pour tous, mais chaque setter l'envoie avec sa
+ * signature en parametre (utm_content = son identifiant). iClosed la garde
+ * sur la reservation, et la synchro attribue le rendez-vous au bon setter
+ * sans que personne ne declare rien. C'est la voie la plus sure ; la
+ * declaration du prospect sur son accueil reste le filet de securite.
+ */
+function BookingLinks({ members, version }: { members: MemberRow[]; version: number }) {
+  const toast = useToast();
+  const { data, reload } = useSalesData<{ salesBookingUrl?: string }>(`/api/settings?v=${version}`);
+  const [url, setUrl] = useState<string | null>(null);
+  const current = url ?? data?.salesBookingUrl ?? "";
+  const setters = members.filter((m) => m.roles.includes("setter") && m.status !== "inactif");
+
+  const save = async () => {
+    try {
+      await api("/api/settings", { method: "PATCH", body: JSON.stringify({ salesBookingUrl: current.trim() }) });
+      toast("Lien enregistré.");
+      setUrl(null);
+      void reload();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
+  const linkFor = (m: MemberRow) => {
+    if (!current.trim()) return "";
+    const u = new URL(current.trim());
+    u.searchParams.set("utm_source", "setter");
+    u.searchParams.set("utm_content", m.username || m.id);
+    return u.toString();
+  };
+
+  const copy = async (m: MemberRow) => {
+    const link = linkFor(m);
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      toast(`Lien de ${m.name} copié.`);
+    } catch {
+      window.prompt("Copie ce lien :", link);
+    }
+  };
+
+  return (
+    <Card
+      title="Lien de réservation par setter"
+      subtitle="Chaque setter envoie ce lien signé à son nom : les rendez-vous pris dessus lui sont attribués automatiquement."
+    >
+      <div className="flex flex-col gap-3">
+        <div className="flex gap-2 items-end flex-wrap">
+          <Field label="Ton lien de réservation iClosed" className="flex-1 min-w-[260px]">
+            <input
+              className="input"
+              placeholder="https://app.iclosed.io/e/…"
+              value={current}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+          </Field>
+          <button className="btn btn-primary" onClick={() => void save()} disabled={url === null || url === (data?.salesBookingUrl ?? "")}>
+            Enregistrer
+          </button>
+        </div>
+        {!current.trim() ? (
+          <p className="dim text-[12px]">Colle l&apos;adresse de ton calendrier iClosed, celle que tu envoies aux prospects.</p>
+        ) : !setters.length ? (
+          <p className="dim text-[12px]">Aucun setter actif.</p>
+        ) : (
+          <ul className="flex flex-col gap-1.5">
+            {setters.map((m) => (
+              <li key={m.id} className="flex items-center gap-2 flex-wrap text-[12.5px]">
+                <span className="font-medium w-[120px] truncate">{m.name}</span>
+                <code className="mono dim text-[11px] truncate flex-1 min-w-[200px]" title={linkFor(m)}>
+                  {linkFor(m)}
+                </code>
+                <button className="btn btn-sm" onClick={() => void copy(m)}>
+                  Copier
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Card>
   );
 }
