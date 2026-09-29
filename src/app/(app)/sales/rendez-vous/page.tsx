@@ -56,15 +56,9 @@ export default function AppointmentsPage() {
     try {
       await api("/api/settings", {
         method: "PATCH",
-        body: JSON.stringify({ salesAutoImport: enabled, salesDefaultSetterId: setter, salesDefaultCloserId: closer }),
+        body: JSON.stringify({ salesAutoImport: enabled, salesAutoImportOff: !enabled, salesDefaultSetterId: setter, salesDefaultCloserId: closer }),
       });
-      toast(
-        enabled && setter
-          ? "Synchronisation automatique activée."
-          : enabled
-            ? "Choisis le setter par défaut pour activer la synchro."
-            : "Synchronisation automatique désactivée.",
-      );
+      toast(enabled ? "Synchronisation automatique active." : "Synchronisation automatique en pause.");
     } catch (e) {
       toast((e as Error).message, "err");
     }
@@ -183,8 +177,8 @@ export default function AppointmentsPage() {
               <div className="min-w-0">
                 <div className="text-[12.5px] font-semibold">Synchroniser automatiquement</div>
                 <div className="dim text-[11.5px] mt-0.5 leading-snug">
-                  Les nouveaux rendez-vous à venir arrivent seuls à l&apos;ouverture de l&apos;espace, au plus
-                  une fois toutes les 10 minutes.
+                  Active par défaut : les rendez-vous iClosed à venir arrivent seuls dès qu&apos;une page de calls
+                  s&apos;ouvre, au plus une fois toutes les 10 minutes. Sans setter choisi, ils arrivent « à attribuer ».
                 </div>
               </div>
               <Toggle checked={auto} onChange={(v) => void saveAuto(v, autoSetter)} />
@@ -198,7 +192,7 @@ export default function AppointmentsPage() {
                     value={autoSetter}
                     onChange={(e) => void saveAuto(true, e.target.value)}
                   >
-                    <option value="">— Choisir (obligatoire) —</option>
+                    <option value="">— Le premier setter actif —</option>
                     {setters.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name}

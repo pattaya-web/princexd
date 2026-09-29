@@ -129,7 +129,10 @@ export interface Settings {
    * sait pas qui a chauffe le prospect, et un rendez-vous sans attribution
    * fausserait classements et commissions.
    */
+  /** Historique : la synchro n'a plus besoin d'etre activee. Seul `salesAutoImportOff` la coupe. */
   salesAutoImport: boolean;
+  /** Vrai = synchro iClosed mise en pause volontairement. Par defaut elle tourne. */
+  salesAutoImportOff?: boolean;
   salesDefaultSetterId: string;
   /**
    * Closer qui recoit les calls iClosed quand aucune correspondance hote →

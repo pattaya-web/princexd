@@ -8,6 +8,7 @@ import { createAppointment, type AppointmentInput } from "@/lib/sales/repo";
 import { entriesFor } from "@/lib/sales/commissions";
 import { rangeFromParams } from "@/lib/sales/period";
 import { inRange } from "@/lib/sales/period";
+import { syncIclosedUpcoming } from "@/lib/sales/iclosed-sync";
 import type { AppointmentSource, AppointmentStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -51,10 +52,17 @@ export interface AppointmentRow {
 }
 
 export async function GET(req: NextRequest) {
-  return handle(() => {
+  return handle(async () => {
     const session = requireSales(readSession(req));
-    const db = readDB();
     const p = req.nextUrl.searchParams;
+    /*
+     * Les calls a venir declenchent la synchro iClosed (au plus toutes les
+     * dix minutes) : agenda, accueil d'un membre et Rendez-vous sont donc a
+     * jour a l'ouverture, sans bouton ni reglage. Un echec ne bloque pas la
+     * lecture : la liste s'affiche avec ce qu'on a.
+     */
+    if (p.get("period") === "upcoming") await syncIclosedUpcoming().catch(() => null);
+    const db = readDB();
 
     const range = rangeFromParams(p);
     const setterFilter = p.get("setterId") ?? "";
