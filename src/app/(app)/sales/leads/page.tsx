@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { api } from "@/lib/client";
 import { fmtDateTime, isoToParisInput, parisDay, parisToIso, parisWeekday, relative } from "@/lib/format";
 import { useSalesData } from "@/lib/sales/client";
 import { hasRole } from "@/lib/sales/roles";
-import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, StatTile, useToast } from "@/components/ui";
+import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, useToast } from "@/components/ui";
 import { useSales } from "@/components/sales/context";
 import type { CallBucket, CallLeadRow } from "@/app/api/sales/leads/route";
 import type { PublicMember } from "@/lib/sales/repo";
@@ -34,15 +34,27 @@ const LEGEND: { color: string; label: string }[] = [
   { color: COLOR.red, label: "Pas intéressé, pas d'argent" },
 ];
 
-/** Groupes, dans l'ordre de traitement : ce qu'il faut faire maintenant en haut. */
-const BUCKETS: { key: CallBucket; title: string; hint: string; tone: string }[] = [
-  { key: "due", title: "Rappels à passer maintenant", hint: "Ils ont demandé à être rappelés, l'heure est passée.", tone: COLOR.blue },
-  { key: "new", title: "Nouveaux, jamais appelés", hint: "Le plus récent en premier : il vient de s'inscrire, il est chaud.", tone: COLOR.new },
-  { key: "retry", title: "À relancer", hint: "Pas de réponse ou message laissé. Le plus ancien essai en premier.", tone: COLOR.yellow },
-  { key: "later", title: "Rappels prévus", hint: "Ils ont donné un créneau, ne pas appeler avant.", tone: COLOR.blue },
-  { key: "talking", title: "Joints, rendez-vous à fixer", hint: "Tu les as eus au téléphone : il manque la date du call.", tone: COLOR.violet },
-  { key: "booked", title: "Rendez-vous posés", hint: "Call de vente enregistré, le closer prend le relais.", tone: COLOR.green },
-  { key: "lost", title: "Pas intéressés", hint: "Trente derniers jours. Un bouton les remet dans la liste s'ils reviennent.", tone: COLOR.red },
+/** Couleur d'une ligne selon son etat. */
+const TONE: Record<CallBucket, string> = {
+  new: COLOR.new,
+  retry: COLOR.yellow,
+  due: COLOR.blue,
+  later: COLOR.blue,
+  talking: COLOR.violet,
+  booked: COLOR.green,
+  lost: COLOR.red,
+};
+
+/** Filtres : un etat, ou tout. Servent aussi de legende. */
+type FilterKey = "all" | "new" | "retry" | "callback" | "talking" | "booked" | "lost";
+const FILTERS: { key: FilterKey; label: string; color?: string; buckets: CallBucket[] }[] = [
+  { key: "all", label: "Tous", buckets: ["due", "new", "retry", "later", "talking", "booked", "lost"] },
+  { key: "new", label: "Non statués", color: COLOR.new, buckets: ["new"] },
+  { key: "retry", label: "Ne répond pas, à relancer", color: COLOR.yellow, buckets: ["retry"] },
+  { key: "callback", label: "À rappeler plus tard", color: COLOR.blue, buckets: ["due", "later"] },
+  { key: "talking", label: "Joints, RDV à fixer", color: COLOR.violet, buckets: ["talking"] },
+  { key: "booked", label: "Rendez-vous posés", color: COLOR.green, buckets: ["booked"] },
+  { key: "lost", label: "Pas intéressés", color: COLOR.red, buckets: ["lost"] },
 ];
 
 function Dot({ color }: { color: string }) {
@@ -89,6 +101,7 @@ export default function CallLeadsPage() {
   const [callbackFor, setCallbackFor] = useState<CallLeadRow | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [busy, setBusy] = useState("");
+  const [filter, setFilter] = useState<FilterKey>("all");
 
   const setters = useMemo(() => members.filter((m) => hasRole(m, "setter") && m.status !== "inactif"), [members]);
 
@@ -179,7 +192,6 @@ export default function CallLeadsPage() {
 
   const rows = data?.rows ?? [];
   const c = data?.counts;
-  const todo = (c?.due ?? 0) + (c?.new ?? 0) + (c?.retry ?? 0);
 
   return (
     <>
@@ -223,27 +235,30 @@ export default function CallLeadsPage() {
         </div>
       )}
 
-      {/* Legende : la couleur d'un contact dit son etat, sans lire le texte. */}
-      <div
-        className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-3.5 py-2.5 rounded-[10px] mb-3 text-[12px]"
-        style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
-      >
-        <span className="label-xs mr-1">Code couleur</span>
-        {LEGEND.map((l) => (
-          <span key={l.label} className="flex items-center gap-1.5">
-            <Dot color={l.color} />
-            {l.label}
-          </span>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
-        <StatTile label="À appeler" value={todo} accent={todo ? "var(--accent)" : undefined} hint={c?.due ? `${c.due} rappel${c.due > 1 ? "s" : ""} en retard` : "nouveaux + à relancer + rappels dus"} />
-        <StatTile label="Nouveaux" value={c?.new ?? 0} accent={c?.new ? COLOR.new : undefined} />
-        <StatTile label="À relancer" value={c?.retry ?? 0} accent={c?.retry ? COLOR.yellow : undefined} />
-        <StatTile label="Rappels prévus" value={(c?.later ?? 0) + (c?.due ?? 0)} accent={c?.later || c?.due ? COLOR.blue : undefined} />
-        <StatTile label="Rendez-vous posés" value={c?.booked ?? 0} accent={c?.booked ? COLOR.green : undefined} hint={c?.talking ? `+ ${c.talking} joint${c.talking > 1 ? "s" : ""} à fixer` : undefined} />
-        <StatTile label="Pas intéressés" value={c?.lost ?? 0} accent={c?.lost ? COLOR.red : undefined} hint={c?.notInterested && c.notInterested > (c.lost ?? 0) ? `${c.notInterested} au total` : undefined} />
+      {/* Filtres, qui font aussi legende : un clic n'affiche qu'un etat. */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        {FILTERS.map((f) => {
+          const n = f.buckets.reduce((acc, k) => acc + (c?.[k] ?? 0), 0);
+          const active = filter === f.key;
+          return (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setFilter(f.key)}
+              className="flex items-center gap-1.5 h-[30px] px-3 rounded-full text-[12.5px] font-medium transition-colors"
+              style={{
+                background: active ? (f.color ? `color-mix(in srgb, ${f.color} 28%, var(--surface))` : "var(--surface)") : "var(--surface-2)",
+                border: `1px solid ${active ? (f.color ?? "var(--text-2)") : "var(--border)"}`,
+                color: active ? "var(--text)" : "var(--text-2)",
+              }}
+              title={f.key === "all" ? "Tous les contacts" : `N'afficher que : ${f.label.toLowerCase()}`}
+            >
+              {f.color && <Dot color={f.color} />}
+              {f.label}
+              <span className="num opacity-70">{n}</span>
+            </button>
+          );
+        })}
       </div>
 
       {loading && !data ? (
@@ -265,77 +280,112 @@ export default function CallLeadsPage() {
           </Empty>
         </Card>
       ) : (
-        <div className="flex flex-col gap-4">
-          {BUCKETS.map((bucket) => {
-            const items = rows.filter((r) => r.bucket === bucket.key);
-            if (!items.length) return null;
-            return (
-              <Card
-                key={bucket.key}
-                title={
-                  <span className="flex items-center gap-2">
-                    <Dot color={bucket.tone} />
-                    {bucket.title} · {items.length}
-                  </span>
-                }
-                subtitle={bucket.hint}
-                padded={false}
-              >
-                <ul>
-                  {items.map((l, i) => {
+        <Card padded={false}>
+          <div className="scroll-x">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Contact</th>
+                  <th style={{ width: 230 }}>Statut</th>
+                  <th>Détail</th>
+                  <th>Inscrit</th>
+                  <th>Téléphone</th>
+                  {session.isAdmin && <th>Setter</th>}
+                  <th className="text-right" style={{ width: 120 }} />
+                </tr>
+              </thead>
+              <tbody>
+                {rows
+                  .filter((r) => FILTERS.find((f) => f.key === filter)?.buckets.includes(r.bucket))
+                  .map((l) => {
+                    const tone = TONE[l.bucket];
                     const hint = localHint(l.country);
-                    const booked = bucket.key === "booked";
-                    const lost = bucket.key === "lost";
+                    const booked = l.bucket === "booked";
+                    const lost = l.bucket === "lost";
+                    // Toute la ligne prend la couleur de l'etat, comme une ligne surlignee dans un tableur.
+                    const rowStyle: CSSProperties = { background: `color-mix(in srgb, ${tone} ${lost ? 14 : 20}%, var(--surface))` };
+                    const selectValue = booked ? "booked" : (l.callStatus ?? "");
+                    const onPick = (v: string) => {
+                      if (v === "booked") return setBooking(l);
+                      if (v === "callback") return setCallbackFor(l);
+                      if (v === "not-interested") {
+                        const reason = window.prompt("Pas intéressé : pourquoi ? (optionnel)") ?? null;
+                        if (reason === null) return;
+                        return void setStatus(l, "not-interested", undefined, reason);
+                      }
+                      if (v === "") return void reopen(l);
+                      void setStatus(l, v as LeadCallStatus);
+                    };
                     return (
-                      <li
-                        key={l.id}
-                        className="px-3.5 py-3 flex items-center gap-3 flex-wrap"
-                        style={{
-                          borderBottom: i < items.length - 1 ? "1px solid var(--border)" : "none",
-                          borderLeft: `4px solid ${bucket.tone}`,
-                          background: `linear-gradient(90deg, color-mix(in srgb, ${bucket.tone} 9%, transparent), transparent 220px)`,
-                          opacity: lost ? 0.8 : 1,
-                        }}
-                      >
-                        <span className="min-w-0 flex-1 basis-[240px]">
-                          <span className="flex items-center gap-2 text-[13.5px] font-medium">
-                            <Dot color={bucket.tone} />
-                            <span className="truncate">{l.name}</span>
-                          </span>
-                          <span className="dim text-[11.5px] flex flex-wrap gap-x-2">
-                            <span title={l.optInAt || l.createdAt}>inscrit {relative(l.optInAt || l.createdAt)}</span>
-                            {l.country && <span>· {COUNTRY[l.country] ?? l.country}{hint ? ` (il est ${hint} chez lui)` : ""}</span>}
-                            {l.callStatus && !booked && (
-                              <span>
-                                · {STATUS_LABEL[l.callStatus]}
-                                {l.callStatus === "callback" && l.callbackAt ? ` le ${fmtDateTime(l.callbackAt)}` : ""}
-                                {l.callStatus === "no-answer" && (l.callAttempts ?? 0) > 1 ? ` (${l.callAttempts} essais)` : ""}
-                                {l.lastCallAt ? `, ${relative(l.lastCallAt)}` : ""}
-                              </span>
-                            )}
-                            {booked && l.appointmentAt && (
-                              <span style={{ color: "var(--emerald)" }}>
-                                · call le {fmtDateTime(l.appointmentAt)}{l.closerName ? ` avec ${l.closerName}` : ", closer à attribuer"}
-                              </span>
-                            )}
-                            {!l.setterId && <span style={{ color: "var(--warning)" }}>· sans setter, premier qui appelle le prend</span>}
-                          </span>
-                        </span>
-
-                        <span className="flex items-center gap-2 flex-wrap">
-                          {l.phone ? (
-                            <a className="btn btn-sm btn-primary" href={`tel:${l.phone}`} title="Appeler">
-                              ☏ {l.phone}
-                            </a>
+                      <tr key={l.id} style={rowStyle}>
+                        <td style={{ borderLeft: `4px solid ${tone}` }}>
+                          <div className="flex items-center gap-2 text-[13px] font-medium">
+                            <Dot color={tone} />
+                            <span className="truncate max-w-[220px]">{l.name}</span>
+                          </div>
+                          {(l.country || !l.setterId) && (
+                            <div className="dim text-[11px] mt-0.5">
+                              {l.country ? `${COUNTRY[l.country] ?? l.country}${hint ? ` · il est ${hint} chez lui` : ""}` : ""}
+                              {!l.setterId && <span style={{ color: "var(--warning)" }}>{l.country ? " · " : ""}sans setter</span>}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <select
+                            className="select !h-[28px] !text-[12px]"
+                            value={selectValue}
+                            disabled={busy === l.id || booked}
+                            onChange={(e) => onPick(e.target.value)}
+                            style={{ background: `color-mix(in srgb, ${tone} 30%, var(--surface))`, borderColor: tone, fontWeight: 600 }}
+                            title={booked ? "Rendez-vous posé : se gère dans Rendez-vous" : "Changer le statut"}
+                          >
+                            <option value="">Non statué</option>
+                            <option value="no-answer">Ne répond pas</option>
+                            <option value="message-sent">Message envoyé</option>
+                            <option value="callback">À rappeler plus tard…</option>
+                            <option value="reached">Joint, RDV à fixer</option>
+                            <option value="booked">Rendez-vous posé…</option>
+                            <option value="not-interested">Pas intéressé</option>
+                          </select>
+                        </td>
+                        <td className="text-[12px]">
+                          {booked && l.appointmentAt ? (
+                            <span style={{ color: COLOR.green, fontWeight: 600 }}>
+                              Call le {fmtDateTime(l.appointmentAt)}{l.closerName ? ` avec ${l.closerName}` : ", closer à attribuer"}
+                            </span>
+                          ) : l.callStatus === "callback" && l.callbackAt ? (
+                            <span style={{ color: COLOR.blue, fontWeight: 600 }}>
+                              {l.bucket === "due" ? "Rappel dû depuis le " : "Rappeler le "}{fmtDateTime(l.callbackAt)}
+                            </span>
+                          ) : l.callStatus ? (
+                            <span className="dim">
+                              {STATUS_LABEL[l.callStatus]}
+                              {l.callStatus === "no-answer" && (l.callAttempts ?? 0) > 1 ? ` (${l.callAttempts} essais)` : ""}
+                              {l.lastCallAt ? `, ${relative(l.lastCallAt)}` : ""}
+                            </span>
                           ) : (
-                            <span className="badge badge-warn !text-[10.5px]">Pas de numéro</span>
+                            <span className="dim">Jamais appelé</span>
                           )}
-                          {l.email && (
-                            <a className="btn btn-sm btn-ghost !text-[12px]" href={`mailto:${l.email}`} title={l.email}>
-                              ✉ {l.email.length > 26 ? `${l.email.slice(0, 24)}…` : l.email}
-                            </a>
-                          )}
-                          {session.isAdmin && setters.length > 0 && (
+                        </td>
+                        <td className="num text-[12px]" title={l.optInAt || l.createdAt}>{relative(l.optInAt || l.createdAt)}</td>
+                        <td>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {l.phone ? (
+                              <a className="btn btn-sm btn-primary !h-[26px]" href={`tel:${l.phone}`} title="Appeler">
+                                ☏ {l.phone}
+                              </a>
+                            ) : (
+                              <span className="badge badge-warn !text-[10.5px]">Pas de numéro</span>
+                            )}
+                            {l.email && (
+                              <a className="btn btn-sm btn-ghost !h-[26px] !text-[11.5px]" href={`mailto:${l.email}`} title={l.email}>
+                                ✉
+                              </a>
+                            )}
+                          </div>
+                        </td>
+                        {session.isAdmin && (
+                          <td>
                             <select
                               className="select !h-[26px] !text-[11.5px] !w-auto"
                               value={l.setterId ?? ""}
@@ -347,57 +397,27 @@ export default function CallLeadsPage() {
                                 <option key={m.id} value={m.id}>{m.name}</option>
                               ))}
                             </select>
+                          </td>
+                        )}
+                        <td className="text-right">
+                          {!booked && !lost && (
+                            <button className="btn btn-sm !h-[26px]" onClick={() => setBooking(l)} disabled={busy === l.id} title="Le prospect a accepté un rendez-vous">
+                              ✓ RDV
+                            </button>
                           )}
-                        </span>
-
-                        {lost && (
-                          <span className="flex gap-1.5 shrink-0 ml-auto">
-                            <button className="btn btn-sm" onClick={() => void reopen(l)} disabled={busy === l.id} title="Il revient : le remettre dans les leads à relancer">
-                              ↺ Remettre à appeler
+                          {lost && (
+                            <button className="btn btn-sm !h-[26px]" onClick={() => void reopen(l)} disabled={busy === l.id} title="Il revient : le remettre dans la liste">
+                              ↺ Remettre
                             </button>
-                          </span>
-                        )}
-                        {!booked && !lost && (
-                          <span className="flex gap-1.5 shrink-0 ml-auto flex-wrap">
-                            <button className="btn btn-sm" onClick={() => setBooking(l)} disabled={busy === l.id} title="Le prospect a accepté un rendez-vous">
-                              ✓ Call pris
-                            </button>
-                            {l.callStatus !== "reached" && (
-                              <button className="btn btn-sm" onClick={() => void setStatus(l, "reached")} disabled={busy === l.id} title="Appelé et joint, rendez-vous à fixer">
-                                Joint
-                              </button>
-                            )}
-                            <button className="btn btn-sm" onClick={() => setCallbackFor(l)} disabled={busy === l.id} title="Il demande à être rappelé : choisir la date et l'heure">
-                              ⏰ À rappeler
-                            </button>
-                            <button className="btn btn-sm btn-ghost" onClick={() => void setStatus(l, "no-answer")} disabled={busy === l.id} title="Pas de réponse">
-                              Ne répond pas
-                            </button>
-                            <button className="btn btn-sm btn-ghost" onClick={() => void setStatus(l, "message-sent")} disabled={busy === l.id} title="Message laissé (SMS, WhatsApp, vocal)">
-                              Message envoyé
-                            </button>
-                            <button
-                              className="btn btn-sm btn-ghost"
-                              disabled={busy === l.id}
-                              onClick={() => {
-                                const reason = window.prompt("Pas intéressé : pourquoi ? (optionnel)") ?? null;
-                                if (reason === null) return;
-                                void setStatus(l, "not-interested", undefined, reason);
-                              }}
-                              title="Pas intéressé : sort de la liste"
-                            >
-                              ✕ Pas intéressé
-                            </button>
-                          </span>
-                        )}
-                      </li>
+                          )}
+                        </td>
+                      </tr>
                     );
                   })}
-                </ul>
-              </Card>
-            );
-          })}
-        </div>
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
 
       {callbackFor && (

@@ -68,6 +68,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     };
 
     const setStatus = (status: LeadCallStatus, callbackAt = "") => {
+      // Un « pas interesse » qui recoit un autre statut revient dans la liste.
+      if (lead.stage === "closed-lost" && status !== "not-interested") lead.stage = "contacte";
       lead.callStatus = status;
       lead.lastCallAt = now.toISOString();
       lead.callbackAt = status === "callback" ? callbackAt : "";
