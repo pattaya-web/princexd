@@ -3,7 +3,7 @@
 import { hasRole, sessionHas } from "@/lib/sales/roles";
 import { useMemo, useState } from "react";
 import { api } from "@/lib/client";
-import { label } from "@/lib/format";
+import { label, relative } from "@/lib/format";
 import { APPOINTMENT_SOURCES } from "@/lib/sales/constants";
 import { Field, InfoNote, Modal, PageHeader, Toggle, useToast } from "@/components/ui";
 import { AppointmentsBoard } from "@/components/sales/AppointmentsBoard";
@@ -37,11 +37,13 @@ export default function AppointmentsPage() {
   const closers = useMemo(() => members.filter((m) => hasRole(m, "closer")), [members]);
 
   /** Etat de la synchro automatique, lu a l'ouverture de la fenetre. */
+  const [syncInfo, setSyncInfo] = useState<{ hasKey: boolean; lastSyncAt: string } | null>(null);
   const openImport = async () => {
     setImporting(true);
     try {
-      const s = await api<{ enabled: boolean; setterId: string; closerId: string }>("/api/sales/iclosed/sync");
+      const s = await api<{ enabled: boolean; hasKey: boolean; lastSyncAt: string; setterId: string; closerId: string }>("/api/sales/iclosed/sync");
       setAuto(s.enabled);
+      setSyncInfo({ hasKey: s.hasKey, lastSyncAt: s.lastSyncAt });
       setAutoSetter(s.setterId);
       setAutoCloser(s.closerId ?? "");
     } catch {
@@ -159,10 +161,25 @@ export default function AppointmentsPage() {
       >
         <div className="flex flex-col gap-3.5">
           <InfoNote>
-            iClosed connaît le booking mais pas le setter qui a amené le prospect. Choisis à qui attribuer ce
-            lot — sans attribution, les classements et les commissions seraient faux. Un rendez-vous déjà
-            importé est ignoré.
+            Tu n&apos;as normalement rien à faire ici : les rendez-vous iClosed arrivent seuls. Cette fenêtre sert à
+            mettre en pause la synchro, à choisir qui reçoit les calls par défaut, et à importer de l&apos;historique.
           </InfoNote>
+
+          {/* Etat, lisible en une ligne : la question « est-ce que ca marche ? » a sa reponse ici. */}
+          {syncInfo && (
+            <div className="text-[12.5px] flex flex-wrap gap-x-4 gap-y-1">
+              <span>
+                Clé iClosed :{" "}
+                <strong style={{ color: syncInfo.hasKey ? "var(--emerald)" : "var(--critical)" }}>
+                  {syncInfo.hasKey ? "présente" : "absente sur ce serveur"}
+                </strong>
+              </span>
+              <span>
+                Dernière vérification :{" "}
+                <strong>{syncInfo.lastSyncAt ? relative(syncInfo.lastSyncAt) : "jamais"}</strong>
+              </span>
+            </div>
+          )}
 
           {/*
             Synchro automatique.
@@ -175,10 +192,11 @@ export default function AppointmentsPage() {
           >
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="min-w-0">
-                <div className="text-[12.5px] font-semibold">Synchroniser automatiquement</div>
+                <div className="text-[12.5px] font-semibold">Synchronisation automatique</div>
                 <div className="dim text-[11.5px] mt-0.5 leading-snug">
-                  Active par défaut : les rendez-vous iClosed à venir arrivent seuls dès qu&apos;une page de calls
-                  s&apos;ouvre, au plus une fois toutes les 10 minutes. Sans setter choisi, ils arrivent « à attribuer ».
+                  Active par défaut. Les rendez-vous iClosed arrivent seuls : à la seconde si le webhook iClosed est
+                  branché, sinon dès qu&apos;une page de calls s&apos;ouvre, au plus toutes les 2 minutes. Éteindre =
+                  mettre en pause.
                 </div>
               </div>
               <Toggle checked={auto} onChange={(v) => void saveAuto(v, autoSetter)} />
@@ -218,6 +236,7 @@ export default function AppointmentsPage() {
             )}
           </div>
 
+          <div className="label-xs mt-1">Import manuel de l&apos;historique (optionnel)</div>
           <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Attribuer au setter">
               <select className="select" value={setterId} onChange={(e) => setSetterId(e.target.value)}>

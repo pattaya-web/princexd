@@ -86,9 +86,16 @@ export function MemberHome() {
   );
 
   // Calendrier : tous les calls a venir de la casquette, semaine par semaine.
-  const { data: agenda } = useSalesData<{ rows: AppointmentRow[] }>(
+  const { data: agenda, reload: reloadAgenda } = useSalesData<{ rows: AppointmentRow[] }>(
     `/api/sales/appointments?period=upcoming&limit=300&v=${version}${both ? `&as=${hat}` : ""}`,
   );
+  // Un call attribue pendant que l'ecran est ouvert apparait sans recharger.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") void reloadAgenda();
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [reloadAgenda]);
 
   /* ------------------------------ Pointage ------------------------------ */
   const { data: work, reload: reloadWork } = useSalesData<{ open: WorkSession | null; todayHours: number }>(

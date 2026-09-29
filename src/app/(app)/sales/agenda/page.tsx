@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client";
 import { useSalesData } from "@/lib/sales/client";
 import { hasRole } from "@/lib/sales/roles";
@@ -54,6 +54,14 @@ export default function AgendaPage() {
   const { data, reload } = useSalesData<{ rows: AppointmentRow[] }>(
     `/api/sales/appointments?period=upcoming&limit=500&v=${version}`,
   );
+
+  // Un call pris pendant qu'on regarde l'agenda apparait sans recharger.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") void reload();
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [reload]);
 
   const rows = useMemo(() => {
     const all = data?.rows ?? [];
