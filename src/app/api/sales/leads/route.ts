@@ -58,6 +58,23 @@ export async function GET(req: NextRequest) {
     const now = new Date().toISOString();
     const isSetter = session.isAdmin || sessionHas(session, "setter");
 
+    /*
+     * Nettoyage unique : les imports d'avant ecrivaient « Opt-in landing
+     * page : <url> » dans la note. La note appartient au setter, l'URL est
+     * deja dans `sourceUrl`. On retire ces lignes une fois pour toutes.
+     */
+    let cleaned = false;
+    for (const l of db.leads) {
+      if (!l.notes || !l.notes.includes("Opt-in landing page")) continue;
+      l.notes = l.notes
+        .split("\n")
+        .filter((line) => !line.startsWith("Opt-in landing page"))
+        .join("\n")
+        .trim();
+      cleaned = true;
+    }
+    if (cleaned) writeDB(db);
+
     const visible = (l: Lead) => (l.setterId ? canSee(session, { setterId: l.setterId }) : isSetter);
 
     // Prochain rendez-vous encore a venir (ou du jour) par lead.

@@ -284,7 +284,8 @@ export function importContacts(db: DB, contacts: SioContact[], actorName = "Syst
       painPoint: "",
       nextAction: "Appeler le prospect",
       nextActionAt: today,
-      notes: c.sourceURL ? `Opt-in landing page : ${c.sourceURL}` : "Opt-in landing page",
+      // Pas de note automatique : la note est celle du setter. La page d'origine vit dans `sourceUrl`.
+      notes: "",
       createdAt: new Date().toISOString(),
       igUsername: "",
       email,

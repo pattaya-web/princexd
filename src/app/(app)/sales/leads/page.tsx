@@ -371,10 +371,10 @@ export default function CallLeadsPage() {
                             type="button"
                             onClick={() => setSheetId(l.id)}
                             className="text-[11px] mt-0.5 text-left max-w-[260px] truncate block"
-                            style={{ color: l.notes && !l.notes.startsWith("Opt-in landing page") ? "var(--text)" : "var(--text-3)" }}
+                            style={{ color: l.notes ? "var(--text)" : "var(--text-3)" }}
                             title={l.notes || "Ajouter une note"}
                           >
-                            ✎ {l.notes && !l.notes.startsWith("Opt-in landing page") ? l.notes.split("\n").filter((x) => !x.startsWith("Opt-in landing page")).join(" · ") : "note"}
+                            ✎ {l.notes ? l.notes.split("\n").join(" · ") : "note"}
                           </button>
                         </td>
                         <td>
