@@ -97,6 +97,7 @@ const EMPTY_DB: DB = {
   shifts: [],
   workSessions: [],
   testimonials: [],
+  taskChecks: [],
 };
 
 function ensureFile() {

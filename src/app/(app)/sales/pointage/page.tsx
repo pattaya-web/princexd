@@ -157,6 +157,127 @@ export default function PointagePage() {
         </Card>
       )}
       {members.length === 0 && null}
+
+      <DailyTasksAdmin version={version} />
     </>
+  );
+}
+
+/* --------------------------- Tâches du jour (admin) --------------------------- */
+
+/**
+ * Qui a coche quoi aujourd'hui, setter par setter, et la liste elle-meme,
+ * modifiable une ligne par tache. La meme liste s'applique a tous les setters.
+ */
+function DailyTasksAdmin({ version }: { version: number }) {
+  const toast = useToast();
+  const [day, setDay] = useState("");
+  const { data, reload } = useSalesData<{ tasks: string[]; day: string; members: { memberId: string; memberName: string; done: string[] }[] }>(
+    `/api/sales/tasks?all=1${day ? `&day=${day}` : ""}&v=${version}`,
+  );
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api("/api/sales/tasks", { method: "PATCH", body: JSON.stringify({ tasks: text.split("\n") }) });
+      toast("Liste enregistrée pour tous les setters.");
+      setEditing(false);
+      void reload();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const tasks = data?.tasks ?? [];
+  return (
+    <div className="mt-4">
+      <Card
+        title="Tâches du jour des setters"
+        subtitle="La même liste pour tous, remise à zéro chaque matin. Chaque setter coche sur son accueil."
+        padded={false}
+        actions={
+          <div className="flex items-center gap-1.5">
+            <input className="input !w-auto !h-[30px] !text-[12.5px]" type="date" value={day || data?.day || ""} onChange={(e) => setDay(e.target.value)} />
+            <button
+              className="btn btn-sm"
+              onClick={() => {
+                setText(tasks.join("\n"));
+                setEditing(true);
+              }}
+            >
+              Modifier la liste
+            </button>
+          </div>
+        }
+      >
+        {!data ? (
+          <Spinner label="Chargement…" />
+        ) : !data.members.length ? (
+          <Empty>Aucun setter actif.</Empty>
+        ) : (
+          <div className="scroll-x">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Tâche</th>
+                  {data.members.map((m) => (
+                    <th key={m.memberId} className="text-center">
+                      {m.memberName}
+                      <div className="dim text-[10.5px] font-normal num">
+                        {m.done.filter((d) => tasks.includes(d)).length}/{tasks.length}
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {tasks.map((t) => (
+                  <tr key={t}>
+                    <td className="text-[12.5px]">{t}</td>
+                    {data.members.map((m) => {
+                      const ok = m.done.includes(t);
+                      return (
+                        <td key={m.memberId} className="text-center">
+                          <span
+                            className="inline-grid place-items-center rounded-full text-[11px]"
+                            style={{
+                              width: 22,
+                              height: 22,
+                              background: ok ? "color-mix(in srgb, var(--emerald) 18%, transparent)" : "var(--surface-3)",
+                              color: ok ? "var(--emerald)" : "var(--text-3)",
+                            }}
+                          >
+                            {ok ? "✓" : "·"}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {editing && (
+        <div className="mt-3 flex flex-col gap-2">
+          <textarea className="textarea w-full" rows={9} value={text} onChange={(e) => setText(e.target.value)} placeholder="Une tâche par ligne" />
+          <div className="flex gap-2 justify-end">
+            <button className="btn" onClick={() => setEditing(false)} disabled={saving}>
+              Annuler
+            </button>
+            <button className="btn btn-primary" onClick={() => void save()} disabled={saving}>
+              {saving ? <span className="spinner" /> : "Enregistrer la liste"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

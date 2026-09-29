@@ -34,6 +34,7 @@ const TABS: Tab[] = [
   { href: "/sales/closers", label: "Closers", role: "closer" },
   { href: "/sales/commissions", label: "Commissions" },
   { href: "/sales/equipe", label: "Comptes", admin: true },
+  { href: "/sales/guide", label: "Guide" },
 ];
 
 /** L'onglet est-il ouvert a cette session ? */

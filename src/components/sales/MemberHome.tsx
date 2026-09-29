@@ -276,6 +276,9 @@ export function MemberHome() {
           onOpen={(id) => setOpenId(id)}
         />
 
+        {/* ------------------------------ Ma journée ------------------------------ */}
+        {isSetter && <DailyTasks version={version} />}
+
         {/* ------------------- Prospects envoyés vers le calendrier ------------------- */}
         {isSetter && (
           <DeclaredProspects version={version} onChanged={bump} />
@@ -494,6 +497,83 @@ export function MemberHome() {
         members={members}
       />
     </>
+  );
+}
+
+/* ------------------------------- Ma journée ------------------------------- */
+
+/**
+ * Liste de taches quotidienne du setter, la meme pour toute l'equipe, remise
+ * a zero chaque jour. Un compteur vivant sur la premiere tache : combien de
+ * nouveaux leads attendent. L'admin voit les cases cochees dans « Shifts
+ * equipe » et modifie la liste.
+ */
+function DailyTasks({ version }: { version: number }) {
+  const toast = useToast();
+  const { data, reload } = useSalesData<{ tasks: string[]; day: string; done: string[]; hints: { newLeads: number } }>(
+    `/api/sales/tasks?v=${version}`,
+  );
+  const [busy, setBusy] = useState("");
+  const tasks = data?.tasks ?? [];
+  const done = new Set(data?.done ?? []);
+  const pct = tasks.length ? Math.round((done.size / tasks.length) * 100) : 0;
+
+  const toggle = async (task: string) => {
+    setBusy(task);
+    try {
+      await api("/api/sales/tasks", { method: "POST", body: JSON.stringify({ task, done: !done.has(task) }) });
+      void reload();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  if (!tasks.length) return null;
+  return (
+    <Card
+      title="Ma journée"
+      subtitle={`${done.size} sur ${tasks.length} · la liste se remet à zéro chaque matin`}
+      padded={false}
+      actions={
+        <div className="w-[120px]">
+          <div className="mh-bar">
+            <span style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+      }
+    >
+      <ul>
+        {tasks.map((t, i) => {
+          const checked = done.has(t);
+          const first = i === 0;
+          return (
+            <li
+              key={t}
+              className="px-3.5 py-2.5 flex items-center gap-3"
+              style={{ borderBottom: i < tasks.length - 1 ? "1px solid var(--border)" : "none", opacity: checked ? 0.6 : 1 }}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                disabled={busy === t}
+                onChange={() => void toggle(t)}
+                className="w-[18px] h-[18px] cursor-pointer"
+              />
+              <span className="text-[13px] flex-1" style={checked ? { textDecoration: "line-through" } : undefined}>
+                {t}
+              </span>
+              {first && !checked && (data?.hints.newLeads ?? 0) > 0 && (
+                <Link href="/sales/leads" className="badge badge-accent !text-[10.5px] !py-0">
+                  {data!.hints.newLeads} à appeler
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
   );
 }
 

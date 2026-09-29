@@ -150,6 +150,8 @@ export interface Settings {
   salesDeletedIclosedEventIds?: string[];
   /** Lien de reservation iClosed. Chaque setter recoit ce lien signe a son nom (UTM). */
   salesBookingUrl?: string;
+  /** Liste de taches quotidiennes des setters (une par ligne), editable par l'admin. */
+  salesDailyTasks?: string[];
   /** Derniere synchro reussie, pour ne pas retaper l'API a chaque navigation. */
   salesLastSyncAt: string;
   /* --- Systeme.io : leads de la landing page. Priorite a SYSTEMEIO_API_KEY. --- */
@@ -779,6 +781,19 @@ export interface DB {
   workSessions: WorkSession[];
   /** Temoignages clients (captures, videos, audios) deposes en vrac pour les retrouver. */
   testimonials: Testimonial[];
+  /** Cases cochees de la liste de taches quotidienne, par membre et par jour. */
+  taskChecks: TaskCheck[];
+}
+
+/** Une tache quotidienne cochee par un membre, un jour donne (heure de Paris). */
+export interface TaskCheck {
+  id: ID;
+  memberId: ID;
+  /** AAAA-MM-JJ a Paris. */
+  day: string;
+  /** Libelle de la tache au moment ou elle a ete cochee. */
+  task: string;
+  doneAt: string;
 }
 
 /**
