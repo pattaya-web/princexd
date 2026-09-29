@@ -26,8 +26,30 @@ export default function AgendaPage() {
   const [who, setWho] = useState<string>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const closers = useMemo(() => members.filter((m) => hasRole(m, "closer") && m.status !== "inactif"), [members]);
+
+  /** Relit iClosed tout de suite, sans attendre le delai automatique. */
+  const syncNow = async () => {
+    setSyncing(true);
+    try {
+      const r = await api<{ examined: number; created: number; skipped: string | null }>("/api/sales/iclosed/sync?force=1", { method: "POST" });
+      toast(
+        r.skipped === "no-key"
+          ? "Aucune clé iClosed sur ce serveur."
+          : r.created
+            ? `${r.created} nouveau${r.created > 1 ? "x" : ""} call${r.created > 1 ? "s" : ""} iClosed.`
+            : `iClosed vérifié : ${r.examined} call${r.examined > 1 ? "s" : ""} à venir, rien de nouveau.`,
+      );
+      void reload();
+      bump();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const { data, reload } = useSalesData<{ rows: AppointmentRow[] }>(
     `/api/sales/appointments?period=upcoming&limit=500&v=${version}`,
@@ -64,9 +86,14 @@ export default function AgendaPage() {
         title="Agenda des calls"
         subtitle="Tous les calls à venir, iClosed et rendez-vous posés par les setters. Choisis sur chaque carte qui le prend."
         actions={
-          <button className="btn btn-primary" onClick={() => setAdding(true)}>
-            + Rendez-vous
-          </button>
+          <>
+            <button className="btn" onClick={() => void syncNow()} disabled={syncing} title="Relire iClosed tout de suite">
+              {syncing ? <span className="spinner" /> : "↻ Vérifier iClosed maintenant"}
+            </button>
+            <button className="btn btn-primary" onClick={() => setAdding(true)}>
+              + Rendez-vous
+            </button>
+          </>
         }
       />
 

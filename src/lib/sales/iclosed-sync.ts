@@ -24,7 +24,9 @@ import type { Appointment, DB, Session, TeamMember } from "@/lib/types";
  *    sinon du seul closer actif s'il n'y en a qu'un.
  */
 
-const COOLDOWN_MS = 10 * 60_000;
+// iClosed limite a 200 requetes par heure ; une verification en coute une.
+// Deux minutes entre deux verifications = 30 requetes par heure au pire.
+const COOLDOWN_MS = 2 * 60_000;
 const SYSTEM: Session = { role: "owner", roles: [], memberId: "", memberName: "iClosed", isAdmin: true };
 
 export interface IclosedSyncReport {
