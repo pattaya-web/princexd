@@ -35,7 +35,8 @@ export function Card({
   className = "",
   padded = true,
 }: {
-  title?: string;
+  /** Texte, ou un petit contenu (pastille de couleur + texte). */
+  title?: ReactNode;
   subtitle?: string;
   actions?: ReactNode;
   children: ReactNode;

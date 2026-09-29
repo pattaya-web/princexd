@@ -7,7 +7,7 @@ import type { LeadCallStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-type Action = "status" | "attempt" | "reached" | "lost" | "note" | "assign";
+type Action = "status" | "reopen" | "attempt" | "reached" | "lost" | "note" | "assign";
 
 const STATUSES: LeadCallStatus[] = ["no-answer", "message-sent", "callback", "reached", "not-interested"];
 
@@ -121,6 +121,16 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
             : `${who} : ${lead.name} — ${STATUS_LABEL[status]}${status === "no-answer" ? ` (essai ${lead.callAttempts})` : ""}`;
         break;
       }
+      case "reopen":
+        // Un « pas interesse » qui revient : il repasse dans les leads a retenter.
+        claim();
+        lead.callStatus = undefined;
+        lead.callbackAt = "";
+        lead.stage = "contacte";
+        lead.nextAction = "Rappeler le prospect";
+        lead.nextActionAt = today;
+        summary = `${who} a remis ${lead.name} dans la liste à appeler`;
+        break;
       case "attempt":
         claim();
         setStatus("no-answer");

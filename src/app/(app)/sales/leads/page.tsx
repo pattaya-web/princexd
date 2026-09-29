@@ -11,15 +11,43 @@ import type { CallBucket, CallLeadRow } from "@/app/api/sales/leads/route";
 import type { PublicMember } from "@/lib/sales/repo";
 import type { LeadCallStatus } from "@/lib/types";
 
+/**
+ * Code couleur, le meme partout sur la page : bord de ligne, pastille,
+ * compteurs et legende. Un setter doit lire l'etat d'un contact sans lire
+ * le texte.
+ */
+const COLOR = {
+  new: "#94a3b8", //   gris : jamais appelé
+  yellow: "#eab308", // jaune : ne répond pas, à relancer
+  blue: "#3b82f6", //   bleu : veut être rappelé plus tard
+  violet: "#a855f7", // violet : joint, rendez-vous à fixer
+  green: "#22c55e", //  vert : rendez-vous posé
+  red: "#ef4444", //    rouge : pas intéressé, pas d'argent
+} as const;
+
+const LEGEND: { color: string; label: string }[] = [
+  { color: COLOR.new, label: "Nouveau, jamais appelé" },
+  { color: COLOR.yellow, label: "Ne répond pas, à relancer" },
+  { color: COLOR.blue, label: "Veut être rappelé plus tard" },
+  { color: COLOR.violet, label: "Joint, rendez-vous à fixer" },
+  { color: COLOR.green, label: "Rendez-vous posé" },
+  { color: COLOR.red, label: "Pas intéressé, pas d'argent" },
+];
+
 /** Groupes, dans l'ordre de traitement : ce qu'il faut faire maintenant en haut. */
 const BUCKETS: { key: CallBucket; title: string; hint: string; tone: string }[] = [
-  { key: "due", title: "Rappels à passer maintenant", hint: "Ils ont demandé à être rappelés, l'heure est passée.", tone: "var(--critical)" },
-  { key: "new", title: "Nouveaux, jamais appelés", hint: "Le plus récent en premier : il vient de s'inscrire, il est chaud.", tone: "var(--accent)" },
-  { key: "retry", title: "À retenter", hint: "Pas de réponse ou message laissé. Le plus ancien essai en premier.", tone: "var(--warning)" },
-  { key: "later", title: "Rappels prévus", hint: "Ils ont donné un créneau, ne pas appeler avant.", tone: "var(--text-2)" },
-  { key: "talking", title: "Joints, rendez-vous à fixer", hint: "Tu les as eus au téléphone : il manque la date du call.", tone: "var(--good)" },
-  { key: "booked", title: "Call de vente pris", hint: "Rendez-vous enregistré, le closer prend le relais.", tone: "var(--emerald)" },
+  { key: "due", title: "Rappels à passer maintenant", hint: "Ils ont demandé à être rappelés, l'heure est passée.", tone: COLOR.blue },
+  { key: "new", title: "Nouveaux, jamais appelés", hint: "Le plus récent en premier : il vient de s'inscrire, il est chaud.", tone: COLOR.new },
+  { key: "retry", title: "À relancer", hint: "Pas de réponse ou message laissé. Le plus ancien essai en premier.", tone: COLOR.yellow },
+  { key: "later", title: "Rappels prévus", hint: "Ils ont donné un créneau, ne pas appeler avant.", tone: COLOR.blue },
+  { key: "talking", title: "Joints, rendez-vous à fixer", hint: "Tu les as eus au téléphone : il manque la date du call.", tone: COLOR.violet },
+  { key: "booked", title: "Rendez-vous posés", hint: "Call de vente enregistré, le closer prend le relais.", tone: COLOR.green },
+  { key: "lost", title: "Pas intéressés", hint: "Trente derniers jours. Un bouton les remet dans la liste s'ils reviennent.", tone: COLOR.red },
 ];
+
+function Dot({ color }: { color: string }) {
+  return <span className="inline-block w-[10px] h-[10px] rounded-full shrink-0" style={{ background: color, boxShadow: `0 0 0 2px color-mix(in srgb, ${color} 25%, transparent)` }} />;
+}
 
 const STATUS_LABEL: Record<LeadCallStatus, string> = {
   "no-answer": "Ne répond pas",
@@ -67,6 +95,7 @@ export default function CallLeadsPage() {
   const { data, loading, error, reload } = useSalesData<{
     rows: CallLeadRow[];
     counts: Record<CallBucket, number> & { notInterested: number; hidden: number };
+    // (lost = pas intéressés des 30 derniers jours, notInterested = tous)
     lastSyncAt: string;
     syncError: string;
     defaultCloserId: string;
@@ -102,6 +131,20 @@ export default function CallLeadsPage() {
       void reload();
     } catch (e) {
       toast((e as Error).message, "err");
+    }
+  };
+
+  const reopen = async (lead: CallLeadRow) => {
+    setBusy(lead.id);
+    try {
+      await api(`/api/sales/leads/${lead.id}`, { method: "PATCH", body: JSON.stringify({ action: "reopen" }) });
+      toast(`${lead.name} est de retour dans la liste.`);
+      void reload();
+      bump();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy("");
     }
   };
 
@@ -180,13 +223,27 @@ export default function CallLeadsPage() {
         </div>
       )}
 
+      {/* Legende : la couleur d'un contact dit son etat, sans lire le texte. */}
+      <div
+        className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-3.5 py-2.5 rounded-[10px] mb-3 text-[12px]"
+        style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+      >
+        <span className="label-xs mr-1">Code couleur</span>
+        {LEGEND.map((l) => (
+          <span key={l.label} className="flex items-center gap-1.5">
+            <Dot color={l.color} />
+            {l.label}
+          </span>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
-        <StatTile label="À appeler" value={todo} accent={todo ? "var(--accent)" : undefined} hint={c?.due ? `${c.due} rappel${c.due > 1 ? "s" : ""} en retard` : undefined} />
-        <StatTile label="Nouveaux" value={c?.new ?? 0} />
-        <StatTile label="À retenter" value={c?.retry ?? 0} accent={c?.retry ? "var(--warning)" : undefined} />
-        <StatTile label="Rappels prévus" value={c?.later ?? 0} />
-        <StatTile label="Joints" value={c?.talking ?? 0} accent={c?.talking ? "var(--good)" : undefined} />
-        <StatTile label="Calls pris" value={c?.booked ?? 0} accent={c?.booked ? "var(--emerald)" : undefined} hint={c?.notInterested ? `${c.notInterested} pas intéressé${c.notInterested > 1 ? "s" : ""}` : undefined} />
+        <StatTile label="À appeler" value={todo} accent={todo ? "var(--accent)" : undefined} hint={c?.due ? `${c.due} rappel${c.due > 1 ? "s" : ""} en retard` : "nouveaux + à relancer + rappels dus"} />
+        <StatTile label="Nouveaux" value={c?.new ?? 0} accent={c?.new ? COLOR.new : undefined} />
+        <StatTile label="À relancer" value={c?.retry ?? 0} accent={c?.retry ? COLOR.yellow : undefined} />
+        <StatTile label="Rappels prévus" value={(c?.later ?? 0) + (c?.due ?? 0)} accent={c?.later || c?.due ? COLOR.blue : undefined} />
+        <StatTile label="Rendez-vous posés" value={c?.booked ?? 0} accent={c?.booked ? COLOR.green : undefined} hint={c?.talking ? `+ ${c.talking} joint${c.talking > 1 ? "s" : ""} à fixer` : undefined} />
+        <StatTile label="Pas intéressés" value={c?.lost ?? 0} accent={c?.lost ? COLOR.red : undefined} hint={c?.notInterested && c.notInterested > (c.lost ?? 0) ? `${c.notInterested} au total` : undefined} />
       </div>
 
       {loading && !data ? (
@@ -213,19 +270,38 @@ export default function CallLeadsPage() {
             const items = rows.filter((r) => r.bucket === bucket.key);
             if (!items.length) return null;
             return (
-              <Card key={bucket.key} title={`${bucket.title} · ${items.length}`} subtitle={bucket.hint} padded={false}>
+              <Card
+                key={bucket.key}
+                title={
+                  <span className="flex items-center gap-2">
+                    <Dot color={bucket.tone} />
+                    {bucket.title} · {items.length}
+                  </span>
+                }
+                subtitle={bucket.hint}
+                padded={false}
+              >
                 <ul>
                   {items.map((l, i) => {
                     const hint = localHint(l.country);
                     const booked = bucket.key === "booked";
+                    const lost = bucket.key === "lost";
                     return (
                       <li
                         key={l.id}
                         className="px-3.5 py-3 flex items-center gap-3 flex-wrap"
-                        style={{ borderBottom: i < items.length - 1 ? "1px solid var(--border)" : "none", borderLeft: `3px solid ${bucket.tone}` }}
+                        style={{
+                          borderBottom: i < items.length - 1 ? "1px solid var(--border)" : "none",
+                          borderLeft: `4px solid ${bucket.tone}`,
+                          background: `linear-gradient(90deg, color-mix(in srgb, ${bucket.tone} 9%, transparent), transparent 220px)`,
+                          opacity: lost ? 0.8 : 1,
+                        }}
                       >
                         <span className="min-w-0 flex-1 basis-[240px]">
-                          <span className="block text-[13.5px] font-medium truncate">{l.name}</span>
+                          <span className="flex items-center gap-2 text-[13.5px] font-medium">
+                            <Dot color={bucket.tone} />
+                            <span className="truncate">{l.name}</span>
+                          </span>
                           <span className="dim text-[11.5px] flex flex-wrap gap-x-2">
                             <span title={l.optInAt || l.createdAt}>inscrit {relative(l.optInAt || l.createdAt)}</span>
                             {l.country && <span>· {COUNTRY[l.country] ?? l.country}{hint ? ` (il est ${hint} chez lui)` : ""}</span>}
@@ -274,7 +350,14 @@ export default function CallLeadsPage() {
                           )}
                         </span>
 
-                        {!booked && (
+                        {lost && (
+                          <span className="flex gap-1.5 shrink-0 ml-auto">
+                            <button className="btn btn-sm" onClick={() => void reopen(l)} disabled={busy === l.id} title="Il revient : le remettre dans les leads à relancer">
+                              ↺ Remettre à appeler
+                            </button>
+                          </span>
+                        )}
+                        {!booked && !lost && (
                           <span className="flex gap-1.5 shrink-0 ml-auto flex-wrap">
                             <button className="btn btn-sm" onClick={() => setBooking(l)} disabled={busy === l.id} title="Le prospect a accepté un rendez-vous">
                               ✓ Call pris

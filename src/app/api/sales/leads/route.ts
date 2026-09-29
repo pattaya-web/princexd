@@ -15,9 +15,11 @@ export const dynamic = "force-dynamic";
  *  - retry    : sans reponse ou message laisse, a retenter ;
  *  - later    : rappels demandes pour plus tard ;
  *  - talking  : joints, rendez-vous a fixer ;
- *  - booked   : rendez-vous pris, en attente du call.
+ *  - booked   : rendez-vous pris, en attente du call ;
+ *  - lost     : pas interesses des 30 derniers jours, en rouge en bas de
+ *               liste, pour garder une trace et pouvoir les remettre.
  */
-export type CallBucket = "due" | "new" | "retry" | "later" | "talking" | "booked";
+export type CallBucket = "due" | "new" | "retry" | "later" | "talking" | "booked" | "lost";
 
 export interface CallLeadRow extends Lead {
   setterName: string;
@@ -68,9 +70,11 @@ export async function GET(req: NextRequest) {
       if (!cur || a.scheduledAt < cur.at) nextAppt.set(a.leadId, { at: a.scheduledAt, closerId: a.closerId });
     }
 
+    const monthAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
     const bucketOf = (l: Lead): CallBucket | null => {
       const appt = nextAppt.get(l.id);
       if (appt) return "booked";
+      if (l.callStatus === "not-interested") return (l.lastCallAt ?? "") >= monthAgo ? "lost" : null;
       if (l.stage !== "nouveau" && l.stage !== "contacte" && l.stage !== "conversation") return null;
       switch (l.callStatus) {
         case "callback":
@@ -80,8 +84,6 @@ export async function GET(req: NextRequest) {
         case "no-answer":
         case "message-sent":
           return "retry";
-        case "not-interested":
-          return null;
         default:
           // Fiches d'avant les statuts : on deduit du stade et des essais.
           if (l.stage === "conversation") return "talking";
@@ -89,7 +91,7 @@ export async function GET(req: NextRequest) {
       }
     };
 
-    const ORDER: Record<CallBucket, number> = { due: 0, new: 1, retry: 2, later: 3, talking: 4, booked: 5 };
+    const ORDER: Record<CallBucket, number> = { due: 0, new: 1, retry: 2, later: 3, talking: 4, booked: 5, lost: 6 };
 
     const rows: CallLeadRow[] = [];
     for (const l of db.leads) {
@@ -122,6 +124,8 @@ export async function GET(req: NextRequest) {
           return (a.lastCallAt ?? "").localeCompare(b.lastCallAt ?? "");
         case "booked":
           return (a.appointmentAt ?? "").localeCompare(b.appointmentAt ?? "");
+        case "lost":
+          return (b.lastCallAt ?? "").localeCompare(a.lastCallAt ?? "");
         default:
           return (b.optInAt || b.createdAt).localeCompare(a.optInAt || a.createdAt);
       }
@@ -147,6 +151,7 @@ export async function GET(req: NextRequest) {
         later: count("later"),
         talking: count("talking"),
         booked: count("booked"),
+        lost: count("lost"),
         notInterested,
         hidden,
       },
