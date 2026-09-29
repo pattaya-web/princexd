@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/client";
-import { fmtDate, fmtInt, fmtMoney, label } from "@/lib/format";
+import { fmtDate, fmtInt, fmtMoney, fmtTime, label } from "@/lib/format";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { COMMERCIAL_ROLES, type CommercialRole } from "@/lib/sales/roles";
 import { Card, Empty, ErrorNote, Field, InfoNote, Modal, PageHeader, Spinner, useToast } from "@/components/ui";
@@ -110,6 +110,35 @@ export default function TeamAccountsPage() {
   const { data: ledger } = useSalesData<{ rows: LedgerRow[] }>(
     `/api/sales/commissions?${periodQuery(period.period, period.from, period.to, { v: String(version) })}`,
   );
+
+  // Heures pointees sur la periode, et qui est en session en ce moment.
+  const { data: work, reload: reloadWork } = useSalesData<{ totals: { memberId: string; hours: number; sessions: number; openSince: string }[] }>(
+    `/api/sales/work?${periodQuery(period.period, period.from, period.to, { v: String(version) })}`,
+  );
+  const workOf = (id: string) => work?.totals.find((t) => t.memberId === id);
+
+  // Mon compte dans l'equipe (reglage), pour me proposer comme closer.
+  const { data: settings, reload: reloadSettings } = useSalesData<{ salesOwnerMemberId?: string }>(`/api/settings?v=${version}`);
+  const ownerMemberId = settings?.salesOwnerMemberId ?? "";
+  const saveOwnerMember = async (id: string) => {
+    try {
+      await api("/api/settings", { method: "PATCH", body: JSON.stringify({ salesOwnerMemberId: id }) });
+      toast(id ? "Compte associé : tes calls te seront proposés par défaut." : "Association retirée.");
+      void reloadSettings();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+  const closeSession = async (m: MemberRow) => {
+    if (!window.confirm(`Terminer la session en cours de ${m.name} ?`)) return;
+    try {
+      await api("/api/sales/work", { method: "POST", body: JSON.stringify({ action: "stop", memberId: m.id }) });
+      toast("Session clôturée.");
+      void reloadWork();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
 
   const [editing, setEditing] = useState<MemberRow | null>(null);
   const [creating, setCreating] = useState(false);
@@ -430,6 +459,22 @@ export default function TeamAccountsPage() {
         title="Équipe commerciale"
         actions={
           <>
+            {/* Quel compte est le mien : mes calls me sont proposés par défaut quand je pose un rendez-vous. */}
+            <select
+              className="select select-sm !w-auto"
+              value={ownerMemberId}
+              onChange={(e) => void saveOwnerMember(e.target.value)}
+              title="Si tu closes aussi : le compte de l'équipe qui te représente"
+            >
+              <option value="">Moi dans l&apos;équipe : personne</option>
+              {members
+                .filter((m) => m.roles.length > 0)
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    Moi dans l&apos;équipe : {m.name}
+                  </option>
+                ))}
+            </select>
             <PeriodPicker value={period} onChange={setPeriod} />
             <button className="btn btn-primary" onClick={openCreate}>
               + Onboarder
@@ -467,6 +512,7 @@ export default function TeamAccountsPage() {
                   <th className="text-right">Rdv</th>
                   <th className="text-right">Ventes</th>
                   <th className="text-right">Cash</th>
+                  <th className="text-right" title="Heures pointées sur la période (Démarrer / Terminer ma session)">Heures</th>
                   <th className="text-right">À lui verser</th>
                   <th style={{ width: 260 }} />
                 </tr>
@@ -525,6 +571,26 @@ export default function TeamAccountsPage() {
                       <td className="text-right num">{p ? fmtInt(p.appointments) : <span className="dim">—</span>}</td>
                       <td className="text-right num">{p ? fmtInt(p.sales) : <span className="dim">—</span>}</td>
                       <td className="text-right num">{p ? fmtMoney(p.cash, currency) : <span className="dim">—</span>}</td>
+                      <td className="text-right num">
+                        {(() => {
+                          const w = workOf(m.id);
+                          if (!w) return <span className="dim">—</span>;
+                          return (
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span>{w.hours} h</span>
+                              {w.openSince && (
+                                <button
+                                  className="badge badge-good !text-[10px] !py-0 cursor-pointer"
+                                  onClick={() => void closeSession(m)}
+                                  title="En session en ce moment. Clic : la clôturer (s'il a oublié)."
+                                >
+                                  ● en session depuis {fmtTime(w.openSince)}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td
                         className="text-right num font-medium"
                         style={{ color: p && p.due > 0 ? "var(--warning)" : "var(--text-3)" }}

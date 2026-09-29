@@ -159,6 +159,8 @@ export async function GET(req: NextRequest) {
       syncError,
       /** Closer propose quand un setter pose un rendez-vous (reglages iClosed). */
       defaultCloserId: db.settings.salesDefaultCloserId ?? "",
+      /** Compte de l'equipe du proprietaire : propose comme closer quand l'admin pose un rendez-vous. */
+      ownerMemberId: db.settings.salesOwnerMemberId ?? "",
     };
   });
 }

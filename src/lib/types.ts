@@ -137,6 +137,12 @@ export interface Settings {
    * aussi de closer propose quand un setter pose un rendez-vous.
    */
   salesDefaultCloserId?: string;
+  /**
+   * Le compte de l'equipe qui est le proprietaire lui-meme, quand il close
+   * aussi : ses calls lui sont proposes par defaut quand il pose un rendez-
+   * vous, et l'agenda a un filtre « Moi ».
+   */
+  salesOwnerMemberId?: string;
   /** Derniere synchro reussie, pour ne pas retaper l'API a chaque navigation. */
   salesLastSyncAt: string;
   /* --- Systeme.io : leads de la landing page. Priorite a SYSTEMEIO_API_KEY. --- */
@@ -760,9 +766,29 @@ export interface DB {
   commissionPayments: CommissionPayment[];
   activityLogs: ActivityLog[];
   shifts: Shift[];
+  /** Pointage reel : sessions de travail demarrees et terminees par les membres. */
+  workSessions: WorkSession[];
 }
 
 export type CollectionName = Exclude<keyof DB, "settings">;
+
+/**
+ * Session de travail pointee par un membre (« Démarrer » / « Terminer »).
+ *
+ * Distincte des creneaux (`Shift`), qui sont le planning propose par l'admin :
+ * ici c'est le temps reellement passe, base des heures travaillees.
+ */
+export interface WorkSession {
+  id: ID;
+  memberId: ID;
+  startedAt: string;
+  /** Vide tant que la session est en cours. */
+  endedAt: string;
+  note: string;
+  /** Qui l'a terminee : le membre, ou l'admin s'il a oublie. */
+  endedBy: ID;
+  createdAt: string;
+}
 
 /* ===================================================================== *
  *                      MODULE COMMERCIAL — Setter / Closer              *

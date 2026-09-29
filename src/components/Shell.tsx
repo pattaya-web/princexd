@@ -472,7 +472,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     items: [
       { href: "/crm", label: "CRM", icon: "◉" },
       { href: "/eleves", label: "Élèves", icon: "✓" },
-      { href: "/calls", label: "Calls", icon: "☏" },
+      { href: "/sales/agenda", label: "Agenda des calls", icon: "☏" },
       { href: "/ads/creas", label: "Ads & Scripts", icon: "▶" },
       { href: "/ads", label: "Meta Ads", icon: "◐" },
       { href: "/equipe", label: "Équipe", icon: "⚇" },

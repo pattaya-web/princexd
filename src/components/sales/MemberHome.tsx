@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/client";
 import { fmtDateTime, fmtDay, fmtInt, fmtMoney, fmtTime } from "@/lib/format";
+import { CallsCalendar } from "./CallsCalendar";
+import { useEffect } from "react";
+import type { WorkSession } from "@/lib/types";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { Card, Empty, ErrorNote, Spinner, useToast } from "@/components/ui";
 import { IgHandle, StatusBadge } from "./bits";
@@ -81,6 +84,41 @@ export function MemberHome() {
   const { data: shifts, reload: reloadShifts } = useSalesData<{ rows: ShiftRow[] }>(
     `/api/sales/shifts?v=${version}`,
   );
+
+  // Calendrier : tous les calls a venir de la casquette, semaine par semaine.
+  const { data: agenda } = useSalesData<{ rows: AppointmentRow[] }>(
+    `/api/sales/appointments?period=upcoming&limit=300&v=${version}${both ? `&as=${hat}` : ""}`,
+  );
+
+  /* ------------------------------ Pointage ------------------------------ */
+  const { data: work, reload: reloadWork } = useSalesData<{ open: WorkSession | null; todayHours: number }>(
+    `/api/sales/work?period=today&v=${version}`,
+  );
+  const [clock, setClock] = useState(Date.now());
+  useEffect(() => {
+    if (!work?.open) return;
+    const id = setInterval(() => setClock(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, [work?.open]);
+  const [punching, setPunching] = useState(false);
+  const punch = async (action: "start" | "stop") => {
+    setPunching(true);
+    try {
+      const r = await api<{ hours?: number }>("/api/sales/work", { method: "POST", body: JSON.stringify({ action }) });
+      toast(action === "start" ? "Session démarrée. Bon shift !" : `Session terminée : ${r.hours ?? 0} h aujourd'hui sur celle-ci.`);
+      setClock(Date.now());
+      void reloadWork();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setPunching(false);
+    }
+  };
+  const openSince = work?.open ? Math.max(0, clock - new Date(work.open.startedAt).getTime()) : 0;
+  const hm = (ms: number) => {
+    const m = Math.round(ms / 60_000);
+    return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`;
+  };
 
   const k = data?.kpis;
   const currency = data?.currency ?? "USD";
@@ -185,8 +223,26 @@ export function MemberHome() {
                   + Rendez-vous
                 </button>
               )}
+              {/* Pointage : un bouton, toujours visible, qui dit ou on en est. */}
+              {session.memberId && (
+                <button
+                  className={`btn shrink-0 ${work?.open ? "" : "btn-primary"}`}
+                  onClick={() => void punch(work?.open ? "stop" : "start")}
+                  disabled={punching}
+                  title={work?.open ? `Session démarrée à ${fmtTime(work.open.startedAt)}` : "Démarre ta session de travail"}
+                  style={work?.open ? { borderColor: "var(--emerald)", color: "var(--emerald)" } : undefined}
+                >
+                  {punching ? <span className="spinner" /> : work?.open ? `■ Terminer · ${hm(openSince)}` : "▶ Démarrer ma session"}
+                </button>
+              )}
             </div>
           </div>
+          {(work?.open || (work?.todayHours ?? 0) > 0) && (
+            <div className="dim text-[12px] mt-2">
+              {work?.open ? `En session depuis ${fmtTime(work.open.startedAt)}. ` : ""}
+              {work?.todayHours ? `${work.todayHours} h pointées aujourd'hui.` : ""}
+            </div>
+          )}
 
           {/* Objectif du jour, seulement s'il en existe un. Une barre vide en
               permanence donnerait l'impression d'un retard permanent. */}
@@ -205,6 +261,13 @@ export function MemberHome() {
             </div>
           )}
         </div>
+
+        {/* ----------------------------- Calendrier --------------------------- */}
+        <CallsCalendar
+          rows={agenda?.rows ?? []}
+          role={isSetter ? "setter" : "closer"}
+          onOpen={(id) => setOpenId(id)}
+        />
 
         {/* ------------------------------ Créneaux ---------------------------- */}
         {myShifts.length > 0 && (

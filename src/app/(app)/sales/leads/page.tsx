@@ -102,6 +102,8 @@ export default function CallLeadsPage() {
   const [syncing, setSyncing] = useState(false);
   const [busy, setBusy] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
+  // Vrai quand le prochain statut pose doit d'abord annuler le rendez-vous du lead.
+  const [cancelPending, setCancelPending] = useState(false);
 
   const setters = useMemo(() => members.filter((m) => hasRole(m, "setter") && m.status !== "inactif"), [members]);
 
@@ -112,17 +114,32 @@ export default function CallLeadsPage() {
     lastSyncAt: string;
     syncError: string;
     defaultCloserId: string;
+    ownerMemberId: string;
   }>(`/api/sales/leads?v=${version}`);
 
-  const setStatus = async (lead: CallLeadRow, status: LeadCallStatus, callbackAt?: string, note?: string) => {
+  const setNote = async (lead: CallLeadRow) => {
+    const note = window.prompt(`Note sur ${lead.name} (visible par toi et l'admin)`, lead.notes ?? "");
+    if (note === null) return;
+    try {
+      await api(`/api/sales/leads/${lead.id}`, { method: "PATCH", body: JSON.stringify({ action: "note", note }) });
+      toast("Note enregistrée.");
+      void reload();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
+  const setStatus = async (lead: CallLeadRow, status: LeadCallStatus, callbackAt?: string, note?: string, cancelAppointment = false) => {
     setBusy(lead.id);
     try {
       await api(`/api/sales/leads/${lead.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ action: "status", status, callbackAt, note }),
+        body: JSON.stringify({ action: "status", status, callbackAt, note, cancelAppointment }),
       });
       toast(
-        status === "callback" && callbackAt
+        cancelAppointment
+          ? `Rendez-vous annulé, ${lead.name} repasse en « ${STATUS_LABEL[status].toLowerCase()} ».`
+          : status === "callback" && callbackAt
           ? `Rappel noté pour le ${fmtDateTime(callbackAt)}.`
           : status === "not-interested"
             ? `${lead.name} sort de la liste.`
@@ -307,14 +324,29 @@ export default function CallLeadsPage() {
                     const selectValue = booked ? "booked" : (l.callStatus ?? "");
                     const onPick = (v: string) => {
                       if (v === "booked") return setBooking(l);
-                      if (v === "callback") return setCallbackFor(l);
+                      /*
+                       * Rendez-vous pris puis annule : changer le statut annule
+                       * le rendez-vous a venir (le closer ne le voit plus) et
+                       * le lead reprend sa place dans la liste.
+                       */
+                      let cancel = false;
+                      if (booked) {
+                        if (v === "") return;
+                        const when = l.appointmentAt ? ` du ${fmtDateTime(l.appointmentAt)}` : "";
+                        if (!window.confirm(`${l.name} a un rendez-vous${when}. Changer son statut annule ce rendez-vous. Continuer ?`)) return;
+                        cancel = true;
+                      }
+                      if (v === "callback") {
+                        setCancelPending(cancel);
+                        return setCallbackFor(l);
+                      }
                       if (v === "not-interested") {
                         const reason = window.prompt("Pas intéressé : pourquoi ? (optionnel)") ?? null;
                         if (reason === null) return;
-                        return void setStatus(l, "not-interested", undefined, reason);
+                        return void setStatus(l, "not-interested", undefined, reason, cancel);
                       }
                       if (v === "") return void reopen(l);
-                      void setStatus(l, v as LeadCallStatus);
+                      void setStatus(l, v as LeadCallStatus, undefined, undefined, cancel);
                     };
                     return (
                       <tr key={l.id} style={rowStyle}>
@@ -329,22 +361,32 @@ export default function CallLeadsPage() {
                               {!l.setterId && <span style={{ color: "var(--warning)" }}>{l.country ? " · " : ""}sans setter</span>}
                             </div>
                           )}
+                          {/* Note libre : « RDV en physique le 15 octobre », un prenom, une objection… */}
+                          <button
+                            type="button"
+                            onClick={() => void setNote(l)}
+                            className="text-[11px] mt-0.5 text-left max-w-[260px] truncate block"
+                            style={{ color: l.notes && !l.notes.startsWith("Opt-in landing page") ? "var(--text)" : "var(--text-3)" }}
+                            title={l.notes || "Ajouter une note"}
+                          >
+                            ✎ {l.notes && !l.notes.startsWith("Opt-in landing page") ? l.notes.split("\n").filter((x) => !x.startsWith("Opt-in landing page")).join(" · ") : "note"}
+                          </button>
                         </td>
                         <td>
                           <select
                             className="select select-sm !text-[12px]"
                             value={selectValue}
-                            disabled={busy === l.id || booked}
+                            disabled={busy === l.id}
                             onChange={(e) => onPick(e.target.value)}
                             style={{ backgroundColor: `color-mix(in srgb, ${tone} 30%, var(--surface))`, borderColor: tone, fontWeight: 600 }}
-                            title={booked ? "Rendez-vous posé : se gère dans Rendez-vous" : "Changer le statut"}
+                            title={booked ? "Rendez-vous posé. Choisir un autre statut annule le rendez-vous." : "Changer le statut"}
                           >
-                            <option value="">Non statué</option>
+                            {booked ? <option value="booked">Rendez-vous posé</option> : <option value="">Non statué</option>}
                             <option value="no-answer">Ne répond pas</option>
                             <option value="message-sent">Message envoyé</option>
                             <option value="callback">À rappeler plus tard…</option>
                             <option value="reached">Joint, RDV à fixer</option>
-                            <option value="booked">Rendez-vous posé…</option>
+                            {!booked && <option value="booked">Rendez-vous posé…</option>}
                             <option value="not-interested">Pas intéressé</option>
                           </select>
                         </td>
@@ -423,11 +465,16 @@ export default function CallLeadsPage() {
       {callbackFor && (
         <CallbackModal
           lead={callbackFor}
-          onClose={() => setCallbackFor(null)}
+          onClose={() => {
+            setCallbackFor(null);
+            setCancelPending(false);
+          }}
           onPick={async (at, note) => {
             const l = callbackFor;
+            const cancel = cancelPending;
             setCallbackFor(null);
-            await setStatus(l, "callback", at, note);
+            setCancelPending(false);
+            await setStatus(l, "callback", at, note, cancel);
           }}
         />
       )}
@@ -439,7 +486,13 @@ export default function CallLeadsPage() {
           memberId={session.memberId}
           // Le setter qui est aussi closer se propose lui-meme ; sinon le
           // closer par defaut des reglages. Le call arrive sur le bon dash.
-          defaultCloserId={hasRole(session, "closer") && session.memberId ? session.memberId : (data?.defaultCloserId ?? "")}
+          defaultCloserId={
+            hasRole(session, "closer") && session.memberId
+              ? session.memberId
+              : session.isAdmin && data?.ownerMemberId
+                ? data.ownerMemberId
+                : (data?.defaultCloserId ?? "")
+          }
           members={members}
           onClose={() => setBooking(null)}
           onDone={() => {

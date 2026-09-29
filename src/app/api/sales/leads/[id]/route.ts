@@ -43,6 +43,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       note?: string;
       setterId?: string;
       reason?: string;
+      /** Avec `status` : annule le rendez-vous a venir du lead (RDV pris puis annule). */
+      cancelAppointment?: boolean;
     };
 
     const db = readDB();
@@ -68,8 +70,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     };
 
     const setStatus = (status: LeadCallStatus, callbackAt = "") => {
-      // Un « pas interesse » qui recoit un autre statut revient dans la liste.
-      if (lead.stage === "closed-lost" && status !== "not-interested") lead.stage = "contacte";
+      // Un lead sorti de la liste (pas interesse, rendez-vous pris puis annule,
+      // call fait) qui recoit un statut d'appel y revient.
+      const inList = lead.stage === "nouveau" || lead.stage === "contacte" || lead.stage === "conversation";
+      if (!inList && status !== "not-interested") lead.stage = "contacte";
       lead.callStatus = status;
       lead.lastCallAt = now.toISOString();
       lead.callbackAt = status === "callback" ? callbackAt : "";
@@ -115,6 +119,31 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           callbackAt = d.toISOString();
         }
         claim();
+        if (body.cancelAppointment) {
+          /*
+           * Rendez-vous pris puis annule par le prospect : on annule le (ou
+           * les) rendez-vous a venir, avec trace, et le lead reprend un
+           * statut d'appel. Le closer ne le voit plus dans ses prochains calls.
+           */
+          const dayAgo = new Date(now.getTime() - 24 * 3600_000).toISOString();
+          for (const a of db.appointments) {
+            if (a.leadId !== lead.id || a.scheduledAt < dayAgo) continue;
+            if (a.status !== "booked" && a.status !== "confirmed" && a.status !== "rescheduled") continue;
+            a.history.push({ at: now.toISOString(), actorId: session.memberId, actorName: who, from: a.status, to: "cancelled", note: "Annulé depuis « À appeler »" });
+            a.status = "cancelled";
+            a.updatedAt = now.toISOString();
+            db.activityLogs.unshift({
+              id: newId(),
+              at: now.toISOString(),
+              actorId: session.memberId,
+              actorName: who,
+              action: "appointment.cancelled",
+              entity: "appointment",
+              entityId: a.id,
+              summary: `${who} a annulé le rendez-vous de ${lead.name}`,
+            });
+          }
+        }
         setStatus(status, callbackAt);
         if (body.note?.trim()) lead.notes = `${lead.notes ? `${lead.notes}\n` : ""}${body.note.trim()}`;
         summary =

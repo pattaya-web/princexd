@@ -62,6 +62,7 @@ export const DEFAULT_SETTINGS: Settings = {
   salesAutoImport: false,
   salesDefaultSetterId: "",
   salesDefaultCloserId: "",
+  salesOwnerMemberId: "",
   salesLastSyncAt: "",
 };
 
@@ -94,6 +95,7 @@ const EMPTY_DB: DB = {
   commissionPayments: [],
   activityLogs: [],
   shifts: [],
+  workSessions: [],
 };
 
 function ensureFile() {
