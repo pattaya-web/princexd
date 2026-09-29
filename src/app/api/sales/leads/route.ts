@@ -93,11 +93,18 @@ export async function GET(req: NextRequest) {
 
     const ORDER: Record<CallBucket, number> = { due: 0, new: 1, retry: 2, later: 3, talking: 4, booked: 5, lost: 6 };
 
+    /*
+     * Seulement les leads FROIDS de la landing page (Systeme.io). Les calls
+     * de closing, iClosed ou rendez-vous poses, vivent dans Rendez-vous et
+     * l'Agenda : un rendez-vous pris sort donc de cette liste.
+     */
+    const cold = (l: Lead) => l.source === "lp" || Boolean(l.systemeioId);
+
     const rows: CallLeadRow[] = [];
     for (const l of db.leads) {
-      if (!visible(l)) continue;
+      if (!cold(l) || !visible(l)) continue;
       const bucket = bucketOf(l);
-      if (!bucket) continue;
+      if (!bucket || bucket === "booked") continue;
       const appt = nextAppt.get(l.id);
       rows.push({
         ...l,
@@ -132,14 +139,16 @@ export async function GET(req: NextRequest) {
     });
 
     const count = (k: CallBucket) => rows.filter((r) => r.bucket === k).length;
-    const notInterested = db.leads.filter((l) => visible(l) && l.callStatus === "not-interested").length;
+    const notInterested = db.leads.filter((l) => cold(l) && visible(l) && l.callStatus === "not-interested").length;
+    // Leads froids devenus rendez-vous : ils sont dans Rendez-vous, on ne donne que le nombre.
+    const bookedCount = db.leads.filter((l) => cold(l) && visible(l) && nextAppt.has(l.id)).length;
     // Leads a appeler qui existent mais appartiennent a un autre setter : un
     // membre qui voit une page vide doit savoir qu'il y a matiere, et que
     // c'est une question d'attribution, pas de synchro.
     const hidden = session.isAdmin
       ? 0
       : db.leads.filter(
-          (l) => !visible(l) && (l.stage === "nouveau" || l.stage === "contacte" || l.stage === "conversation") && l.callStatus !== "not-interested",
+          (l) => cold(l) && !visible(l) && (l.stage === "nouveau" || l.stage === "contacte" || l.stage === "conversation") && l.callStatus !== "not-interested",
         ).length;
 
     return {
@@ -150,7 +159,7 @@ export async function GET(req: NextRequest) {
         retry: count("retry"),
         later: count("later"),
         talking: count("talking"),
-        booked: count("booked"),
+        booked: bookedCount,
         lost: count("lost"),
         notInterested,
         hidden,

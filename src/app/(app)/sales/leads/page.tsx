@@ -7,6 +7,8 @@ import { useSalesData } from "@/lib/sales/client";
 import { hasRole } from "@/lib/sales/roles";
 import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, useToast } from "@/components/ui";
 import { useSales } from "@/components/sales/context";
+import { LeadSheet } from "@/components/sales/LeadSheet";
+import Link from "next/link";
 import type { CallBucket, CallLeadRow } from "@/app/api/sales/leads/route";
 import type { PublicMember } from "@/lib/sales/repo";
 import type { LeadCallStatus } from "@/lib/types";
@@ -25,14 +27,6 @@ const COLOR = {
   red: "#ef4444", //    rouge : pas intéressé, pas d'argent
 } as const;
 
-const LEGEND: { color: string; label: string }[] = [
-  { color: COLOR.new, label: "Nouveau, jamais appelé" },
-  { color: COLOR.yellow, label: "Ne répond pas, à relancer" },
-  { color: COLOR.blue, label: "Veut être rappelé plus tard" },
-  { color: COLOR.violet, label: "Joint, rendez-vous à fixer" },
-  { color: COLOR.green, label: "Rendez-vous posé" },
-  { color: COLOR.red, label: "Pas intéressé, pas d'argent" },
-];
 
 /** Couleur d'une ligne selon son etat. */
 const TONE: Record<CallBucket, string> = {
@@ -45,15 +39,18 @@ const TONE: Record<CallBucket, string> = {
   lost: COLOR.red,
 };
 
-/** Filtres : un etat, ou tout. Servent aussi de legende. */
-type FilterKey = "all" | "new" | "retry" | "callback" | "talking" | "booked" | "lost";
+/**
+ * Filtres : un etat, ou tout. Servent aussi de legende. Pas de « rendez-vous
+ * pose » ici : un lead froid qui prend rendez-vous quitte cette liste pour
+ * Rendez-vous et l'Agenda, c'est un call de closing, plus un lead a appeler.
+ */
+type FilterKey = "all" | "new" | "retry" | "callback" | "talking" | "lost";
 const FILTERS: { key: FilterKey; label: string; color?: string; buckets: CallBucket[] }[] = [
-  { key: "all", label: "Tous", buckets: ["due", "new", "retry", "later", "talking", "booked", "lost"] },
+  { key: "all", label: "Tous", buckets: ["due", "new", "retry", "later", "talking", "lost"] },
   { key: "new", label: "Non statués", color: COLOR.new, buckets: ["new"] },
   { key: "retry", label: "Ne répond pas, à relancer", color: COLOR.yellow, buckets: ["retry"] },
   { key: "callback", label: "À rappeler plus tard", color: COLOR.blue, buckets: ["due", "later"] },
   { key: "talking", label: "Joints, RDV à fixer", color: COLOR.violet, buckets: ["talking"] },
-  { key: "booked", label: "Rendez-vous posés", color: COLOR.green, buckets: ["booked"] },
   { key: "lost", label: "Pas intéressés", color: COLOR.red, buckets: ["lost"] },
 ];
 
@@ -104,6 +101,8 @@ export default function CallLeadsPage() {
   const [filter, setFilter] = useState<FilterKey>("all");
   // Vrai quand le prochain statut pose doit d'abord annuler le rendez-vous du lead.
   const [cancelPending, setCancelPending] = useState(false);
+  // Fiche contact ouverte (notes, historique, rendez-vous).
+  const [sheetId, setSheetId] = useState<string | null>(null);
 
   const setters = useMemo(() => members.filter((m) => hasRole(m, "setter") && m.status !== "inactif"), [members]);
 
@@ -117,17 +116,6 @@ export default function CallLeadsPage() {
     ownerMemberId: string;
   }>(`/api/sales/leads?v=${version}`);
 
-  const setNote = async (lead: CallLeadRow) => {
-    const note = window.prompt(`Note sur ${lead.name} (visible par toi et l'admin)`, lead.notes ?? "");
-    if (note === null) return;
-    try {
-      await api(`/api/sales/leads/${lead.id}`, { method: "PATCH", body: JSON.stringify({ action: "note", note }) });
-      toast("Note enregistrée.");
-      void reload();
-    } catch (e) {
-      toast((e as Error).message, "err");
-    }
-  };
 
   const setStatus = async (lead: CallLeadRow, status: LeadCallStatus, callbackAt?: string, note?: string, cancelAppointment = false) => {
     setBusy(lead.id);
@@ -213,10 +201,10 @@ export default function CallLeadsPage() {
   return (
     <>
       <PageHeader
-        title="À appeler"
+        title="À appeler — leads froids de la landing page"
         subtitle={
           data?.lastSyncAt
-            ? `Contacts Systeme.io synchronisés ${relative(data.lastSyncAt)}. Appelle dans les cinq minutes qui suivent l'inscription : c'est là que ça décroche.`
+            ? `Inscrits Systeme.io synchronisés ${relative(data.lastSyncAt)}. Appelle dans les cinq minutes qui suivent l'inscription : c'est là que ça décroche. Un rendez-vous posé part dans Rendez-vous et l'Agenda.`
             : "Les prospects qui viennent de laisser leurs coordonnées sur la landing page."
         }
         actions={
@@ -276,6 +264,18 @@ export default function CallLeadsPage() {
             </button>
           );
         })}
+        {/* Les rendez-vous poses ne sont plus ici : on dit ou ils sont. */}
+        {(c?.booked ?? 0) > 0 && (
+          <Link
+            href="/sales/rendez-vous"
+            className="flex items-center gap-1.5 h-[30px] px-3 rounded-full text-[12.5px] font-medium ml-auto"
+            style={{ border: `1px solid ${COLOR.green}`, color: COLOR.green }}
+            title="Les leads qui ont pris rendez-vous sont dans Rendez-vous et l'Agenda"
+          >
+            <Dot color={COLOR.green} />
+            {c!.booked} rendez-vous posé{c!.booked > 1 ? "s" : ""} → Rendez-vous
+          </Link>
+        )}
       </div>
 
       {loading && !data ? (
@@ -351,10 +351,15 @@ export default function CallLeadsPage() {
                     return (
                       <tr key={l.id} style={rowStyle}>
                         <td style={{ borderLeft: `4px solid ${tone}` }}>
-                          <div className="flex items-center gap-2 text-[13px] font-medium">
+                          <button
+                            type="button"
+                            onClick={() => setSheetId(l.id)}
+                            className="flex items-center gap-2 text-[13px] font-medium text-left hover:underline"
+                            title="Ouvrir la fiche : notes, historique, rendez-vous"
+                          >
                             <Dot color={tone} />
                             <span className="truncate max-w-[220px]">{l.name}</span>
-                          </div>
+                          </button>
                           {(l.country || !l.setterId) && (
                             <div className="dim text-[11px] mt-0.5">
                               {l.country ? `${COUNTRY[l.country] ?? l.country}${hint ? ` · il est ${hint} chez lui` : ""}` : ""}
@@ -364,7 +369,7 @@ export default function CallLeadsPage() {
                           {/* Note libre : « RDV en physique le 15 octobre », un prenom, une objection… */}
                           <button
                             type="button"
-                            onClick={() => void setNote(l)}
+                            onClick={() => setSheetId(l.id)}
                             className="text-[11px] mt-0.5 text-left max-w-[260px] truncate block"
                             style={{ color: l.notes && !l.notes.startsWith("Opt-in landing page") ? "var(--text)" : "var(--text-3)" }}
                             title={l.notes || "Ajouter une note"}
@@ -461,6 +466,14 @@ export default function CallLeadsPage() {
           </div>
         </Card>
       )}
+
+      <LeadSheet
+        id={sheetId}
+        onClose={() => setSheetId(null)}
+        onChanged={() => {
+          void reload();
+        }}
+      />
 
       {callbackFor && (
         <CallbackModal

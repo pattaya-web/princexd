@@ -20,6 +20,33 @@ const STATUS_LABEL: Record<LeadCallStatus, string> = {
 };
 
 /**
+ * Fiche d'un lead : la fiche elle-meme, ses rendez-vous, et son historique
+ * (statuts poses, notes, attributions). Sert au panneau « Fiche contact ».
+ */
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return handle(async () => {
+    const session = requireSales(readSession(req));
+    const { id } = await ctx.params;
+    const db = readDB();
+    const lead = db.leads.find((l) => l.id === id);
+    if (!lead) throw new Error("Lead introuvable.");
+    const unassigned = !lead.setterId;
+    if (!unassigned && !canSee(session, { setterId: lead.setterId })) throw new Forbidden();
+    if (unassigned && !session.isAdmin && !sessionHas(session, "setter")) throw new Forbidden();
+    const names = new Map(db.team.map((m) => [m.id, m.name]));
+    return {
+      lead,
+      setterName: lead.setterId ? (names.get(lead.setterId) ?? "—") : "",
+      appointments: db.appointments
+        .filter((a) => a.leadId === lead.id)
+        .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))
+        .map((a) => ({ id: a.id, scheduledAt: a.scheduledAt, status: a.status, closerName: a.closerId ? (names.get(a.closerId) ?? "—") : "", iclosedUrl: a.iclosedUrl })),
+      logs: db.activityLogs.filter((l) => l.entity === "lead" && l.entityId === lead.id).slice(0, 40),
+    };
+  });
+}
+
+/**
  * Suivi d'un appel depuis la liste « À appeler ».
  *  - status  : pose un statut d'appel (ne repond pas, message envoye, a
  *              rappeler + date, joint, pas interesse) ;
