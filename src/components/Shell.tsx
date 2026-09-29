@@ -455,6 +455,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     items: [
       { href: "/studio", label: "Studio IA", icon: "✦" },
       { href: "/montage", label: "Espace monteur", icon: "✂" },
+      { href: "/temoignages", label: "Témoignages", icon: "★" },
     ],
   },
   {

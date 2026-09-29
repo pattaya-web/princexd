@@ -777,6 +777,27 @@ export interface DB {
   shifts: Shift[];
   /** Pointage reel : sessions de travail demarrees et terminees par les membres. */
   workSessions: WorkSession[];
+  /** Temoignages clients (captures, videos, audios) deposes en vrac pour les retrouver. */
+  testimonials: Testimonial[];
+}
+
+/**
+ * Un temoignage : un fichier depose (capture d'ecran d'un DM, video, vocal)
+ * avec une note libre pour se souvenir de qui et de quoi il s'agit.
+ */
+export interface Testimonial {
+  id: ID;
+  /** Nom du fichier d'origine. */
+  name: string;
+  /** /api/media/<fichier> */
+  url: string;
+  size: number;
+  kind: "image" | "video" | "audio" | "file";
+  /** Qui, quel resultat, ou l'utiliser… */
+  note: string;
+  /** Etiquettes libres, ex. « avant/après », « vocal », « story ». */
+  tags: string[];
+  addedAt: string;
 }
 
 export type CollectionName = Exclude<keyof DB, "settings">;

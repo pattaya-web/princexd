@@ -96,6 +96,7 @@ const EMPTY_DB: DB = {
   activityLogs: [],
   shifts: [],
   workSessions: [],
+  testimonials: [],
 };
 
 function ensureFile() {
@@ -154,6 +155,15 @@ export function readDB(): DB {
   if (!cache.db || mtimeMs !== cache.mtimeMs) {
     cache.db = parseFile();
     cache.mtimeMs = mtimeMs;
+  }
+  /*
+   * Une collection ajoutee au code apres le chargement de la base en memoire
+   * (serveur de dev qui recharge un module, base ancienne) n'existe pas
+   * encore : on la cree vide plutot que de planter sur un `unshift`.
+   */
+  const db = cache.db as unknown as Record<string, unknown>;
+  for (const [k, v] of Object.entries(EMPTY_DB)) {
+    if (db[k] === undefined) db[k] = Array.isArray(v) ? [] : v;
   }
   return cache.db;
 }
