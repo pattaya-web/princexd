@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { readDB } from "@/lib/db";
-import { canSee, Forbidden, readSession, requireSales } from "@/lib/sales/access";
+import { newId, readDB, writeDB } from "@/lib/db";
+import { canSee, Forbidden, readSession, requireAdmin, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { listLogs, patchAppointment } from "@/lib/sales/repo";
 
@@ -72,5 +72,51 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (typeof body.iclosedUrl === "string") patch.iclosedUrl = body.iclosedUrl;
 
     return patchAppointment(session, id, patch);
+  });
+}
+
+/**
+ * Suppression d'un rendez-vous (admin).
+ *
+ * Il disparait de l'agenda, du dashboard du closer et des chiffres. Ses
+ * relances partent avec lui. Un rendez-vous qui porte une vente ne se
+ * supprime pas : la vente d'abord. Un call venu d'iClosed est memorise
+ * comme supprime pour que la synchro ne le recree pas dix minutes plus tard.
+ */
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return handle(async () => {
+    const session = requireAdmin(readSession(req));
+    const { id } = await ctx.params;
+    const db = readDB();
+    const appt = db.appointments.find((a) => a.id === id);
+    if (!appt) throw new Error("Rendez-vous introuvable.");
+    if (db.sales.some((s) => s.appointmentId === id)) {
+      throw new Error("Ce rendez-vous porte une vente : annule la vente avant de le supprimer.");
+    }
+    const lead = db.leads.find((l) => l.id === appt.leadId);
+
+    db.appointments = db.appointments.filter((a) => a.id !== id);
+    db.followUps = db.followUps.filter((f) => f.appointmentId !== id);
+    if (appt.iclosedEventId) {
+      const skip = new Set(db.settings.salesDeletedIclosedEventIds ?? []);
+      skip.add(appt.iclosedEventId);
+      db.settings.salesDeletedIclosedEventIds = [...skip].slice(-500);
+    }
+    // Le lead froid retrouve sa place dans « A appeler » s'il n'a plus de rendez-vous.
+    if (lead && lead.stage === "call-book" && !db.appointments.some((a) => a.leadId === lead.id && a.status !== "cancelled")) {
+      lead.stage = "contacte";
+    }
+    db.activityLogs.unshift({
+      id: newId(),
+      at: new Date().toISOString(),
+      actorId: session.memberId,
+      actorName: session.memberName || "Moi",
+      action: "appointment.deleted",
+      entity: "appointment",
+      entityId: id,
+      summary: `Rendez-vous de ${lead?.name ?? "un lead"} supprimé`,
+    });
+    writeDB(db);
+    return { ok: true };
   });
 }

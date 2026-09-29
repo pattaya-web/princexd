@@ -146,6 +146,8 @@ export interface Settings {
    * vous, et l'agenda a un filtre « Moi ».
    */
   salesOwnerMemberId?: string;
+  /** Calls iClosed supprimes a la main : la synchro ne les recree pas. */
+  salesDeletedIclosedEventIds?: string[];
   /** Derniere synchro reussie, pour ne pas retaper l'API a chaque navigation. */
   salesLastSyncAt: string;
   /* --- Systeme.io : leads de la landing page. Priorite a SYSTEMEIO_API_KEY. --- */

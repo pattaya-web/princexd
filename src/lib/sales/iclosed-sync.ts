@@ -127,6 +127,8 @@ export async function syncIclosedUpcoming(opts: { force?: boolean } = {}): Promi
 
       for (const call of calls) {
         const db = readDB();
+        // Supprime a la main par l'admin : on ne le fait pas revenir.
+        if ((db.settings.salesDeletedIclosedEventIds ?? []).includes(String(call.id))) continue;
         const existing = findByIclosedId(db, String(call.id));
         if (existing) {
           // Complete sans ecraser : lien de visio apparu, closer trouve.

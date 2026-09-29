@@ -271,9 +271,35 @@ export function AppointmentDetail({
             </button>
           </>
         ) : (
-          <button className="btn" onClick={onClose}>
-            Fermer
-          </button>
+          <>
+            {session.isAdmin && appt && (
+              <button
+                className="btn mr-auto"
+                style={{ color: "var(--critical)", borderColor: "color-mix(in srgb, var(--critical) 40%, transparent)" }}
+                disabled={saving}
+                title="Supprimer ce rendez-vous : il disparaît de l'agenda et du dashboard du closer"
+                onClick={async () => {
+                  if (!window.confirm(`Supprimer le rendez-vous de ${detail?.lead?.name ?? "ce lead"} ? Cette action est définitive.`)) return;
+                  setSaving(true);
+                  try {
+                    await api(`/api/sales/appointments/${appt.id}`, { method: "DELETE" });
+                    toast("Rendez-vous supprimé.");
+                    onChanged();
+                    onClose();
+                  } catch (e) {
+                    toast((e as Error).message, "err");
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >
+                Supprimer
+              </button>
+            )}
+            <button className="btn" onClick={onClose}>
+              Fermer
+            </button>
+          </>
         )
       }
     >
