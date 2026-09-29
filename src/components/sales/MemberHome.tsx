@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/client";
-import { fmtDateTime, fmtDay, fmtInt, fmtMoney, fmtTime } from "@/lib/format";
+import { fmtDualDateTime, fmtDay, fmtInt, fmtMoney, fmtTime } from "@/lib/format";
 import { CallsCalendar } from "./CallsCalendar";
 import { useEffect } from "react";
 import type { WorkSession } from "@/lib/types";
@@ -397,7 +397,7 @@ export function MemberHome() {
                   >
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="text-[12.5px] font-medium truncate">{r.leadName}</span>
-                      <span className="num text-[11.5px] dim shrink-0">{fmtDateTime(r.scheduledAt)}</span>
+                      <span className="num text-[11.5px] dim shrink-0">{fmtDualDateTime(r.scheduledAt)}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <IgHandle username={r.igUsername} muted />

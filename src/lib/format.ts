@@ -62,6 +62,25 @@ export function fmtTime(iso: string, tz = TEAM_TZ) {
   return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(d);
 }
 
+/** Second fuseau affiche a cote de Paris : le proprietaire travaille depuis Dubai. */
+export const SECOND_TZ = "Asia/Dubai";
+
+/** « 14:15 FR · 16:15 DXB » : la meme heure a Paris et a Dubai. */
+export function fmtDualTime(iso: string) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return `${fmtTime(iso)} FR · ${fmtTime(iso, SECOND_TZ)} DXB`;
+}
+
+/** « 29 sept., 14:15 FR · 16:15 DXB ». */
+export function fmtDualDateTime(iso: string) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return `${fmtDate(iso)}, ${fmtDualTime(iso)}`;
+}
+
 /** « lun. 29 sept. », heure de Paris. */
 export function fmtDay(iso: string, tz = TEAM_TZ) {
   if (!iso) return "—";

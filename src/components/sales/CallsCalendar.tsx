@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { fmtDateTime, fmtTime, isoToParisInput, parisDay } from "@/lib/format";
+import { fmtDateTime, fmtTime, isoToParisInput, parisDay, SECOND_TZ } from "@/lib/format";
 import { Card } from "@/components/ui";
 import type { AppointmentRow } from "@/app/api/sales/appointments/route";
 import type { PublicMember } from "@/lib/sales/repo";
@@ -60,7 +60,7 @@ export function CallsCalendar({
   return (
     <Card
       title={title ?? (role === "closer" ? "Mes calls de la semaine" : role === "setter" ? "Mes rendez-vous de la semaine" : "Agenda des calls")}
-      subtitle={`${total} sur ces 7 jours${role === "admin" && unassigned ? ` · ${unassigned} sans closer` : ""} · heure de Paris`}
+      subtitle={`${total} sur ces 7 jours${role === "admin" && unassigned ? ` · ${unassigned} sans closer` : ""} · heures FR puis DXB`}
       padded={false}
       actions={
         <div className="flex gap-1">
@@ -107,7 +107,10 @@ export function CallsCalendar({
                         style={{ background: `color-mix(in srgb, ${tone} 14%, var(--surface))`, borderLeft: `3px solid ${tone}` }}
                         title={`${r.leadName} · ${fmtDateTime(r.scheduledAt)}`}
                       >
-                        <div className="num text-[12px] font-semibold">{fmtTime(r.scheduledAt)}</div>
+                        <div className="num text-[12px] font-semibold">
+                          {fmtTime(r.scheduledAt)} <span className="dim font-normal text-[10.5px]">FR</span>
+                          <span className="dim font-normal text-[10.5px]"> · {fmtTime(r.scheduledAt, SECOND_TZ)} DXB</span>
+                        </div>
                         <div className="text-[12px] truncate">{r.leadName}</div>
                         {role !== "setter" && r.setterName && r.setterName !== "—" && (
                           <div className="dim text-[10.5px] truncate">par {r.setterName}</div>
