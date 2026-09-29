@@ -1,51 +1,42 @@
 import { NextResponse } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
 import { cacheImage } from "@/lib/thumb-cache";
+import { isLocalOk, repairSavedThumbs } from "@/lib/thumb-repair";
 import { fetchMeta } from "@/lib/ytdlp";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 600;
 
 /**
- * Repare les vignettes expirees de la page Production.
+ * Repare les vignettes de la page Production.
  *
- * Les elements enregistres avant la mise en cache pointent encore vers des
- * URL CDN mortes. On retrouve une image locale par le meme lien chez les
- * createurs suivis ou dans mes propres posts ; sinon on redemande les
- * metadonnees a yt-dlp et on met la nouvelle image en cache.
+ * D'abord par l'API Instagram officielle (copies locales connues, flux du
+ * createur, mes medias), puis yt-dlp en dernier recours : il est bloque sur
+ * le serveur, mais fonctionne en local.
  */
 export async function POST() {
   const db = readDB();
-  let fixed = 0;
-  let failed = 0;
+  const { fixed: viaApi, failed } = await repairSavedThumbs(db);
+  let fixed = viaApi;
+  let stillBroken = 0;
 
-  for (const item of db.saved) {
-    if (item.thumbnail.startsWith("/api/media/")) continue;
-    const url = item.permalink.split("?")[0];
-
-    const fromCreator = db.creatorPosts.find(
-      (p) => p.permalink.split("?")[0] === url && p.thumbnail.startsWith("/api/media/"),
-    );
-    const fromMine = db.posts.find((p) => p.url.split("?")[0] === url && p.thumbnail?.startsWith("/api/media/"));
-    let next = fromCreator?.thumbnail ?? fromMine?.thumbnail ?? "";
-
-    if (!next) {
-      try {
-        const meta = await fetchMeta(url);
-        next = await cacheImage(meta.thumbnail, `s${item.id}`);
-      } catch {
-        next = "";
+  for (const id of failed) {
+    const item = db.saved.find((s) => s.id === id);
+    if (!item) continue;
+    try {
+      const meta = await fetchMeta(item.permalink.split("?")[0]);
+      const next = await cacheImage(meta.thumbnail, `s${item.id}`);
+      if (isLocalOk(next)) {
+        item.thumbnail = next;
+        fixed++;
+        continue;
       }
+    } catch {
+      // yt-dlp indisponible ici : on garde ce qu'on a.
     }
-
-    if (next && next.startsWith("/api/media/")) {
-      item.thumbnail = next;
-      fixed++;
-    } else {
-      failed++;
-    }
+    stillBroken++;
   }
 
   if (fixed) writeDB(db);
-  return NextResponse.json({ fixed, failed, total: db.saved.length });
+  return NextResponse.json({ fixed, failed: stillBroken, total: db.saved.length });
 }

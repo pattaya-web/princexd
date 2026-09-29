@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
 import { MAX_UPLOAD_BYTES, transcribe } from "@/lib/openai";
 import { DownloadError, downloadAudio, isSupportedUrl, toArrayBuffer } from "@/lib/ytdlp";
+import { ensureCreatorVideo, extractAudio } from "@/lib/video-source";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -41,7 +42,20 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { data, filename } = await downloadAudio(url);
+    /*
+     * La video d'abord par l'API officielle (cache local, voir
+     * lib/video-source), puis sa piste audio en mp3 leger. yt-dlp ne sert
+     * plus qu'en dernier recours : bloque par Instagram depuis le serveur,
+     * il rendait la transcription impossible en ligne.
+     */
+    let audio: { data: Buffer; filename: string };
+    try {
+      const name = await ensureCreatorVideo(url);
+      audio = await extractAudio(name);
+    } catch {
+      audio = await downloadAudio(url);
+    }
+    const { data, filename } = audio;
     if (data.byteLength > MAX_UPLOAD_BYTES) {
       return NextResponse.json(
         {

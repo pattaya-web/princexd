@@ -140,56 +140,63 @@ export default function ContentPage() {
   const reloadCreators = creators.reload;
   useEffect(() => {
     if (posts.loading || creators.loading) return;
-    const counts = new Map<string, { total: number; stale: number }>();
-    for (const p of posts.rows) {
-      const c = counts.get(p.creator) ?? { total: 0, stale: 0 };
-      c.total++;
-      if (p.thumbnail && !p.thumbnail.startsWith("/api/media/")) c.stale++;
-      counts.set(p.creator, c);
-    }
     /*
-     * Garde-fous quota Meta (200 appels par heure) : on ne resynchronise que
-     * si au moins 5 vignettes ou l'avatar sont perimes, et pas plus d'une
-     * fois toutes les 6 heures par createur (memorise dans le navigateur).
+     * L'etat des vignettes vient du serveur : il sait si une URL est encore
+     * une adresse CDN (perimee) ET si le fichier local existe vraiment. Un
+     * seul post casse suffit a relancer le createur, au plus une fois toutes
+     * les 6 heures par createur (memorise dans le navigateur) pour menager
+     * le quota Meta.
      */
-    const now = Date.now();
-    const recently = (u: string) => {
-      try {
-        return now - Number(window.localStorage.getItem(`thumb-repair:${u}`) ?? 0) < 6 * 3600_000;
-      } catch {
-        return false;
-      }
-    };
-    const todo = creators.rows
-      .filter((c) => {
-        const stale = counts.get(c.username)?.stale ?? 0;
-        const avatarStale = Boolean(c.profilePicture) && !c.profilePicture.startsWith("/api/media/");
-        return (stale >= 5 || avatarStale) && !repairing.current.has(c.username) && !recently(c.username);
-      })
-      .map((c) => c.username);
-    if (!todo.length) return;
-    for (const u of todo) {
-      repairing.current.add(u);
-      try {
-        window.localStorage.setItem(`thumb-repair:${u}`, String(now));
-      } catch {
-        // Stockage indisponible : on retentera simplement plus souvent.
-      }
-    }
+    let alive = true;
     void (async () => {
+      let health: { stale: Record<string, number>; total: Record<string, number>; avatars: string[] } | null = null;
+      try {
+        health = await api("/api/creators/thumb-health");
+      } catch {
+        return;
+      }
+      if (!alive || !health) return;
+      const now = Date.now();
+      const recently = (u: string) => {
+        try {
+          return now - Number(window.localStorage.getItem(`thumb-repair:${u}`) ?? 0) < 6 * 3600_000;
+        } catch {
+          return false;
+        }
+      };
+      const todo = creators.rows
+        .filter((c) => {
+          const stale = health!.stale[c.username] ?? 0;
+          const avatarStale = health!.avatars.includes(c.username);
+          return (stale >= 1 || avatarStale) && !repairing.current.has(c.username) && !recently(c.username);
+        })
+        .map((c) => c.username);
+      if (!todo.length) return;
+      for (const u of todo) {
+        repairing.current.add(u);
+        try {
+          window.localStorage.setItem(`thumb-repair:${u}`, String(now));
+        } catch {
+          // Stockage indisponible : on retentera simplement plus souvent.
+        }
+      }
       for (const u of todo) {
         try {
           await api("/api/creators/resolve", {
             method: "POST",
-            body: JSON.stringify({ input: `@${u}`, deep: Math.max(counts.get(u)?.total ?? 0, 25) }),
+            body: JSON.stringify({ input: `@${u}`, deep: Math.max((health!.total[u] ?? 0) + 25, 60) }),
           });
         } catch {
           // Quota Meta ou reseau : on retentera a la prochaine ouverture.
         }
       }
+      if (!alive) return;
       void reloadPosts();
       void reloadCreators();
     })();
+    return () => {
+      alive = false;
+    };
   }, [posts.rows, posts.loading, creators.rows, creators.loading, reloadPosts, reloadCreators]);
 
   if (creators.loading && posts.loading) return <SkPage />;
