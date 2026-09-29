@@ -164,7 +164,7 @@ export function ViewSwitcher() {
       {/* Le compte precis a incarner, quel que soit son metier. */}
       {choices.length > 0 && (
         <select
-          className="select !h-[26px] !text-[11px] mt-1.5"
+          className="select select-xs !text-[11px] mt-1.5"
           value={currentKey}
           disabled={Boolean(busy)}
           onChange={(e) => {

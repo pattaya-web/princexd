@@ -119,7 +119,7 @@ export function IclosedMapping() {
                     <td className="text-right num">{h.calls}</td>
                     <td>
                       <select
-                        className="select !h-[30px] !text-[12.5px]"
+                        className="select select-sm !text-[12.5px]"
                         value={h.memberId}
                         disabled={saving === String(h.id)}
                         onChange={(e) => void assign(h.id, e.target.value)}

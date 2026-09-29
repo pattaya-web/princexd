@@ -244,7 +244,7 @@ export function AppointmentsBoard({
                     <td className="text-[12.5px]" onClick={session.isAdmin ? (e) => e.stopPropagation() : undefined}>
                       {session.isAdmin ? (
                         <select
-                          className="select !h-[26px] !text-[12px] !w-auto"
+                          className="select select-xs !text-[12px] !w-auto"
                           value={r.closerId}
                           disabled={assigning === r.id}
                           title="Attribuer ce call à un closer"

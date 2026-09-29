@@ -465,7 +465,7 @@ export function AppointmentDetail({
               <div className="label-xs">Closer</div>
               {session.isAdmin ? (
                 <select
-                  className="select !h-[28px] !text-[12.5px] mt-1"
+                  className="select select-sm !text-[12.5px] mt-1"
                   value={appt.closerId}
                   onChange={(e) => void assignCloser(e.target.value)}
                 >

@@ -332,11 +332,11 @@ export default function CallLeadsPage() {
                         </td>
                         <td>
                           <select
-                            className="select !h-[28px] !text-[12px]"
+                            className="select select-sm !text-[12px]"
                             value={selectValue}
                             disabled={busy === l.id || booked}
                             onChange={(e) => onPick(e.target.value)}
-                            style={{ background: `color-mix(in srgb, ${tone} 30%, var(--surface))`, borderColor: tone, fontWeight: 600 }}
+                            style={{ backgroundColor: `color-mix(in srgb, ${tone} 30%, var(--surface))`, borderColor: tone, fontWeight: 600 }}
                             title={booked ? "Rendez-vous posé : se gère dans Rendez-vous" : "Changer le statut"}
                           >
                             <option value="">Non statué</option>
@@ -387,7 +387,7 @@ export default function CallLeadsPage() {
                         {session.isAdmin && (
                           <td>
                             <select
-                              className="select !h-[26px] !text-[11.5px] !w-auto"
+                              className="select select-xs !text-[11.5px] !w-auto"
                               value={l.setterId ?? ""}
                               title="Setter chargé de ce lead"
                               onChange={(e) => void assign(l, e.target.value)}
