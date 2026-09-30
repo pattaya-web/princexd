@@ -250,6 +250,7 @@ export function MemberHome() {
               {work?.todayHours ? `${work.todayHours} h pointées aujourd'hui.` : ""}
             </div>
           )}
+          <MyBookingLink version={version} />
 
           {/* Objectif du jour, seulement s'il en existe un. Une barre vide en
               permanence donnerait l'impression d'un retard permanent. */}
@@ -497,6 +498,51 @@ export function MemberHome() {
         members={members}
       />
     </>
+  );
+}
+
+/* --------------------------- Mon lien de calendrier --------------------------- */
+
+/**
+ * Le lien de reservation signe du membre, a copier en un clic. Present sur
+ * les deux casquettes : le setter l'envoie en DM, le closer aussi quand il
+ * relance lui-meme un prospect. Une reservation prise dessus lui est
+ * attribuee automatiquement.
+ */
+function MyBookingLink({ version }: { version: number }) {
+  const toast = useToast();
+  const { data } = useSalesData<{ link: string; configured: boolean }>(`/api/sales/my-link?v=${version}`);
+  if (!data) return null;
+  if (!data.link) {
+    return (
+      <div className="dim text-[12px] mt-2">
+        {data.configured
+          ? "Mon lien de calendrier : indisponible pour ce compte."
+          : "Mon lien de calendrier : l'admin doit d'abord coller le calendrier iClosed dans Comptes."}
+      </div>
+    );
+  }
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(data.link);
+      toast("Lien copié. Envoie-le tel quel, il porte ton nom.");
+    } catch {
+      window.prompt("Copie ce lien :", data.link);
+    }
+  };
+  return (
+    <div className="flex items-center gap-2 flex-wrap mt-3">
+      <span className="label-xs">Mon lien de calendrier</span>
+      <code className="mono dim text-[11px] truncate max-w-[360px]" title={data.link}>
+        {data.link}
+      </code>
+      <button className="btn btn-sm btn-primary" onClick={() => void copy()} title="Copier mon lien signé">
+        Copier mon lien
+      </button>
+      <a className="btn btn-sm btn-ghost" href={data.link} target="_blank" rel="noreferrer">
+        Ouvrir ↗
+      </a>
+    </div>
   );
 }
 
