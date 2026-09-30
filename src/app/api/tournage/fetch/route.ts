@@ -20,7 +20,10 @@ const MAX_BYTES = 25 * 1024 * 1024;
  *    souvent ; le message explique alors comment copier l'adresse de l'image.
  */
 async function saveImage(url: string, hint: string): Promise<{ url: string; name: string }> {
-  const res = await fetch(url, { headers: { "user-agent": UA, referer: "https://www.aliexpress.com/" }, signal: AbortSignal.timeout(20_000) });
+  // Le referer AliExpress n'est envoye qu'a son CDN : d'autres hotes le refusent.
+  const headers: Record<string, string> = { "user-agent": UA, accept: "image/*,*/*;q=0.8" };
+  if (/alicdn\.com$/i.test(new URL(url).hostname)) headers.referer = "https://www.aliexpress.com/";
+  const res = await fetch(url, { headers, redirect: "follow", signal: AbortSignal.timeout(20_000) });
   if (!res.ok) throw new Error(`Image indisponible (HTTP ${res.status}).`);
   const type = res.headers.get("content-type") ?? "";
   if (!type.startsWith("image/")) throw new Error("Ce lien n'est pas une image.");
@@ -45,14 +48,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const isImage = /\.(jpe?g|png|webp|avif)(\?|$)/i.test(target.pathname) || /alicdn\.com$/i.test(target.hostname);
-    if (isImage) {
+    const isAliPage = /aliexpress\.(com|fr|us)$/i.test(target.hostname.replace(/^(www|fr|m)\./, ""));
+    if (!isAliPage) {
+      // Tout autre lien est traite comme une image : c'est le type de la
+      // reponse qui decide, pas l'extension (beaucoup de CDN n'en ont pas).
       const saved = await saveImage(target.toString(), "produit-aliexpress");
       return NextResponse.json({ ...saved, source: "image" });
-    }
-
-    if (!/aliexpress\.(com|fr|us)$/i.test(target.hostname.replace(/^(www|fr|m)\./, ""))) {
-      return NextResponse.json({ error: "Colle un lien AliExpress, ou directement l'adresse de la photo." }, { status: 400 });
     }
 
     const page = await fetch(target.toString(), {
