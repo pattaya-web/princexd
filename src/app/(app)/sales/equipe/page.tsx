@@ -28,6 +28,7 @@ interface MemberRow {
   roles: CommercialRole[];
   status: TeamMember["status"];
   email: string;
+  igLabel?: string;
   username: string;
   joinedAt: string;
   hasAccessCode: boolean;
@@ -154,6 +155,7 @@ export default function TeamAccountsPage() {
   const [roles, setRoles] = useState<CommercialRole[]>(["setter"]);
   const [status, setStatus] = useState<TeamMember["status"]>("actif");
   const [email, setEmail] = useState("");
+  const [igLabel, setIgLabel] = useState("");
   const [username, setUsername] = useState("");
   const [usernameTouched, setUsernameTouched] = useState(false);
   const [password, setPassword] = useState("");
@@ -194,6 +196,7 @@ export default function TeamAccountsPage() {
     setRoles(m?.roles.length ? m.roles : ["setter"]);
     setStatus(m?.status ?? "actif");
     setEmail(m?.email ?? "");
+    setIgLabel(m?.igLabel ?? "");
     setUsername(m?.username ?? "");
     setUsernameTouched(Boolean(m?.username));
     setPassword(m ? "" : suggestPassword());
@@ -220,6 +223,7 @@ export default function TeamAccountsPage() {
     name,
     status,
     email,
+    igLabel,
     ...(kind === "commercial" ? { roles } : { role: kind }),
   });
 
@@ -374,6 +378,11 @@ export default function TeamAccountsPage() {
       <Field label="Email">
         <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       </Field>
+      {kind === "commercial" && (
+        <Field label="Étiquette Instagram" hint="Le mot que ce setter pose sur chaque conversation qu'il gère : Commandé, Prospect… Affiché sur son accueil." className="sm:col-span-2">
+          <input className="input" value={igLabel} placeholder="Commandé" onChange={(e) => setIgLabel(e.target.value)} />
+        </Field>
+      )}
       <Field label="Type de compte">
         <select className="select" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
           <option value="commercial">Commercial (setter / closer)</option>

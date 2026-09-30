@@ -71,6 +71,16 @@ export function MemberHome() {
   const isSetter = hat === "setter";
   const scope: Record<string, string> = both ? { as: hat } : {};
 
+  /*
+   * Etiquette Instagram : celle du compte (Comptes → Modifier), sinon un
+   * defaut par prenom convenu avec l'admin : Salim marque « Commandé », Noa
+   * marque « Prospect ».
+   */
+  const first = session.memberName.split(" ")[0].toLowerCase();
+  const igLabel =
+    members.find((m) => m.id === session.memberId)?.igLabel ||
+    (first === "salim" ? "Commandé" : first === "noa" ? "Prospect" : "");
+
   const { data, loading, error } = useSalesData<MemberPayload>(
     `/api/sales/dashboard?${periodQuery(period.period, period.from, period.to, { v: String(version), ...scope })}`,
   );
@@ -227,11 +237,9 @@ export function MemberHome() {
                   ))}
                 </div>
               )}
-              {isSetter && (
-                <button className="btn btn-primary flex-1 sm:flex-none !h-[38px] sm:!h-auto" onClick={() => setAdding(true)}>
-                  + Rendez-vous
-                </button>
-              )}
+              {/* Pas de « + Rendez-vous » ici : le prospect reserve lui-meme avec le
+                  lien signe du setter, et le call arrive seul sur le calendrier. Les
+                  leads froids se bookent depuis « A appeler ». */}
               {/* Pointage : un bouton, toujours visible, qui dit ou on en est. */}
               {session.memberId && (
                 <button
@@ -246,6 +254,17 @@ export function MemberHome() {
               )}
             </div>
           </div>
+          {/* Etiquette Instagram du setter : le mot a poser sur chaque conversation
+              qu'il gere, pour ne pas se melanger avec l'autre setter. */}
+          {isSetter && igLabel && (
+            <div
+              className="mt-3 rounded-[10px] px-3.5 py-2.5 flex items-center gap-3 flex-wrap"
+              style={{ background: "color-mix(in srgb, var(--accent) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)" }}
+            >
+              <span className="text-[12.5px]">Sur Instagram, étiquette chaque conversation que tu gères avec</span>
+              <span className="badge badge-accent !text-[12px] !py-1 !px-3">{igLabel}</span>
+            </div>
+          )}
           {(work?.open || (work?.todayHours ?? 0) > 0) && (
             <div className="dim text-[12px] mt-2">
               {work?.open ? `En session depuis ${fmtTime(work.open.startedAt)}. ` : ""}
@@ -391,17 +410,9 @@ export function MemberHome() {
             }
           >
             {!nextCalls.length ? (
-              <Empty
-                action={
-                  isSetter ? (
-                    <button className="btn btn-primary" onClick={() => setAdding(true)}>
-                      + Poser un rendez-vous
-                    </button>
-                  ) : undefined
-                }
-              >
+              <Empty>
                 {isSetter
-                  ? "Rien de prévu. C'est le moment d'ouvrir tes DMs."
+                  ? "Rien de prévu. C'est le moment d'ouvrir tes DMs et d'envoyer ton lien."
                   : "Aucun call à venir pour l'instant."}
               </Empty>
             ) : (

@@ -589,6 +589,8 @@ export interface PublicMember {
   hasPassword: boolean;
   /** Le membre dispose-t-il d'un moyen de se connecter ? */
   canLogin: boolean;
+  /** Etiquette Instagram du setter (voir TeamMember.igLabel). */
+  igLabel: string;
 }
 
 export function publicMember(m: TeamMember): PublicMember {
@@ -606,6 +608,7 @@ export function publicMember(m: TeamMember): PublicMember {
     hasAccessCode,
     hasPassword,
     canLogin: hasAccessCode || hasPassword,
+    igLabel: m.igLabel ?? "",
   };
 }
 

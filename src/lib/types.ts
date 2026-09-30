@@ -468,6 +468,12 @@ export interface TeamMember {
    * sur les fiches anciennes, ou `role` fait foi (voir lib/sales/roles.ts).
    */
   roles?: ("setter" | "closer")[];
+  /**
+   * Etiquette Instagram du setter : le mot qu'il pose sur chaque conversation
+   * qu'il gere dans la boite de reception partagee (« Commandé », « Prospect »),
+   * pour que deux setters ne se marchent pas dessus.
+   */
+  igLabel?: string;
   /* --- Compte de connexion. Optionnels : l'equipe existante reste valide. --- */
   email?: string;
   /** Identifiant de connexion, defini par l'admin. Unique, insensible a la casse. */

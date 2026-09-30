@@ -164,6 +164,7 @@ export async function POST(req: NextRequest) {
       accessCode,
       joinedAt: String(body.joinedAt ?? new Date().toISOString().slice(0, 10)),
       timezone: String(body.timezone ?? "Europe/Paris"),
+      igLabel: String(body.igLabel ?? "").trim(),
     };
 
     db.team.unshift(member);
@@ -220,6 +221,7 @@ export async function PATCH(req: NextRequest) {
     if (typeof body.contact === "string") member.contact = body.contact;
     if (typeof body.notes === "string") member.notes = body.notes;
     if (typeof body.timezone === "string") member.timezone = body.timezone;
+    if (typeof body.igLabel === "string") member.igLabel = body.igLabel.trim();
 
     if (Array.isArray(body.roles)) {
       const roles = normalizeRoles(body.roles);
