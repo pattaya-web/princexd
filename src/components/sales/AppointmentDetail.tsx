@@ -279,7 +279,10 @@ export function AppointmentDetail({
                 disabled={saving}
                 title="Supprimer ce rendez-vous : il disparaît de l'agenda et du dashboard du closer"
                 onClick={async () => {
-                  if (!window.confirm(`Supprimer le rendez-vous de ${detail?.lead?.name ?? "ce lead"} ? Cette action est définitive.`)) return;
+                  const withSale = detail?.sale
+                    ? ` Il porte une vente de ${fmtMoney(detail.sale.contractValue, detail.sale.currency)} : elle sera supprimée aussi, et les commissions avec.`
+                    : "";
+                  if (!window.confirm(`Supprimer le rendez-vous de ${detail?.lead?.name ?? "ce lead"} ?${withSale} Cette action est définitive.`)) return;
                   setSaving(true);
                   try {
                     await api(`/api/sales/appointments/${appt.id}`, { method: "DELETE" });

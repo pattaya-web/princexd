@@ -90,10 +90,18 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     const db = readDB();
     const appt = db.appointments.find((a) => a.id === id);
     if (!appt) throw new Error("Rendez-vous introuvable.");
-    if (db.sales.some((s) => s.appointmentId === id)) {
-      throw new Error("Ce rendez-vous porte une vente : annule la vente avant de le supprimer.");
-    }
     const lead = db.leads.find((l) => l.id === appt.leadId);
+
+    /*
+     * La vente attachee part avec le rendez-vous : c'est ce que veut dire
+     * « supprimer » pour un test ou une erreur de saisie. Le grand livre se
+     * recalcule, les commissions de cette vente disparaissent avec elle.
+     * L'interface a demande confirmation en citant le montant.
+     */
+    const sales = db.sales.filter((s) => s.appointmentId === id);
+    const saleIds = new Set(sales.map((s) => s.id));
+    db.sales = db.sales.filter((s) => !saleIds.has(s.id));
+    if (lead && saleIds.size && lead.stage === "closed-won") lead.stage = "call-fait";
 
     db.appointments = db.appointments.filter((a) => a.id !== id);
     db.followUps = db.followUps.filter((f) => f.appointmentId !== id);
@@ -114,9 +122,9 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
       action: "appointment.deleted",
       entity: "appointment",
       entityId: id,
-      summary: `Rendez-vous de ${lead?.name ?? "un lead"} supprimé`,
+      summary: `Rendez-vous de ${lead?.name ?? "un lead"} supprimé${sales.length ? ` avec sa vente (${sales.map((s) => `${s.contractValue} ${s.currency}`).join(", ")})` : ""}`,
     });
     writeDB(db);
-    return { ok: true };
+    return { ok: true, salesRemoved: sales.length };
   });
 }
