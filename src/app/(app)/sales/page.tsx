@@ -3,7 +3,7 @@
 import { sessionHas } from "@/lib/sales/roles";
 import { useState } from "react";
 import Link from "next/link";
-import { fmtDateTime, fmtInt, fmtMoney, label } from "@/lib/format";
+import { fmtDate, fmtDualTime, fmtInt, fmtMoney, label } from "@/lib/format";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { Card, Empty, ErrorNote, PageHeader, Spinner, StatTile } from "@/components/ui";
 import { Funnel, PeriodPicker, Ratio } from "@/components/sales/bits";
@@ -12,6 +12,7 @@ import { useSales } from "@/components/sales/context";
 import { MemberHome } from "@/components/sales/MemberHome";
 import type { CloserRow, FunnelStep, SalesKpis, SetterRow } from "@/lib/sales/analytics";
 import type { ActivityLog } from "@/lib/types";
+import type { ActivityBlocks } from "@/app/api/sales/dashboard/route";
 
 interface DashboardPayload {
   kpis: SalesKpis;
@@ -22,6 +23,7 @@ interface DashboardPayload {
   commissions: { setters: number; closers: number; due: number };
   followUps: { overdue: number; pending: number };
   logs: ActivityLog[];
+  activity: ActivityBlocks | null;
   currency: string;
 }
 
@@ -288,26 +290,101 @@ export default function SalesDashboardPage() {
             </Card>
           )}
 
-          {/* Journal : qui a fait quoi. */}
-          {session.isAdmin && (
-            <Card title="Activité récente" padded={false}>
-              {!data.logs.length ? (
-                <Empty>Rien pour l&apos;instant.</Empty>
-              ) : (
-                <ul>
-                  {data.logs.map((l, i) => (
-                    <li
-                      key={l.id}
-                      className="px-3.5 py-2 flex items-baseline gap-3"
-                      style={{ borderBottom: i < data.logs.length - 1 ? "1px solid var(--border)" : "none" }}
-                    >
-                      <span className="dim num text-[11.5px] shrink-0">{fmtDateTime(l.at)}</span>
-                      <span className="text-[12.5px]">{l.summary}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
+          {/* Journal en trois blocs : shifts des setters, rendez-vous et prospection, versements. */}
+          {session.isAdmin && data.activity && (
+            <div className="grid lg:grid-cols-3 gap-4 items-start">
+              <Card title="Shifts setters" subtitle="Pointage et tâches du jour · heures FR puis DXB" padded={false}>
+                {data.activity.tasksToday.length > 0 && (
+                  <div className="px-3.5 py-2.5 flex flex-wrap gap-2" style={{ borderBottom: "1px solid var(--border)" }}>
+                    {data.activity.tasksToday.map((t) => (
+                      <span key={t.memberName} className="badge !text-[11px]" title="Tâches du jour cochées">
+                        {t.memberName} · {t.done}/{t.total} tâches
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {!data.activity.shifts.length ? (
+                  <Empty>Aucune session pointée.</Empty>
+                ) : (
+                  <ul>
+                    {data.activity.shifts.map((s, i) => (
+                      <li
+                        key={s.id}
+                        className="px-3.5 py-2 text-[12.5px]"
+                        style={{ borderBottom: i < data.activity!.shifts.length - 1 ? "1px solid var(--border)" : "none" }}
+                      >
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="font-medium">{s.memberName}</span>
+                          <span className="num">{s.endedAt ? `${s.hours} h` : <span style={{ color: "var(--emerald)" }}>● en cours</span>}</span>
+                        </div>
+                        <div className="dim num text-[11.5px]">
+                          {fmtDate(s.startedAt)} · {fmtDualTime(s.startedAt)}
+                          {s.endedAt ? ` → ${fmtDualTime(s.endedAt)}` : ""}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="px-3.5 py-2" style={{ borderTop: "1px solid var(--border)" }}>
+                  <Link href="/sales/pointage" className="link text-[12px]">
+                    Tout voir dans Shifts équipe
+                  </Link>
+                </div>
+              </Card>
+
+              <Card title="Rendez-vous & prospection" subtitle="Rendez-vous, ventes, statuts posés · FR puis DXB" padded={false}>
+                {!data.activity.appointments.length ? (
+                  <Empty>Rien pour l&apos;instant.</Empty>
+                ) : (
+                  <ul>
+                    {data.activity.appointments.map((l, i) => (
+                      <li
+                        key={l.id}
+                        className="px-3.5 py-2 text-[12.5px]"
+                        style={{ borderBottom: i < data.activity!.appointments.length - 1 ? "1px solid var(--border)" : "none" }}
+                      >
+                        <div>{l.summary}</div>
+                        <div className="dim num text-[11.5px]">
+                          {fmtDate(l.at)} · {fmtDualTime(l.at)}
+                          {l.actorName ? ` · ${l.actorName}` : ""}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="px-3.5 py-2" style={{ borderTop: "1px solid var(--border)" }}>
+                  <Link href="/sales/agenda" className="link text-[12px]">
+                    Ouvrir l&apos;agenda
+                  </Link>
+                </div>
+              </Card>
+
+              <Card title="Versements" subtitle="Commissions versées · FR puis DXB" padded={false}>
+                {!data.activity.payments.length ? (
+                  <Empty>Aucun versement enregistré.</Empty>
+                ) : (
+                  <ul>
+                    {data.activity.payments.map((l, i) => (
+                      <li
+                        key={l.id}
+                        className="px-3.5 py-2 text-[12.5px]"
+                        style={{ borderBottom: i < data.activity!.payments.length - 1 ? "1px solid var(--border)" : "none" }}
+                      >
+                        <div>{l.summary}</div>
+                        <div className="dim num text-[11.5px]">
+                          {fmtDate(l.at)} · {fmtDualTime(l.at)}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="px-3.5 py-2" style={{ borderTop: "1px solid var(--border)" }}>
+                  <Link href="/sales/commissions" className="link text-[12px]">
+                    Grand livre
+                  </Link>
+                </div>
+              </Card>
+            </div>
           )}
         </div>
       )}

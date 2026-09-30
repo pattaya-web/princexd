@@ -124,6 +124,60 @@ export async function GET(req: NextRequest) {
       },
       members: session.isAdmin ? db.team.map(publicMember) : [],
       logs: session.isAdmin ? db.activityLogs.slice(0, 12) : [],
+      activity: session.isAdmin ? recentActivity(db) : null,
     };
   });
+}
+
+/**
+ * Activite recente, triee en trois blocs pour l'admin : les shifts des
+ * setters (pointage et taches du jour), les rendez-vous et la prospection
+ * (rendez-vous, ventes, statuts poses sur les leads), et les versements.
+ * Melanges dans un seul journal, ces lignes ne se lisaient pas.
+ */
+export interface ActivityBlocks {
+  shifts: { id: string; memberName: string; startedAt: string; endedAt: string; hours: number }[];
+  tasksToday: { memberName: string; done: number; total: number }[];
+  appointments: { id: string; at: string; actorName: string; summary: string }[];
+  payments: { id: string; at: string; actorName: string; summary: string }[];
+}
+
+function recentActivity(db: ReturnType<typeof readDB>): ActivityBlocks {
+  const names = new Map(db.team.map((m) => [m.id, m.name]));
+  const now = Date.now();
+  const shifts = (db.workSessions ?? [])
+    .slice()
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+    .slice(0, 15)
+    .map((s) => ({
+      id: s.id,
+      memberName: names.get(s.memberId) ?? "—",
+      startedAt: s.startedAt,
+      endedAt: s.endedAt,
+      hours: Math.round((Math.min(((s.endedAt ? new Date(s.endedAt).getTime() : now) - new Date(s.startedAt).getTime()) / 3_600_000, 14)) * 100) / 100,
+    }));
+
+  const today = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
+  const custom = (db.settings.salesDailyTasks ?? []).map((t) => t.trim()).filter(Boolean);
+  const total = custom.length || 6;
+  const tasksToday = db.team
+    .filter((m) => m.status !== "inactif" && sessionHas({ role: m.role, roles: m.roles }, "setter"))
+    .map((m) => ({
+      memberName: m.name,
+      done: (db.taskChecks ?? []).filter((c) => c.memberId === m.id && c.day === today).length,
+      total,
+    }));
+
+  const pick = (test: (action: string) => boolean, n: number) =>
+    db.activityLogs
+      .filter((l) => test(l.action))
+      .slice(0, n)
+      .map((l) => ({ id: l.id, at: l.at, actorName: l.actorName, summary: l.summary }));
+
+  return {
+    shifts,
+    tasksToday,
+    appointments: pick((a) => a.startsWith("appointment.") || a.startsWith("sale.") || a.startsWith("lead."), 15),
+    payments: pick((a) => a === "commission.paid", 10),
+  };
 }
