@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 type Action = "status" | "reopen" | "attempt" | "reached" | "lost" | "note" | "assign";
 
-const STATUSES: LeadCallStatus[] = ["no-answer", "message-sent", "callback", "reached", "not-interested"];
+const STATUSES: LeadCallStatus[] = ["no-answer", "message-sent", "callback", "reached", "not-interested", "wrong-number"];
 
 const STATUS_LABEL: Record<LeadCallStatus, string> = {
   "no-answer": "ne répond pas",
@@ -17,6 +17,7 @@ const STATUS_LABEL: Record<LeadCallStatus, string> = {
   callback: "à rappeler",
   reached: "joint",
   "not-interested": "pas intéressé",
+  "wrong-number": "faux numéro",
 };
 
 /**
@@ -100,7 +101,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       // Un lead sorti de la liste (pas interesse, rendez-vous pris puis annule,
       // call fait) qui recoit un statut d'appel y revient.
       const inList = lead.stage === "nouveau" || lead.stage === "contacte" || lead.stage === "conversation";
-      if (!inList && status !== "not-interested") lead.stage = "contacte";
+      if (!inList && status !== "not-interested" && status !== "wrong-number") lead.stage = "contacte";
       lead.callStatus = status;
       lead.lastCallAt = now.toISOString();
       lead.callbackAt = status === "callback" ? callbackAt : "";
@@ -128,6 +129,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           lead.nextActionAt = today;
           break;
         case "not-interested":
+        case "wrong-number":
           lead.stage = "closed-lost";
           lead.nextAction = "";
           lead.nextActionAt = "";

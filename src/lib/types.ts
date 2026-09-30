@@ -356,10 +356,11 @@ export interface Lead {
  *  - message-sent   : message laisse (SMS, WhatsApp, vocal) ;
  *  - callback       : demande a etre rappele, a la date `callbackAt` ;
  *  - reached        : appele et joint, rendez-vous a fixer ;
- *  - not-interested : pas interesse, sort de la liste.
+ *  - not-interested : pas interesse, sort de la liste ;
+ *  - wrong-number   : faux numero, sort de la liste.
  * « Rendez-vous pris » n'est pas un statut : c'est un rendez-vous cree.
  */
-export type LeadCallStatus = "no-answer" | "message-sent" | "callback" | "reached" | "not-interested";
+export type LeadCallStatus = "no-answer" | "message-sent" | "callback" | "reached" | "not-interested" | "wrong-number";
 
 export interface Student {
   id: ID;

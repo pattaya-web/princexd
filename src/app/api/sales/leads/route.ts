@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
     const bucketOf = (l: Lead): CallBucket | null => {
       const appt = nextAppt.get(l.id);
       if (appt) return "booked";
-      if (l.callStatus === "not-interested") return (l.lastCallAt ?? "") >= monthAgo ? "lost" : null;
+      if (l.callStatus === "not-interested" || l.callStatus === "wrong-number") return (l.lastCallAt ?? "") >= monthAgo ? "lost" : null;
       if (l.stage !== "nouveau" && l.stage !== "contacte" && l.stage !== "conversation") return null;
       switch (l.callStatus) {
         case "callback":
@@ -183,7 +183,7 @@ export async function GET(req: NextRequest) {
     });
 
     const count = (k: CallBucket) => rows.filter((r) => r.bucket === k).length;
-    const notInterested = db.leads.filter((l) => cold(l) && visible(l) && l.callStatus === "not-interested").length;
+    const notInterested = db.leads.filter((l) => cold(l) && visible(l) && (l.callStatus === "not-interested" || l.callStatus === "wrong-number")).length;
     // Leads froids devenus rendez-vous : ils sont dans Rendez-vous, on ne donne que le nombre.
     const bookedCount = db.leads.filter((l) => cold(l) && visible(l) && nextAppt.has(l.id)).length;
     // Leads a appeler qui existent mais appartiennent a un autre setter : un
@@ -192,7 +192,7 @@ export async function GET(req: NextRequest) {
     const hidden = session.isAdmin
       ? 0
       : db.leads.filter(
-          (l) => cold(l) && !visible(l) && (l.stage === "nouveau" || l.stage === "contacte" || l.stage === "conversation") && l.callStatus !== "not-interested",
+          (l) => cold(l) && !visible(l) && (l.stage === "nouveau" || l.stage === "contacte" || l.stage === "conversation") && l.callStatus !== "not-interested" && l.callStatus !== "wrong-number",
         ).length;
 
     return {

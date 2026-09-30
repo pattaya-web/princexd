@@ -21,6 +21,7 @@ const STATUS: Record<string, string> = {
   callback: "À rappeler",
   reached: "Joint",
   "not-interested": "Pas intéressé",
+  "wrong-number": "Faux numéro",
 };
 
 /**

@@ -51,7 +51,7 @@ const FILTERS: { key: FilterKey; label: string; color?: string; buckets: CallBuc
   { key: "retry", label: "Ne répond pas, à relancer", color: COLOR.yellow, buckets: ["retry"] },
   { key: "callback", label: "À rappeler plus tard", color: COLOR.blue, buckets: ["due", "later"] },
   { key: "talking", label: "Joints, RDV à fixer", color: COLOR.violet, buckets: ["talking"] },
-  { key: "lost", label: "Pas intéressés", color: COLOR.red, buckets: ["lost"] },
+  { key: "lost", label: "Pas intéressés · faux numéros", color: COLOR.red, buckets: ["lost"] },
 ];
 
 function Dot({ color }: { color: string }) {
@@ -64,6 +64,7 @@ const STATUS_LABEL: Record<LeadCallStatus, string> = {
   callback: "Demande à être rappelé",
   reached: "Appelé, joint",
   "not-interested": "Pas intéressé",
+  "wrong-number": "Faux numéro",
 };
 
 const COUNTRY: Record<string, string> = { FR: "France", BE: "Belgique", CH: "Suisse", CA: "Canada", AE: "Émirats", MA: "Maroc", DZ: "Algérie", TN: "Tunisie", LU: "Luxembourg" };
@@ -236,6 +237,7 @@ export default function CallLeadsPage() {
       <option value="reached">Joint, RDV à fixer</option>
       {!booked && <option value="booked">Rendez-vous posé…</option>}
       <option value="not-interested">Pas intéressé</option>
+      <option value="wrong-number">Faux numéro</option>
     </>
   );
 

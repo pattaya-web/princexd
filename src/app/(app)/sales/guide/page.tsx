@@ -176,7 +176,7 @@ export default function GuidePage() {
                 <Step n={4} title="Je statue chaque appel" where="Le menu sur la ligne du contact">
                   Après chaque appel je choisis dans le menu : <strong>Ne répond pas</strong>, <strong>Message envoyé</strong>,{" "}
                   <strong>À rappeler plus tard</strong> (je mets la date et l&apos;heure), <strong>Joint</strong>,{" "}
-                  <strong>Pas intéressé</strong>. La ligne prend la couleur de l&apos;état, et la liste se réordonne toute seule.
+                  <strong>Pas intéressé</strong>, <strong>Faux numéro</strong>. La ligne prend la couleur de l&apos;état, et la liste se réordonne toute seule.
                 </Step>
                 <Arrow />
                 <Step n={5} title="Je pose le rendez-vous" where="Bouton « ✓ RDV » sur la ligne, ou « Rendez-vous posé… » dans le menu">
@@ -209,7 +209,7 @@ export default function GuidePage() {
                   [COLOR.blue, "Bleu", "veut être rappelé à une heure précise. Remonte en haut quand l'heure est passée."],
                   [COLOR.violet, "Violet", "joint au téléphone, il manque la date du rendez-vous."],
                   [COLOR.green, "Vert", "rendez-vous posé. Il part dans Rendez-vous et l'Agenda."],
-                  [COLOR.red, "Rouge", "pas intéressé, pas d'argent. Reste 30 jours en bas, remettable si il revient."],
+                  [COLOR.red, "Rouge", "pas intéressé, pas d'argent, ou faux numéro. Reste 30 jours en bas, remettable s'il revient."],
                 ].map(([c, name, text]) => (
                   <div key={name} className="flex items-start gap-2">
                     <span className="mt-1">
