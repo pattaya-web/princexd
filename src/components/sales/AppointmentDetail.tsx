@@ -3,7 +3,7 @@
 import { hasRole, sessionHas } from "@/lib/sales/roles";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client";
-import { fmtDateTime, fmtMoney, label, parisToIso } from "@/lib/format";
+import { fmtDateTime, fmtMoney, label, parisDay, parisToIso } from "@/lib/format";
 import { CALL_OUTCOMES, LOST_REASONS, PAYMENT_TYPES } from "@/lib/sales/constants";
 import { Field, Modal, Spinner, useToast } from "@/components/ui";
 import { IgHandle, StatusBadge } from "./bits";
@@ -80,6 +80,33 @@ export function AppointmentDetail({
   /* Inscription de l'eleve, apres un close. */
   const [enrolling, setEnrolling] = useState(false);
   const [program, setProgram] = useState("");
+  /* Encaissement complementaire (paiement en plusieurs fois). */
+  const [collecting, setCollecting] = useState(false);
+  const [colAmount, setColAmount] = useState("");
+  const [colAt, setColAt] = useState(parisDay(0));
+  const [colMethod, setColMethod] = useState("");
+  const [colNote, setColNote] = useState("");
+  const collect = async () => {
+    if (!detail?.sale || !appt) return;
+    setSaving(true);
+    try {
+      const r = await api<{ remaining: number }>(`/api/sales/deals/${detail.sale.id}`, {
+        method: "POST",
+        body: JSON.stringify({ amount: Number(colAmount), at: parisToIso(`${colAt}T12:00`), method: colMethod, note: colNote }),
+      });
+      toast(r.remaining > 0 ? `Encaissement enregistré. Reste ${fmtMoney(r.remaining, detail.sale.currency)}.` : "Encaissement enregistré : contrat soldé.");
+      setCollecting(false);
+      setColAmount("");
+      setColMethod("");
+      setColNote("");
+      await load(appt.id);
+      onChanged();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setSaving(false);
+    }
+  };
   const [startedAt, setStartedAt] = useState("");
   const [objective, setObjective] = useState("");
   const [nextSessionAt, setNextSessionAt] = useState("");
@@ -565,6 +592,67 @@ export function AppointmentDetail({
                     <span className="dim text-[11.5px] num">{detail.sale.installments} échéances</span>
                   )}
                 </div>
+
+                {/* Encaissements : ce qui est arrive, quand, et ce qu'il reste a percevoir. */}
+                {(() => {
+                  const sale = detail.sale!;
+                  const remaining = Math.max(0, sale.contractValue - sale.cashCollected);
+                  const canCollect = session.isAdmin || sale.closerId === session.memberId;
+                  const cols = sale.collections ?? [];
+                  return (
+                    <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <span className="text-[12.5px]">
+                          <span className="dim">Reste à encaisser </span>
+                          <span className="num font-semibold" style={{ color: remaining > 0 ? "var(--warning)" : "var(--emerald)" }}>
+                            {remaining > 0 ? fmtMoney(remaining, sale.currency) : "0, contrat soldé"}
+                          </span>
+                        </span>
+                        {canCollect && remaining > 0 && sale.status !== "cancelled" && !collecting && (
+                          <button className="btn btn-sm btn-primary" onClick={() => setCollecting(true)}>
+                            + Encaissement reçu
+                          </button>
+                        )}
+                      </div>
+                      {cols.length > 0 && (
+                        <ul className="mt-2 flex flex-col gap-1">
+                          {cols.map((c) => (
+                            <li key={c.id} className="text-[12px] flex items-baseline gap-2 flex-wrap">
+                              <span className="num font-semibold" style={{ color: "var(--emerald)" }}>+ {fmtMoney(c.amount, sale.currency)}</span>
+                              <span className="dim num">{fmtDateTime(c.at).slice(0, 8)}</span>
+                              {c.method && <span className="dim">· {c.method}</span>}
+                              {c.note && <span className="dim">· {c.note}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {collecting && (
+                        <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                          <Field label={`Montant reçu (${sale.currency})`} hint={`Maximum ${fmtMoney(remaining, sale.currency)}`}>
+                            <input className="input num" type="number" min={0} max={remaining} value={colAmount} onChange={(e) => setColAmount(e.target.value)} autoFocus />
+                          </Field>
+                          <Field label="Reçu le">
+                            <input className="input" type="date" value={colAt} onChange={(e) => setColAt(e.target.value)} />
+                          </Field>
+                          <Field label="Moyen (optionnel)">
+                            <input className="input" placeholder="Virement, Stripe, PayPal…" value={colMethod} onChange={(e) => setColMethod(e.target.value)} />
+                          </Field>
+                          <Field label="Note (optionnel)">
+                            <input className="input" placeholder="2e échéance sur 3" value={colNote} onChange={(e) => setColNote(e.target.value)} />
+                          </Field>
+                          <div className="sm:col-span-2 flex gap-2 justify-end">
+                            <button className="btn" onClick={() => setCollecting(false)} disabled={saving}>
+                              Annuler
+                            </button>
+                            <button className="btn btn-primary" onClick={() => void collect()} disabled={saving || !(Number(colAmount) > 0)}>
+                              {saving ? <span className="spinner" /> : "Enregistrer l'encaissement"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/*
                   Passage de la vente au coaching.

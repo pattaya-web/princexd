@@ -183,48 +183,51 @@ export function entriesForRole(
 
     const contract = netContract(sale);
     const cash = netCash(sale);
-    let amount = 0;
-    let detail = "";
+    const push = (amount: number, detail: string, at = sale.soldAt, sourceId = sale.id) => {
+      if (!amount) return;
+      out.push({ memberId: member.id, role, kind: "sale", sourceId, at, amount: money(amount), currency: rule.currency || sale.currency, ruleId: rule.id, detail });
+    };
+
+    /*
+     * Commission sur le cash : une ligne par encaissement, datee du jour ou
+     * l'argent est arrive. Un client qui paie en trois fois genere trois
+     * lignes, sur trois mois, et le grand livre du closer suit la realite.
+     */
+    const cashParts = () => {
+      const cols = (sale.collections ?? []).filter((c) => c.amount > 0);
+      if (!cols.length) return [{ amount: cash, at: sale.soldAt, id: sale.id, label: "encaissés" }];
+      const later = cols.reduce((a, c) => a + c.amount, 0);
+      const first = Math.max(0, cash - later);
+      return [
+        ...(first > 0 ? [{ amount: first, at: sale.soldAt, id: sale.id, label: "encaissés à la vente" }] : []),
+        ...cols.map((c) => ({ amount: c.amount, at: c.at, id: `${sale.id}:${c.id}`, label: "encaissés (échéance)" })),
+      ];
+    };
 
     switch (rule.type) {
       case "pct-revenue":
-        amount = pctOf(contract, rule.pct);
-        detail = `${rule.pct} % de ${Math.round(contract)} de contrat`;
+        push(pctOf(contract, rule.pct), `${rule.pct} % de ${Math.round(contract)} de contrat`);
         break;
       case "pct-cash":
-        amount = pctOf(cash, rule.pct);
-        detail = `${rule.pct} % de ${Math.round(cash)} encaissés`;
+        for (const p of cashParts()) push(pctOf(p.amount, rule.pct), `${rule.pct} % de ${Math.round(p.amount)} ${p.label}`, p.at, p.id);
         break;
       case "fixed-plus-pct":
       case "custom": {
-        const base = rule.basis === "contract" ? contract : cash;
-        amount = (rule.fixed || 0) + pctOf(base, rule.pct);
-        const baseLabel = rule.basis === "contract" ? "de contrat" : "encaissés";
-        detail = [
-          rule.fixed ? `${rule.fixed} fixe` : "",
-          rule.pct ? `${rule.pct} % de ${Math.round(base)} ${baseLabel}` : "",
-        ]
-          .filter(Boolean)
-          .join(" + ");
+        if (rule.basis === "contract") {
+          push(
+            (rule.fixed || 0) + pctOf(contract, rule.pct),
+            [rule.fixed ? `${rule.fixed} fixe` : "", rule.pct ? `${rule.pct} % de ${Math.round(contract)} de contrat` : ""].filter(Boolean).join(" + "),
+          );
+        } else {
+          if (rule.fixed) push(rule.fixed, `${rule.fixed} fixe`);
+          for (const p of cashParts()) push(pctOf(p.amount, rule.pct), `${rule.pct} % de ${Math.round(p.amount)} ${p.label}`, p.at, p.id);
+        }
         break;
       }
       default:
         // per-appointment et per-show ne se declenchent pas sur une vente.
         continue;
     }
-
-    if (!amount) continue;
-    out.push({
-      memberId: member.id,
-      role,
-      kind: "sale",
-      sourceId: sale.id,
-      at: sale.soldAt,
-      amount: money(amount),
-      currency: rule.currency || sale.currency,
-      ruleId: rule.id,
-      detail,
-    });
   }
 
   out.push(...monthlyFixedEntries(member, role, rules));

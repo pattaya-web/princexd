@@ -1004,6 +1004,24 @@ export interface Sale {
   createdBy: ID;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Encaissements recus apres la vente (client qui paie en plusieurs fois).
+   * `cashCollected` reste le total ; chaque encaissement est date pour que
+   * la commission sur le cash tombe au mois ou l'argent arrive vraiment.
+   */
+  collections?: SaleCollection[];
+}
+
+export interface SaleCollection {
+  id: ID;
+  amount: number;
+  /** Date de reception (ISO). */
+  at: string;
+  method: string;
+  note: string;
+  /** Qui l'a enregistre. */
+  by: ID;
+  createdAt: string;
 }
 
 export interface FollowUp {

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { readSession, requireSales } from "@/lib/sales/access";
+import { newId, readDB, writeDB } from "@/lib/db";
+import { Forbidden, readSession, requireSales } from "@/lib/sales/access";
 import { handle, num } from "@/lib/sales/http";
 import { patchSale } from "@/lib/sales/repo";
 import type { PaymentType, SaleStatus } from "@/lib/types";
@@ -32,5 +33,56 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (typeof body.status === "string") patch.status = body.status as SaleStatus;
 
     return patchSale(session, id, patch);
+  });
+}
+
+/**
+ * Encaissement recu apres la vente (paiement en plusieurs fois).
+ *
+ * Reserve a l'admin et au closer de la vente. Le total encaisse augmente
+ * d'autant, l'encaissement est date : la commission sur le cash tombe au
+ * mois ou l'argent est arrive (voir lib/sales/commissions).
+ */
+export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return handle(async () => {
+    const session = requireSales(readSession(req));
+    const { id } = await ctx.params;
+    const body = (await req.json().catch(() => ({}))) as { amount?: unknown; at?: string; method?: string; note?: string };
+
+    const db = readDB();
+    const sale = db.sales.find((s) => s.id === id);
+    if (!sale) throw new Error("Vente introuvable.");
+    if (!session.isAdmin && sale.closerId !== session.memberId) throw new Forbidden("Seul le closer de cette vente enregistre ses encaissements.");
+    if (sale.status === "cancelled") throw new Error("Cette vente est annulée.");
+
+    const amount = Math.round(num(body.amount) * 100) / 100;
+    if (amount <= 0) throw new Error("Indique le montant reçu.");
+    const remaining = Math.max(0, sale.contractValue - sale.cashCollected);
+    if (amount > remaining + 0.005) {
+      throw new Error(`Il ne reste que ${remaining} ${sale.currency} à encaisser sur ce contrat. Corrige la valeur du contrat si elle a changé.`);
+    }
+    const at = body.at && !Number.isNaN(Date.parse(body.at)) ? new Date(body.at).toISOString() : new Date().toISOString();
+
+    const now = new Date().toISOString();
+    sale.collections = [
+      ...(sale.collections ?? []),
+      { id: newId(), amount, at, method: String(body.method ?? "").trim(), note: String(body.note ?? "").trim(), by: session.memberId, createdAt: now },
+    ];
+    sale.cashCollected = Math.round((sale.cashCollected + amount) * 100) / 100;
+    sale.updatedAt = now;
+
+    const lead = db.leads.find((l) => l.id === sale.leadId);
+    db.activityLogs.unshift({
+      id: newId(),
+      at: now,
+      actorId: session.memberId,
+      actorName: session.memberName || "Moi",
+      action: "sale.collected",
+      entity: "sale",
+      entityId: sale.id,
+      summary: `${amount} ${sale.currency} encaissés sur la vente de ${lead?.name ?? "un client"} (${sale.cashCollected}/${sale.contractValue})`,
+    });
+    writeDB(db);
+    return { sale, remaining: Math.max(0, sale.contractValue - sale.cashCollected) };
   });
 }
