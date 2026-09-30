@@ -76,16 +76,18 @@ export function CallsCalendar({
         </div>
       }
     >
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7" style={{ minHeight: 140 }}>
+      {/* Telephone : les jours s'empilent, et seuls ceux qui ont un call (ou aujourd'hui) s'affichent. */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 lg:grid-cols-7" style={{ minHeight: 100 }}>
         {days.map((d, i) => {
           const items = (byDay.get(d) ?? []).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
           const isToday = i === 0 && week === 0;
           return (
             <div
               key={d}
-              className="px-2 py-2 min-w-0"
+              className={`px-2 py-2 min-w-0 ${items.length === 0 && !isToday ? "hidden sm:block" : ""}`}
               style={{
                 borderRight: i < 6 ? "1px solid var(--border)" : "none",
+                borderBottom: "1px solid var(--border)",
                 background: isToday ? "color-mix(in srgb, var(--accent) 6%, transparent)" : undefined,
               }}
             >

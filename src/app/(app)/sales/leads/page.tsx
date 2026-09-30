@@ -198,6 +198,49 @@ export default function CallLeadsPage() {
   const rows = data?.rows ?? [];
   const c = data?.counts;
 
+  /** Changement de statut d'un lead, partage entre le tableau (ordinateur) et les cartes (telephone). */
+  const pickFor = (l: CallLeadRow) => (v: string) => {
+    const booked = l.bucket === "booked";
+    if (v === "booked") return setBooking(l);
+    /*
+     * Rendez-vous pris puis annule : changer le statut annule le rendez-vous
+     * a venir (le closer ne le voit plus) et le lead reprend sa place.
+     */
+    let cancel = false;
+    if (booked) {
+      if (v === "") return;
+      const when = l.appointmentAt ? ` du ${fmtDateTime(l.appointmentAt)}` : "";
+      if (!window.confirm(`${l.name} a un rendez-vous${when}. Changer son statut annule ce rendez-vous. Continuer ?`)) return;
+      cancel = true;
+    }
+    if (v === "callback") {
+      setCancelPending(cancel);
+      return setCallbackFor(l);
+    }
+    if (v === "not-interested") {
+      const reason = window.prompt("Pas intéressé : pourquoi ? (optionnel)") ?? null;
+      if (reason === null) return;
+      return void setStatus(l, "not-interested", undefined, reason, cancel);
+    }
+    if (v === "") return void reopen(l);
+    void setStatus(l, v as LeadCallStatus, undefined, undefined, cancel);
+  };
+
+  /** Options du menu de statut. */
+  const statusOptions = (booked: boolean) => (
+    <>
+      {booked ? <option value="booked">Rendez-vous posé</option> : <option value="">Non statué</option>}
+      <option value="no-answer">Ne répond pas</option>
+      <option value="message-sent">Message envoyé</option>
+      <option value="callback">À rappeler plus tard…</option>
+      <option value="reached">Joint, RDV à fixer</option>
+      {!booked && <option value="booked">Rendez-vous posé…</option>}
+      <option value="not-interested">Pas intéressé</option>
+    </>
+  );
+
+  const shownRows = rows.filter((r) => FILTERS.find((f) => f.key === filter)?.buckets.includes(r.bucket));
+
   return (
     <>
       <PageHeader
@@ -298,7 +341,92 @@ export default function CallLeadsPage() {
         </Card>
       ) : (
         <Card padded={false}>
-          <div className="scroll-x">
+          {/* Telephone : une carte par contact, tout en colonne, gros boutons. */}
+          <ul className="sm:hidden">
+            {shownRows.map((l, i) => {
+              const tone = TONE[l.bucket];
+              const booked = l.bucket === "booked";
+              const lost = l.bucket === "lost";
+              const onPick = pickFor(l);
+              return (
+                <li
+                  key={l.id}
+                  className="px-3 py-3 flex flex-col gap-2"
+                  style={{
+                    background: `color-mix(in srgb, ${tone} ${lost ? 14 : 20}%, var(--surface))`,
+                    borderLeft: `4px solid ${tone}`,
+                    borderBottom: i < shownRows.length - 1 ? "1px solid var(--border)" : "none",
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <button type="button" onClick={() => setSheetId(l.id)} className="text-left min-w-0">
+                      <span className="flex items-center gap-2 text-[14px] font-semibold">
+                        <Dot color={tone} />
+                        <span className="truncate">{l.name}</span>
+                      </span>
+                      <span className="dim text-[11.5px] block">
+                        inscrit {relative(l.optInAt || l.createdAt)}
+                        {l.country ? ` · ${COUNTRY[l.country] ?? l.country}` : ""}
+                        {!l.setterId ? " · sans setter" : ""}
+                      </span>
+                    </button>
+                    {l.phone ? (
+                      <a className="btn btn-primary !h-[36px] !px-3 shrink-0" href={`tel:${l.phone}`} title={l.phone}>
+                        ☏ Appeler
+                      </a>
+                    ) : (
+                      <span className="badge badge-warn !text-[10.5px] shrink-0">Pas de numéro</span>
+                    )}
+                  </div>
+                  <select
+                    className="select !h-[38px] !text-[13px] w-full"
+                    value={booked ? "booked" : (l.callStatus ?? "")}
+                    disabled={busy === l.id}
+                    onChange={(e) => onPick(e.target.value)}
+                    style={{ backgroundColor: `color-mix(in srgb, ${tone} 30%, var(--surface))`, borderColor: tone, fontWeight: 600 }}
+                  >
+                    {statusOptions(booked)}
+                  </select>
+                  <div className="text-[12px]">
+                    {booked && l.appointmentAt ? (
+                      <span style={{ color: COLOR.green, fontWeight: 600 }}>Call le {fmtDateTime(l.appointmentAt)}{l.closerName ? ` avec ${l.closerName}` : ""}</span>
+                    ) : l.callStatus === "callback" && l.callbackAt ? (
+                      <span style={{ color: COLOR.blue, fontWeight: 600 }}>{l.bucket === "due" ? "Rappel dû depuis le " : "Rappeler le "}{fmtDateTime(l.callbackAt)}</span>
+                    ) : l.callStatus ? (
+                      <span className="dim">{STATUS_LABEL[l.callStatus]}{l.lastCallAt ? `, ${relative(l.lastCallAt)}` : ""}</span>
+                    ) : (
+                      <span className="dim">Jamais appelé</span>
+                    )}
+                    {l.notes && <span className="block truncate mt-0.5">✎ {l.notes.split("\n").join(" · ")}</span>}
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {!booked && !lost && (
+                      <button className="btn !h-[34px] flex-1" onClick={() => setBooking(l)} disabled={busy === l.id}>
+                        ✓ Rendez-vous pris
+                      </button>
+                    )}
+                    {lost && (
+                      <button className="btn !h-[34px] flex-1" onClick={() => void reopen(l)} disabled={busy === l.id}>
+                        ↺ Remettre à appeler
+                      </button>
+                    )}
+                    <button className="btn btn-ghost !h-[34px]" onClick={() => setSheetId(l.id)}>
+                      Fiche
+                    </button>
+                    {session.isAdmin && setters.length > 0 && (
+                      <select className="select select-sm !w-auto" value={l.setterId ?? ""} onChange={(e) => void assign(l, e.target.value)}>
+                        <option value="">Setter…</option>
+                        {setters.map((m) => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="scroll-x hidden sm:block">
             <table className="table">
               <thead>
                 <tr>
@@ -312,9 +440,7 @@ export default function CallLeadsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows
-                  .filter((r) => FILTERS.find((f) => f.key === filter)?.buckets.includes(r.bucket))
-                  .map((l) => {
+                {shownRows.map((l) => {
                     const tone = TONE[l.bucket];
                     const hint = localHint(l.country);
                     const booked = l.bucket === "booked";
@@ -322,32 +448,7 @@ export default function CallLeadsPage() {
                     // Toute la ligne prend la couleur de l'etat, comme une ligne surlignee dans un tableur.
                     const rowStyle: CSSProperties = { background: `color-mix(in srgb, ${tone} ${lost ? 14 : 20}%, var(--surface))` };
                     const selectValue = booked ? "booked" : (l.callStatus ?? "");
-                    const onPick = (v: string) => {
-                      if (v === "booked") return setBooking(l);
-                      /*
-                       * Rendez-vous pris puis annule : changer le statut annule
-                       * le rendez-vous a venir (le closer ne le voit plus) et
-                       * le lead reprend sa place dans la liste.
-                       */
-                      let cancel = false;
-                      if (booked) {
-                        if (v === "") return;
-                        const when = l.appointmentAt ? ` du ${fmtDateTime(l.appointmentAt)}` : "";
-                        if (!window.confirm(`${l.name} a un rendez-vous${when}. Changer son statut annule ce rendez-vous. Continuer ?`)) return;
-                        cancel = true;
-                      }
-                      if (v === "callback") {
-                        setCancelPending(cancel);
-                        return setCallbackFor(l);
-                      }
-                      if (v === "not-interested") {
-                        const reason = window.prompt("Pas intéressé : pourquoi ? (optionnel)") ?? null;
-                        if (reason === null) return;
-                        return void setStatus(l, "not-interested", undefined, reason, cancel);
-                      }
-                      if (v === "") return void reopen(l);
-                      void setStatus(l, v as LeadCallStatus, undefined, undefined, cancel);
-                    };
+                    const onPick = pickFor(l);
                     return (
                       <tr key={l.id} style={rowStyle}>
                         <td style={{ borderLeft: `4px solid ${tone}` }}>
@@ -386,13 +487,7 @@ export default function CallLeadsPage() {
                             style={{ backgroundColor: `color-mix(in srgb, ${tone} 30%, var(--surface))`, borderColor: tone, fontWeight: 600 }}
                             title={booked ? "Rendez-vous posé. Choisir un autre statut annule le rendez-vous." : "Changer le statut"}
                           >
-                            {booked ? <option value="booked">Rendez-vous posé</option> : <option value="">Non statué</option>}
-                            <option value="no-answer">Ne répond pas</option>
-                            <option value="message-sent">Message envoyé</option>
-                            <option value="callback">À rappeler plus tard…</option>
-                            <option value="reached">Joint, RDV à fixer</option>
-                            {!booked && <option value="booked">Rendez-vous posé…</option>}
-                            <option value="not-interested">Pas intéressé</option>
+                            {statusOptions(booked)}
                           </select>
                         </td>
                         <td className="text-[12px]">

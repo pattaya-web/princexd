@@ -533,7 +533,7 @@ function MyBookingLink({ version }: { version: number }) {
   return (
     <div className="flex items-center gap-2 flex-wrap mt-3">
       <span className="label-xs">Mon lien de calendrier</span>
-      <code className="mono dim text-[11px] truncate max-w-[360px]" title={data.link}>
+      <code className="mono dim text-[11px] truncate max-w-full sm:max-w-[360px]" title={data.link}>
         {data.link}
       </code>
       <button className="btn btn-sm btn-primary" onClick={() => void copy()} title="Copier mon lien signé">
