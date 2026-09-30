@@ -205,15 +205,17 @@ export function MemberHome() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {/* Sur telephone : pleine largeur, chaque bouton sur sa ligne. Rien ne
+                doit pouvoir deborder a droite. */}
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto min-w-0">
               {both && (
-                <div className="flex gap-0.5 p-0.5 rounded-[8px]" style={{ background: "var(--surface-3)" }} title="Ta casquette du moment">
+                <div className="flex gap-0.5 p-0.5 rounded-[8px] w-full sm:w-auto" style={{ background: "var(--surface-3)" }} title="Ta casquette du moment">
                   {(["setter", "closer"] as const).map((h) => (
                     <button
                       key={h}
                       type="button"
                       onClick={() => switchHat(h)}
-                      className="px-3 h-[28px] rounded-[6px] text-[12px] font-medium transition-colors"
+                      className="px-3 h-[32px] sm:h-[28px] rounded-[6px] text-[12px] font-medium transition-colors flex-1 sm:flex-none"
                       style={{
                         background: hat === h ? "var(--surface)" : "transparent",
                         color: hat === h ? "var(--text)" : "var(--text-2)",
@@ -226,14 +228,14 @@ export function MemberHome() {
                 </div>
               )}
               {isSetter && (
-                <button className="btn btn-primary shrink-0" onClick={() => setAdding(true)}>
+                <button className="btn btn-primary flex-1 sm:flex-none !h-[38px] sm:!h-auto" onClick={() => setAdding(true)}>
                   + Rendez-vous
                 </button>
               )}
               {/* Pointage : un bouton, toujours visible, qui dit ou on en est. */}
               {session.memberId && (
                 <button
-                  className={`btn shrink-0 ${work?.open ? "" : "btn-primary"}`}
+                  className={`btn flex-1 sm:flex-none !h-[38px] sm:!h-auto whitespace-nowrap ${work?.open ? "" : "btn-primary"}`}
                   onClick={() => void punch(work?.open ? "stop" : "start")}
                   disabled={punching}
                   title={work?.open ? `Session démarrée à ${fmtTime(work.open.startedAt)}` : "Démarre ta session de travail"}

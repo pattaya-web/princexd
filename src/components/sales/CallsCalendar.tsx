@@ -76,15 +76,69 @@ export function CallsCalendar({
         </div>
       }
     >
-      {/* Telephone : les jours s'empilent, et seuls ceux qui ont un call (ou aujourd'hui) s'affichent. */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 lg:grid-cols-7" style={{ minHeight: 100 }}>
+      {/* Telephone : une liste, un jour = un titre, un call = une ligne pleine largeur. */}
+      <ul className="sm:hidden">
+        {total === 0 && <li className="dim text-[12.5px] px-3.5 py-4">Aucun call sur ces 7 jours.</li>}
+        {days.map((d, i) => {
+          const items = (byDay.get(d) ?? []).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+          if (!items.length) return null;
+          const isToday = i === 0 && week === 0;
+          return (
+            <li key={d} style={{ borderBottom: "1px solid var(--border)" }}>
+              <div
+                className="label-xs px-3.5 py-1.5"
+                style={{ background: isToday ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "var(--surface-2)", color: isToday ? "var(--accent)" : undefined }}
+              >
+                {isToday ? "Aujourd'hui · " : ""}
+                {label(d)} · {items.length}
+              </div>
+              {items.map((r) => {
+                const tone = toneOf(r);
+                return (
+                  <div
+                    key={r.id}
+                    onClick={() => onOpen(r.id)}
+                    className="px-3.5 py-2.5 flex items-center gap-3 cursor-pointer"
+                    style={{ borderLeft: `4px solid ${tone}`, borderTop: "1px solid var(--border)" }}
+                  >
+                    <div className="num text-[14px] font-semibold shrink-0 w-[52px]">{fmtTime(r.scheduledAt)}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13.5px] font-medium truncate">{r.leadName}</div>
+                      <div className="dim text-[11px] truncate">
+                        {fmtTime(r.scheduledAt, SECOND_TZ)} DXB
+                        {role !== "setter" && r.setterName && r.setterName !== "—" ? ` · par ${r.setterName}` : ""}
+                        {role === "setter" ? ` · ${r.closerName ? `closer ${r.closerName}` : "closer à attribuer"}` : ""}
+                        {role === "closer" && !r.closerName ? " · closer à attribuer" : ""}
+                      </div>
+                    </div>
+                    {r.iclosedUrl && (
+                      <a
+                        href={r.iclosedUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="btn btn-sm btn-primary !h-[32px] shrink-0"
+                      >
+                        Rejoindre
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* Ordinateur : la semaine en sept colonnes. */}
+      <div className="hidden sm:grid sm:grid-cols-4 lg:grid-cols-7" style={{ minHeight: 100 }}>
         {days.map((d, i) => {
           const items = (byDay.get(d) ?? []).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
           const isToday = i === 0 && week === 0;
           return (
             <div
               key={d}
-              className={`px-2 py-2 min-w-0 ${items.length === 0 && !isToday ? "hidden sm:block" : ""}`}
+              className="px-2 py-2 min-w-0"
               style={{
                 borderRight: i < 6 ? "1px solid var(--border)" : "none",
                 borderBottom: "1px solid var(--border)",
