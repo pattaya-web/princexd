@@ -42,6 +42,41 @@ export async function POST(req: NextRequest) {
   const password = body.password ?? "";
   const code = (body.code ?? "").trim();
 
+  /*
+   * Compte nominatif d'abord.
+   *
+   * Un identifiant + mot de passe qui correspondent a un membre l'emportent
+   * sur tout le reste. Avant, le code monteur etait teste en premier contre
+   * le mot de passe saisi : un membre dont le mot de passe valait le code
+   * monteur atterrissait sur le board de montage.
+   */
+  if (username && password) {
+    const db = readDB();
+    const hit = db.team.find(
+      (m) => normalizeUsername(m.username ?? "") === username && Boolean(m.passwordHash) && verifyPassword(password, m.passwordHash),
+    );
+    if (hit && hit.status !== "inactif") {
+      const session = sessionFor(hit);
+      if (session.role !== "anonyme") {
+        hit.lastSeenAt = new Date().toISOString();
+        writeDB(db);
+        const res = NextResponse.json({
+          ok: true,
+          role: session.role,
+          roles: session.roles,
+          memberId: hit.id,
+          memberName: hit.name,
+          isAdmin: session.isAdmin,
+          redirect: session.role === "editor" ? "/monteur" : "/sales",
+        });
+        res.cookies.set(SESSION_COOKIE, issueToken({ role: session.role, memberId: hit.id, memberName: hit.name }), cookieOptions(SESSION_MAX_AGE_S));
+        // L'ancien cookie du monteur ne doit pas reprendre la main sur ce compte.
+        res.cookies.delete(LEGACY_ROLE_COOKIE);
+        return res;
+      }
+    }
+  }
+
   // Proprietaire (site en ligne) : le mot de passe seul suffit, l'identifiant
   // est ignore. Verifie en premier, a temps constant.
   if (ownerAuthEnabled() && verifyOwnerPassword(password)) {
@@ -65,8 +100,10 @@ export async function POST(req: NextRequest) {
    * sans session : la porte d'entrée du monteur est donc bien cette page.
    * Vérifié avant l'exigence d'identifiant, le code seul suffit.
    */
+  // Le code monteur ne vaut que tape seul (champ code, ou mot de passe sans
+  // identifiant) : jamais en concurrence avec un compte nominatif.
   const editorCode = getSettings().editorAccessCode.trim();
-  if (editorCode && [code, password, username].some((v) => v && v === editorCode)) {
+  if (editorCode && (code === editorCode || (!username && password === editorCode) || (!password && username === editorCode))) {
     const res = NextResponse.json({
       ok: true,
       role: "editor",
@@ -138,6 +175,7 @@ export async function POST(req: NextRequest) {
     issueToken({ role: session.role, memberId: matched.id, memberName: matched.name }),
     cookieOptions(SESSION_MAX_AGE_S),
   );
+  res.cookies.delete(LEGACY_ROLE_COOKIE);
   return res;
 }
 
