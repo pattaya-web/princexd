@@ -21,7 +21,6 @@ const DEFAULT_TASKS = [
   "Parcourir la liste d'abonnés et écrire à ceux jamais relancés",
   "Envoyer un DM aux personnes qui ont liké les reels, surtout les reels value",
   "Envoyer le lien du calendrier (mon lien signé) à chaque prospect chaud",
-  "Déclarer les prospects à qui j'ai envoyé le lien (accueil, « J'ai envoyé le lien »)",
 ];
 
 function taskList(): string[] {
