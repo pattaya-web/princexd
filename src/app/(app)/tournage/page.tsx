@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { api } from "@/lib/client";
+import { clipboardFiles, uploadFile } from "@/lib/upload-client";
 import { Card, Field, InfoNote, PageHeader, useToast } from "@/components/ui";
 
 /**
@@ -102,19 +104,32 @@ export default function TournagePage() {
     ];
   }, [kit.claudePrompt, kit.shopifyUrl, product]);
 
+  /*
+   * Chrome n'autorise qu'UNE fenetre par clic tant que les pop-ups ne sont
+   * pas autorises pour le site. On ouvre tout d'un coup ; ce qui est bloque
+   * reste dans une file, et chaque clic sur « Ouvrir le suivant » en ouvre
+   * un de plus. Une fois les pop-ups autorises, tout part en un clic.
+   */
+  const [queue, setQueue] = useState<typeof links>([]);
   const openAll = () => {
-    // Un seul geste utilisateur : le navigateur laisse passer les fenetres.
+    const blocked: typeof links = [];
     // Ordre inverse pour que Claude finisse au premier plan.
-    let blocked = 0;
     for (const l of [...links].reverse()) {
       const w = window.open(l.url, `tournage-${l.key}`);
-      if (!w) blocked++;
+      if (!w) blocked.push(l);
     }
+    setQueue(blocked.reverse());
     toast(
-      blocked
-        ? `${links.length - blocked} onglet(s) ouvert(s), ${blocked} bloqué(s) : autorise les pop-ups pour mvdyprince.fr, ou ouvre-les un par un ci-dessous.`
+      blocked.length
+        ? `${links.length - blocked.length} ouvert, ${blocked.length} bloqués par Chrome. Clique « Ouvrir le suivant », ou autorise les pop-ups une fois pour toutes.`
         : "Les 5 onglets sont ouverts. Bon tournage.",
     );
+  };
+  const openNext = () => {
+    const [next, ...rest] = queue;
+    if (!next) return;
+    window.open(next.url, `tournage-${next.key}`);
+    setQueue(rest);
   };
 
   const copy = async (text: string, what: string) => {
@@ -159,10 +174,29 @@ export default function TournagePage() {
                 ▶ Tout ouvrir
               </button>
             </div>
-            <InfoNote>
-              Au premier clic, Chrome peut bloquer les fenêtres : clique sur l&apos;icône « pop-up bloqué » à droite de la
-              barre d&apos;adresse et autorise mvdyprince.fr. Ensuite, c&apos;est instantané à chaque fois.
-            </InfoNote>
+            {queue.length > 0 ? (
+              <div
+                className="rounded-[10px] px-3.5 py-3 flex items-center gap-3 flex-wrap"
+                style={{ background: "color-mix(in srgb, var(--warning) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--warning) 40%, transparent)" }}
+              >
+                <span className="text-[13px]">
+                  Chrome a bloqué {queue.length} onglet{queue.length > 1 ? "s" : ""} : {queue.map((l) => l.label).join(", ")}.
+                </span>
+                <button className="btn btn-primary" onClick={openNext}>
+                  Ouvrir le suivant ({queue[0].label})
+                </button>
+                <span className="dim text-[12px]">
+                  Pour que tout s&apos;ouvre en un clic : icône « pop-up bloqué » à droite de la barre d&apos;adresse → « Toujours
+                  autoriser sur mvdyprince.fr ».
+                </span>
+              </div>
+            ) : (
+              <InfoNote>
+                Chrome n&apos;ouvre qu&apos;un onglet par clic tant que les pop-ups ne sont pas autorisés : au premier essai, clique
+                sur l&apos;icône « pop-up bloqué » à droite de la barre d&apos;adresse et choisis « Toujours autoriser ». Ensuite, un
+                clic ouvre les cinq.
+              </InfoNote>
+            )}
             <div className="grid sm:grid-cols-5 gap-2">
               {links.map((l, i) => (
                 <a
@@ -182,6 +216,8 @@ export default function TournagePage() {
             </div>
           </div>
         </Card>
+
+        <ProductPhoto onTitle={(t) => !product && set({ product: t })} />
 
         <div className="grid lg:grid-cols-3 gap-4 items-start">
           <PromptCard
@@ -222,6 +258,89 @@ export default function TournagePage() {
         </Card>
       </div>
     </>
+  );
+}
+
+/**
+ * Photo du produit AliExpress, pour Higgsfield.
+ *
+ * Colle le lien de la page ou de l'image ; ou copie l'image sur AliExpress
+ * et fais Ctrl+V ici. Elle est gardee chez nous et se telecharge en un clic.
+ */
+function ProductPhoto({ onTitle }: { onTitle: (title: string) => void }) {
+  const toast = useToast();
+  const [link, setLink] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [photo, setPhoto] = useState<{ url: string; name: string } | null>(null);
+
+  const grab = async () => {
+    if (!link.trim()) return;
+    setBusy(true);
+    try {
+      const r = await api<{ url: string; name: string; title?: string }>("/api/tournage/fetch", { method: "POST", body: JSON.stringify({ url: link }) });
+      setPhoto({ url: r.url, name: r.name });
+      if (r.title) onTitle(r.title);
+      toast("Photo récupérée.");
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    const onPaste = async (e: ClipboardEvent) => {
+      const files = clipboardFiles(e).filter((f) => f.type.startsWith("image/"));
+      if (!files.length) return;
+      e.preventDefault();
+      setBusy(true);
+      try {
+        const up = await uploadFile(files[0]);
+        setPhoto({ url: up.url, name: "produit-aliexpress.png" });
+        toast("Image collée et enregistrée.");
+      } catch (err) {
+        toast((err as Error).message, "err");
+      } finally {
+        setBusy(false);
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <Card title="Photo du produit" subtitle="Pour Higgsfield : colle le lien AliExpress ou l'adresse de l'image, ou copie l'image et Ctrl+V ici.">
+      <div className="flex gap-2 items-end flex-wrap">
+        <Field label="Lien AliExpress ou lien de l'image" className="flex-1 min-w-[260px]">
+          <input
+            className="input"
+            placeholder="https://fr.aliexpress.com/item/… ou https://ae01.alicdn.com/kf/….jpg"
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && void grab()}
+          />
+        </Field>
+        <button className="btn btn-primary" onClick={() => void grab()} disabled={busy || !link.trim()}>
+          {busy ? <span className="spinner" /> : "Récupérer la photo"}
+        </button>
+      </div>
+      {photo && (
+        <div className="mt-3 flex items-center gap-4 flex-wrap">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo.url} alt="" className="rounded-[10px] object-cover" style={{ width: 120, height: 150, background: "var(--surface-3)" }} />
+          <div className="flex flex-col gap-2">
+            <a className="btn btn-primary" href={`${photo.url}?download=1&name=${encodeURIComponent(photo.name)}`} download>
+              ⬇ Télécharger la photo
+            </a>
+            <a className="btn btn-ghost" href={photo.url} target="_blank" rel="noreferrer">
+              Ouvrir en grand ↗
+            </a>
+            <span className="dim text-[11.5px]">Glisse-la ensuite dans Higgsfield avec le prompt 2.</span>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 
