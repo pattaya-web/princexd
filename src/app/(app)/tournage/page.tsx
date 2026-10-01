@@ -313,12 +313,28 @@ function ProductPhoto({ onTitle, onPrompts }: { onTitle: (title: string) => void
    */
   const generate = async (url: string) => {
     setThinking(true);
-    setStatus({ text: "L'IA regarde la photo et écrit les prompts… en général 15 à 40 secondes." });
+    setStatus({ text: "L'IA regarde la photo et écrit les prompts… compte 1 à 2 minutes." });
     try {
-      const r = await api<GeneratedPrompts>("/api/tournage/prompts", { method: "POST", body: JSON.stringify({ url }) });
-      onPrompts(r);
-      setStatus({ text: `Prompts écrits pour « ${r.product || "ce produit"} » : ils sont dans les trois cartes en dessous.` });
-      toast("Prompts écrits.");
+      /*
+       * Le modele met souvent plus d'une minute : le serveur travaille en
+       * tache de fond et on vient lire l'etat toutes les 3 s. Une requete
+       * unique serait coupee par Cloudflare a 100 s.
+       */
+      const { jobId } = await api<{ jobId: string }>("/api/tournage/prompts", { method: "POST", body: JSON.stringify({ url }) });
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const s = await api<{ status: "running" | "done"; attempt: number; elapsed: number; result?: GeneratedPrompts }>(
+          `/api/tournage/prompts?job=${encodeURIComponent(jobId)}`,
+        );
+        if (s.status === "done" && s.result) {
+          onPrompts(s.result);
+          setStatus({ text: `Prompts écrits pour « ${s.result.product || "ce produit"} » : ils sont dans les trois cartes en dessous.` });
+          toast("Prompts écrits.");
+          break;
+        }
+        const retry = s.attempt > 1 ? " Premier essai trop long, deuxième en cours." : "";
+        setStatus({ text: `L'IA regarde la photo et écrit les prompts… ${s.elapsed} s.${retry} Compte 1 à 2 minutes.` });
+      }
     } catch (e) {
       setStatus({ text: `L'IA n'a pas répondu : ${(e as Error).message}. Clique « Réécrire les prompts » pour réessayer.`, error: true });
     } finally {

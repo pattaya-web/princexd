@@ -193,6 +193,8 @@ export async function askVision(
     content.push({ type: "image_url", image_url: { url } });
   }
 
+  // Verifie en octobre 2026 : seul gemini-3-pro est accepte sur ce chat (les
+  // flash, GPT et Claude repondent « not supported »). Compter 1 a 2 min avec image.
   let res: Response;
   try {
     res = await fetch(`${KIE_BASE}/v1/chat/completions`, {
