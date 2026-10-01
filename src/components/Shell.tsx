@@ -457,6 +457,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/montage", label: "Espace monteur", icon: "✂" },
       { href: "/temoignages", label: "Témoignages", icon: "★" },
       { href: "/tournage", label: "Kit tournage", icon: "▶" },
+      { href: "/transcript", label: "Transcript", icon: "≡" },
     ],
   },
   {
