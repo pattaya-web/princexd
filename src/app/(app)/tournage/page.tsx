@@ -320,12 +320,29 @@ function ProductPhoto({ onTitle, onPrompts }: { onTitle: (title: string) => void
        * tache de fond et on vient lire l'etat toutes les 3 s. Une requete
        * unique serait coupee par Cloudflare a 100 s.
        */
-      const { jobId } = await api<{ jobId: string }>("/api/tournage/prompts", { method: "POST", body: JSON.stringify({ url }) });
+      const start = async () => (await api<{ jobId: string }>("/api/tournage/prompts", { method: "POST", body: JSON.stringify({ url }) })).jobId;
+      let jobId = await start();
+      let failures = 0;
+      let relaunched = false;
       for (;;) {
         await new Promise((r) => setTimeout(r, 3000));
-        const s = await api<{ status: "running" | "done"; attempt: number; elapsed: number; result?: GeneratedPrompts }>(
-          `/api/tournage/prompts?job=${encodeURIComponent(jobId)}`,
-        );
+        const res = await fetch(`/api/tournage/prompts?job=${encodeURIComponent(jobId)}`, { cache: "no-store" }).catch(() => null);
+        const body = res ? ((await res.json().catch(() => null)) as { status?: string; attempt?: number; elapsed?: number; result?: GeneratedPrompts; error?: string } | null) : null;
+        // Serveur redemarre (deploiement) : la tache en memoire a disparu, on relance une fois.
+        if (res?.status === 404 && !relaunched) {
+          relaunched = true;
+          jobId = await start();
+          setStatus({ text: "Le serveur venait de redémarrer : analyse relancée, compte 1 à 2 minutes." });
+          continue;
+        }
+        // 502/503 de Cloudflare ou coupure reseau passagere : on insiste 30 s avant d'abandonner.
+        if (!res || (res.status >= 500 && body?.status !== "error")) {
+          if (++failures > 10) throw new Error(res ? `Erreur ${res.status}` : "connexion perdue");
+          continue;
+        }
+        if (!res.ok || !body) throw new Error(body?.error ?? `Erreur ${res.status}`);
+        failures = 0;
+        const s = body as { status: "running" | "done"; attempt: number; elapsed: number; result?: GeneratedPrompts };
         if (s.status === "done" && s.result) {
           onPrompts(s.result);
           setStatus({ text: `Prompts écrits pour « ${s.result.product || "ce produit"} » : ils sont dans les trois cartes en dessous.` });
