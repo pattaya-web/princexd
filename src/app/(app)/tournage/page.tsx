@@ -303,17 +303,24 @@ function ProductPhoto({ onTitle, onPrompts }: { onTitle: (title: string) => void
   const [busy, setBusy] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [photo, setPhoto] = useState<{ url: string; name: string } | null>(null);
+  /** Etat affiche dans le bloc : une notification seule passe inapercue. */
+  const [status, setStatus] = useState<{ text: string; error?: boolean } | null>(null);
 
-  /** L'IA regarde la photo et ecrit le nom du produit et les trois prompts. */
-  const generate = async () => {
-    if (!photo) return;
+  /**
+   * L'IA regarde la photo et ecrit le nom du produit et les trois prompts.
+   * Lancee automatiquement des qu'une photo arrive (collage ou lien) : pas de
+   * bouton a trouver, et l'etat reste visible dans le bloc.
+   */
+  const generate = async (url: string) => {
     setThinking(true);
+    setStatus({ text: "L'IA regarde la photo et écrit les prompts… 30 à 40 secondes." });
     try {
-      const r = await api<GeneratedPrompts>("/api/tournage/prompts", { method: "POST", body: JSON.stringify({ url: photo.url }) });
+      const r = await api<GeneratedPrompts>("/api/tournage/prompts", { method: "POST", body: JSON.stringify({ url }) });
       onPrompts(r);
-      toast(`Prompts écrits pour « ${r.product || "ce produit"} ». Ils sont dans les trois cartes en dessous.`);
+      setStatus({ text: `Prompts écrits pour « ${r.product || "ce produit"} » : ils sont dans les trois cartes en dessous.` });
+      toast("Prompts écrits.");
     } catch (e) {
-      toast((e as Error).message, "err");
+      setStatus({ text: `L'IA n'a pas répondu : ${(e as Error).message}. Clique « Réécrire les prompts » pour réessayer.`, error: true });
     } finally {
       setThinking(false);
     }
@@ -322,14 +329,15 @@ function ProductPhoto({ onTitle, onPrompts }: { onTitle: (title: string) => void
   const grab = async () => {
     if (!link.trim()) return;
     setBusy(true);
+    setStatus({ text: "Récupération de la photo…" });
     try {
       const r = await api<{ url: string; name: string; title?: string }>("/api/tournage/fetch", { method: "POST", body: JSON.stringify({ url: link }) });
       setPhoto({ url: r.url, name: r.name });
       if (r.title) onTitle(r.title);
-      toast("Photo récupérée.");
+      setBusy(false);
+      await generate(r.url);
     } catch (e) {
-      toast((e as Error).message, "err");
-    } finally {
+      setStatus({ text: (e as Error).message, error: true });
       setBusy(false);
     }
   };
@@ -337,16 +345,22 @@ function ProductPhoto({ onTitle, onPrompts }: { onTitle: (title: string) => void
   useEffect(() => {
     const onPaste = async (e: ClipboardEvent) => {
       const files = clipboardFiles(e).filter((f) => f.type.startsWith("image/"));
-      if (!files.length) return;
+      if (!files.length) {
+        // Rien d'image dans le presse-papier : on le dit, sinon on croit que ca n'a pas marche.
+        const txt = e.clipboardData?.getData("text") ?? "";
+        if (!txt.trim()) setStatus({ text: "Le presse-papier ne contient pas d'image. Sur AliExpress : clic droit sur la photo → « Copier l'image », puis Ctrl+V ici.", error: true });
+        return;
+      }
       e.preventDefault();
       setBusy(true);
+      setStatus({ text: "Image collée, enregistrement…" });
       try {
         const up = await uploadFile(files[0]);
         setPhoto({ url: up.url, name: "produit-aliexpress.png" });
-        toast("Image collée et enregistrée.");
+        setBusy(false);
+        await generate(up.url);
       } catch (err) {
-        toast((err as Error).message, "err");
-      } finally {
+        setStatus({ text: (err as Error).message, error: true });
         setBusy(false);
       }
     };
@@ -356,7 +370,19 @@ function ProductPhoto({ onTitle, onPrompts }: { onTitle: (title: string) => void
   }, []);
 
   return (
-    <Card title="Photo du produit" subtitle="Copie la photo sur AliExpress et Ctrl+V ici (ou colle son adresse). Puis un clic : l'IA écrit le produit, le prompt image 9:16 et le prompt vidéo.">
+    <Card title="Photo du produit" subtitle="Copie la photo sur AliExpress et Ctrl+V ici (ou colle son adresse). L'IA écrit aussitôt le produit, le prompt image 9:16 et le prompt vidéo.">
+      {status && (
+        <div
+          className="rounded-[10px] px-3.5 py-2.5 mb-3 text-[13px] flex items-center gap-2"
+          style={{
+            background: status.error ? "color-mix(in srgb, var(--critical) 10%, transparent)" : "color-mix(in srgb, var(--accent) 10%, transparent)",
+            border: `1px solid ${status.error ? "color-mix(in srgb, var(--critical) 40%, transparent)" : "color-mix(in srgb, var(--accent) 35%, transparent)"}`,
+          }}
+        >
+          {(thinking || busy) && <span className="spinner" />}
+          {status.text}
+        </div>
+      )}
       <div className="flex gap-2 items-end flex-wrap">
         <Field label="Lien AliExpress ou lien de l'image" className="flex-1 min-w-[260px]">
           <input
@@ -376,8 +402,8 @@ function ProductPhoto({ onTitle, onPrompts }: { onTitle: (title: string) => void
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={photo.url} alt="" className="rounded-[10px] object-cover" style={{ width: 120, height: 150, background: "var(--surface-3)" }} />
           <div className="flex flex-col gap-2">
-            <button className="btn btn-primary" onClick={() => void generate()} disabled={thinking} title="L'IA regarde la photo et écrit le produit, le prompt image 9:16 et le prompt vidéo">
-              {thinking ? <span className="spinner" /> : "✨ Écrire les prompts depuis la photo"}
+            <button className="btn btn-primary" onClick={() => void generate(photo.url)} disabled={thinking} title="L'IA regarde la photo et écrit le produit, le prompt image 9:16 et le prompt vidéo">
+              {thinking ? <span className="spinner" /> : "✨ Réécrire les prompts"}
             </button>
             <a className="btn" href={`${photo.url}?download=1&name=${encodeURIComponent(photo.name)}`} download>
               ⬇ Télécharger la photo
