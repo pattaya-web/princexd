@@ -132,6 +132,19 @@ export default function TournagePage() {
     setQueue(rest);
   };
 
+  /*
+   * Fenetre Chrome a part : on ouvre une page de lancement dans une nouvelle
+   * fenetre (taille de l'ecran), et c'est elle qui ouvre les autres adresses
+   * en onglets chez elle. La fenetre de travail reste propre pour enregistrer.
+   */
+  const openInNewWindow = () => {
+    const u = encodeURIComponent(JSON.stringify(links.map((l) => l.url)));
+    const w = screen.availWidth || 1600;
+    const h = screen.availHeight || 1000;
+    const win = window.open(`/tournage/launch?u=${u}`, "tournage-window", `popup=yes,width=${w},height=${h},left=0,top=0`);
+    if (!win) toast("Chrome a bloqué la nouvelle fenêtre : autorise les pop-ups pour mvdyprince.fr.", "err");
+  };
+
   const copy = async (text: string, what: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -170,8 +183,11 @@ export default function TournagePage() {
               <button className="btn" onClick={random} title="Pioche un produit dans une liste de catégories qui marchent">
                 🎲 Produit au hasard
               </button>
-              <button className="btn btn-primary !h-[40px] !px-5 !text-[14px]" onClick={openAll}>
-                ▶ Tout ouvrir
+              <button className="btn btn-primary !h-[40px] !px-5 !text-[14px]" onClick={openInNewWindow} title="Une fenêtre Chrome à part, avec les 5 onglets dedans">
+                ▶ Tout ouvrir dans une nouvelle fenêtre
+              </button>
+              <button className="btn !h-[40px]" onClick={openAll} title="Dans cette fenêtre, en onglets">
+                Ici, en onglets
               </button>
             </div>
             {queue.length > 0 ? (
