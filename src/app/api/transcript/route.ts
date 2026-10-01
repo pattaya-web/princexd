@@ -116,10 +116,10 @@ async function runTranslate(text: string, setStep: (s: string) => void): Promise
  * dix minutes prend plus d'une minute a transcrire, et Cloudflare coupe a 100 s.
  */
 export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as { action?: string; url?: string; text?: string };
+  const body = (await req.json().catch(() => ({}))) as { action?: string; url?: string; text?: unknown };
 
   if (body.action === "translate") {
-    const text = typeof body.text === "string" ? body.text.trim() : Array.isArray(body.text) ? body.text.join("\n").trim() : "";
+    const text = typeof body.text === "string" ? body.text.trim() : Array.isArray(body.text) ? body.text.map(String).join("\n").trim() : "";
     if (!text) return NextResponse.json({ error: "Aucun texte à traduire." }, { status: 400 });
     return NextResponse.json({ jobId: startJob((setStep) => runTranslate(text, setStep)) }, { status: 202 });
   }
