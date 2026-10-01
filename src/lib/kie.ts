@@ -182,29 +182,38 @@ export async function askVision(
   system: string,
   imageUrls: string[],
   maxTokens = 8000,
+  opts: { model?: string; timeoutMs?: number } = {},
 ): Promise<string> {
   const key = getApiKey();
   if (!key) throw new KieError("Aucune cle API KIE configuree.", 401);
-  const model = getSettings().kieTextModel;
+  const model = opts.model || getSettings().kieTextModel;
 
   const content: Record<string, unknown>[] = [{ type: "text", text: prompt }];
   for (const url of imageUrls.filter(Boolean)) {
     content.push({ type: "image_url", image_url: { url } });
   }
 
-  const res = await fetch(`${KIE_BASE}/v1/chat/completions`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content },
-      ],
-    }),
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${KIE_BASE}/v1/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        max_tokens: maxTokens,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content },
+        ],
+      }),
+      cache: "no-store",
+      // Un modele qui ne repond pas en temps raisonnable est abandonne : derriere
+      // Cloudflare, au-dela de 100 s le navigateur recoit une erreur de toute facon.
+      ...(opts.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
+    });
+  } catch (e) {
+    throw new KieError(`Le modele ${model} n'a pas repondu a temps.`, 504);
+  }
 
   const text = await res.text();
   if (!res.ok) {

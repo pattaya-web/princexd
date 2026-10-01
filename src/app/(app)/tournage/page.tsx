@@ -313,7 +313,7 @@ function ProductPhoto({ onTitle, onPrompts }: { onTitle: (title: string) => void
    */
   const generate = async (url: string) => {
     setThinking(true);
-    setStatus({ text: "L'IA regarde la photo et écrit les prompts… 30 à 40 secondes." });
+    setStatus({ text: "L'IA regarde la photo et écrit les prompts… en général 15 à 40 secondes." });
     try {
       const r = await api<GeneratedPrompts>("/api/tournage/prompts", { method: "POST", body: JSON.stringify({ url }) });
       onPrompts(r);

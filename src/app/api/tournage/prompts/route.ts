@@ -34,9 +34,31 @@ export async function POST(req: NextRequest) {
     const ext = path.extname(file).toLowerCase();
     const type = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
     const publicUrl = await uploadToKie(new File([new Uint8Array(buf)], file, { type }), "princexd/tournage");
-    const raw = await askVision("Analyse cette photo de produit et renvoie le JSON demandé.", SYSTEM, [publicUrl], 2000);
-    const out = parseJsonLoose<{ product?: string; brandPrompt?: string; imagePrompt?: string; videoPrompt?: string }>(raw);
-    if (!out.imagePrompt || !out.videoPrompt) throw new KieError("Le modèle n'a pas renvoyé les prompts attendus.");
+
+    /*
+     * Plusieurs modeles, du plus rapide au plus sur. Un modele peut mettre
+     * deux minutes (vu avec gemini-3-pro) ou refuser une photo de vetement
+     * porte : on passe au suivant plutot que de laisser l'ecran tourner.
+     * 40 s chacun, pour rester sous les 100 s de Cloudflare au total.
+     */
+    const models = ["gemini-3-flash", "claude-sonnet-5", "gpt-5-4"];
+    type Out = { product?: string; brandPrompt?: string; imagePrompt?: string; videoPrompt?: string };
+    let out: Out | null = null;
+    let lastError = "";
+    for (const model of models) {
+      try {
+        const raw = await askVision("Analyse cette photo de produit et renvoie le JSON demandé.", SYSTEM, [publicUrl], 1500, { model, timeoutMs: 40_000 });
+        const parsed = parseJsonLoose<Out>(raw);
+        if (parsed.imagePrompt && parsed.videoPrompt) {
+          out = parsed;
+          break;
+        }
+        lastError = `${model} : réponse incomplète`;
+      } catch (e) {
+        lastError = `${model} : ${(e as Error).message.slice(0, 120)}`;
+      }
+    }
+    if (!out?.imagePrompt || !out.videoPrompt) throw new KieError(`Aucun modèle n'a réussi (${lastError}).`, 502);
     return NextResponse.json({
       product: (out.product ?? "").trim(),
       brandPrompt: (out.brandPrompt ?? "").trim(),
