@@ -183,11 +183,8 @@ export default function TournagePage() {
               <button className="btn" onClick={random} title="Pioche un produit dans une liste de catégories qui marchent">
                 🎲 Produit au hasard
               </button>
-              <button className="btn btn-primary !h-[40px] !px-5 !text-[14px]" onClick={openInNewWindow} title="Une fenêtre Chrome à part, avec les 5 onglets dedans">
-                ▶ Tout ouvrir dans une nouvelle fenêtre
-              </button>
-              <button className="btn !h-[40px]" onClick={openAll} title="Dans cette fenêtre, en onglets">
-                Ici, en onglets
+              <button className="btn btn-primary !h-[40px] !px-5 !text-[14px]" onClick={openAll} title="Ouvre les 5 pages en onglets">
+                ▶ Tout ouvrir
               </button>
             </div>
             {queue.length > 0 ? (
@@ -233,7 +230,17 @@ export default function TournagePage() {
           </div>
         </Card>
 
-        <ProductPhoto onTitle={(t) => !product && set({ product: t })} />
+        <ProductPhoto
+          onTitle={(t) => !product && set({ product: t })}
+          onPrompts={(r) =>
+            set({
+              product: r.product || kit.product,
+              ...(r.brandPrompt ? { claudePrompt: r.brandPrompt } : {}),
+              higgsPrompt: r.imagePrompt,
+              klingPrompt: r.videoPrompt,
+            })
+          }
+        />
 
         <div className="grid lg:grid-cols-3 gap-4 items-start">
           <PromptCard
@@ -283,11 +290,34 @@ export default function TournagePage() {
  * Colle le lien de la page ou de l'image ; ou copie l'image sur AliExpress
  * et fais Ctrl+V ici. Elle est gardee chez nous et se telecharge en un clic.
  */
-function ProductPhoto({ onTitle }: { onTitle: (title: string) => void }) {
+interface GeneratedPrompts {
+  product: string;
+  brandPrompt: string;
+  imagePrompt: string;
+  videoPrompt: string;
+}
+
+function ProductPhoto({ onTitle, onPrompts }: { onTitle: (title: string) => void; onPrompts: (r: GeneratedPrompts) => void }) {
   const toast = useToast();
   const [link, setLink] = useState("");
   const [busy, setBusy] = useState(false);
+  const [thinking, setThinking] = useState(false);
   const [photo, setPhoto] = useState<{ url: string; name: string } | null>(null);
+
+  /** L'IA regarde la photo et ecrit le nom du produit et les trois prompts. */
+  const generate = async () => {
+    if (!photo) return;
+    setThinking(true);
+    try {
+      const r = await api<GeneratedPrompts>("/api/tournage/prompts", { method: "POST", body: JSON.stringify({ url: photo.url }) });
+      onPrompts(r);
+      toast(`Prompts écrits pour « ${r.product || "ce produit"} ». Ils sont dans les trois cartes en dessous.`);
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setThinking(false);
+    }
+  };
 
   const grab = async () => {
     if (!link.trim()) return;
@@ -326,7 +356,7 @@ function ProductPhoto({ onTitle }: { onTitle: (title: string) => void }) {
   }, []);
 
   return (
-    <Card title="Photo du produit" subtitle="Pour Higgsfield : colle le lien AliExpress ou l'adresse de l'image, ou copie l'image et Ctrl+V ici.">
+    <Card title="Photo du produit" subtitle="Copie la photo sur AliExpress et Ctrl+V ici (ou colle son adresse). Puis un clic : l'IA écrit le produit, le prompt image 9:16 et le prompt vidéo.">
       <div className="flex gap-2 items-end flex-wrap">
         <Field label="Lien AliExpress ou lien de l'image" className="flex-1 min-w-[260px]">
           <input
@@ -346,7 +376,10 @@ function ProductPhoto({ onTitle }: { onTitle: (title: string) => void }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={photo.url} alt="" className="rounded-[10px] object-cover" style={{ width: 120, height: 150, background: "var(--surface-3)" }} />
           <div className="flex flex-col gap-2">
-            <a className="btn btn-primary" href={`${photo.url}?download=1&name=${encodeURIComponent(photo.name)}`} download>
+            <button className="btn btn-primary" onClick={() => void generate()} disabled={thinking} title="L'IA regarde la photo et écrit le produit, le prompt image 9:16 et le prompt vidéo">
+              {thinking ? <span className="spinner" /> : "✨ Écrire les prompts depuis la photo"}
+            </button>
+            <a className="btn" href={`${photo.url}?download=1&name=${encodeURIComponent(photo.name)}`} download>
               ⬇ Télécharger la photo
             </a>
             <a className="btn btn-ghost" href={photo.url} target="_blank" rel="noreferrer">
