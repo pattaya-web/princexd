@@ -14,6 +14,8 @@ export interface Progress {
   index: number;
   total: number;
   fraction: number;
+  /** Reprise apres coupure : un mot pour que l'attente ne ressemble pas a un blocage. */
+  note?: string;
 }
 
 export function ProgressBar({ p }: { p: Progress }) {
@@ -25,6 +27,7 @@ export function ProgressBar({ p }: { p: Progress }) {
         </span>
         <span className="num dim ml-2">{Math.round(p.fraction * 100)} %</span>
       </div>
+      {p.note && <div className="dim text-[11px] mb-1">{p.note}</div>}
       <div className="h-[5px] rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
         <div
           className="h-full rounded-full"
@@ -42,7 +45,7 @@ export async function uploadMany(files: File[], onProgress: (p: Progress | null)
     const f = files[i];
     onProgress({ name: f.name, index: i + 1, total: files.length, fraction: 0 });
     out.push(
-      await uploadFile(f, (fr) => onProgress({ name: f.name, index: i + 1, total: files.length, fraction: fr })),
+      await uploadFile(f, (fr, note) => onProgress({ name: f.name, index: i + 1, total: files.length, fraction: fr, note })),
     );
   }
   onProgress(null);

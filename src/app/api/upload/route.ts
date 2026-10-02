@@ -125,6 +125,19 @@ function respond(name: string, stored: string, size: number) {
  * Un morceau renvoye apres une coupure reseau retrouve le fichier a l'offset
  * attendu : on tronque ce qui avait ete ecrit au-dela avant de reprendre.
  */
+/**
+ * Vide le corps d'une requete qu'on refuse sans l'avoir lu. Repondre avant
+ * d'avoir tout lu fait couper la connexion par Node, et le navigateur voit
+ * une erreur reseau a la place de notre reponse : il reessaierait pour rien.
+ */
+async function drain(req: NextRequest) {
+  try {
+    if (req.body) for await (const _ of req.body as never as AsyncIterable<Uint8Array>) { /* on jette */ }
+  } catch {
+    // Connexion deja fermee : rien a vider.
+  }
+}
+
 async function receiveChunk(req: NextRequest, name: string, stored: string): Promise<NextResponse> {
   const q = req.nextUrl.searchParams;
   const id = q.get("upload") ?? "";
@@ -132,11 +145,17 @@ async function receiveChunk(req: NextRequest, name: string, stored: string): Pro
   const parts = Number(q.get("parts"));
   const offset = Number(q.get("offset"));
   const total = Number(q.get("size"));
-  const bad = (why: string) => NextResponse.json({ error: `Envoi par morceaux invalide : ${why}.` }, { status: 400 });
+  const bad = async (why: string) => {
+    await drain(req);
+    return NextResponse.json({ error: `Envoi par morceaux invalide : ${why}.` }, { status: 400 });
+  };
   if (!/^[a-z0-9]{8,40}$/.test(id)) return bad("identifiant");
-  if (!Number.isInteger(part) || !Number.isInteger(parts) || part < 1 || parts < 1 || part > parts || parts > 200) return bad("numéro de morceau");
+  if (!Number.isInteger(part) || !Number.isInteger(parts) || part < 1 || parts < 1 || part > parts || parts > 1000) return bad("numéro de morceau");
   if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(total) || total <= 0) return bad("position");
-  if (total > MAX_BYTES) return NextResponse.json({ error: "Fichier trop lourd (2 Go max)." }, { status: 413 });
+  if (total > MAX_BYTES) {
+    await drain(req);
+    return NextResponse.json({ error: "Fichier trop lourd (2 Go max)." }, { status: 413 });
+  }
 
   await fs.mkdir(PARTS_DIR, { recursive: true });
   const tmp = path.join(PARTS_DIR, `${id}.part`);
@@ -146,7 +165,12 @@ async function receiveChunk(req: NextRequest, name: string, stored: string): Pro
   if (part === 1) {
     if (onDisk >= 0) await fs.rm(tmp, { force: true });
   } else if (onDisk < offset) {
-    return NextResponse.json({ error: "Envoi par morceaux invalide : morceau manquant, recommence l'envoi." }, { status: 409 });
+    // Le navigateur reprend au morceau qui contient `received`.
+    await drain(req);
+    return NextResponse.json(
+      { error: "Envoi par morceaux invalide : morceau manquant, recommence l'envoi.", received: Math.max(0, onDisk) },
+      { status: 409 },
+    );
   } else if (onDisk > offset) {
     await fs.truncate(tmp, offset);
   }

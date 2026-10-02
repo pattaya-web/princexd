@@ -29,11 +29,28 @@ function prefersMultipart(): boolean {
  * morceaux envoyes l'un apres l'autre ; le serveur les recolle.
  */
 const CHUNKED_FROM = 90 * 1024 * 1024;
-const CHUNK_SIZE = 32 * 1024 * 1024;
-/** Tentatives par morceau sur coupure reseau : la liaison est instable. */
-const CHUNK_RETRIES = 3;
+/**
+ * 8 Mo : sur une liaison instable, une coupure ne fait perdre que quelques
+ * secondes d'envoi, et chaque requete reste courte (Cloudflare coupe au-dela
+ * de 100 s sans reponse).
+ */
+const CHUNK_SIZE = 8 * 1024 * 1024;
+/** Tentatives consecutives sur coupure reseau : la liaison est instable. */
+const CHUNK_RETRIES = 6;
+/**
+ * Sans progression pendant ce delai, la connexion est consideree morte.
+ * Un envoi s'est fige a 33 % pendant dix minutes : la liaison etait tombee
+ * en plein morceau et le navigateur ne signale jamais rien dans ce cas, la
+ * requete reste « en cours » pour toujours.
+ */
+const STALL_MS = 30_000;
 
-interface Reply { name?: string; url?: string; size?: number; error?: string; unreadable?: boolean; ok?: boolean }
+interface Reply { name?: string; url?: string; size?: number; error?: string; unreadable?: boolean; ok?: boolean; received?: number }
+
+/** Coupure reseau ou serveur injoignable : ca se retente. */
+class Lost extends Error {}
+/** Progression (0..1) et, en cas de reprise, un mot pour l'utilisateur. */
+export type ProgressFn = (fraction: number, note?: string) => void;
 
 function request(
   url: string,
@@ -43,12 +60,34 @@ function request(
 ): Promise<{ status: number; body: Reply }> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let done = false;
+    const finish = (fn: () => void) => {
+      if (done) return;
+      done = true;
+      if (timer) clearTimeout(timer);
+      fn();
+    };
+    // Chien de garde : relance a chaque octet envoye, puis pendant l'attente
+    // de la reponse. S'il expire, on coupe la requete nous-memes.
+    const watch = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        finish(() => {
+          xhr.abort();
+          reject(new Lost("Connexion perdue pendant l'envoi."));
+        });
+      }, STALL_MS);
+    };
     xhr.open("POST", url);
     if (contentType) xhr.setRequestHeader("Content-Type", contentType);
     xhr.upload.onprogress = (e) => {
+      watch();
       if (e.lengthComputable && onProgress) onProgress(e.loaded, e.total);
     };
-    xhr.onerror = () => reject(new Error("Connexion perdue pendant l'envoi."));
+    xhr.upload.onload = () => watch();
+    xhr.onerror = () => finish(() => reject(new Lost("Connexion perdue pendant l'envoi.")));
+    xhr.onabort = () => finish(() => reject(new Lost("Connexion perdue pendant l'envoi.")));
     xhr.onload = () => {
       let parsed: Reply = {};
       try {
@@ -56,10 +95,16 @@ function request(
       } catch {
         parsed = {};
       }
-      resolve({ status: xhr.status, body: parsed });
+      finish(() => resolve({ status: xhr.status, body: parsed }));
     };
+    watch();
     xhr.send(body);
   });
+}
+
+/** Serveur en redemarrage ou passerelle Cloudflare en erreur : ca se retente. */
+function transient(status: number): boolean {
+  return status === 0 || status === 502 || status === 503 || status === 504 || status === 520 || status === 521 || status === 522 || status === 524;
 }
 
 function refusal(status: number, body: Reply): Error & { unreadable?: boolean } {
@@ -68,23 +113,33 @@ function refusal(status: number, body: Reply): Error & { unreadable?: boolean } 
   return err;
 }
 
-async function send(file: File, multipart: boolean, onProgress?: (fraction: number) => void): Promise<Uploaded> {
+async function send(file: File, multipart: boolean, onProgress?: ProgressFn): Promise<Uploaded> {
   let body: Blob | FormData = file;
   if (multipart) {
     const form = new FormData();
     form.append("file", file, file.name);
     body = form;
   }
-  const { status, body: reply } = await request(
-    multipart ? "/api/upload" : `/api/upload?name=${encodeURIComponent(file.name)}`,
-    body,
-    multipart ? null : file.type || "application/octet-stream",
-    (loaded, total) => onProgress?.(loaded / total),
-  );
-  if (status >= 200 && status < 300 && reply.url) {
-    return { name: reply.name ?? file.name, url: reply.url, size: reply.size ?? file.size };
+  // Un petit fichier se renvoie en entier : deux reprises suffisent.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const { status, body: reply } = await request(
+        multipart ? "/api/upload" : `/api/upload?name=${encodeURIComponent(file.name)}`,
+        body,
+        multipart ? null : file.type || "application/octet-stream",
+        (loaded, total) => onProgress?.(loaded / total),
+      );
+      if (status >= 200 && status < 300 && reply.url) {
+        return { name: reply.name ?? file.name, url: reply.url, size: reply.size ?? file.size };
+      }
+      if (transient(status) && attempt < 3) throw new Lost(`Envoi refusé (HTTP ${status}).`);
+      throw refusal(status, reply);
+    } catch (e) {
+      if (!(e instanceof Lost) || attempt >= 3) throw e;
+      onProgress?.(0, "Connexion instable, nouvel essai…");
+      await new Promise((r) => setTimeout(r, 2000 * attempt));
+    }
   }
-  throw refusal(status, reply);
 }
 
 /** Identifiant d'envoi cote navigateur : lettres et chiffres, valide par le serveur. */
@@ -95,39 +150,52 @@ function uploadId(): string {
   return id;
 }
 
-async function sendChunked(file: File, onProgress?: (fraction: number) => void): Promise<Uploaded> {
+async function sendChunked(file: File, onProgress?: ProgressFn): Promise<Uploaded> {
   const id = uploadId();
   const parts = Math.ceil(file.size / CHUNK_SIZE);
   const type = file.type || "application/octet-stream";
-  for (let part = 1; part <= parts; part++) {
+  // Echecs consecutifs : remis a zero des qu'un morceau passe.
+  let failures = 0;
+  let part = 1;
+  while (part <= parts) {
     const offset = (part - 1) * CHUNK_SIZE;
     const chunk = file.slice(offset, Math.min(file.size, offset + CHUNK_SIZE), type);
     const url =
       `/api/upload?name=${encodeURIComponent(file.name)}&upload=${id}` +
       `&part=${part}&parts=${parts}&offset=${offset}&size=${file.size}`;
-    let lastError: Error | null = null;
-    for (let attempt = 1; attempt <= CHUNK_RETRIES; attempt++) {
-      try {
-        const { status, body } = await request(url, chunk, type, (loaded) => onProgress?.((offset + loaded) / file.size));
-        if (status >= 200 && status < 300) {
-          if (part === parts) {
-            if (!body.url) throw refusal(status, body);
-            return { name: body.name ?? file.name, url: body.url, size: body.size ?? file.size };
-          }
-          lastError = null;
-          break;
+    try {
+      const { status, body } = await request(url, chunk, type, (loaded) => onProgress?.((offset + loaded) / file.size));
+      if (status >= 200 && status < 300) {
+        if (part === parts) {
+          if (!body.url) throw refusal(status, body);
+          return { name: body.name ?? file.name, url: body.url, size: body.size ?? file.size };
         }
-        // Refus franc du serveur (extension, taille, fichier illisible) : inutile d'insister.
-        throw refusal(status, body);
-      } catch (e) {
-        const err = e as Error;
-        if (!err.message.startsWith("Connexion perdue")) throw err;
-        lastError = err;
-        // Petite pause avant de renvoyer le meme morceau.
-        await new Promise((r) => setTimeout(r, 1500 * attempt));
+        failures = 0;
+        part++;
+        continue;
       }
+      // Le serveur a moins d'octets que prevu (un morceau s'est perdu en
+      // route) : on reprend au morceau qui contient ce qu'il a recu.
+      if (status === 409 && typeof body.received === "number" && body.received >= 0) {
+        const resume = Math.floor(body.received / CHUNK_SIZE) + 1;
+        if (resume < part) {
+          part = resume;
+          throw new Lost("Reprise de l'envoi.");
+        }
+      }
+      if (transient(status)) throw new Lost(`Envoi refusé (HTTP ${status}).`);
+      // Refus franc du serveur (extension, taille, fichier illisible) : inutile d'insister.
+      throw refusal(status, body);
+    } catch (e) {
+      if (!(e instanceof Lost)) throw e;
+      failures++;
+      if (failures >= CHUNK_RETRIES) {
+        throw new Error("Connexion perdue pendant l'envoi, malgré plusieurs tentatives. Vérifie ta connexion et réessaie.");
+      }
+      onProgress?.(((part - 1) * CHUNK_SIZE) / file.size, `Connexion instable, reprise (${failures}/${CHUNK_RETRIES})…`);
+      // Petite pause avant de renvoyer le meme morceau.
+      await new Promise((r) => setTimeout(r, 1500 * failures));
     }
-    if (lastError) throw lastError;
   }
   throw new Error("Envoi incomplet.");
 }
@@ -144,7 +212,7 @@ async function sendChunked(file: File, onProgress?: (fraction: number) => void):
  * Sur iOS, ou pour un fichier que le serveur declare illisible, on repasse
  * par un envoi multipart (le serveur verifie l'entete du fichier recu).
  */
-export async function uploadFile(file: File, onProgress?: (fraction: number) => void): Promise<Uploaded> {
+export async function uploadFile(file: File, onProgress?: ProgressFn): Promise<Uploaded> {
   // Gros rush : par morceaux, seule facon de passer Cloudflare (voir CHUNKED_FROM).
   if (file.size > CHUNKED_FROM) return sendChunked(file, onProgress);
   const small = file.size <= MULTIPART_MAX;
