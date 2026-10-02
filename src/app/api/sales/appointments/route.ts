@@ -102,6 +102,11 @@ export async function GET(req: NextRequest) {
     const db = readDB();
 
     const range = rangeFromParams(p);
+    // ?since=<iso> avec period=upcoming : l'agenda garde aussi les calls
+    // deja passes (depuis cette date) au lieu de les faire disparaitre a
+    // l'heure pile.
+    const since = p.get("since") ?? "";
+    if (p.get("period") === "upcoming" && since && !Number.isNaN(Date.parse(since))) range.from = new Date(since).toISOString();
     const setterFilter = p.get("setterId") ?? "";
     const closerFilter = p.get("closerId") ?? "";
     const statusFilter = p.get("status") ?? "";

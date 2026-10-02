@@ -51,8 +51,12 @@ export default function AgendaPage() {
     }
   };
 
+  // Les calls passes restent dans l'agenda (trois mois en arriere), on peut
+  // remonter les semaines. Borne arrondie au jour : une URL qui changerait a
+  // chaque rendu rechargerait en boucle.
+  const since = useMemo(() => new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10), []);
   const { data, reload } = useSalesData<{ rows: AppointmentRow[] }>(
-    `/api/sales/appointments?period=upcoming&limit=500&v=${version}`,
+    `/api/sales/appointments?period=upcoming&since=${since}&limit=1000&v=${version}`,
   );
 
   // Un call pris pendant qu'on regarde l'agenda apparait sans recharger.

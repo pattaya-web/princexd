@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { fmtDateTime, fmtTime, isoToParisInput, parisDay, SECOND_TZ } from "@/lib/format";
+import { fmtDateTime, fmtTime, isoToParisInput, label as statusLabel, parisDay, SECOND_TZ } from "@/lib/format";
 import { Card } from "@/components/ui";
 import type { AppointmentRow } from "@/app/api/sales/appointments/route";
 import type { PublicMember } from "@/lib/sales/repo";
@@ -10,11 +10,22 @@ const DAY_NAMES = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
 
 /** Couleur d'une carte selon l'etat du call. */
 function toneOf(r: AppointmentRow): string {
+  if (r.status === "closed-won") return "#16a34a";
+  if (r.status === "closed-lost" || r.status === "no-show") return "#ef4444";
+  if (r.status === "completed" || r.status === "follow-up") return "#8b8cf8";
   if (!r.closerId) return "#f59e0b"; // orange : personne pour le prendre
   if (r.status === "confirmed") return "#22c55e";
   if (r.status === "rescheduled") return "#3b82f6";
   return "var(--emerald)";
 }
+
+/** Call deja passe (ou deja conclu) : il reste affiche, en retrait, avec son resultat. */
+function isPast(r: AppointmentRow, now: number): boolean {
+  return r.status === "completed" || r.status === "no-show" || r.status === "follow-up" || r.status === "closed-won" || r.status === "closed-lost" || Date.parse(r.scheduledAt) < now;
+}
+
+/** Jusqu'ou on peut remonter : trois mois, ce que l'agenda charge. */
+const MIN_WEEK = -13;
 
 /**
  * Semaine de calls, sept colonnes, heure de Paris.
@@ -22,8 +33,9 @@ function toneOf(r: AppointmentRow): string {
  * Le closer voit les calls qui lui sont attribues, le setter les rendez-vous
  * qu'il a poses, l'admin tout le monde avec, sur chaque carte, le closer a
  * qui le call revient (modifiable). Un clic ouvre la fiche ; « Rejoindre »
- * part en visio sans l'ouvrir. La semaine courante commence aujourd'hui pour
- * ne pas afficher des jours deja passes.
+ * part en visio sans l'ouvrir. La semaine courante commence aujourd'hui ;
+ * les calls deja passes restent affiches (en retrait, avec leur resultat) et
+ * les fleches remontent les semaines precedentes.
  */
 export function CallsCalendar({
   rows,
@@ -44,9 +56,11 @@ export function CallsCalendar({
   const [week, setWeek] = useState(0);
   const [busy, setBusy] = useState("");
   const days = Array.from({ length: 7 }, (_, i) => parisDay(week * 7 + i));
+  const now = Date.now();
   const byDay = new Map<string, AppointmentRow[]>();
   for (const r of rows) {
-    if (r.status === "cancelled" || r.status === "closed-lost" || r.status === "no-show") continue;
+    // Seul un call annule disparait : un no-show ou un call perdu reste une trace utile.
+    if (r.status === "cancelled") continue;
     const key = isoToParisInput(r.scheduledAt).slice(0, 10);
     byDay.set(key, [...(byDay.get(key) ?? []), r]);
   }
@@ -64,7 +78,7 @@ export function CallsCalendar({
       padded={false}
       actions={
         <div className="flex gap-1">
-          <button className="btn btn-sm" onClick={() => setWeek((w) => Math.max(0, w - 1))} disabled={week === 0}>
+          <button className="btn btn-sm" onClick={() => setWeek((w) => Math.max(MIN_WEEK, w - 1))} disabled={week <= MIN_WEEK} title="Semaine précédente">
             ‹
           </button>
           <button className="btn btn-sm" onClick={() => setWeek(0)} disabled={week === 0}>
@@ -94,24 +108,26 @@ export function CallsCalendar({
               </div>
               {items.map((r) => {
                 const tone = toneOf(r);
+                const past = isPast(r, now);
                 return (
                   <div
                     key={r.id}
                     onClick={() => onOpen(r.id)}
                     className="px-3.5 py-2.5 flex items-center gap-3 cursor-pointer"
-                    style={{ borderLeft: `4px solid ${tone}`, borderTop: "1px solid var(--border)" }}
+                    style={{ borderLeft: `4px solid ${tone}`, borderTop: "1px solid var(--border)", opacity: past ? 0.7 : 1 }}
                   >
                     <div className="num text-[14px] font-semibold shrink-0 w-[52px]">{fmtTime(r.scheduledAt)}</div>
                     <div className="min-w-0 flex-1">
                       <div className="text-[13.5px] font-medium truncate">{r.leadName}</div>
                       <div className="dim text-[11px] truncate">
+                        {past ? `${statusLabel(r.status)} · ` : ""}
                         {fmtTime(r.scheduledAt, SECOND_TZ)} DXB
                         {role !== "setter" && r.setterName && r.setterName !== "—" ? ` · par ${r.setterName}` : ""}
                         {role === "setter" ? ` · ${r.closerName ? `closer ${r.closerName}` : "closer à attribuer"}` : ""}
                         {role === "closer" && !r.closerName ? " · closer à attribuer" : ""}
                       </div>
                     </div>
-                    {r.iclosedUrl && (
+                    {r.iclosedUrl && !past && (
                       <a
                         href={r.iclosedUrl}
                         target="_blank"
@@ -155,19 +171,21 @@ export function CallsCalendar({
                 <ul className="flex flex-col gap-1">
                   {items.map((r) => {
                     const tone = toneOf(r);
+                    const past = isPast(r, now);
                     return (
                       <li
                         key={r.id}
                         onClick={() => onOpen(r.id)}
                         className="rounded-[7px] px-2 py-1.5 cursor-pointer"
-                        style={{ background: `color-mix(in srgb, ${tone} 14%, var(--surface))`, borderLeft: `3px solid ${tone}` }}
-                        title={`${r.leadName} · ${fmtDateTime(r.scheduledAt)}`}
+                        style={{ background: `color-mix(in srgb, ${tone} 14%, var(--surface))`, borderLeft: `3px solid ${tone}`, opacity: past ? 0.72 : 1 }}
+                        title={`${r.leadName} · ${fmtDateTime(r.scheduledAt)}${past ? ` · ${statusLabel(r.status)}` : ""}`}
                       >
                         <div className="num text-[12px] font-semibold">
                           {fmtTime(r.scheduledAt)} <span className="dim font-normal text-[10.5px]">FR</span>
                           <span className="dim font-normal text-[10.5px]"> · {fmtTime(r.scheduledAt, SECOND_TZ)} DXB</span>
                         </div>
                         <div className="text-[12px] truncate">{r.leadName}</div>
+                        {past && <div className="text-[10.5px] font-medium truncate" style={{ color: tone }}>{statusLabel(r.status)}</div>}
                         {role !== "setter" && r.setterName && r.setterName !== "—" && (
                           <div className="dim text-[10.5px] truncate">par {r.setterName}</div>
                         )}
@@ -200,7 +218,7 @@ export function CallsCalendar({
                         ) : (
                           role === "closer" && !r.closerName && <div className="text-[10.5px]" style={{ color: tone }}>closer à attribuer</div>
                         )}
-                        {r.iclosedUrl && (
+                        {r.iclosedUrl && !past && (
                           <a
                             href={r.iclosedUrl}
                             target="_blank"
