@@ -4,7 +4,7 @@ import { canSee, readSession, requireAdmin, requireSales } from "@/lib/sales/acc
 import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
 import { getSystemeioKey, syncSystemeio } from "@/lib/systemeio";
-import type { Lead } from "@/lib/types";
+import { leadIsOut, type Lead } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
     const bucketOf = (l: Lead): CallBucket | null => {
       const appt = nextAppt.get(l.id);
       if (appt) return "booked";
-      if (l.callStatus === "not-interested" || l.callStatus === "wrong-number") return (l.lastCallAt ?? "") >= monthAgo ? "lost" : null;
+      if (leadIsOut(l.callStatus)) return (l.lastCallAt ?? "") >= monthAgo ? "lost" : null;
       if (l.stage !== "nouveau" && l.stage !== "contacte" && l.stage !== "conversation") return null;
       switch (l.callStatus) {
         case "callback":
@@ -217,7 +217,7 @@ export async function GET(req: NextRequest) {
     });
 
     const count = (k: CallBucket) => rows.filter((r) => r.bucket === k).length;
-    const notInterested = db.leads.filter((l) => cold(l) && visible(l) && (l.callStatus === "not-interested" || l.callStatus === "wrong-number")).length;
+    const notInterested = db.leads.filter((l) => cold(l) && visible(l) && leadIsOut(l.callStatus)).length;
     // Leads froids devenus rendez-vous : ils sont dans Rendez-vous, on ne donne que le nombre.
     const bookedCount = db.leads.filter((l) => cold(l) && visible(l) && nextAppt.has(l.id)).length;
     // Leads a appeler qui existent mais appartiennent a un autre setter (en
@@ -227,7 +227,7 @@ export async function GET(req: NextRequest) {
       ? 0
       : db.leads.filter(
           (l) =>
-            cold(l) && !visible(l) && !nextAppt.has(l.id) && (l.stage === "nouveau" || l.stage === "contacte" || l.stage === "conversation") && l.callStatus !== "not-interested" && l.callStatus !== "wrong-number",
+            cold(l) && !visible(l) && !nextAppt.has(l.id) && (l.stage === "nouveau" || l.stage === "contacte" || l.stage === "conversation") && !leadIsOut(l.callStatus),
         ).length;
 
     return {
@@ -296,6 +296,61 @@ export async function PATCH(req: NextRequest) {
       writeDB(db);
     }
     return { moved, setter: who };
+  });
+}
+
+/**
+ * Suppression (admin) de leads froids depuis « A appeler » : des inscrits
+ * vieux de plusieurs mois qui n'ont plus rien a faire dans la liste.
+ * Un lead avec un rendez-vous a venir n'est pas supprime. Les contacts
+ * Systeme.io supprimes sont memorises pour que la synchro ne les ramene pas.
+ */
+export async function DELETE(req: NextRequest) {
+  return handle(async () => {
+    const session = requireAdmin(readSession(req));
+    const body = (await req.json().catch(() => ({}))) as { ids?: string[] };
+    const ids = new Set((body.ids ?? []).filter((x) => typeof x === "string"));
+    if (!ids.size) throw new Error("Aucun lead sélectionné.");
+    const db = readDB();
+    const dayAgo = new Date(Date.now() - 24 * 3600_000).toISOString();
+    const upcoming = new Set(
+      db.appointments
+        .filter((a) => (a.status === "booked" || a.status === "confirmed" || a.status === "rescheduled") && a.scheduledAt >= dayAgo)
+        .map((a) => a.leadId),
+    );
+    const gone: Lead[] = [];
+    const kept: string[] = [];
+    db.leads = db.leads.filter((l) => {
+      if (!ids.has(l.id)) return true;
+      if (upcoming.has(l.id)) {
+        kept.push(l.name);
+        return true;
+      }
+      gone.push(l);
+      return false;
+    });
+    if (gone.length) {
+      const ignored = new Set(db.settings.systemeioIgnoredIds ?? []);
+      for (const l of gone) if (l.systemeioId) ignored.add(String(l.systemeioId));
+      db.settings.systemeioIgnoredIds = [...ignored];
+      const now = new Date().toISOString();
+      const who = session.memberName || "Moi";
+      db.activityLogs.unshift({
+        id: newId(),
+        at: now,
+        actorId: session.memberId,
+        actorName: who,
+        action: "lead.deleted",
+        entity: "lead",
+        entityId: gone.length === 1 ? gone[0].id : "",
+        summary:
+          gone.length === 1
+            ? `${who} a supprimé le lead ${gone[0].name}${gone[0].phone ? ` (${gone[0].phone})` : ""}`
+            : `${who} a supprimé ${gone.length} leads à appeler : ${gone.slice(0, 5).map((l) => l.name).join(", ")}${gone.length > 5 ? "…" : ""}`,
+      });
+      writeDB(db);
+    }
+    return { deleted: gone.length, kept };
   });
 }
 

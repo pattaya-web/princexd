@@ -160,6 +160,8 @@ export interface Settings {
   systemeioWebhookSecret?: string;
   /** Filtre optionnel : morceaux d'URL de page ou noms de tag, separes par des virgules. Vide = tous les contacts. */
   systemeioSourceFilter?: string;
+  /** Contacts Systeme.io supprimes a la main depuis « A appeler » : la synchro ne les recree pas. */
+  systemeioIgnoredIds?: string[];
   systemeioLastSyncAt?: string;
   /**
    * Attribution des leads LP. « pool » (le choix par defaut) : personne, les
@@ -363,10 +365,15 @@ export interface Lead {
  *  - callback       : demande a etre rappele, a la date `callbackAt` ;
  *  - reached        : appele et joint, rendez-vous a fixer ;
  *  - not-interested : pas interesse, sort de la liste ;
- *  - wrong-number   : faux numero, sort de la liste.
+ *  - wrong-number   : faux numero, sort de la liste ;
+ *  - no-whatsapp    : pas de WhatsApp (les setters n'appellent que par la), sort de la liste.
  * « Rendez-vous pris » n'est pas un statut : c'est un rendez-vous cree.
  */
-export type LeadCallStatus = "no-answer" | "message-sent" | "callback" | "reached" | "not-interested" | "wrong-number";
+export type LeadCallStatus = "no-answer" | "message-sent" | "callback" | "reached" | "not-interested" | "wrong-number" | "no-whatsapp";
+
+/** Statuts qui sortent le lead de la liste a appeler (il reste visible 30 jours en rouge, et peut etre remis). */
+export const LEAD_OUT_STATUSES: readonly LeadCallStatus[] = ["not-interested", "wrong-number", "no-whatsapp"];
+export const leadIsOut = (s?: LeadCallStatus) => Boolean(s) && LEAD_OUT_STATUSES.includes(s as LeadCallStatus);
 
 export interface Student {
   id: ID;

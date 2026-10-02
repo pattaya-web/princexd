@@ -22,6 +22,7 @@ const STATUS: Record<string, string> = {
   reached: "Joint",
   "not-interested": "Pas intéressé",
   "wrong-number": "Faux numéro",
+  "no-whatsapp": "Pas de WhatsApp",
 };
 
 /**

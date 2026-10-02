@@ -237,6 +237,7 @@ export interface ImportReport {
 export function importContacts(db: DB, contacts: SioContact[], actorName = "Systeme.io"): ImportReport {
   const report: ImportReport = { examined: contacts.length, created: 0, updated: 0, known: 0, skipped: 0, leads: [] };
   const filter = db.settings.systemeioSourceFilter ?? "";
+  const ignored = new Set(db.settings.systemeioIgnoredIds ?? []);
   const today = new Date().toISOString().slice(0, 10);
 
   for (const c of contacts) {
@@ -245,6 +246,8 @@ export function importContacts(db: DB, contacts: SioContact[], actorName = "Syst
     const phone = normalizePhone(fieldOf(c, "phone_number"));
     if (!sioId || (!email && !phone)) { report.skipped++; continue; }
     if (!matchesSourceFilter(c, filter)) { report.skipped++; continue; }
+    // Supprime a la main par l'admin : on ne le fait pas revenir.
+    if (ignored.has(sioId)) { report.skipped++; continue; }
 
     const first = fieldOf(c, "first_name");
     const last = fieldOf(c, "surname");

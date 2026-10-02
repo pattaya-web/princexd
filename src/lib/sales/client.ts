@@ -70,28 +70,59 @@ export function forgetSession() {
  * `deps` sert a relancer la requete quand un filtre change ; `reload` sert a
  * la rejouer apres une ecriture, pour que les compteurs suivent sans que
  * l'utilisateur ait a rafraichir la page.
+ *
+ * `every` (ms) : rechargement silencieux a intervalle regulier tant que
+ * l'onglet est visible, et des que l'onglet redevient visible. Les setters
+ * travaillent sur la meme liste de leads : ce que l'un statue doit
+ * disparaitre chez l'autre sans qu'il ait a recharger. Silencieux = sans
+ * passer par `loading`, pour ne pas faire clignoter la page.
  */
-export function useSalesData<T>(url: string | null) {
+export function useSalesData<T>(url: string | null, opts: { every?: number } = {}) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(Boolean(url));
   const [error, setError] = useState<string | null>(null);
+  const every = opts.every ?? 0;
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (silent = false) => {
     if (!url) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       setData(await api<T>(url));
       setError(null);
     } catch (e) {
-      setError((e as Error).message);
+      // En arriere-plan, une coupure passagere ne doit pas remplacer la liste par une erreur.
+      if (!silent) setError((e as Error).message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [url]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (!every || !url || typeof document === "undefined") return;
+    let inflight = false;
+    const tick = () => {
+      if (document.visibilityState !== "visible" || inflight) return;
+      inflight = true;
+      void reload(true).finally(() => {
+        inflight = false;
+      });
+    };
+    const timer = setInterval(tick, every);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [every, url, reload]);
 
   return { data, loading, error, reload, setData };
 }

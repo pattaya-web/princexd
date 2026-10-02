@@ -65,7 +65,12 @@ const STATUS_LABEL: Record<LeadCallStatus, string> = {
   reached: "Appelé, joint",
   "not-interested": "Pas intéressé",
   "wrong-number": "Faux numéro",
+  "no-whatsapp": "Pas de WhatsApp",
 };
+
+/** Inscrit depuis plus de 30 jours : un lead froid devenu glacial. */
+const STALE_DAYS = 30;
+const isStale = (l: CallLeadRow) => Date.now() - new Date(l.optInAt || l.createdAt).getTime() > STALE_DAYS * 86_400_000;
 
 const COUNTRY: Record<string, string> = { FR: "France", BE: "Belgique", CH: "Suisse", CA: "Canada", AE: "Émirats", MA: "Maroc", DZ: "Algérie", TN: "Tunisie", LU: "Luxembourg" };
 
@@ -104,6 +109,9 @@ export default function CallLeadsPage() {
   const [cancelPending, setCancelPending] = useState(false);
   // Fiche contact ouverte (notes, historique, rendez-vous).
   const [sheetId, setSheetId] = useState<string | null>(null);
+  // Selection (admin) pour supprimer plusieurs leads d'un coup.
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [deleting, setDeleting] = useState(false);
 
   const setters = useMemo(() => members.filter((m) => hasRole(m, "setter") && m.status !== "inactif"), [members]);
 
@@ -117,7 +125,7 @@ export default function CallLeadsPage() {
     pool: boolean;
     defaultCloserId: string;
     ownerMemberId: string;
-  }>(`/api/sales/leads?v=${version}`);
+  }>(`/api/sales/leads?v=${version}`, { every: 15_000 });
 
 
   const setStatus = async (lead: CallLeadRow, status: LeadCallStatus, callbackAt?: string, note?: string, cancelAppointment = false) => {
@@ -140,6 +148,8 @@ export default function CallLeadsPage() {
       bump();
     } catch (e) {
       toast((e as Error).message, "err");
+      // Lead pris par l'autre setter ou supprime pendant que la liste etait a jour chez lui, pas ici.
+      void reload(true);
     } finally {
       setBusy("");
     }
@@ -155,6 +165,39 @@ export default function CallLeadsPage() {
     }
   };
 
+  /** Suppression definitive (admin) : un ou plusieurs leads. */
+  const remove = async (leads: CallLeadRow[]) => {
+    if (!leads.length) return;
+    const label = leads.length === 1 ? `${leads[0].name}` : `${leads.length} leads`;
+    if (!window.confirm(`Supprimer ${label} de la liste ? C'est définitif : la fiche, ses notes et son historique disparaissent, et Systeme.io ne le ramènera pas.`)) return;
+    setDeleting(true);
+    try {
+      const r = await api<{ deleted: number; kept: string[] }>("/api/sales/leads", { method: "DELETE", body: JSON.stringify({ ids: leads.map((l) => l.id) }) });
+      toast(
+        r.kept.length
+          ? `${r.deleted} supprimé${r.deleted > 1 ? "s" : ""}. Gardé${r.kept.length > 1 ? "s" : ""} (rendez-vous à venir) : ${r.kept.join(", ")}.`
+          : r.deleted === 1
+            ? `${leads[0].name} supprimé.`
+            : `${r.deleted} leads supprimés.`,
+      );
+      setSelected(new Set());
+      void reload();
+      bump();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   const reopen = async (lead: CallLeadRow) => {
     setBusy(lead.id);
     try {
@@ -164,6 +207,8 @@ export default function CallLeadsPage() {
       bump();
     } catch (e) {
       toast((e as Error).message, "err");
+      // Lead pris par l'autre setter ou supprime pendant que la liste etait a jour chez lui, pas ici.
+      void reload(true);
     } finally {
       setBusy("");
     }
@@ -225,6 +270,7 @@ export default function CallLeadsPage() {
       if (reason === null) return;
       return void setStatus(l, "not-interested", undefined, reason, cancel);
     }
+    if (v === "delete") return void remove([l]);
     if (v === "") return void reopen(l);
     void setStatus(l, v as LeadCallStatus, undefined, undefined, cancel);
   };
@@ -240,10 +286,15 @@ export default function CallLeadsPage() {
       {!booked && <option value="booked">Rendez-vous posé…</option>}
       <option value="not-interested">Pas intéressé</option>
       <option value="wrong-number">Faux numéro</option>
+      <option value="no-whatsapp">Pas de WhatsApp</option>
+      {session.isAdmin && <option value="delete">Supprimer de la liste…</option>}
     </>
   );
 
   const shownRows = rows.filter((r) => FILTERS.find((f) => f.key === filter)?.buckets.includes(r.bucket));
+  const selectedRows = shownRows.filter((r) => selected.has(r.id));
+  const allShownSelected = shownRows.length > 0 && shownRows.every((r) => selected.has(r.id));
+  const staleShown = shownRows.filter(isStale);
 
   return (
     <>
@@ -289,6 +340,40 @@ export default function CallLeadsPage() {
       {(error || data?.syncError) && (
         <div className="mb-4">
           <ErrorNote>{error || `Synchro Systeme.io : ${data?.syncError}`}</ErrorNote>
+        </div>
+      )}
+
+      {/* Admin : selection pour supprimer en bloc les inscrits qui n'ont plus rien a faire ici. */}
+      {session.isAdmin && rows.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-3 text-[12.5px]">
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={allShownSelected}
+              onChange={() => setSelected(allShownSelected ? new Set() : new Set(shownRows.map((r) => r.id)))}
+            />
+            Tout sélectionner ({shownRows.length})
+          </label>
+          {staleShown.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-sm !h-[28px]"
+              title={`Sélectionner les inscrits depuis plus de ${STALE_DAYS} jours`}
+              onClick={() => setSelected(new Set(staleShown.map((r) => r.id)))}
+            >
+              Les plus de {STALE_DAYS} jours ({staleShown.length})
+            </button>
+          )}
+          {selectedRows.length > 0 && (
+            <>
+              <button type="button" className="btn btn-sm btn-danger !h-[28px]" disabled={deleting} onClick={() => void remove(selectedRows)}>
+                {deleting ? <span className="spinner" /> : `Supprimer ${selectedRows.length} lead${selectedRows.length > 1 ? "s" : ""}`}
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm !h-[28px]" onClick={() => setSelected(new Set())}>
+                Annuler la sélection
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -374,7 +459,10 @@ export default function CallLeadsPage() {
                   }}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <button type="button" onClick={() => setSheetId(l.id)} className="text-left min-w-0">
+                    {session.isAdmin && (
+                      <input type="checkbox" className="mt-1 shrink-0" checked={selected.has(l.id)} onChange={() => toggle(l.id)} aria-label={`Sélectionner ${l.name}`} />
+                    )}
+                    <button type="button" onClick={() => setSheetId(l.id)} className="text-left min-w-0 flex-1">
                       <span className="flex items-center gap-2 text-[14px] font-semibold">
                         <Dot color={tone} />
                         <span className="truncate">{l.name}</span>
@@ -445,6 +533,7 @@ export default function CallLeadsPage() {
             <table className="table">
               <thead>
                 <tr>
+                  {session.isAdmin && <th style={{ width: 28 }} />}
                   <th>Contact</th>
                   <th style={{ width: 230 }}>Statut</th>
                   <th>Détail</th>
@@ -466,7 +555,12 @@ export default function CallLeadsPage() {
                     const onPick = pickFor(l);
                     return (
                       <tr key={l.id} style={rowStyle}>
-                        <td style={{ borderLeft: `4px solid ${tone}` }}>
+                        {session.isAdmin && (
+                          <td style={{ borderLeft: `4px solid ${tone}` }}>
+                            <input type="checkbox" checked={selected.has(l.id)} onChange={() => toggle(l.id)} aria-label={`Sélectionner ${l.name}`} />
+                          </td>
+                        )}
+                        <td style={session.isAdmin ? undefined : { borderLeft: `4px solid ${tone}` }}>
                           <button
                             type="button"
                             onClick={() => setSheetId(l.id)}

@@ -3,13 +3,13 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { canSee, Forbidden, readSession, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
-import type { LeadCallStatus } from "@/lib/types";
+import { leadIsOut, type LeadCallStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 type Action = "status" | "reopen" | "attempt" | "reached" | "lost" | "note" | "assign";
 
-const STATUSES: LeadCallStatus[] = ["no-answer", "message-sent", "callback", "reached", "not-interested", "wrong-number"];
+const STATUSES: LeadCallStatus[] = ["no-answer", "message-sent", "callback", "reached", "not-interested", "wrong-number", "no-whatsapp"];
 
 const STATUS_LABEL: Record<LeadCallStatus, string> = {
   "no-answer": "ne répond pas",
@@ -18,6 +18,7 @@ const STATUS_LABEL: Record<LeadCallStatus, string> = {
   reached: "joint",
   "not-interested": "pas intéressé",
   "wrong-number": "faux numéro",
+  "no-whatsapp": "pas de WhatsApp",
 };
 
 /**
@@ -77,9 +78,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
     const db = readDB();
     const lead = db.leads.find((l) => l.id === id);
-    if (!lead) throw new Error("Lead introuvable.");
+    if (!lead) throw new Error("Lead introuvable : il a été supprimé.");
     const unassigned = !lead.setterId;
-    if (!unassigned && !canSee(session, { setterId: lead.setterId })) throw new Forbidden();
+    if (!unassigned && !canSee(session, { setterId: lead.setterId })) {
+      // Pool commun : l'autre setter l'a appele en premier pendant que cette
+      // liste n'etait pas a jour. On le dit clairement, la page se recharge.
+      const owner = db.team.find((m) => m.id === lead.setterId)?.name ?? "un autre setter";
+      throw new Forbidden(`${lead.name} a déjà été appelé par ${owner} : ce lead est à ${owner}. Ta liste vient d'être mise à jour.`);
+    }
     if (unassigned && !session.isAdmin && !sessionHas(session, "setter")) throw new Forbidden();
 
     const now = new Date();
@@ -101,7 +107,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       // Un lead sorti de la liste (pas interesse, rendez-vous pris puis annule,
       // call fait) qui recoit un statut d'appel y revient.
       const inList = lead.stage === "nouveau" || lead.stage === "contacte" || lead.stage === "conversation";
-      if (!inList && status !== "not-interested" && status !== "wrong-number") lead.stage = "contacte";
+      if (!inList && !leadIsOut(status)) lead.stage = "contacte";
       lead.callStatus = status;
       lead.lastCallAt = now.toISOString();
       lead.callbackAt = status === "callback" ? callbackAt : "";
@@ -130,6 +136,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           break;
         case "not-interested":
         case "wrong-number":
+        case "no-whatsapp":
           lead.stage = "closed-lost";
           lead.nextAction = "";
           lead.nextActionAt = "";
