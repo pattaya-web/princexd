@@ -31,11 +31,12 @@ export interface CallLeadRow extends Lead {
 
 /**
  * Les prospects a appeler : ceux de la landing page (et tout lead manuel au
- * meme stade). Un setter voit les siens ET ceux qui n'ont encore personne :
- * un lead arrive avant la creation de son compte ne doit pas rester
- * invisible. L'admin voit tout. Au passage, une synchro Systeme.io si la
- * derniere date de plus de trois minutes : la liste est a jour a chaque
- * ouverture.
+ * meme stade). Un setter voit les siens ET ceux qui n'ont encore personne.
+ * C'est le fonctionnement voulu (pool commun, octobre 2026) : un lead frais
+ * n'appartient a personne, tous les setters le voient, et le premier qui
+ * l'appelle le prend (voir `claim` dans la route du lead). L'admin voit
+ * tout. Au passage, une synchro Systeme.io si la derniere date de plus de
+ * trois minutes : la liste est a jour a chaque ouverture.
  */
 export async function GET(req: NextRequest) {
   return handle(async () => {
@@ -73,8 +74,48 @@ export async function GET(req: NextRequest) {
         .trim();
       cleaned = true;
     }
+
+    /*
+     * Seulement les leads FROIDS de la landing page (Systeme.io). Les calls
+     * de closing, iClosed ou rendez-vous poses, vivent dans Rendez-vous et
+     * l'Agenda : un rendez-vous pris sort donc de cette liste.
+     */
+    const cold = (l: Lead) => l.source === "lp" || Boolean(l.systemeioId);
+
+    /*
+     * Passage au pool commun, une seule fois : le reglage bascule sur
+     * « tout le monde » et les leads froids jamais appeles, qui avaient ete
+     * attribues a un setter par les anciens imports, redeviennent libres.
+     * Ceux qu'un setter a deja appeles restent a lui : c'est lui qui bosse
+     * dessus.
+     */
+    if (!db.settings.salesPoolAppliedAt) {
+      db.settings.salesLeadAssignment = "pool";
+      db.settings.salesPoolAppliedAt = now;
+      const booked = new Set(db.appointments.filter((a) => a.status !== "cancelled").map((a) => a.leadId));
+      let freed = 0;
+      for (const l of db.leads) {
+        if (!cold(l) || !l.setterId || booked.has(l.id)) continue;
+        if (l.stage !== "nouveau" || l.callStatus || (l.callAttempts ?? 0) > 0 || l.lastCallAt) continue;
+        l.setterId = "";
+        l.ownerName = "";
+        freed++;
+      }
+      db.activityLogs.unshift({
+        id: newId(),
+        at: now,
+        actorId: "",
+        actorName: "Système",
+        action: "lead.assign",
+        entity: "lead",
+        entityId: "",
+        summary: `Leads à appeler en commun : ${freed} lead${freed > 1 ? "s" : ""} jamais appelé${freed > 1 ? "s" : ""} remis à tous les setters`,
+      });
+      cleaned = true;
+    }
     if (cleaned) writeDB(db);
 
+    const pool = (db.settings.salesLeadAssignment ?? "pool") === "pool";
     const visible = (l: Lead) => (l.setterId ? canSee(session, { setterId: l.setterId }) : isSetter);
 
     // Prochain rendez-vous encore a venir (ou du jour) par lead.
@@ -109,13 +150,6 @@ export async function GET(req: NextRequest) {
     };
 
     const ORDER: Record<CallBucket, number> = { due: 0, new: 1, retry: 2, later: 3, talking: 4, booked: 5, lost: 6 };
-
-    /*
-     * Seulement les leads FROIDS de la landing page (Systeme.io). Les calls
-     * de closing, iClosed ou rendez-vous poses, vivent dans Rendez-vous et
-     * l'Agenda : un rendez-vous pris sort donc de cette liste.
-     */
-    const cold = (l: Lead) => l.source === "lp" || Boolean(l.systemeioId);
 
     // ?declared=1 : les prospects envoyes vers le calendrier (Instagram), avec
     // leur rendez-vous quand il est arrive. Rien a voir avec les leads froids.
@@ -186,13 +220,14 @@ export async function GET(req: NextRequest) {
     const notInterested = db.leads.filter((l) => cold(l) && visible(l) && (l.callStatus === "not-interested" || l.callStatus === "wrong-number")).length;
     // Leads froids devenus rendez-vous : ils sont dans Rendez-vous, on ne donne que le nombre.
     const bookedCount = db.leads.filter((l) => cold(l) && visible(l) && nextAppt.has(l.id)).length;
-    // Leads a appeler qui existent mais appartiennent a un autre setter : un
-    // membre qui voit une page vide doit savoir qu'il y a matiere, et que
-    // c'est une question d'attribution, pas de synchro.
+    // Leads a appeler qui existent mais appartiennent a un autre setter (en
+    // pool : il les a appeles en premier) : un membre qui voit une page vide
+    // doit savoir qu'il y a matiere, et que ce n'est pas une panne de synchro.
     const hidden = session.isAdmin
       ? 0
       : db.leads.filter(
-          (l) => cold(l) && !visible(l) && (l.stage === "nouveau" || l.stage === "contacte" || l.stage === "conversation") && l.callStatus !== "not-interested" && l.callStatus !== "wrong-number",
+          (l) =>
+            cold(l) && !visible(l) && !nextAppt.has(l.id) && (l.stage === "nouveau" || l.stage === "contacte" || l.stage === "conversation") && l.callStatus !== "not-interested" && l.callStatus !== "wrong-number",
         ).length;
 
     return {
@@ -210,6 +245,8 @@ export async function GET(req: NextRequest) {
       },
       lastSyncAt: db.settings.systemeioLastSyncAt ?? "",
       syncError,
+      /** Vrai quand les leads frais sont a tous les setters (premier qui appelle). */
+      pool,
       /** Closer propose quand un setter pose un rendez-vous (reglages iClosed). */
       defaultCloserId: db.settings.salesDefaultCloserId ?? "",
       /** Compte de l'equipe du proprietaire : propose comme closer quand l'admin pose un rendez-vous. */
@@ -220,29 +257,31 @@ export async function GET(req: NextRequest) {
 
 /**
  * Réattribution en bloc (admin) : tous les leads encore à appeler, ou une
- * liste d'identifiants, passent au setter choisi. Sert quand un setter
- * arrive après les premiers imports : les leads étaient tous chez le
- * premier de la liste et il n'en voyait aucun.
+ * liste d'identifiants, passent au setter choisi. Sans `setterId`, ils
+ * reviennent à tout le monde (pool commun : le premier qui appelle le prend).
  */
 export async function PATCH(req: NextRequest) {
   return handle(async () => {
     const session = requireAdmin(readSession(req));
     const body = (await req.json().catch(() => ({}))) as { setterId?: string; ids?: string[] };
     const db = readDB();
-    const setter = db.team.find((m) => m.id === body.setterId);
-    if (!setter) throw new Error("Setter inconnu.");
+    const setter = body.setterId ? db.team.find((m) => m.id === body.setterId) : null;
+    if (body.setterId && !setter) throw new Error("Setter inconnu.");
+    const target = setter?.id ?? "";
 
     const wanted = body.ids?.length ? new Set(body.ids) : null;
-    const booked = new Set(db.appointments.map((a) => a.leadId));
+    // Un rendez-vous annule ne retient pas le lead : il est de nouveau a appeler.
+    const booked = new Set(db.appointments.filter((a) => a.status !== "cancelled").map((a) => a.leadId));
     let moved = 0;
     for (const l of db.leads) {
       if (wanted ? !wanted.has(l.id) : !(l.stage === "nouveau" || l.stage === "contacte" || l.stage === "conversation") || booked.has(l.id)) continue;
-      if (l.setterId === setter.id) continue;
-      l.setterId = setter.id;
-      l.ownerName = setter.name;
+      if ((l.setterId ?? "") === target) continue;
+      l.setterId = target;
+      l.ownerName = setter?.name ?? "";
       l.ownerRole = "setter";
       moved++;
     }
+    const who = setter?.name ?? "tous les setters";
     if (moved) {
       db.activityLogs.unshift({
         id: newId(),
@@ -252,11 +291,11 @@ export async function PATCH(req: NextRequest) {
         action: "lead.assign",
         entity: "lead",
         entityId: "",
-        summary: `${moved} lead${moved > 1 ? "s" : ""} à appeler attribué${moved > 1 ? "s" : ""} à ${setter.name}`,
+        summary: `${moved} lead${moved > 1 ? "s" : ""} à appeler ${setter ? "attribué" : "remis"}${moved > 1 ? "s" : ""} à ${who}`,
       });
       writeDB(db);
     }
-    return { moved, setter: setter.name };
+    return { moved, setter: who };
   });
 }
 

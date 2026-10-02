@@ -54,11 +54,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
  *  - attempt / reached / lost : anciennes actions, gardees pour les clients
  *              deja ouverts, traduites vers un statut ;
  *  - note    : remplace la note libre ;
- *  - assign  : admin, change de setter.
+ *  - assign  : admin, change de setter (sans setterId : rendu a tout le monde).
  *
- * Un lead encore sans setter (arrive avant la creation des comptes, ou pool
- * commun) est pris par le setter qui agit dessus : c'est lui qui l'a appele,
- * c'est a lui qu'il revient.
+ * Un lead sans setter (pool commun : c'est le cas de tout lead frais) est
+ * pris par le setter qui agit dessus : c'est lui qui l'a appele en premier,
+ * c'est a lui qu'il revient, et les autres ne le voient plus.
  */
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handle(async () => {
@@ -212,11 +212,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         break;
       case "assign":
         if (!session.isAdmin) throw new Forbidden("Seul l'admin réattribue un lead.");
-        if (!body.setterId || !db.team.some((m) => m.id === body.setterId)) throw new Error("Setter inconnu.");
-        lead.setterId = body.setterId;
+        if (body.setterId && !db.team.some((m) => m.id === body.setterId)) throw new Error("Setter inconnu.");
+        lead.setterId = body.setterId ?? "";
         lead.ownerName = db.team.find((m) => m.id === body.setterId)?.name ?? "";
         lead.ownerRole = "setter";
-        summary = `${lead.name} attribué à ${lead.ownerName}`;
+        summary = lead.setterId ? `${lead.name} attribué à ${lead.ownerName}` : `${lead.name} remis à tous les setters`;
         break;
       default:
         throw new Error("Action inconnue.");

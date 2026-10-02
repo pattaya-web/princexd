@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       configured,
       lastSyncAt: s.systemeioLastSyncAt ?? "",
       sourceFilter: s.systemeioSourceFilter ?? "",
-      assignment: s.salesLeadAssignment ?? "default",
+      assignment: s.salesLeadAssignment ?? "pool",
       secretSet: Boolean(process.env.SYSTEMEIO_WEBHOOK_SECRET?.trim() || s.systemeioWebhookSecret),
       webhooks,
       error,

@@ -198,14 +198,18 @@ function activeSetters(db: DB): TeamMember[] {
 
 /**
  * Attribution d'un lead frais.
+ * « pool » (par defaut) : personne. Le lead est visible de tous les setters
+ * et le premier qui l'appelle le prend (voir la route des leads).
  * « default » : le setter par defaut des reglages. « round-robin » : le
  * setter actif qui a le moins de leads LP encore a appeler, pour repartir la
  * charge sans compteur a maintenir.
  */
 function pickSetter(db: DB): string {
   const s = db.settings;
+  const mode = s.salesLeadAssignment ?? "pool";
+  if (mode === "pool") return "";
   const setters = activeSetters(db);
-  if ((s.salesLeadAssignment ?? "default") === "round-robin" && setters.length) {
+  if (mode === "round-robin" && setters.length) {
     const load = new Map(setters.map((m) => [m.id, 0]));
     for (const l of db.leads) {
       if (l.source === "lp" && (l.stage === "nouveau" || l.stage === "contacte") && l.setterId && load.has(l.setterId)) {
@@ -308,7 +312,7 @@ export function importContacts(db: DB, contacts: SioContact[], actorName = "Syst
       action: "lead.created",
       entity: "lead",
       entityId: lead.id,
-      summary: `Nouveau lead landing page : ${lead.name}${lead.phone ? ` (${lead.phone})` : ""}${lead.ownerName ? ` → ${lead.ownerName}` : ""}`,
+      summary: `Nouveau lead landing page : ${lead.name}${lead.phone ? ` (${lead.phone})` : ""} → ${lead.ownerName || "tous les setters"}`,
     });
     report.created++;
     report.leads.push(lead);

@@ -113,6 +113,8 @@ export default function CallLeadsPage() {
     // (lost = pas intéressés des 30 derniers jours, notInterested = tous)
     lastSyncAt: string;
     syncError: string;
+    /** Leads frais a tous les setters, le premier qui appelle le prend. */
+    pool: boolean;
     defaultCloserId: string;
     ownerMemberId: string;
   }>(`/api/sales/leads?v=${version}`);
@@ -146,7 +148,7 @@ export default function CallLeadsPage() {
   const assign = async (lead: CallLeadRow, setterId: string) => {
     try {
       await api(`/api/sales/leads/${lead.id}`, { method: "PATCH", body: JSON.stringify({ action: "assign", setterId }) });
-      toast("Lead réattribué.");
+      toast(setterId ? "Lead réattribué." : "Lead remis à tout le monde.");
       void reload();
     } catch (e) {
       toast((e as Error).message, "err");
@@ -258,15 +260,20 @@ export default function CallLeadsPage() {
               <select
                 className="select !w-auto !h-[30px] !text-[12.5px]"
                 value=""
-                title="Donner tous les leads encore à appeler à un setter"
+                title="Donner tous les leads encore à appeler à un setter, ou à tout le monde"
                 onChange={(e) => {
                   const id = e.target.value;
                   if (!id) return;
+                  if (id === "pool") {
+                    if (window.confirm("Remettre tous les leads à appeler à tout le monde ? Le premier setter qui appelle gardera le contact.")) void assignAll("");
+                    return;
+                  }
                   const name = setters.find((m) => m.id === id)?.name ?? "";
                   if (window.confirm(`Attribuer tous les leads à appeler à ${name} ?`)) void assignAll(id);
                 }}
               >
                 <option value="">Tout attribuer à…</option>
+                <option value="pool">Tout le monde (premier qui appelle)</option>
                 {setters.map((m) => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
@@ -330,7 +337,13 @@ export default function CallLeadsPage() {
       ) : !rows.length ? (
         <Card>
           <Empty>
-            {c?.hidden ? (
+            {c?.hidden && data?.pool ? (
+              <>
+                {c.hidden} lead{c.hidden > 1 ? "s" : ""} à appeler existe{c.hidden > 1 ? "nt" : ""}, mais un autre setter {c.hidden > 1 ? "les" : "l&apos;"}a appelé{c.hidden > 1 ? "s" : ""} en premier : {c.hidden > 1 ? "ils sont" : "il est"} à lui.
+                <br />
+                Les prochains inscrits de la landing page apparaîtront ici pour tout le monde : le premier qui appelle garde le contact.
+              </>
+            ) : c?.hidden ? (
               <>
                 {c.hidden} lead{c.hidden > 1 ? "s" : ""} à appeler existe{c.hidden > 1 ? "nt" : ""}, mais {c.hidden > 1 ? "ils sont attribués" : "il est attribué"} à un autre setter.
                 <br />
@@ -417,7 +430,7 @@ export default function CallLeadsPage() {
                     </button>
                     {session.isAdmin && setters.length > 0 && (
                       <select className="select select-sm !w-auto" value={l.setterId ?? ""} onChange={(e) => void assign(l, e.target.value)}>
-                        <option value="">Setter…</option>
+                        <option value="">Tout le monde</option>
                         {setters.map((m) => (
                           <option key={m.id} value={m.id}>{m.name}</option>
                         ))}
@@ -533,10 +546,10 @@ export default function CallLeadsPage() {
                             <select
                               className="select select-xs !text-[11.5px] !w-auto"
                               value={l.setterId ?? ""}
-                              title="Setter chargé de ce lead"
+                              title="Setter chargé de ce lead (« Tout le monde » : le premier qui appelle le prend)"
                               onChange={(e) => void assign(l, e.target.value)}
                             >
-                              <option value="">Setter…</option>
+                              <option value="">Tout le monde</option>
                               {setters.map((m) => (
                                 <option key={m.id} value={m.id}>{m.name}</option>
                               ))}

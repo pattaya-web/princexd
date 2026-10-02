@@ -513,8 +513,9 @@ export default function ReglagesPage() {
                 <Field label="Ne garder que les inscrits de…" hint="Morceau d'URL de la page ou nom de tag, plusieurs séparés par des virgules. Vide : tous les contacts.">
                   <input className="input" placeholder="ex. authenticitemady" value={s.systemeioSourceFilter ?? ""} onChange={(e) => set("systemeioSourceFilter", e.target.value)} />
                 </Field>
-                <Field label="Attribution des leads" hint="« Setter par défaut » utilise celui de la synchro iClosed.">
-                  <select className="select" value={s.salesLeadAssignment ?? "default"} onChange={(e) => set("salesLeadAssignment", e.target.value as "default" | "round-robin")}>
+                <Field label="Attribution des leads" hint="« Tout le monde » : chaque setter voit tous les nouveaux leads, le premier qui appelle le garde. « Setter par défaut » utilise celui de la synchro iClosed.">
+                  <select className="select" value={s.salesLeadAssignment ?? "pool"} onChange={(e) => set("salesLeadAssignment", e.target.value as "pool" | "default" | "round-robin")}>
+                    <option value="pool">Tout le monde : le premier qui appelle le prend</option>
                     <option value="default">Setter par défaut</option>
                     <option value="round-robin">Tour de rôle entre les setters actifs</option>
                   </select>

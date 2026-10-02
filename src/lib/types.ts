@@ -161,8 +161,14 @@ export interface Settings {
   /** Filtre optionnel : morceaux d'URL de page ou noms de tag, separes par des virgules. Vide = tous les contacts. */
   systemeioSourceFilter?: string;
   systemeioLastSyncAt?: string;
-  /** Attribution des leads LP : setter par defaut, ou tour de role entre setters actifs. */
-  salesLeadAssignment?: "default" | "round-robin";
+  /**
+   * Attribution des leads LP. « pool » (le choix par defaut) : personne, les
+   * leads sont a tous les setters et le premier qui appelle le prend.
+   * « default » : le setter par defaut. « round-robin » : tour de role.
+   */
+  salesLeadAssignment?: "pool" | "default" | "round-robin";
+  /** Date du passage au pool commun (bascule unique du reglage et des leads jamais appeles). */
+  salesPoolAppliedAt?: string;
 }
 
 export type ContentFormat =

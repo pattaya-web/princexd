@@ -170,7 +170,9 @@ export default function GuidePage() {
                 <Arrow />
                 <Step n={3} title="J'appelle les leads froids" where="Onglet « À appeler »" href="/sales/leads">
                   Ce sont les gens qui viennent de laisser leur numéro sur la landing page. Les plus récents en haut : j&apos;appelle
-                  dans les 5 minutes, c&apos;est là que ça décroche. Le numéro est cliquable.
+                  dans les 5 minutes, c&apos;est là que ça décroche. Le numéro est cliquable. La liste est la même pour tous les
+                  setters : <strong>le premier qui appelle un contact le garde</strong>, il disparaît de la liste des autres, et c&apos;est
+                  lui qui pose le rendez-vous.
                 </Step>
                 <Arrow />
                 <Step n={4} title="Je statue chaque appel" where="Le menu sur la ligne du contact">
