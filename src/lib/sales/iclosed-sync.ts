@@ -99,6 +99,13 @@ function pickSetter(db: DB): string {
   return db.team.find((m) => active(m) && memberRoles(m).includes("setter"))?.id ?? "";
 }
 
+/**
+ * Closer d'un call iClosed, dans l'ordre : le membre relie a l'hote iClosed,
+ * le closer par defaut des reglages (Rendez-vous → synchro), le compte du
+ * proprietaire s'il close, sinon le premier closer actif. Un call sans
+ * closer n'apparait sur le dashboard de personne : on en a rate un comme
+ * ca, donc on ne renvoie jamais vide tant qu'il existe un closer actif.
+ */
 function pickCloser(db: DB, call: IclosedCall): string {
   const mapped = resolveCloser(db, call);
   if (mapped && active(mapped)) return mapped.id;
@@ -108,7 +115,7 @@ function pickCloser(db: DB, call: IclosedCall): string {
   const me = db.team.find((m) => m.id === s.salesOwnerMemberId);
   if (me && active(me) && memberRoles(me).includes("closer")) return me.id;
   const closers = db.team.filter((m) => active(m) && memberRoles(m).includes("closer"));
-  return closers.length === 1 ? closers[0].id : "";
+  return closers[0]?.id ?? "";
 }
 
 /** Cree un rendez-vous sans setter : createAppointment l'exige, ici on l'accepte. */
