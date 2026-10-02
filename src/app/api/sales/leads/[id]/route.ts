@@ -7,7 +7,7 @@ import { leadIsOut, type LeadCallStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-type Action = "status" | "reopen" | "attempt" | "reached" | "lost" | "note" | "assign";
+type Action = "status" | "reopen" | "attempt" | "reached" | "lost" | "note" | "assign" | "contact";
 
 const STATUSES: LeadCallStatus[] = ["no-answer", "message-sent", "callback", "reached", "not-interested", "wrong-number", "no-whatsapp"];
 
@@ -72,6 +72,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       note?: string;
       setterId?: string;
       reason?: string;
+      /** Action « contact » : pseudo Instagram saisi a la main. */
+      igUsername?: string;
       /** Avec `status` : annule le rendez-vous a venir du lead (RDV pris puis annule). */
       cancelAppointment?: boolean;
     };
@@ -217,6 +219,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       case "note":
         lead.notes = (body.note ?? "").trim();
         break;
+      case "contact": {
+        const clean = (body.igUsername ?? "").trim().replace(/^@+/, "");
+        lead.igUsername = clean;
+        lead.handle = clean ? `@${clean}` : "";
+        summary = clean ? `Pseudo Instagram de ${lead.name} : @${clean}` : `Pseudo Instagram de ${lead.name} effacé`;
+        break;
+      }
       case "assign":
         if (!session.isAdmin) throw new Forbidden("Seul l'admin réattribue un lead.");
         if (body.setterId && !db.team.some((m) => m.id === body.setterId)) throw new Error("Setter inconnu.");

@@ -1,7 +1,7 @@
 import { canSee } from "@/lib/sales/access";
 import { sessionHas } from "@/lib/sales/roles";
 import { NextRequest, NextResponse } from "next/server";
-import { readDB } from "@/lib/db";
+import { readDB, writeDB } from "@/lib/db";
 import { readSession, requireSales } from "@/lib/sales/access";
 import { handle, required } from "@/lib/sales/http";
 import { createAppointment, type AppointmentInput } from "@/lib/sales/repo";
@@ -12,6 +12,42 @@ import { syncIclosedUpcoming } from "@/lib/sales/iclosed-sync";
 import type { AppointmentSource, AppointmentStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Nettoyage unique : l'import iClosed fabriquait un pseudo Instagram a partir
+ * du debut de l'email (ou « iclosed-<id> ») quand le questionnaire n'en
+ * donnait pas. Des pseudos faux s'affichaient sur l'agenda. On les efface ;
+ * ils se saisissent a la main depuis la fiche.
+ */
+function cleanInventedHandles() {
+  const db = readDB();
+  if (db.settings.igHandlesCleanedAt) return;
+  let n = 0;
+  for (const l of db.leads) {
+    const ig = (l.igUsername ?? "").replace(/^@+/, "").trim().toLowerCase();
+    if (!ig) continue;
+    const local = (l.email ?? "").split("@")[0].trim().toLowerCase();
+    const invented = ig.startsWith("iclosed-") || (local.length > 0 && ig === local);
+    if (!invented) continue;
+    l.igUsername = "";
+    l.handle = "";
+    n++;
+  }
+  db.settings.igHandlesCleanedAt = new Date().toISOString();
+  if (n) {
+    db.activityLogs.unshift({
+      id: `clean-ig-${Date.now()}`,
+      at: db.settings.igHandlesCleanedAt,
+      actorId: "",
+      actorName: "Système",
+      action: "lead.updated",
+      entity: "lead",
+      entityId: "",
+      summary: `${n} pseudo${n > 1 ? "s" : ""} Instagram fabriqué${n > 1 ? "s" : ""} par l'import iClosed effacé${n > 1 ? "s" : ""} : à saisir à la main sur les fiches`,
+    });
+  }
+  writeDB(db);
+}
 
 /**
  * Ligne prete a afficher.
@@ -62,6 +98,7 @@ export async function GET(req: NextRequest) {
      * lecture : la liste s'affiche avec ce qu'on a.
      */
     if (p.get("period") === "upcoming") await syncIclosedUpcoming().catch(() => null);
+    cleanInventedHandles();
     const db = readDB();
 
     const range = rangeFromParams(p);
@@ -193,8 +230,8 @@ export async function POST(req: NextRequest) {
 
     const input: AppointmentInput = {
       leadId: body.leadId ?? "",
-      // Un prospect de la landing page n'a pas forcement d'Instagram.
-      igUsername: body.leadId ? (body.igUsername ?? "") : required(body.igUsername, "Le pseudo Instagram"),
+      // Le pseudo Instagram est facultatif : mieux vaut vide qu'invente.
+      igUsername: body.igUsername ?? "",
       name: body.name ?? "",
       email: body.email ?? "",
       phone: body.phone ?? "",

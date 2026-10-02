@@ -162,6 +162,8 @@ export interface Settings {
   systemeioSourceFilter?: string;
   /** Contacts Systeme.io supprimes a la main depuis « A appeler » : la synchro ne les recree pas. */
   systemeioIgnoredIds?: string[];
+  /** Date du nettoyage unique des pseudos Instagram fabriques par l'import iClosed. */
+  igHandlesCleanedAt?: string;
   systemeioLastSyncAt?: string;
   /**
    * Attribution des leads LP. « pool » (le choix par defaut) : personne, les

@@ -152,6 +152,21 @@ export function AppointmentDetail({
 
   /* ------------------------------ Actions ------------------------------ */
 
+  /** Pseudo Instagram saisi a la main : l'import iClosed n'en invente plus. */
+  const editHandle = async () => {
+    if (!appt) return;
+    const typed = window.prompt("Pseudo Instagram du contact (sans le @). Vide pour effacer.", detail?.lead?.igUsername ?? "");
+    if (typed === null) return;
+    try {
+      await api(`/api/sales/appointments/${appt.id}`, { method: "PATCH", body: JSON.stringify({ igUsername: typed }) });
+      toast(typed.trim() ? "Pseudo enregistré." : "Pseudo effacé.");
+      await load(appt.id);
+      onChanged();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
   const assignCloser = async (closerId: string) => {
     if (!appt) return;
     try {
@@ -477,6 +492,9 @@ export function AppointmentDetail({
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[14px] font-semibold">{detail.lead?.name}</span>
                   <IgHandle username={detail.lead?.igUsername ?? ""} />
+                  <button type="button" className="link text-[11.5px]" onClick={() => void editHandle()} title="Saisir ou corriger le pseudo Instagram (le tool n'en invente jamais)">
+                    ✎ {detail.lead?.igUsername ? "modifier" : "saisir le pseudo"}
+                  </button>
                   {appt.qualified && <span className="badge badge-good !text-[10px] !py-0">Qualifié</span>}
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-[12px]">

@@ -225,7 +225,10 @@ export async function syncIclosedUpcoming(opts: { force?: boolean } = {}): Promi
         const input = fromIclosedCall(call, { setterId, closerId });
         if (!input) continue;
         if (known) input.leadId = known.id;
-        if (!input.igUsername) input.igUsername = known?.igUsername || (input.email || input.name || `iclosed-${call.id}`).split("@")[0];
+        // Jamais de pseudo invente (debut d'email, nom…) : s'il n'est pas dans
+        // le questionnaire ni sur un lead connu, il reste vide et se saisit
+        // a la main sur la fiche.
+        if (!input.igUsername) input.igUsername = known?.igUsername || "";
         if (setterId) {
           createAppointment(SYSTEM, input);
         } else {

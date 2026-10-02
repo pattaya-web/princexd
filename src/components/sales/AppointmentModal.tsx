@@ -93,8 +93,8 @@ export function AppointmentModal({ open, onClose, onSaved, session, members }: A
   }, [open, session.isAdmin, session.memberId, setters]);
 
   const save = async () => {
-    if (!igUsername.trim()) {
-      toast("Le pseudo Instagram est obligatoire.", "err");
+    if (!igUsername.trim() && !name.trim()) {
+      toast("Indique au moins le nom ou le pseudo Instagram.", "err");
       igRef.current?.focus();
       return;
     }
@@ -158,7 +158,7 @@ export function AppointmentModal({ open, onClose, onSaved, session, members }: A
     >
       <div onKeyDown={onKey} className="flex flex-col gap-3.5">
         {/* Instagram d'abord : c'est l'identifiant du lead. */}
-        <Field label="Instagram">
+        <Field label="Instagram" hint="Facultatif : laisse vide plutôt que d'inventer, tu pourras le saisir plus tard sur la fiche.">
           <div className="flex items-center gap-2">
             <span className="dim text-[15px] font-medium">@</span>
             <input

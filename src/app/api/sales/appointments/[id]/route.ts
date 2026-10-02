@@ -71,6 +71,32 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (typeof body.timezone === "string") patch.timezone = body.timezone;
     if (typeof body.iclosedUrl === "string") patch.iclosedUrl = body.iclosedUrl;
 
+    // Pseudo Instagram du contact, saisi a la main depuis le detail du
+    // rendez-vous (l'import n'en invente plus). Memes droits que la lecture.
+    if (typeof body.igUsername === "string") {
+      const db = readDB();
+      const appt = db.appointments.find((a) => a.id === id);
+      if (!appt) throw new Forbidden("Rendez-vous introuvable.");
+      if (!canSee(session, appt)) throw new Forbidden();
+      const lead = db.leads.find((l) => l.id === appt.leadId);
+      if (lead) {
+        const clean = body.igUsername.trim().replace(/^@+/, "");
+        lead.igUsername = clean;
+        lead.handle = clean ? `@${clean}` : "";
+        db.activityLogs.unshift({
+          id: newId(),
+          at: new Date().toISOString(),
+          actorId: session.memberId,
+          actorName: session.memberName || "Moi",
+          action: "lead.updated",
+          entity: "lead",
+          entityId: lead.id,
+          summary: clean ? `Pseudo Instagram de ${lead.name} : @${clean}` : `Pseudo Instagram de ${lead.name} effacé`,
+        });
+        writeDB(db);
+      }
+    }
+
     return patchAppointment(session, id, patch);
   });
 }

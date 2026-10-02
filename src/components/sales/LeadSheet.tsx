@@ -63,6 +63,22 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  /** Pseudo Instagram saisi a la main : le tool n'en invente jamais. */
+  const editHandle = async () => {
+    if (!id || !data) return;
+    const current = data.lead.igUsername ?? "";
+    const typed = window.prompt("Pseudo Instagram du contact (sans le @). Vide pour effacer.", current);
+    if (typed === null) return;
+    try {
+      const r = await api<{ lead: Payload["lead"] }>(`/api/sales/leads/${id}`, { method: "PATCH", body: JSON.stringify({ action: "contact", igUsername: typed }) });
+      setData({ ...data, lead: r.lead });
+      toast(r.lead.igUsername ? `Pseudo enregistré : @${r.lead.igUsername}` : "Pseudo effacé.");
+      onChanged();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
   const save = async () => {
     if (!id) return;
     setSaving(true);
@@ -139,6 +155,13 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
               )}
               <dt className="dim">Setter</dt>
               <dd>{data?.setterName || <span style={{ color: "var(--warning)" }}>à attribuer</span>}</dd>
+              <dt className="dim">Instagram</dt>
+              <dd className="flex items-center gap-2">
+                {l.igUsername ? `@${l.igUsername.replace(/^@+/, "")}` : <span className="dim">non renseigné</span>}
+                <button type="button" className="link text-[11.5px]" onClick={() => void editHandle()} title="Saisir ou corriger le pseudo Instagram">
+                  ✎ {l.igUsername ? "modifier" : "saisir"}
+                </button>
+              </dd>
               {l.sourceUrl && (
                 <>
                   <dt className="dim">Page d&apos;origine</dt>
