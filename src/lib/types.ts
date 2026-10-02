@@ -944,8 +944,54 @@ export interface AppointmentEvent {
   note: string;
 }
 
+/** Action a venir choisie par le closer quand le call n'a pas close. */
+export type RecapNextAction = "" | "call" | "new-appointment" | "none";
+
+/**
+ * Objectif e-commerce du lead, tel que determine pendant le call (retour des
+ * closers : pas de montant, ce qui compte c'est ce qu'il vise).
+ */
+export type EcomObjective = "side-income" | "replace-salary" | "build-brand" | "optimize-sales" | "other";
+export const ECOM_OBJECTIVES: EcomObjective[] = ["side-income", "replace-salary", "build-brand", "optimize-sales", "other"];
+export const ECOM_OBJECTIVE_LABEL: Record<EcomObjective, string> = {
+  "side-income": "Faire un complément de revenu",
+  "replace-salary": "Remplacer son salaire",
+  "build-brand": "Construire une vraie marque",
+  "optimize-sales": "Optimiser ses ventes",
+  other: "Autre",
+};
+
+/**
+ * Recap du call, rempli par le closer juste apres (demande des closers,
+ * octobre 2026). Le statut du rendez-vous en decoule : close -> closed-won,
+ * sinon selon l'action a venir (rappeler -> follow-up, nouveau rendez-vous
+ * -> rescheduled, rien -> closed-lost).
+ */
+export interface CallRecap {
+  closed: boolean;
+  /** Si pas close : la raison (cle LostReason) et le detail libre. */
+  notClosedReason: LostReason | "";
+  notClosedDetail: string;
+  pitched: boolean;
+  notPitchedReason: string;
+  /** Ce qu'on a appris sur le lead : situation, projet, objections. */
+  leadInfo: string;
+  /** Objectif e-commerce du lead, et sa precision si « Autre ». */
+  objective: EcomObjective | "";
+  objectiveOther: string;
+  /** Ancien champ (montant) : plus propose, garde pour les recaps deja saisis. */
+  budget?: string;
+  nextAction: RecapNextAction;
+  /** Date de l'action a venir (ISO), si rappel ou nouveau rendez-vous. */
+  nextActionAt: string;
+  filledAt: string;
+  filledBy: string;
+}
+
 export interface Appointment {
   id: ID;
+  /** Recap post-call du closer. Absent tant que le call n'a pas ete debriefe. */
+  recap?: CallRecap;
   /** Lead de la collection `leads`. Un lead peut avoir plusieurs rendez-vous. */
   leadId: ID;
   /**

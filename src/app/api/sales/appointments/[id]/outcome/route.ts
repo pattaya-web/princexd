@@ -4,7 +4,8 @@ import { readSession, requireSales } from "@/lib/sales/access";
 import { handle, num, required } from "@/lib/sales/http";
 import { recordOutcome, type OutcomeInput } from "@/lib/sales/repo";
 import { CALL_OUTCOMES } from "@/lib/sales/constants";
-import type { AppointmentStatus, LostReason, PaymentType } from "@/lib/types";
+import { LOST_REASONS } from "@/lib/sales/constants";
+import { ECOM_OBJECTIVES, type AppointmentStatus, type EcomObjective, type LostReason, type PaymentType, type RecapNextAction } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,27 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     if (status === "closed-lost") {
       input.lostReason = (body.lostReason as LostReason) || "other";
+    }
+
+    // Recap post-call : chaque champ est reverifie, rien n'est recopie tel quel.
+    if (body.recap && typeof body.recap === "object") {
+      const r = body.recap as Record<string, unknown>;
+      const str = (v: unknown, max = 2000) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+      const reason = str(r.notClosedReason) as LostReason;
+      const next = str(r.nextAction) as RecapNextAction;
+      const objective = str(r.objective) as EcomObjective;
+      input.recap = {
+        closed: r.closed === true,
+        notClosedReason: LOST_REASONS.includes(reason) ? reason : "",
+        notClosedDetail: str(r.notClosedDetail),
+        pitched: r.pitched === true,
+        notPitchedReason: str(r.notPitchedReason),
+        leadInfo: str(r.leadInfo, 4000),
+        objective: ECOM_OBJECTIVES.includes(objective) ? objective : "",
+        objectiveOther: objective === "other" ? str(r.objectiveOther, 200) : "",
+        nextAction: ["call", "new-appointment", "none"].includes(next) ? next : "",
+        nextActionAt: str(r.nextActionAt, 40),
+      };
     }
 
     if (status === "closed-won") {

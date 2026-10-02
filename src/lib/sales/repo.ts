@@ -15,6 +15,7 @@ import { newId, readDB, writeDB } from "../db";
 import type {
   ActivityLog,
   Appointment,
+  CallRecap,
   AppointmentEvent,
   AppointmentSource,
   AppointmentStatus,
@@ -279,6 +280,8 @@ export interface OutcomeInput {
   followUp?: { dueAt: string; notes: string; closerId?: string };
   /** Nouvelle date, pour une reprogrammation. */
   rescheduledAt?: string;
+  /** Recap post-call (closé, pitché, infos, budget, action a venir). */
+  recap?: Omit<CallRecap, "filledAt" | "filledBy">;
 }
 
 /**
@@ -306,6 +309,7 @@ export function recordOutcome(session: Session, id: string, input: OutcomeInput)
 
   if (input.closerNotes !== undefined) appt.closerNotes = input.closerNotes;
   appt.lostReason = input.status === "closed-lost" ? (input.lostReason ?? "") : "";
+  if (input.recap) appt.recap = { ...input.recap, filledAt: now, filledBy: session.memberId };
 
   pushHistory(appt, session, input.status, input.closerNotes ?? "");
   if (!appt.completedAt && !isDead(input.status) && input.status !== "rescheduled") {
