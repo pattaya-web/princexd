@@ -50,7 +50,7 @@ export function stepsOf(job: StudioJob): Step[] {
   };
   const pos = job.status === "queued" ? -1 : job.status === "failed" ? order.indexOf("completed") : order.indexOf(job.status);
   return order
-    .filter((s) => job.type !== "talking-photo" || (s !== "processing_voice" && s !== "merging" && s !== "syncing_lips"))
+    .filter((s) => job.type === "video-transform" || (s !== "processing_voice" && s !== "merging" && s !== "syncing_lips"))
     .filter((s) => s !== "processing_voice" || job.voiceMode === "transform")
     .filter((s) => s !== "syncing_lips" || (job.lipSync && job.voiceMode !== "none"))
     .map((s) => {

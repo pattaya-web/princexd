@@ -110,9 +110,29 @@ export interface TalkRequest {
   variants: number;
 }
 
+/** « Création » : une image de départ + un script → une vidéo où la personne parle, sans rien filmer. */
+export interface CreateRequest {
+  startImage: string;
+  startImageName?: string;
+  /** Photos du produit (0 à 4). Avec, l'image et le produit passent en références. */
+  productImages?: string[];
+  productDescription?: string;
+  /** Ce que la personne dit, mot pour mot. */
+  script: string;
+  /** Langue parlée : fr, en, es, ar, it, de, pt. */
+  language?: string;
+  /** Attitude, rythme, gestes : une phrase. */
+  scenePrompt?: string;
+  /** 4 à 30 s, ou -1 : le modèle choisit. */
+  durationSec: number;
+  resolution: "480p" | "720p" | "1080p";
+  aspectRatio: "9:16" | "16:9" | "1:1" | "adaptive";
+  variants: number;
+}
+
 export interface StudioJob {
   id: string;
-  type: "video-transform" | "talking-photo";
+  type: "video-transform" | "talking-photo" | "creation";
   /** Variantes lancées d'un coup : même batchId. */
   batchId: string;
   provider: ProviderId | ExtraEngine;
@@ -160,11 +180,18 @@ export interface StudioJob {
   remoteProductUrls: string[];
   remoteSceneUrl?: string;
 
-  /* --- Photo qui parle --- */
+  /* --- Photo qui parle (et script de la Création) --- */
   talkText?: string;
   talkAudio?: string;
   remoteAudioUrl?: string;
   talkResolution?: "480p" | "720p";
+
+  /* --- Création depuis zéro --- */
+  createResolution?: "480p" | "720p" | "1080p";
+  /** 4-30 s, ou -1 pour laisser le modèle choisir. */
+  createDurationSec?: number;
+  createMode?: "first-frame" | "references";
+  createLanguage?: string;
 
   resolution: Resolution;
   aspectRatio: AspectChoice;

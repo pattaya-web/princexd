@@ -13,6 +13,7 @@ import {
 } from "./types";
 import { pollTransformation, readableProviderError, startTransformation, TransformError } from "./video-transform";
 import { pollTalkingPhoto, startTalkingPhoto, TalkError } from "./talking-photo";
+import { CreationError, pollCreation, startCreation } from "./creation";
 import { transformVoice, VoiceError } from "./voice-transform";
 
 /**
@@ -195,12 +196,17 @@ async function runStart(job: StudioJob) {
       await patchJob(job.id, { ...out, status: "generating_video", progress: 0 });
       return;
     }
+    if (fresh.type === "creation") {
+      const out = await startCreation(fresh, async (p) => { await patchJob(job.id, p); });
+      await patchJob(job.id, { ...out, status: "generating_video", progress: 0 });
+      return;
+    }
     const out = await startTransformation(fresh, async (p) => { await patchJob(job.id, p); });
     await patchJob(job.id, { ...out, status: "generating_video", progress: 0 });
   } catch (e) {
     const err = e as Error & { code?: number };
     const msg =
-      err instanceof TransformError || err instanceof MediaError || err instanceof TalkError ? err.message
+      err instanceof TransformError || err instanceof MediaError || err instanceof TalkError || err instanceof CreationError ? err.message
       : readableProviderError(getJob(job.id)?.provider ?? job.provider, err.message);
     await fail(job.id, msg);
   } finally {
@@ -228,8 +234,8 @@ async function runFinish(job: StudioJob) {
       current = (await patchJob(job.id, { videoOutput: dl.url })) ?? current;
     }
 
-    // Photo qui parle : la video rendue contient deja la voix, rien a assembler.
-    if (current.type === "talking-photo") {
+    // Photo qui parle et Création : la video rendue contient deja la voix, rien a assembler.
+    if (current.type === "talking-photo" || current.type === "creation") {
       await patchJob(job.id, { status: "completed", finalOutput: current.videoOutput, progress: 100, completedAt: now(), error: "" });
       warmThumb(current.videoOutput);
       return;
@@ -328,7 +334,7 @@ async function pollOne(job: StudioJob) {
   if (!job.providerJobId) return;
   let r;
   try {
-    r = job.type === "talking-photo" ? await pollTalkingPhoto(job) : await pollTransformation(job);
+    r = job.type === "talking-photo" ? await pollTalkingPhoto(job) : job.type === "creation" ? await pollCreation(job) : await pollTransformation(job);
   } catch {
     // Un sondage qui rate ne change rien : on réessaiera au prochain tour.
     return;
@@ -338,7 +344,7 @@ async function pollOne(job: StudioJob) {
       remoteVideoUrl: r.resultUrl,
       creditsConsumed: r.creditsConsumed || job.creditsConsumed,
       progress: 100,
-      status: job.type === "talking-photo" ? "merging" : job.voiceMode === "transform" ? "processing_voice" : "merging",
+      status: job.type !== "video-transform" ? "merging" : job.voiceMode === "transform" ? "processing_voice" : "merging",
     });
     if (updated) void runFinish(updated);
   } else if (r.state === "fail") {

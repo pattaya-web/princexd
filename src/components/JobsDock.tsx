@@ -134,7 +134,7 @@ function Job({ gen, history }: { gen: Generation; history: Generation[] }) {
 
 function StudioLine({ job }: { job: StudioJob }) {
   const elapsed = useElapsed(job.startedAt || job.createdAt);
-  const name = `${job.type === "talking-photo" ? "Photo qui parle" : "Swap vidéo"} · ${engineLabel(job.provider)}`;
+  const name = `${job.type === "talking-photo" ? "Photo qui parle" : job.type === "creation" ? "Création" : "Swap vidéo"} · ${engineLabel(job.provider)}`;
   const real = job.status === "generating_video" && job.progress > 0;
   return (
     <li className="px-3 py-2.5" style={{ borderTop: "1px solid var(--border)" }}>

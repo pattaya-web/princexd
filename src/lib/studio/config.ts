@@ -280,6 +280,23 @@ export const TALKING_PHOTO = {
   defaultPrompt: "A person talking naturally to the camera, subtle head movements, natural blinking and expressions, steady framing.",
 };
 
+/**
+ * « Création » : Seedance 2.5 depuis une image de départ, voix générée par
+ * le modèle à partir du script (docs : first_frame_url + generate_audio).
+ * Tarif non relevé : celui de Seedance 2.5 en édition, majoré pour l'audio,
+ * à confirmer sur la première facture.
+ */
+export const CREATION = {
+  kieModel: "bytedance/seedance-2-5",
+  label: "Seedance 2.5",
+  vendor: "ByteDance",
+  resolutions: ["480p", "720p", "1080p"] as ("480p" | "720p" | "1080p")[],
+  creditsPerSec: { "480p": 28, "720p": 50, "1080p": 80 } as Record<"480p" | "720p" | "1080p", number>,
+  verifiedPricing: false,
+  minDurationSec: 4,
+  maxDurationSec: 30,
+};
+
 /** Libelle d'un moteur, swap video ou photo qui parle. */
 export function engineLabel(id: string): string {
   if (id === "infinitalk") return TALKING_PHOTO.label;

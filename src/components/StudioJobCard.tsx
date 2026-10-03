@@ -34,14 +34,21 @@ export interface JobActions {
 
 export function jobDownloadHref(job: StudioJob) {
   const url = job.finalOutput || job.videoOutput;
-  const name = `${job.type === "talking-photo" ? "photo-parle" : "swap"}-${engineLabel(job.provider).toLowerCase().replace(/\s+/g, "-")}-${job.id}.mp4`;
+  const name = `${job.type === "talking-photo" ? "photo-parle" : job.type === "creation" ? "creation" : "swap"}-${engineLabel(job.provider).toLowerCase().replace(/\s+/g, "-")}-${job.id}.mp4`;
   return `${url}?download=1&name=${encodeURIComponent(name)}`;
 }
 
 function jobTitle(job: StudioJob) {
-  return job.type === "talking-photo"
-    ? `Photo qui parle · ${engineLabel(job.provider)}`
-    : `${TRANSFORM_LABELS[job.transform]} · ${engineLabel(job.provider)}`;
+  if (job.type === "talking-photo") return `Photo qui parle · ${engineLabel(job.provider)}`;
+  if (job.type === "creation") return `Création · ${engineLabel(job.provider)}`;
+  return `${TRANSFORM_LABELS[job.transform]} · ${engineLabel(job.provider)}`;
+}
+
+/** Ce qu'on entend dans la vidéo, selon l'outil qui l'a produite. */
+export function soundLabel(job: StudioJob): string {
+  if (job.type === "talking-photo") return job.talkText ? `Texte lu · ${job.voiceName || job.voiceId}` : "Audio fourni";
+  if (job.type === "creation") return "Voix générée par Seedance depuis le script";
+  return VOICE_MODE_LABEL[job.voiceMode];
 }
 
 /**
@@ -59,6 +66,12 @@ export function jobSheet(job: StudioJob): string {
       : `2. Fichier audio : ${(job.talkAudio ?? "").split("/").pop() || "audio"}`);
     L.push(`3. Scène : ${job.userPrompt ? q(job.userPrompt) : "laisser vide"}`);
     L.push(`4. Résolution : ${job.talkResolution ?? "480p"}`);
+  } else if (job.type === "creation") {
+    L.push("CRÉATION — à refaire dans l'onglet « Création »");
+    L.push(`1. Image de départ : ${job.referenceImageName || "image"}${job.productImages.length ? ` · Produit : ${job.productImages.length} photo(s)` : ""}`);
+    L.push(`2. Script : ${q(job.talkText ?? "")}${job.createLanguage && job.createLanguage !== "fr" ? ` (langue : ${job.createLanguage})` : ""}`);
+    L.push(`3. Attitude : ${job.userPrompt ? q(job.userPrompt) : "laisser vide"}`);
+    L.push(`4. Durée : ${job.createDurationSec && job.createDurationSec > 0 ? `${job.createDurationSec} s` : "automatique"} · ${job.createResolution ?? "720p"} · Format ${job.aspectRatio === "original" ? "adaptatif" : job.aspectRatio}`);
   } else {
     L.push("SWAP VIDÉO — à refaire dans l'onglet « Swap vidéo »");
     const views = job.referenceImages?.length ?? 1;
@@ -238,6 +251,8 @@ export function StudioJobCard({ job, actions }: { job: StudioJob; actions: JobAc
 export function StudioJobPreview({ job, actions, onClose }: { job: StudioJob; actions: JobActions; onClose: () => void }) {
   const output = job.finalOutput || job.videoOutput;
   const talk = job.type === "talking-photo";
+  const create = job.type === "creation";
+  const simple = talk || create;
   return (
     <Modal
       open
@@ -246,9 +261,9 @@ export function StudioJobPreview({ job, actions, onClose }: { job: StudioJob; ac
       title={jobTitle(job)}
       footer={
         <>
-          {!talk && <button className="btn mr-auto" onClick={() => { onClose(); actions.onRedo(job); }}>⟳ Refaire</button>}
+          {!simple && <button className="btn mr-auto" onClick={() => { onClose(); actions.onRedo(job); }}>⟳ Refaire</button>}
           <button className="btn" onClick={() => { onClose(); actions.onUseAsReference(job); }}>Utiliser comme référence</button>
-          {!talk && (
+          {!simple && (
             <button className="btn" onClick={() => { onClose(); actions.onChangeVoice(job); }}>
               {job.voiceMode === "transform" ? "Changer de voix" : "Ajouter une voix"}
             </button>
@@ -282,7 +297,7 @@ export function StudioJobPreview({ job, actions, onClose }: { job: StudioJob; ac
             <p className="dim text-[11px] mono break-all">{engineModel(job.provider)}</p>
             <div className="flex flex-wrap gap-1.5 mt-2">
               {engineVendor(job.provider) && <span className="badge">{engineVendor(job.provider)}</span>}
-              <span className="badge">{talk ? job.talkResolution ?? "480p" : job.resolution}</span>
+              <span className="badge">{talk ? job.talkResolution ?? "480p" : create ? job.createResolution ?? "720p" : job.resolution}</span>
               {!talk && <span className="badge">{job.aspectRatio === "original" ? "format original" : job.aspectRatio}</span>}
               {job.creditsConsumed > 0 ? (
                 <span className="badge">{fmtInt(job.creditsConsumed)} crédits</span>
@@ -296,7 +311,7 @@ export function StudioJobPreview({ job, actions, onClose }: { job: StudioJob; ac
           <div>
             <span className="label-xs block mb-1.5">Son</span>
             <p className="text-[12.5px]">
-              {talk ? (job.talkText ? `Texte lu · ${job.voiceName || job.voiceId}` : "Audio fourni") : VOICE_MODE_LABEL[job.voiceMode]}
+              {soundLabel(job)}
               {job.voiceName && <span className="dim"> · {job.voiceName}</span>}
               {job.voiceEngine && <span className="dim"> · {VOICE_ENGINE_LABEL[job.voiceEngine]}</span>}
               {job.voiceMode === "transform" && job.voiceAmbience && <span className="dim"> · {VOICE_AMBIENCE_LABEL[job.voiceAmbience]}</span>}
@@ -357,10 +372,10 @@ export function StudioJobPreview({ job, actions, onClose }: { job: StudioJob; ac
             )}
           </div>
 
-          {talk && job.talkText && (
+          {simple && job.talkText && (
             <div>
               <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="label-xs">Texte lu</span>
+                <span className="label-xs">{create ? "Script" : "Texte lu"}</span>
                 <CopyButton text={job.talkText} label="Copier" />
               </div>
               <p className="text-[11.5px] leading-relaxed p-2.5 rounded-[8px] whitespace-pre-wrap" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>

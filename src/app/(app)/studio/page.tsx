@@ -23,6 +23,7 @@ import { StudioJobCard, StudioJobPreview, VoicePicker, type JobActions } from "@
 import dynamic from "next/dynamic";
 // Onglets secondaires charges a la demande : le premier ecran du Studio n'a pas a les embarquer.
 const TalkingPhoto = dynamic(() => import("@/components/TalkingPhoto").then((m) => m.TalkingPhoto), { ssr: false });
+const VideoCreate = dynamic(() => import("@/components/VideoCreate").then((m) => m.VideoCreate), { ssr: false });
 import { ACTIVE_STATUSES, type StudioJob } from "@/lib/studio/types";
 import { MediaField } from "@/components/MediaField";
 import { ElementField, ELEMENT_NAME, EMPTY_ELEMENT, type ElementValue } from "@/components/ElementField";
@@ -40,8 +41,8 @@ const KIND_LABEL: Record<ModelKind, string> = {
   swap: "Swap vidéo",
 };
 
-/** Onglets du Studio : les trois familles de modeles, plus la photo qui parle. */
-type StudioTab = ModelKind | "talk";
+/** Onglets du Studio : les trois familles de modeles, la photo qui parle, la creation depuis zero. */
+type StudioTab = ModelKind | "talk" | "create";
 
 function defaultsFor(model: ModelDef): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -79,6 +80,8 @@ function StudioInner() {
 
   const [kind, setKind] = useState<ModelKind>("image");
   const [talkTab, setTalkTab] = useState(false);
+  // « Création » : image de depart + script → video Seedance avec la voix, sans rien filmer.
+  const [createTab, setCreateTab] = useState(false);
   /* Monteur : un rappel des trois gestes du swap, qu'il peut fermer. */
   const { session } = useSession();
   const isEditor = session?.role === "editor";
@@ -132,8 +135,11 @@ function StudioInner() {
     const wanted = params.get("kind");
     if (wanted === "talk") {
       setTalkTab(true);
+    } else if (wanted === "create") {
+      setCreateTab(true);
     } else if (wanted === "video" || wanted === "image" || wanted === "swap") {
       setTalkTab(false);
+      setCreateTab(false);
       const first = firstOfKind(wanted);
       setKind(wanted);
       setModelId(first.id);
@@ -523,25 +529,28 @@ function StudioInner() {
           il défile à l'intérieur si le mode détaillé est déplié.
         */}
         <div
-          className={kind === "swap" && !advancedSwap && !talkTab ? "swap-dock sticky z-20" : undefined}
-          style={kind === "swap" && !advancedSwap && !talkTab ? { bottom: 12, maxHeight: "78vh", overflowY: "auto", borderRadius: 14, boxShadow: "var(--shadow-lg)" } : undefined}
+          className={kind === "swap" && !advancedSwap && !talkTab && !createTab ? "swap-dock sticky z-20" : undefined}
+          style={kind === "swap" && !advancedSwap && !talkTab && !createTab ? { bottom: 12, maxHeight: "78vh", overflowY: "auto", borderRadius: 14, boxShadow: "var(--shadow-lg)" } : undefined}
         >
           <Card>
             <div className="flex flex-col gap-3.5">
               <Tabs<StudioTab>
-                value={talkTab ? "talk" : kind}
+                value={talkTab ? "talk" : createTab ? "create" : kind}
                 onChange={(t) => {
-                  if (t === "talk") { setTalkTab(true); return; }
+                  if (t === "talk") { setTalkTab(true); setCreateTab(false); return; }
+                  if (t === "create") { setCreateTab(true); setTalkTab(false); return; }
                   setTalkTab(false);
+                  setCreateTab(false);
                   switchKind(t);
                 }}
                 options={[
                   ...(["image", "video", "swap"] as ModelKind[]).map((k) => ({ value: k as StudioTab, label: KIND_LABEL[k] })),
+                  { value: "create" as StudioTab, label: "Création" },
                   { value: "talk" as StudioTab, label: "Photo qui parle" },
                 ]}
               />
 
-              {isEditor && !guideClosed && kind === "swap" && !talkTab && (
+              {isEditor && !guideClosed && kind === "swap" && !talkTab && !createTab && (
                 <div
                   className="rounded-[10px] px-3.5 py-2.5 flex items-start gap-3 text-[12.5px] leading-relaxed"
                   style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--accent) 25%, transparent)" }}
@@ -557,7 +566,7 @@ function StudioInner() {
                   </button>
                 </div>
               )}
-              {kind === "image" && !talkTab && (
+              {kind === "image" && !talkTab && !createTab && (
                 <Toggle checked={swap} onChange={setSwap} label="Swap de visage" />
               )}
               {kind === "swap" && advancedSwap && (
@@ -568,6 +577,8 @@ function StudioInner() {
 
               {talkTab ? (
                 <TalkingPhoto jobs={jobs} onQueued={(created) => setJobs((prev) => [...created, ...prev])} />
+              ) : createTab ? (
+                <VideoCreate jobs={jobs} onQueued={(created) => setJobs((prev) => [...created, ...prev])} />
               ) : swap && kind === "image" ? (
                 <FaceSwap onQueued={(g) => setRows((prev) => [g, ...prev])} />
               ) : kind === "swap" && !advancedSwap ? (
