@@ -100,6 +100,8 @@ const EMPTY_DB: DB = {
   workSessions: [],
   testimonials: [],
   taskChecks: [],
+  broll: [],
+  adBoards: [],
 };
 
 function ensureFile() {

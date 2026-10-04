@@ -518,11 +518,14 @@ export interface MediaRef {
   url: string;       // /api/media/xxx si uploadé, sinon lien externe (Drive, WeTransfer…)
   size: number;
   /**
+   * "rush" : les vidéos tournées, la matière du montage.
+   * "photo" : les images à intégrer (produits, captures, visuels) — rangées
+   * à part pour que le monteur ne les cherche pas au milieu des vidéos.
    * "reference" : la vidéo dont le monteur doit reproduire le montage.
    * C'est la consigne la plus utile qu'on puisse lui donner — bien plus
    * précise qu'un brief écrit.
    */
-  kind: "rush" | "reference" | "livrable";
+  kind: "rush" | "photo" | "reference" | "livrable";
   addedBy: "moi" | "monteur";
   addedAt: string;
 }
@@ -805,6 +808,69 @@ export interface DB {
   testimonials: Testimonial[];
   /** Cases cochees de la liste de taches quotidienne, par membre et par jour. */
   taskChecks: TaskCheck[];
+  /** Bibliotheque de B-roll partagee avec le monteur, hors dossiers de montage. */
+  broll: BrollItem[];
+  /** Tableaux de strategie creative (facon Miro) de la section Ads. */
+  adBoards: AdBoard[];
+}
+
+/* ===================================================================== *
+ *                      ADS : tableau de strategie                        *
+ * ===================================================================== */
+
+export type BoardCardKind = "note" | "image" | "link" | "zone";
+
+/**
+ * Une carte posee sur le tableau. Coordonnees et tailles en pixels « monde »,
+ * independantes du zoom.
+ */
+export interface BoardCard {
+  id: string;
+  kind: BoardCardKind;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** note : le texte ; zone et lien : le titre ; image : la legende. */
+  text: string;
+  /** image : /api/media/… ; lien : l'adresse. */
+  url: string;
+  /** Cle de couleur ("" = neutre, "yellow", "green", "blue", "pink", "orange"). */
+  color: string;
+  /** Origine d'un hook repris : "swipe:<id>" ou "script:<id>". Vide sinon. */
+  source: string;
+  /** Ordre d'empilement ; les zones sont toujours derriere. */
+  z: number;
+}
+
+/** Un tableau par dossier Ads, plus un tableau global (`folderId` vide). */
+export interface AdBoard {
+  id: ID;
+  folderId: ID | "";
+  title: string;
+  cards: BoardCard[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Un B-roll : un plan de coupe (video ou image) mis a disposition du monteur
+ * sans etre rattache a un dossier. Il pioche dedans pour les reels comme pour
+ * les pubs. `addedAt` sert au badge « nouveau » de son cote.
+ */
+export interface BrollItem {
+  id: ID;
+  /** Nom du fichier d'origine. */
+  name: string;
+  /** /api/media/<fichier> */
+  url: string;
+  size: number;
+  kind: "video" | "image";
+  /** Ce que montre le plan, ou l'utiliser. */
+  note: string;
+  /** Etiquettes libres : lifestyle, ecran, produit, drone… */
+  tags: string[];
+  addedAt: string;
 }
 
 /** Une tache quotidienne cochee par un membre, un jour donne (heure de Paris). */
@@ -922,6 +988,16 @@ export type AppointmentStatus =
   | "closed-won"
   | "closed-lost";
 
+/**
+ * Confirmation du rendez-vous par le setter, la veille ou le jour meme.
+ *
+ * Demande des closers (octobre 2026) : trop de no-shows. Un call non confirme
+ * est un call a risque ; « pas de reponse » dit au closer de ne pas compter
+ * dessus et au setter de relancer. Distinct du statut, qui suit la vie du
+ * rendez-vous : confirmer un call « booked » le passe en « confirmed ».
+ */
+export type AppointmentConfirmation = "" | "confirmed" | "no-answer";
+
 /** Raison d'un call perdu. Sert aux analytics d'objections. */
 export type LostReason =
   | "too-expensive"
@@ -1010,6 +1086,10 @@ export interface Appointment {
   status: AppointmentStatus;
   /** Rendez-vous juge qualifie par l'admin : sert aux commissions "par rdv qualifie". */
   qualified: boolean;
+  /** Confirmation par le setter. Absent ou "" : pas encore confirme. */
+  confirmation?: AppointmentConfirmation;
+  confirmationAt?: string;
+  confirmationBy?: ID;
   /** Contexte laisse par le setter au closer : budget, objectif, objections. */
   setterNotes: string;
   /** Compte-rendu du closer apres le call. */

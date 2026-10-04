@@ -392,7 +392,8 @@ export function Tabs<T extends string>({
 }: {
   value: T;
   onChange: (v: T) => void;
-  options: { value: T; label: string; count?: number }[];
+  /** `fresh` : nombre d'elements jamais vus, affiche en pastille accentuee. */
+  options: { value: T; label: string; count?: number; fresh?: number }[];
 }) {
   return (
     <div
@@ -414,6 +415,15 @@ export function Tabs<T extends string>({
           >
             {o.label}
             {o.count !== undefined && <span className="dim ml-1.5 num">{o.count}</span>}
+            {o.fresh ? (
+              <span
+                className="ml-1.5 rounded-full px-1.5 text-[10.5px] font-semibold num"
+                style={{ background: "var(--accent)", color: "var(--accent-on)" }}
+                title={`${o.fresh} nouveau${o.fresh > 1 ? "x" : ""}`}
+              >
+                {o.fresh} nouveau{o.fresh > 1 ? "x" : ""}
+              </span>
+            ) : null}
           </button>
         );
       })}

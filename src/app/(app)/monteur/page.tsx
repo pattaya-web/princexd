@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useCollection } from "@/lib/client";
 import { MontageDrive } from "@/components/MontageDrive";
+import { useBrollFresh } from "@/components/BrollLibrary";
 import { PageHeader } from "@/components/ui";
 import type { EditJob } from "@/lib/types";
 
@@ -37,6 +38,7 @@ function Step({ n, title, children, action }: { n: number; title: string; childr
 
 export default function MonteurPage() {
   const { rows } = useCollection<EditJob>("edits");
+  const broll = useBrollFresh("editor");
 
   const counts = useMemo(() => {
     const aMonter = rows.filter((j) => j.status === "a-monter").length;
@@ -51,12 +53,15 @@ export default function MonteurPage() {
       : `${counts.todo} vidéo${counts.todo > 1 ? "s" : ""} à monter` +
         (counts.retouches ? ` dont ${counts.retouches} en retouches` : "") +
         ". Ouvre un dossier pour commencer.";
+  const brollNote = broll.fresh
+    ? ` ${broll.fresh} nouveau${broll.fresh > 1 ? "x" : ""} B-roll t'attend${broll.fresh > 1 ? "ent" : ""} dans l'onglet B-roll.`
+    : "";
 
   return (
     <>
       <PageHeader
         title="Espace monteur"
-        subtitle={subtitle}
+        subtitle={subtitle + brollNote}
         actions={
           <Link href="/studio?kind=swap" className="btn btn-primary">
             ✦ Studio IA · Swap vidéo
@@ -64,9 +69,9 @@ export default function MonteurPage() {
         }
       />
 
-      <div className="grid sm:grid-cols-3 gap-3 mb-6">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <Step n={1} title="Ouvre un dossier « À monter »">
-          Tu y trouves les rushs à télécharger, l&apos;inspiration à reproduire et les consignes. Clique sur
+          Tu y trouves les rushs et les photos à télécharger, l&apos;inspiration à reproduire et les consignes. Clique sur
           <strong> Je commence le montage</strong> pour que Mady sache que tu es dessus.
         </Step>
         <Step
@@ -81,7 +86,12 @@ export default function MonteurPage() {
           Pour remplacer le visage ou la personne d&apos;un rush : <strong>Studio IA → Swap vidéo</strong>. Tu mets la
           vidéo, la photo du personnage, tu cliques Transformer, puis tu télécharges le rendu et tu montes avec.
         </Step>
-        <Step n={3} title="Dépose ta vidéo finie">
+        <Step n={3} title="Pioche dans les B-roll">
+          Onglet <strong>B-roll</strong> ci-dessous : des plans de coupe, du lifestyle, des captures à utiliser
+          librement dans les reels et les pubs. Mady en ajoute régulièrement : une pastille{" "}
+          <strong>nouveau</strong> apparaît sur l&apos;onglet et dans le menu dès qu&apos;il y a du neuf.
+        </Step>
+        <Step n={4} title="Dépose ta vidéo finie">
           Dans le dossier, section <strong>Montage livré</strong>. Il passe tout seul en « Livrée ». Si Mady demande
           des retouches, le dossier revient dans « À monter » avec un badge <strong>Retouches</strong> et son commentaire.
         </Step>

@@ -10,16 +10,18 @@ import { Card, Empty, ErrorNote, Field, Modal, Spinner, Tabs, useToast } from ".
 import { relative } from "@/lib/format";
 import type { EditJob, EditStatus, MediaRef } from "@/lib/types";
 import { thumbUrl, VideoThumb } from "@/components/MediaThumb";
+import { BrollLibrary, useBrollFresh } from "./BrollLibrary";
 
 /**
  * Drive de montage, partage entre moi et le monteur.
  *
  * Un dossier = une video a produire : mes rushs, l'inspiration (lien et
  * video de reference), les consignes, puis le montage livre. Trois onglets
- * suivent la vie du dossier : a monter, livre, termine.
+ * suivent la vie du dossier : a monter, livre, termine. Un quatrieme,
+ * « B-roll », est une bibliotheque hors dossiers ou le monteur se sert.
  */
 
-type Tab = "rushs" | "livrees" | "terminees";
+type Tab = "rushs" | "livrees" | "terminees" | "broll";
 
 const STATUS_LABEL: Record<EditStatus, string> = {
   "rush-a-deposer": "Brouillon",
@@ -111,9 +113,10 @@ function MediaGrid({ items, onRemove }: { items: MediaRef[]; onRemove?: (url: st
 
 function FolderCard({ job, onOpen }: { job: EditJob; onOpen: () => void }) {
   const rushes = job.media.filter((m) => m.kind === "rush");
+  const photos = job.media.filter((m) => m.kind === "photo");
   const refs = job.media.filter((m) => m.kind === "reference");
   const livrables = job.media.filter((m) => m.kind === "livrable");
-  const cover = (livrables[0] ?? rushes[0]) ?? null;
+  const cover = (livrables[0] ?? rushes[0] ?? photos[0]) ?? null;
   return (
     <button
       type="button"
@@ -140,6 +143,7 @@ function FolderCard({ job, onOpen }: { job: EditJob; onOpen: () => void }) {
         <p className="dim text-[11px] mt-1 flex flex-wrap gap-x-2.5">
           <span>{relative(job.createdAt)}</span>
           <span>🎞 {rushes.length} rush{rushes.length > 1 ? "s" : ""}</span>
+          {photos.length > 0 && <span>📷 {photos.length} photo{photos.length > 1 ? "s" : ""}</span>}
           {refs.length > 0 && <span>✨ inspiration</span>}
           {livrables.length > 0 && <span style={{ color: "var(--good)" }}>✓ {livrables.length} livrée{livrables.length > 1 ? "s" : ""}</span>}
           {job.comments.length > 0 && <span>💬 {job.comments.length}</span>}
@@ -185,6 +189,7 @@ function FolderDetail({
   const [comment, setComment] = useState("");
 
   const rushes = job.media.filter((m) => m.kind === "rush");
+  const photos = job.media.filter((m) => m.kind === "photo");
   const refs = job.media.filter((m) => m.kind === "reference");
   const livrables = job.media.filter((m) => m.kind === "livrable");
 
@@ -295,6 +300,23 @@ function FolderDetail({
           </div>
         </Section>
 
+        {(role === "owner" || photos.length > 0) && (
+          <Section title="Photos" hint={photos.length ? `${photos.length} image${photos.length > 1 ? "s" : ""}` : "à intégrer au montage"}>
+            <div className="flex flex-col gap-2">
+              <MediaGrid items={photos} onRemove={role === "owner" ? removeMedia : undefined} />
+              {role === "owner" && (
+                <DropZone
+                  label="Ajouter des photos"
+                  hint="Produits, captures d'écran, visuels… JPG, PNG ou WebP. Plusieurs fichiers possibles."
+                  accept="image/*"
+                  disabled={progress !== null}
+                  onFiles={(f) => void addFiles(f, "photo")}
+                />
+              )}
+            </div>
+          </Section>
+        )}
+
         <Section title="Inspiration" hint="ce que le montage doit reproduire">
           <div className="flex flex-col gap-2">
             {refs.length > 0 ? (
@@ -398,12 +420,13 @@ function NewFolder({
   const [brief, setBrief] = useState("");
   const [refLink, setRefLink] = useState("");
   const [rushes, setRushes] = useState<File[]>([]);
+  const [photos, setPhotos] = useState<File[]>([]);
   const [refFile, setRefFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    const t = title.trim() || (rushes[0]?.name.replace(/\.[^.]+$/, "") ?? "");
+    const t = title.trim() || ((rushes[0] ?? photos[0])?.name.replace(/\.[^.]+$/, "") ?? "");
     if (!t) return;
     setBusy(true);
     try {
@@ -412,6 +435,7 @@ function NewFolder({
         media.push({ name: refLink.trim().replace(/^https?:\/\//, "").slice(0, 60), url: refLink.trim(), size: 0, kind: "reference", addedBy: "moi", addedAt: new Date().toISOString() });
       }
       const uploadedRushes = await uploadAll(rushes, "rush", "moi", setProgress);
+      const uploadedPhotos = await uploadAll(photos, "photo", "moi", setProgress);
       const uploadedRef = refFile ? await uploadAll([refFile], "reference", "moi", setProgress) : [];
       await onCreate({
         title: t,
@@ -426,7 +450,7 @@ function NewFolder({
         dueAt: "",
         assignee: "",
         postId: "",
-        media: [...uploadedRushes, ...uploadedRef, ...media],
+        media: [...uploadedRushes, ...uploadedPhotos, ...uploadedRef, ...media],
         deliveryUrl: "",
         comments: [],
         deliveredAt: "",
@@ -451,7 +475,7 @@ function NewFolder({
       footer={
         <>
           <button className="btn" onClick={onClose} disabled={busy}>Annuler</button>
-          <button className="btn btn-primary" onClick={() => void submit()} disabled={busy || (!title.trim() && !rushes.length)}>
+          <button className="btn btn-primary" onClick={() => void submit()} disabled={busy || (!title.trim() && !rushes.length && !photos.length)}>
             {busy ? <span className="spinner" /> : "Créer le dossier"}
           </button>
         </>
@@ -485,6 +509,29 @@ function NewFolder({
           </div>
         </Field>
 
+        <Field label="Photos" hint="Optionnel. Les images à intégrer au montage : produits, captures, visuels.">
+          <div className="flex flex-col gap-2">
+            {photos.length > 0 && (
+              <ul className="flex flex-col gap-1">
+                {photos.map((f, i) => (
+                  <li key={`${f.name}-${i}`} className="flex items-center gap-2 text-[12px] rounded-[7px] px-2.5 py-1.5" style={{ background: "var(--surface-2)" }}>
+                    <span className="flex-1 min-w-0 truncate">{f.name}</span>
+                    <span className="dim shrink-0">{formatBytes(f.size)}</span>
+                    <button className="btn btn-sm btn-ghost shrink-0" onClick={() => setPhotos((r) => r.filter((_, j) => j !== i))} disabled={busy}>✕</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <DropZone
+              label={photos.length ? "Ajouter d'autres photos" : "Glisse tes photos ici"}
+              hint="JPG, PNG ou WebP. Plusieurs fichiers à la fois."
+              accept="image/*"
+              disabled={busy}
+              onFiles={(f) => setPhotos((r) => [...r, ...f])}
+            />
+          </div>
+        </Field>
+
         <Field label="Inspiration" hint="Optionnel. Un lien vers la vidéo qui t'a plu, et/ou le fichier si tu l'as enregistré.">
           <div className="grid sm:grid-cols-2 gap-2">
             <input className="input" placeholder="Lien Instagram, TikTok, YouTube…" value={refLink} onChange={(e) => setRefLink(e.target.value)} />
@@ -513,6 +560,7 @@ function NewFolder({
 
 export function MontageDrive({ role }: { role: "owner" | "editor" }) {
   const { rows, loading, error, create, patch, destroy } = useCollection<EditJob>("edits");
+  const broll = useBrollFresh(role);
   const [tab, setTab] = useState<Tab>("rushs");
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -523,7 +571,7 @@ export function MontageDrive({ role }: { role: "owner" | "editor" }) {
     [rows, role],
   );
   const byTab = useMemo(() => {
-    const m: Record<Tab, EditJob[]> = { rushs: [], livrees: [], terminees: [] };
+    const m: Record<Tab, EditJob[]> = { rushs: [], livrees: [], terminees: [], broll: [] };
     for (const j of visible) m[TAB_OF[j.status]].push(j);
     for (const k of Object.keys(m) as Tab[]) m[k].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     // Monteur : les retouches demandées passent devant, c'est ce qui bloque Mady.
@@ -550,14 +598,17 @@ export function MontageDrive({ role }: { role: "owner" | "editor" }) {
             { value: "rushs", label: role === "editor" ? "À monter" : "Rushs", count: byTab.rushs.length },
             { value: "livrees", label: "Vidéos livrées", count: byTab.livrees.length },
             { value: "terminees", label: "Postées", count: byTab.terminees.length },
+            { value: "broll", label: "🎞 B-roll", count: broll.rows.length, fresh: broll.fresh },
           ]}
         />
-        {role === "owner" && (
+        {role === "owner" && tab !== "broll" && (
           <button className="btn btn-primary" onClick={() => setCreating(true)}>+ Nouveau dossier</button>
         )}
       </div>
 
-      {!list.length ? (
+      {tab === "broll" ? (
+        <BrollLibrary role={role} />
+      ) : !list.length ? (
         <Card>
           <Empty action={role === "owner" && tab === "rushs" ? <button className="btn btn-primary" onClick={() => setCreating(true)}>+ Nouveau dossier</button> : undefined}>
             {tab === "rushs"

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { JobsDock } from "./JobsDock";
+import { useBrollFresh } from "./BrollLibrary";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, useLocalState } from "@/lib/client";
@@ -477,8 +478,8 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/crm", label: "CRM", icon: "◉" },
       { href: "/eleves", label: "Élèves", icon: "✓" },
       { href: "/sales/agenda", label: "Agenda des calls", icon: "☏" },
-      { href: "/ads/creas", label: "Ads & Scripts", icon: "▶" },
-      { href: "/ads", label: "Meta Ads", icon: "◐" },
+      { href: "/pubs/creas", label: "Ads & Scripts", icon: "▶" },
+      { href: "/pubs", label: "Meta Ads", icon: "◐" },
       { href: "/equipe", label: "Équipe", icon: "⚇" },
     ],
   },
@@ -537,6 +538,25 @@ const ROLE_LABEL: Record<string, string> = {
   editor: "monteur",
 };
 
+/**
+ * Pastille « N » a cote du board du monteur : des B-roll ont ete ajoutes
+ * depuis sa derniere visite de la bibliotheque. Visible depuis le Studio
+ * aussi, pour qu'il ne passe pas a cote.
+ */
+function BrollNavBadge() {
+  const { fresh } = useBrollFresh("editor");
+  if (!fresh) return null;
+  return (
+    <span
+      className="ml-auto rounded-full px-1.5 min-w-[18px] text-center text-[10.5px] font-semibold num"
+      style={{ background: "var(--accent)", color: "var(--accent-on)" }}
+      title={`${fresh} nouveau${fresh > 1 ? "x" : ""} B-roll`}
+    >
+      {fresh}
+    </span>
+  );
+}
+
 function SessionBadge() {
   const { session } = useSession();
   if (!session || session.role === "anonyme") return null;
@@ -583,7 +603,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           {
             section: "Montage",
             items: [
-              { href: "/monteur", label: "Mes vidéos à monter", icon: "✂" },
+              { href: "/monteur", label: "Mes vidéos à monter", icon: "✂", extra: <BrollNavBadge /> },
               { href: "/studio?kind=swap", label: "Swap vidéo (IA)", icon: "✦" },
               { href: "/studio?kind=talk", label: "Photo qui parle", icon: "◉" },
             ],
@@ -658,6 +678,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                         {item.icon}
                       </span>
                       {item.label}
+                      {(item as { extra?: React.ReactNode }).extra}
                     </Link>
                   );
                 })}

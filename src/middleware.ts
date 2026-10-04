@@ -28,6 +28,7 @@ const EDITOR_APIS = [
   "/api/data/edits",
   "/api/data/generations",
   "/api/data/studioCharacters",
+  "/api/data/broll",
   "/api/upload",
   "/api/media/",
   "/api/studio/",

@@ -25,6 +25,8 @@ const ALLOWED: CollectionName[] = [
   "adFolders",
   "studioCharacters",
   "testimonials",
+  "broll",
+  "adBoards",
 ];
 
 function resolve(name: string): CollectionName | null {
