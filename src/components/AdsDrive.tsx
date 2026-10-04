@@ -10,6 +10,7 @@ import { Card, CopyButton, Empty, ErrorNote, Field, Modal, Spinner, Tabs, useToa
 import { DropZone, ProgressBar, uploadMany, type Progress } from "./upload-ui";
 import type { AdFolder, AdInspiration, AdScript, AdScriptStatus } from "@/lib/types";
 import { thumbUrl, VideoThumb } from "@/components/MediaThumb";
+import { StrategyBoard } from "./StrategyBoard";
 
 /**
  * Drive Ads & Scripts.
@@ -19,7 +20,7 @@ import { thumbUrl, VideoThumb } from "@/components/MediaThumb";
  * scripts a tourner — ecrits a la main ou sortis d'une pub par l'IA.
  */
 
-type View = "dossiers" | "a-tourner" | "inspirations";
+type View = "dossiers" | "a-tourner" | "inspirations" | "strategie";
 
 const STATUS_LABEL: Record<AdScriptStatus, string> = {
   "a-tourner": "À tourner",
@@ -134,9 +135,10 @@ function InspirationTile({
   const transcribe = async () => {
     onBusy(insp.url);
     try {
-      const r = await api<{ transcript: string; cached?: boolean }>("/api/ads/transcribe", {
+      const r = await api<{ transcript: string; cached?: boolean }>("/api/pubs/transcribe", {
         method: "POST",
         body: JSON.stringify({ folderId, url: insp.url, force: hasTranscript }),
+        timeoutMs: 300_000,
       });
       await onPatch({ transcript: r.transcript, transcribedAt: now() });
       setOpen(true);
@@ -152,15 +154,17 @@ function InspirationTile({
     onBusy(insp.url);
     try {
       if (!hasTranscript) {
-        const r = await api<{ transcript: string }>("/api/ads/transcribe", {
+        const r = await api<{ transcript: string }>("/api/pubs/transcribe", {
           method: "POST",
           body: JSON.stringify({ folderId, url: insp.url }),
+          timeoutMs: 300_000,
         });
         await onPatch({ transcript: r.transcript, transcribedAt: now() });
       }
-      const r = await api<{ script: AdScript }>("/api/ads/script", {
+      const r = await api<{ script: AdScript }>("/api/pubs/script", {
         method: "POST",
         body: JSON.stringify({ folderId, url: insp.url, brief }),
+        timeoutMs: 240_000,
       });
       onScript(r.script);
       setBrief("");
@@ -490,9 +494,10 @@ function FolderView({
     if (!pasted.trim()) return;
     setPasteBusy(true);
     try {
-      const r = await api<{ script: AdScript }>("/api/ads/script", {
+      const r = await api<{ script: AdScript }>("/api/pubs/script", {
         method: "POST",
         body: JSON.stringify({ folderId: folder.id, transcript: pasted, brief: pastedBrief }),
+        timeoutMs: 240_000,
       });
       await onPatch({ scripts: [r.script, ...folder.scripts] });
       setPasted("");
@@ -732,6 +737,12 @@ export function AdsDrive() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
+  // `?view=strategie` ouvre directement un onglet (lien depuis le menu ou un favori).
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get("view");
+    if (v === "dossiers" || v === "a-tourner" || v === "inspirations" || v === "strategie") setView(v);
+  }, []);
+
   const folders = useMemo(() => [...rows].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [rows]);
   const folder = rows.find((f) => f.id === openId) ?? null;
 
@@ -779,10 +790,16 @@ export function AdsDrive() {
             { value: "dossiers", label: "Dossiers", count: folders.length },
             { value: "a-tourner", label: "À tourner", count: allScripts.length },
             { value: "inspirations", label: "Inspirations", count: allInsp.length },
+            { value: "strategie", label: "🧭 Stratégie" },
           ]}
         />
-        <button className="btn btn-primary" onClick={() => setCreating(true)}>+ Nouveau dossier</button>
+        {view !== "strategie" && (
+          <button className="btn btn-primary" onClick={() => setCreating(true)}>+ Nouveau dossier</button>
+        )}
       </div>
+
+      {/* Tableau libre : hooks, captures, liens et zones, par dossier ou global. */}
+      {view === "strategie" && <StrategyBoard folders={folders} />}
 
       {view === "dossiers" && (
         !folders.length ? (
