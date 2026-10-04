@@ -818,7 +818,8 @@ export interface DB {
  *                      ADS : tableau de strategie                        *
  * ===================================================================== */
 
-export type BoardCardKind = "note" | "image" | "link" | "zone";
+/** "text" : du texte libre sans fond, pour les titres et les grandes idees. */
+export type BoardCardKind = "note" | "text" | "image" | "link" | "zone";
 
 /**
  * Une carte posee sur le tableau. Coordonnees et tailles en pixels « monde »,
@@ -841,14 +842,30 @@ export interface BoardCard {
   source: string;
   /** Ordre d'empilement ; les zones sont toujours derriere. */
   z: number;
+  /** Taille de police en px (notes et textes). Absent = 13 pour une note, 24 pour un texte. */
+  fontSize?: number;
+}
+
+/** Une fleche d'une carte a une autre (zone comprise), avec un libelle facultatif. */
+export interface BoardArrow {
+  id: string;
+  from: string;
+  to: string;
+  /** Meme cle de couleur que les cartes ("" = neutre). */
+  color: string;
+  label: string;
 }
 
 /** Un tableau par dossier Ads, plus un tableau global (`folderId` vide). */
 export interface AdBoard {
   id: ID;
+  /** Dossier Ads lie (source des hooks a importer). "" = aucun. */
   folderId: ID | "";
   title: string;
   cards: BoardCard[];
+  arrows?: BoardArrow[];
+  /** Cle du fond : "dots" (defaut), "grid", "plain", "white", "paper", "dark", "mint". */
+  background?: string;
   createdAt: string;
   updatedAt: string;
 }
