@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { JobsDock } from "./JobsDock";
+import { TodoDock } from "./TodoDock";
 import { useBrollFresh } from "./BrollLibrary";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -736,6 +737,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
       {/* Hors du <main> : il ne doit pas etre remonte a chaque navigation. */}
       <JobsDock />
+      {/* La to-do flottante est la mienne : ni l'equipe commerciale ni le monteur ne la voient. */}
+      {session && !isSalesOnly && !isEditor && <TodoDock />}
       <NewVersionBanner />
     </div>
   );

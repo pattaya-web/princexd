@@ -871,6 +871,27 @@ b {
   max-width: calc(100vw - 32px);
 }
 
+/* Bouton TODO : tout en haut, centré, par-dessus l'en-tête. */
+.todo-launcher {
+  top: 11px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.todo-launcher:hover {
+  filter: brightness(1.06);
+}
+
+/* Téléphone : l'en-tête est déjà plein, le bouton descend en bas à droite. */
+@media (max-width: 767px) {
+  .todo-launcher {
+    top: auto;
+    bottom: 16px;
+    left: auto;
+    right: 16px;
+    transform: none;
+  }
+}
+
 /* Téléphone : le panneau de swap occupe le bas, la file monte sous l'en-tête. */
 @media (max-width: 767px) {
   .jobs-dock {

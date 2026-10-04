@@ -437,6 +437,13 @@ export interface Resource {
   createdAt: string;
 }
 
+/**
+ * Une tache de la to-do flottante (bouton en haut de chaque page).
+ *
+ * `text` est le titre. Les champs optionnels sont arrives avec le panneau
+ * flottant d'octobre 2026 : description courte, notes longues, couleur,
+ * photos de rappel, ordre manuel. Les taches plus anciennes n'en ont pas.
+ */
 export interface Todo {
   id: ID;
   text: string;
@@ -445,6 +452,15 @@ export interface Todo {
   project: string;
   due: string;
   createdAt: string;
+  description?: string;
+  notes?: string;
+  /** Cle de couleur ("" = neutre, "yellow", "green", "blue", "pink", "orange", "red"). */
+  color?: string;
+  /** Images de rappel, stockees dans data/media. */
+  photos?: { url: string; name: string }[];
+  /** Ordre manuel croissant. Absent = tri par date de creation. */
+  order?: number;
+  doneAt?: string;
 }
 
 export interface AdCampaign {
