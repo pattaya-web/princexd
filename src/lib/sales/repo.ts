@@ -408,7 +408,7 @@ export function patchAppointment(
   patch: Partial<
     Pick<
       Appointment,
-      "closerId" | "setterNotes" | "qualified" | "scheduledAt" | "timezone" | "source" | "iclosedUrl" | "status"
+      "closerId" | "setterNotes" | "qualified" | "scheduledAt" | "timezone" | "source" | "iclosedUrl" | "status" | "confirmation"
     >
   > & { setterId?: string },
 ) {
@@ -416,6 +416,39 @@ export function patchAppointment(
   const appt = db.appointments.find((a) => a.id === id);
   if (!appt) throw new Forbidden("Rendez-vous introuvable.");
   if (!canSee(session, appt)) throw new Forbidden();
+
+  /*
+   * Confirmation du rendez-vous : ouverte a quiconque voit la fiche (le
+   * setter, son closer, l'admin). Elle fait avancer le statut : un call
+   * « booked » confirme passe en « confirmed », et retirer la confirmation
+   * le ramene a « booked ». « Pas de reponse » ne touche pas au statut, il
+   * previent juste que le call est a risque.
+   */
+  const { confirmation, ...rest } = patch;
+  patch = rest;
+  if (confirmation !== undefined && confirmation !== (appt.confirmation ?? "")) {
+    const now = new Date().toISOString();
+    appt.confirmation = confirmation;
+    appt.confirmationAt = confirmation ? now : "";
+    appt.confirmationBy = confirmation ? session.memberId : "";
+    if (confirmation === "confirmed" && (appt.status === "booked" || appt.status === "rescheduled")) {
+      pushHistory(appt, session, "confirmed", "Rendez-vous confirmé avec le lead");
+    } else if (confirmation !== "confirmed" && appt.status === "confirmed") {
+      pushHistory(appt, session, "booked", confirmation === "no-answer" ? "Pas de réponse à la confirmation" : "Confirmation retirée");
+    }
+    const lead = db.leads.find((l) => l.id === appt.leadId);
+    log(db, session, {
+      action: "appointment.confirmation",
+      entity: "appointment",
+      entityId: appt.id,
+      summary:
+        confirmation === "confirmed"
+          ? `Rendez-vous de ${lead?.name ?? "un lead"} confirmé`
+          : confirmation === "no-answer"
+            ? `${lead?.name ?? "Le lead"} ne répond pas à la confirmation`
+            : `Confirmation du rendez-vous de ${lead?.name ?? "un lead"} retirée`,
+    });
+  }
 
   // Assigner un closer, requalifier ou changer de setter : decisions d'admin.
   const adminOnly = ["closerId", "qualified", "setterId"] as const;

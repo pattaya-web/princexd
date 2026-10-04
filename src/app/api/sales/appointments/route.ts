@@ -9,7 +9,7 @@ import { entriesFor } from "@/lib/sales/commissions";
 import { rangeFromParams } from "@/lib/sales/period";
 import { inRange } from "@/lib/sales/period";
 import { syncIclosedUpcoming } from "@/lib/sales/iclosed-sync";
-import type { AppointmentSource, AppointmentStatus } from "@/lib/types";
+import type { AppointmentConfirmation, AppointmentSource, AppointmentStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +62,8 @@ export interface AppointmentRow {
   scheduledAt: string;
   timezone: string;
   status: AppointmentStatus;
+  /** Confirmation par le setter : "" tant qu'il n'a pas eu le lead. */
+  confirmation: AppointmentConfirmation;
   source: AppointmentSource;
   qualified: boolean;
   setterId: string;
@@ -112,6 +114,8 @@ export async function GET(req: NextRequest) {
     const statusFilter = p.get("status") ?? "";
     const sourceFilter = p.get("source") ?? "";
     const outcomeFilter = p.get("outcome") ?? ""; // "won" | "lost" | ""
+    // "pending" = pas encore confirme ; sinon la valeur de confirmation.
+    const confirmationFilter = p.get("confirmation") ?? "";
     const query = (p.get("q") ?? "").trim().toLowerCase();
     const limit = Math.min(Number(p.get("limit")) || 200, 1000);
     const offset = Math.max(Number(p.get("offset")) || 0, 0);
@@ -143,6 +147,8 @@ export async function GET(req: NextRequest) {
       if (sourceFilter && a.source !== sourceFilter) return false;
       if (outcomeFilter === "won" && a.status !== "closed-won") return false;
       if (outcomeFilter === "lost" && a.status !== "closed-lost") return false;
+      if (confirmationFilter === "pending" && (a.confirmation ?? "")) return false;
+      if (confirmationFilter && confirmationFilter !== "pending" && (a.confirmation ?? "") !== confirmationFilter) return false;
       if (query) {
         const lead = leads.get(a.leadId);
         const haystack = [
@@ -199,6 +205,7 @@ export async function GET(req: NextRequest) {
         scheduledAt: a.scheduledAt,
         timezone: a.timezone,
         status: a.status,
+        confirmation: a.confirmation ?? "",
         source: a.source,
         qualified: a.qualified,
         setterId: a.setterId,

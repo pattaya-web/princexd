@@ -4,9 +4,9 @@ import { hasRole, sessionHas } from "@/lib/sales/roles";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client";
 import { fmtDateTime, fmtMoney, label, parisDay, parisToIso } from "@/lib/format";
-import { LOST_REASONS, PAYMENT_TYPES } from "@/lib/sales/constants";
+import { canConfirm, LOST_REASONS, PAYMENT_TYPES } from "@/lib/sales/constants";
 import { Field, Modal, Spinner, useToast } from "@/components/ui";
-import { IgHandle, StatusBadge } from "./bits";
+import { ConfirmationSelect, IgHandle, StatusBadge } from "./bits";
 import type { PublicMember } from "@/lib/sales/repo";
 import type {
   ActivityLog,
@@ -649,6 +649,20 @@ export function AppointmentDetail({
               <div className="label-xs">Rendez-vous</div>
               <div className="text-[13px] font-medium num mt-1">{fmtDateTime(appt.scheduledAt)}</div>
               <div className="dim text-[11px] mt-0.5">{appt.timezone}</div>
+              {/* Confirmation par le setter : le closer sait si le call tient. */}
+              {canConfirm(appt.status) && (
+                <div className="mt-2">
+                  <div className="label-xs mb-1">Confirmation</div>
+                  <ConfirmationSelect
+                    id={appt.id}
+                    value={appt.confirmation ?? ""}
+                    onSaved={() => {
+                      void load(appt.id);
+                      onChanged();
+                    }}
+                  />
+                </div>
+              )}
               {/*
                 Le lien de visio, la ou le closer le cherche.
                 C'est ce qui lui permet de tenir le call sans compte iClosed :

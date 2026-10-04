@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { fmtDateTime, fmtTime, isoToParisInput, label as statusLabel, parisDay, SECOND_TZ } from "@/lib/format";
 import { Card } from "@/components/ui";
+import { canConfirm, CONFIRMATION_LABEL } from "@/lib/sales/constants";
 import type { AppointmentRow } from "@/app/api/sales/appointments/route";
 import type { PublicMember } from "@/lib/sales/repo";
 
@@ -14,6 +15,7 @@ function toneOf(r: AppointmentRow): string {
   if (r.status === "closed-lost" || r.status === "no-show") return "#ef4444";
   if (r.status === "completed" || r.status === "follow-up") return "#8b8cf8";
   if (!r.closerId) return "#f59e0b"; // orange : personne pour le prendre
+  if (r.confirmation === "no-answer") return "#ef4444"; // rouge : le lead ne repond pas, call a risque
   if (r.status === "confirmed") return "#22c55e";
   if (r.status === "rescheduled") return "#3b82f6";
   return "var(--emerald)";
@@ -121,6 +123,7 @@ export function CallsCalendar({
                       <div className="text-[13.5px] font-medium truncate">{r.leadName}</div>
                       <div className="dim text-[11px] truncate">
                         {past ? `${statusLabel(r.status)} · ` : ""}
+                        {!past && canConfirm(r.status) ? `${CONFIRMATION_LABEL[r.confirmation]} · ` : ""}
                         {fmtTime(r.scheduledAt, SECOND_TZ)} DXB
                         {role !== "setter" && r.setterName && r.setterName !== "—" ? ` · par ${r.setterName}` : ""}
                         {role === "setter" ? ` · ${r.closerName ? `closer ${r.closerName}` : "closer à attribuer"}` : ""}
@@ -186,6 +189,12 @@ export function CallsCalendar({
                         </div>
                         <div className="text-[12px] truncate">{r.leadName}</div>
                         {past && <div className="text-[10.5px] font-medium truncate" style={{ color: tone }}>{statusLabel(r.status)}</div>}
+                        {!past && canConfirm(r.status) && (
+                          <div className="text-[10.5px] font-medium truncate" style={{ color: r.confirmation === "confirmed" ? "#16a34a" : r.confirmation === "no-answer" ? "#ef4444" : "#f59e0b" }}>
+                            {r.confirmation === "confirmed" ? "✓ " : r.confirmation === "no-answer" ? "✗ " : "? "}
+                            {CONFIRMATION_LABEL[r.confirmation]}
+                          </div>
+                        )}
                         {role !== "setter" && r.setterName && r.setterName !== "—" && (
                           <div className="dim text-[10.5px] truncate">par {r.setterName}</div>
                         )}

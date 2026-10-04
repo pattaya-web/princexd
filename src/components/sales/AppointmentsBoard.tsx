@@ -4,10 +4,10 @@ import { hasRole, sessionHas } from "@/lib/sales/roles";
 import { useMemo, useState } from "react";
 import { fmtDate, fmtDualTime, fmtMoney, label } from "@/lib/format";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
-import { APPOINTMENT_SOURCES, APPOINTMENT_STATUSES } from "@/lib/sales/constants";
+import { APPOINTMENT_SOURCES, APPOINTMENT_STATUSES, canConfirm, CONFIRMATION_LABEL } from "@/lib/sales/constants";
 import { api } from "@/lib/client";
 import { Card, Empty, ErrorNote, Spinner, useToast } from "@/components/ui";
-import { IgHandle, PeriodPicker, StatusBadge, type PeriodState } from "./bits";
+import { ConfirmationSelect, IgHandle, PeriodPicker, StatusBadge, type PeriodState } from "./bits";
 import { AppointmentDetail } from "./AppointmentDetail";
 import type { AppointmentRow } from "@/app/api/sales/appointments/route";
 import type { PublicMember } from "@/lib/sales/repo";
@@ -51,6 +51,7 @@ export function AppointmentsBoard({
   const [status, setStatus] = useState("");
   const [source, setSource] = useState("");
   const [outcome, setOutcome] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   const [q, setQ] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [assigning, setAssigning] = useState("");
@@ -89,6 +90,7 @@ export function AppointmentsBoard({
     status,
     source,
     outcome,
+    confirmation,
     q,
     // Force le rechargement apres une ecriture sans dupliquer l'etat.
     v: String(refreshKey),
@@ -188,6 +190,19 @@ export function AppointmentsBoard({
             <option value="lost">Closed Lost</option>
           </select>
 
+          {/* Les no-shows se jouent ici : retrouver d'un clic les calls pas encore confirmés. */}
+          <select
+            className="select !w-auto !h-[30px] !text-[12px]"
+            value={confirmation}
+            onChange={(e) => setConfirmation(e.target.value)}
+            style={confirmation === "pending" ? { color: "var(--warning)" } : undefined}
+          >
+            <option value="">Confirmation : toutes</option>
+            <option value="pending">{CONFIRMATION_LABEL[""]}</option>
+            <option value="confirmed">{CONFIRMATION_LABEL.confirmed}</option>
+            <option value="no-answer">{CONFIRMATION_LABEL["no-answer"]}</option>
+          </select>
+
           <span className="dim text-[11.5px] num ml-auto">
             {loading ? "…" : `${data?.total ?? 0} rendez-vous`}
           </span>
@@ -221,6 +236,7 @@ export function AppointmentsBoard({
                   <th>Closer</th>
                   <th>Source</th>
                   <th>Statut</th>
+                  <th>Confirmation</th>
                   <th style={{ width: 40 }} />
                   <th className="text-right">Contrat</th>
                   <th className="text-right">Encaissé</th>
@@ -267,6 +283,13 @@ export function AppointmentsBoard({
                     </td>
                     <td>
                       <StatusBadge status={r.status} />
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      {canConfirm(r.status) ? (
+                        <ConfirmationSelect id={r.id} value={r.confirmation} onSaved={afterChange} />
+                      ) : (
+                        <span className="dim">—</span>
+                      )}
                     </td>
                     {/* Lien de visio : le closer rejoint sans ouvrir la fiche. */}
                     <td onClick={(e) => e.stopPropagation()}>

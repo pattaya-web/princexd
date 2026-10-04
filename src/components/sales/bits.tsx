@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { api } from "@/lib/client";
 import { label } from "@/lib/format";
 import { PERIODS, type PeriodKey } from "@/lib/sales/period";
-import { statusTone } from "@/lib/sales/constants";
-import type { AppointmentStatus } from "@/lib/types";
+import { CONFIRMATION_LABEL, CONFIRMATIONS, statusTone } from "@/lib/sales/constants";
+import { useToast } from "@/components/ui";
+import type { AppointmentConfirmation, AppointmentStatus } from "@/lib/types";
 
 /* ------------------------------- Badges -------------------------------- */
 
@@ -22,6 +24,72 @@ export function StatusBadge({ status }: { status: AppointmentStatus }) {
 
 export function Pill({ children, tone }: { children: ReactNode; tone?: "good" | "warn" | "danger" | "accent" }) {
   return <span className={`badge ${tone ? `badge-${tone}` : ""} !text-[10.5px] !py-0`}>{children}</span>;
+}
+
+/* ---------------------------- Confirmation ------------------------------ */
+
+/** Couleur d'une confirmation : vert confirme, rouge pas de reponse, orange en attente. */
+export function confirmationColor(c: AppointmentConfirmation): string {
+  return c === "confirmed" ? "var(--emerald)" : c === "no-answer" ? "var(--critical)" : "var(--warning)";
+}
+
+/**
+ * Menu « Confirmation » d'un rendez-vous : À confirmer / Confirmé / Pas de
+ * réponse. Il enregistre tout de suite, sans ouvrir la fiche : le setter
+ * passe sa liste du lendemain en quelques clics. Colore selon la valeur pour
+ * que les calls a risque sautent aux yeux dans un tableau.
+ */
+export function ConfirmationSelect({
+  id,
+  value,
+  onSaved,
+  className = "",
+}: {
+  id: string;
+  value: AppointmentConfirmation;
+  onSaved?: () => void;
+  className?: string;
+}) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  const save = async (next: AppointmentConfirmation) => {
+    if (next === value) return;
+    setBusy(true);
+    try {
+      await api(`/api/sales/appointments/${id}`, { method: "PATCH", body: JSON.stringify({ confirmation: next }) });
+      toast(
+        next === "confirmed"
+          ? "Rendez-vous confirmé."
+          : next === "no-answer"
+            ? "Pas de réponse notée. Relance le lead avant le call."
+            : "Confirmation remise à zéro.",
+      );
+      onSaved?.();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <select
+      className={`select select-xs !w-auto !text-[12px] font-semibold ${className}`}
+      style={{ color: confirmationColor(value) }}
+      value={value}
+      disabled={busy}
+      title="Le lead a-t-il confirmé sa présence ?"
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => void save(e.target.value as AppointmentConfirmation)}
+    >
+      {CONFIRMATIONS.map((c) => (
+        <option key={c} value={c}>
+          {CONFIRMATION_LABEL[c]}
+        </option>
+      ))}
+    </select>
+  );
 }
 
 /* ------------------------------ Instagram ------------------------------- */

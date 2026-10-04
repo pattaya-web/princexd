@@ -3,6 +3,8 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { canSee, Forbidden, readSession, requireAdmin, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { listLogs, patchAppointment } from "@/lib/sales/repo";
+import { CONFIRMATIONS } from "@/lib/sales/constants";
+import type { AppointmentConfirmation } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +72,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (typeof body.scheduledAt === "string") patch.scheduledAt = body.scheduledAt;
     if (typeof body.timezone === "string") patch.timezone = body.timezone;
     if (typeof body.iclosedUrl === "string") patch.iclosedUrl = body.iclosedUrl;
+    if (typeof body.confirmation === "string" && CONFIRMATIONS.includes(body.confirmation as AppointmentConfirmation)) {
+      patch.confirmation = body.confirmation as AppointmentConfirmation;
+    }
 
     // Pseudo Instagram du contact, saisi a la main depuis le detail du
     // rendez-vous (l'import n'en invente plus). Memes droits que la lecture.

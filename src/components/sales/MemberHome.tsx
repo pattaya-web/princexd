@@ -9,7 +9,8 @@ import { useEffect } from "react";
 import type { WorkSession } from "@/lib/types";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { Card, Empty, ErrorNote, Field, Modal, Spinner, useToast } from "@/components/ui";
-import { IgHandle, StatusBadge } from "./bits";
+import { ConfirmationSelect, IgHandle, StatusBadge } from "./bits";
+import { canConfirm } from "@/lib/sales/constants";
 import { AppointmentDetail } from "./AppointmentDetail";
 import { AppointmentModal } from "./AppointmentModal";
 import { useSales } from "./context";
@@ -87,7 +88,7 @@ export function MemberHome() {
 
   // Les rendez-vous a venir sont la matiere premiere de cet ecran : c'est ce
   // qu'on ouvre le matin, bien avant les statistiques du mois.
-  const { data: upcoming } = useSalesData<{ rows: AppointmentRow[] }>(
+  const { data: upcoming, reload: reloadUpcoming } = useSalesData<{ rows: AppointmentRow[] }>(
     `/api/sales/appointments?period=upcoming&limit=8&v=${version}${both ? `&as=${hat}` : ""}`,
   );
 
@@ -431,6 +432,17 @@ export function MemberHome() {
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <IgHandle username={r.igUsername} muted />
                       <StatusBadge status={r.status} />
+                      {/* Confirmer depuis la liste : c'est le geste anti no-show du setter. */}
+                      {canConfirm(r.status) && (
+                        <ConfirmationSelect
+                          id={r.id}
+                          value={r.confirmation}
+                          onSaved={() => {
+                            void reloadUpcoming();
+                            bump();
+                          }}
+                        />
+                      )}
                       {!isSetter && r.setterName && (
                         <span className="dim text-[11px]">par {r.setterName}</span>
                       )}
@@ -482,14 +494,13 @@ export function MemberHome() {
                 label="Créneaux à confirmer"
                 count={proposed.length}
               />
-              {!isSetter && (
-                <Todo
-                  done={nextCalls.filter((c) => c.status === "booked").length === 0}
-                  label="Calls non confirmés"
-                  count={nextCalls.filter((c) => c.status === "booked").length}
-                  href="/sales/rendez-vous"
-                />
-              )}
+              {/* Les rendez-vous dont le lead n'a pas confirmé sa présence : a relancer avant le call. */}
+              <Todo
+                done={nextCalls.filter((c) => canConfirm(c.status) && !c.confirmation).length === 0}
+                label={isSetter ? "Rendez-vous à confirmer avec le lead" : "Calls non confirmés par le lead"}
+                count={nextCalls.filter((c) => canConfirm(c.status) && !c.confirmation).length}
+                href="/sales/rendez-vous"
+              />
             </div>
           </Card>
         </div>

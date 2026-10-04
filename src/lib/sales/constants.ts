@@ -6,6 +6,7 @@
  * Ce fichier est pur : il est importe aussi bien cote serveur que navigateur.
  */
 import type {
+  AppointmentConfirmation,
   AppointmentSource,
   AppointmentStatus,
   CommissionType,
@@ -136,6 +137,19 @@ export const NEXT_STATUSES: Record<AppointmentStatus, AppointmentStatus[]> = {
   "closed-won": ["closed-lost"],
   "closed-lost": ["follow-up", "closed-won"],
 };
+
+/** Choix du menu « Confirmation », dans l'ordre d'affichage. */
+export const CONFIRMATIONS: AppointmentConfirmation[] = ["", "confirmed", "no-answer"];
+
+export const CONFIRMATION_LABEL: Record<AppointmentConfirmation, string> = {
+  "": "À confirmer",
+  confirmed: "Confirmé",
+  "no-answer": "Pas de réponse",
+};
+
+/** Statuts pour lesquels confirmer a encore un sens : le call n'a pas eu lieu. */
+export const CONFIRMABLE: AppointmentStatus[] = ["booked", "confirmed", "rescheduled"];
+export const canConfirm = (status: AppointmentStatus) => CONFIRMABLE.includes(status);
 
 /** Resultats proposes au closer a la fin d'un call. */
 export const CALL_OUTCOMES: AppointmentStatus[] = [
