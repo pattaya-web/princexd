@@ -87,12 +87,29 @@ export async function transcribe(
   const hint = opts.prompt?.trim();
   if (hint) form.append("prompt", hint.slice(0, 300));
 
-  const res = await fetch(`${OPENAI_BASE}/audio/transcriptions`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}` },
-    body: form,
-    cache: "no-store",
-  });
+  /*
+   * Quatre minutes maximum. Sans borne, un DNS qui ne repond pas ou une
+   * connexion qui se fige laissaient la requete ouverte pour toujours, et le
+   * bouton « Transcrire » tournait a l'infini cote navigateur.
+   */
+  let res: Response;
+  try {
+    res = await fetch(`${OPENAI_BASE}/audio/transcriptions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}` },
+      body: form,
+      cache: "no-store",
+      signal: AbortSignal.timeout(240_000),
+    });
+  } catch (e) {
+    const name = (e as Error).name;
+    throw new OpenAiError(
+      name === "TimeoutError" || name === "AbortError"
+        ? "OpenAI n'a pas répondu en 4 minutes. Réessaie dans un instant."
+        : `Impossible de joindre OpenAI : ${(e as Error).message}`,
+      504,
+    );
+  }
 
   const text = await res.text();
   let json: TranscriptionResponse;

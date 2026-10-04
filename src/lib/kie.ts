@@ -120,19 +120,33 @@ export async function askText(prompt: string, system: string, maxTokens = 8000):
   if (!key) throw new KieError("Aucune cle API KIE configuree.", 401);
   const model = getSettings().kieTextModel;
 
-  const res = await fetch(`${KIE_BASE}/v1/chat/completions`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: prompt },
-      ],
-    }),
-    cache: "no-store",
-  });
+  // Trois minutes maximum : sans borne, un reseau fige laissait « Sortir un
+  // script » tourner a l'infini dans le navigateur.
+  let res: Response;
+  try {
+    res = await fetch(`${KIE_BASE}/v1/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        max_tokens: maxTokens,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: prompt },
+        ],
+      }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(180_000),
+    });
+  } catch (e) {
+    const name = (e as Error).name;
+    throw new KieError(
+      name === "TimeoutError" || name === "AbortError"
+        ? "Le modele texte KIE n'a pas repondu en 3 minutes. Reessaie dans un instant."
+        : `Impossible de joindre KIE : ${(e as Error).message}`,
+      504,
+    );
+  }
 
   const text = await res.text();
   if (!res.ok) {

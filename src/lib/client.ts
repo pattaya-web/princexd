@@ -3,11 +3,29 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CollectionName } from "./types";
 
-export async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-  });
+/**
+ * Appel JSON vers le serveur.
+ *
+ * `timeoutMs` borne l'attente : au-dela, l'appel echoue avec un message
+ * lisible au lieu de laisser un bouton tourner sans fin quand le serveur ou
+ * le reseau ne repond plus.
+ */
+export async function api<T>(url: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
+  const { timeoutMs, ...rest } = init ?? {};
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...rest,
+      headers: { "Content-Type": "application/json", ...(rest.headers ?? {}) },
+      ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
+    });
+  } catch (e) {
+    const name = (e as Error).name;
+    if (name === "TimeoutError" || name === "AbortError") {
+      throw new Error(`Le serveur n'a pas répondu en ${Math.round((timeoutMs ?? 0) / 60_000)} min. Réessaie, ou vérifie ta connexion.`);
+    }
+    throw new Error("Connexion au serveur impossible. Vérifie ta connexion et réessaie.");
+  }
   const text = await res.text();
   let body: unknown = null;
   try {
