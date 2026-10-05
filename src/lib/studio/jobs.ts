@@ -1,5 +1,7 @@
 import { newId, readDB, writeDB } from "@/lib/db";
-import { MAX_CONCURRENT_GENERATIONS, MAX_VARIANTS, PROVIDER_IDS, PROVIDERS, STALE_STEP_MS } from "./config";
+import { AUTO_PRIORITY, MAX_CONCURRENT_GENERATIONS, MAX_VARIANTS, PROVIDER_IDS, PROVIDERS, STALE_STEP_MS } from "./config";
+import { providerRejects } from "./select-provider";
+import type { ProviderId } from "./types";
 import { quote } from "./costs";
 import { warmThumb } from "@/lib/thumbs";
 import { downloadToMedia, ensureLocal, extractAudioMp3, isAllowedRemote, localMediaPath, MediaError, muxAudio, probe, retimeVideo, storeBuffer, stripAudio } from "./media";
@@ -348,10 +350,54 @@ async function pollOne(job: StudioJob) {
     });
     if (updated) void runFinish(updated);
   } else if (r.state === "fail") {
+    if (await fallbackAfterFailure(job, r.error)) return;
     await fail(job.id, readableProviderError(job.provider, r.error), { creditsConsumed: r.creditsConsumed || job.creditsConsumed });
   } else if (r.progress !== job.progress) {
     await patchJob(job.id, { progress: r.progress });
   }
+}
+
+/**
+ * Repli automatique.
+ *
+ * Quand un modele echoue sans raison (« Generation failed » chez Higgsfield,
+ * vu deux fois de suite sur la meme video le 2026-10-05 alors que les entrees
+ * etaient bonnes), on ne laisse pas une carte rouge : le job repart sur le
+ * modele suivant de la liste Auto qui accepte la video. Une seule fois, et
+ * jamais sur un refus explicite (moderation, duree, format), qui se
+ * reproduirait ailleurs.
+ */
+const GENERIC_FAILURE = /^(generation failed|failed|internal error|unknown error)\.?$/i;
+
+async function fallbackAfterFailure(job: StudioJob, rawError: string): Promise<boolean> {
+  if (job.type !== "video-transform" || job.fallbackFrom) return false;
+  if (!GENERIC_FAILURE.test((rawError || "").trim())) return false;
+  if (!(job.provider in PROVIDERS)) return false;
+  const from = job.provider as ProviderId;
+  const hasProduct = (job.productImages ?? []).length > 0;
+  const input = { transform: job.transform, durationSec: job.sourceDurationSec || undefined, hasProduct };
+  const order = AUTO_PRIORITY[job.transform] ?? AUTO_PRIORITY.full;
+  const next = order.find((id) => id !== from && (!hasProduct || PROVIDERS[id].supportsProduct) && !providerRejects(id, input));
+  if (!next) return false;
+  await patchJob(job.id, {
+    status: "queued",
+    provider: next,
+    fallbackFrom: from,
+    fallbackNote: `${PROVIDERS[from].label} a échoué sans raison : relancé automatiquement sur ${PROVIDERS[next].label}.`,
+    progress: 0,
+    retimed: false,
+    remoteSourceUrl: "",
+    remoteProductUrls: [],
+    remoteReferenceUrls: [],
+    remoteSceneUrl: "",
+    remoteSceneImageUrl: "",
+    providerJobId: "",
+    providerInput: {},
+    remoteVideoUrl: "",
+    error: "",
+    completedAt: "",
+  });
+  return true;
 }
 
 /* ------------------------------ Boucle ------------------------------ */

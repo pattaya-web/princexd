@@ -137,6 +137,10 @@ export interface StudioJob {
   batchId: string;
   provider: ProviderId | ExtraEngine;
   requestedProvider: ProviderChoice;
+  /** Modele qui a echoue sans raison avant le repli automatique sur `provider`. */
+  fallbackFrom?: ProviderId;
+  /** Phrase affichee sur la carte : « Genjutsu a échoué, relancé sur Wan Animate ». */
+  fallbackNote?: string;
   transform: TransformType;
   style: StyleId;
 

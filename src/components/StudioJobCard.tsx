@@ -238,6 +238,7 @@ export function StudioJobCard({ job, actions }: { job: StudioJob; actions: JobAc
                   )}
                 </div>
                 <span className="dim text-[10px] truncate">{engineLabel(job.provider)}</span>
+                {job.fallbackNote && <span className="text-[10px] leading-snug" style={{ color: "var(--warning)" }}>{job.fallbackNote}</span>}
               </>
             )}
           </div>
