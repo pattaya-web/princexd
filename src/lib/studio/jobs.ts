@@ -368,10 +368,19 @@ async function pollOne(job: StudioJob) {
  * reproduirait ailleurs.
  */
 const GENERIC_FAILURE = /^(generation failed|failed|internal error|unknown error)\.?$/i;
+/*
+ * Le filtre de securite de Higgsfield bloque le RESULTAT (pas les fichiers) :
+ * un personnage en debardeur suffit. Les modeles KIE ont un autre filtre, le
+ * meme rendu passe souvent chez eux. On replie donc aussi dans ce cas.
+ */
+const MODERATION = /content safety|modération|moderation|nsfw|safety check/i;
 
 async function fallbackAfterFailure(job: StudioJob, rawError: string): Promise<boolean> {
   if (job.type !== "video-transform" || job.fallbackFrom) return false;
-  if (!GENERIC_FAILURE.test((rawError || "").trim())) return false;
+  const raw = (rawError || "").trim();
+  const generic = GENERIC_FAILURE.test(raw);
+  const moderated = MODERATION.test(raw);
+  if (!generic && !moderated) return false;
   if (!(job.provider in PROVIDERS)) return false;
   const from = job.provider as ProviderId;
   const hasProduct = (job.productImages ?? []).length > 0;
@@ -383,7 +392,9 @@ async function fallbackAfterFailure(job: StudioJob, rawError: string): Promise<b
     status: "queued",
     provider: next,
     fallbackFrom: from,
-    fallbackNote: `${PROVIDERS[from].label} a échoué sans raison : relancé automatiquement sur ${PROVIDERS[next].label}.`,
+    fallbackNote: moderated
+      ? `${PROVIDERS[from].label} a refusé le résultat (modération) : relancé automatiquement sur ${PROVIDERS[next].label}.`
+      : `${PROVIDERS[from].label} a échoué sans raison : relancé automatiquement sur ${PROVIDERS[next].label}.`,
     progress: 0,
     retimed: false,
     remoteSourceUrl: "",
