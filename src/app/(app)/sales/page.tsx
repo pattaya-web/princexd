@@ -7,6 +7,7 @@ import { fmtDate, fmtDualTime, fmtInt, fmtMoney, label } from "@/lib/format";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { Card, Empty, ErrorNote, PageHeader, Spinner, StatTile } from "@/components/ui";
 import { Funnel, PeriodPicker, Ratio } from "@/components/sales/bits";
+import { OffersCard } from "@/components/sales/OffersCard";
 import { AppointmentModal } from "@/components/sales/AppointmentModal";
 import { useSales } from "@/components/sales/context";
 import { MemberHome } from "@/components/sales/MemberHome";
@@ -159,6 +160,8 @@ export default function SalesDashboardPage() {
               hint={`${fmtInt(k.sales)} sur ${fmtInt(k.appointments)}`}
             />
           </div>
+
+          {session.isAdmin && <OffersCard editable />}
 
           <div className="grid lg:grid-cols-2 gap-4 items-start">
             <Card title="Funnel">

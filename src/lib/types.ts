@@ -121,6 +121,8 @@ export interface Settings {
   editorName: string;
   /** Devise du module commercial (ISO 4217). Les offres sont vendues en dollars. */
   salesCurrency: string;
+  /** Les offres a vendre, dans l'ordre de pitch. Ecrites par l'admin, lues par les closers. */
+  salesOffers?: SalesOffer[];
   /**
    * Synchronisation automatique des rendez-vous iClosed.
    *
@@ -1030,6 +1032,15 @@ export type AppointmentStatus =
  * rendez-vous : confirmer un call « booked » le passe en « confirmed ».
  */
 export type AppointmentConfirmation = "" | "confirmed" | "no-answer";
+
+/** Une offre du catalogue : ce que le closer vend, a quel prix, avec quels arguments. */
+export interface SalesOffer {
+  id: string;
+  name: string;
+  /** Prix affiche, dans la devise des ventes (salesCurrency). 0 = non precise. */
+  price: number;
+  description: string;
+}
 
 /** Raison d'un call perdu. Sert aux analytics d'objections. */
 export type LostReason =

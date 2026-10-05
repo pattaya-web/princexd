@@ -3,6 +3,7 @@
 import { hasRole, sessionHas } from "@/lib/sales/roles";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client";
+import { useSalesData } from "@/lib/sales/client";
 import { fmtDateTime, fmtMoney, label, parisDay, parisToIso } from "@/lib/format";
 import { canConfirm, LOST_REASONS, PAYMENT_TYPES } from "@/lib/sales/constants";
 import { Field, Modal, Spinner, useToast } from "@/components/ui";
@@ -88,6 +89,14 @@ export function AppointmentDetail({
   const [closerNotes, setCloserNotes] = useState("");
   const [lostReason, setLostReason] = useState<LostReason>("too-expensive");
   const [offer, setOffer] = useState("");
+  /* Catalogue d'offres (Sales Dashboard) : on choisit, le prix se pré-remplit. */
+  const { data: catalog } = useSalesData<{ offers: { id: string; name: string; price: number }[] }>("/api/sales/offers");
+  const offerList = catalog?.offers ?? [];
+  const pickOffer = (name: string) => {
+    setOffer(name);
+    const o = offerList.find((x) => x.name === name);
+    if (o?.price) setContractValue(String(o.price));
+  };
   const [contractValue, setContractValue] = useState("");
   const [cashCollected, setCashCollected] = useState("");
   const [paymentType, setPaymentType] = useState<PaymentType>("paid-in-full");
@@ -496,13 +505,37 @@ export function AppointmentDetail({
           {effective === "closed-won" && (
             <div className="grid sm:grid-cols-2 gap-3">
               <Field label="Offre vendue" className="sm:col-span-2">
-                <input
-                  className="input"
-                  value={offer}
-                  placeholder="Coaching 1:1 e-commerce"
-                  onChange={(e) => setOffer(e.target.value)}
-                  autoFocus
-                />
+                {offerList.length > 0 ? (
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-wrap gap-1.5">
+                      {offerList.map((o) => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          className={`btn btn-sm ${offer === o.name ? "btn-primary" : ""}`}
+                          onClick={() => pickOffer(o.name)}
+                          title={o.price ? `${o.price} ${detail.currency}` : undefined}
+                        >
+                          {o.name}{o.price ? ` · ${o.price}` : ""}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      className="input"
+                      value={offer}
+                      placeholder="Ou une autre offre…"
+                      onChange={(e) => setOffer(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <input
+                    className="input"
+                    value={offer}
+                    placeholder="Coaching 1:1 e-commerce"
+                    onChange={(e) => setOffer(e.target.value)}
+                    autoFocus
+                  />
+                )}
               </Field>
               <Field label={`Valeur du contrat (${detail.currency})`}>
                 <input

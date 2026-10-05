@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/client";
 import { fmtDualDateTime, fmtDay, fmtInt, fmtMoney, fmtTime, relative } from "@/lib/format";
 import { CallsCalendar } from "./CallsCalendar";
+import { OffersCard } from "./OffersCard";
 import { useEffect } from "react";
 import type { WorkSession } from "@/lib/types";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
@@ -291,6 +292,9 @@ export function MemberHome() {
             </div>
           )}
         </div>
+
+        {/* ------------------------------- Offres ------------------------------- */}
+        {!isSetter && <OffersCard />}
 
         {/* ----------------------------- Calendrier --------------------------- */}
         <CallsCalendar
