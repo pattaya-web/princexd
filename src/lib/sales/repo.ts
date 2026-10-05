@@ -319,13 +319,14 @@ export function recordOutcome(session: Session, id: string, input: OutcomeInput)
   /* --- Vente --- */
   if (input.status === "closed-won" && input.sale) {
     const closerId = appt.closerId || session.memberId;
-    sale = {
-      id: newId(),
-      leadId: appt.leadId,
-      appointmentId: appt.id,
-      // Attribution figee : elle vient du rendez-vous, jamais du lead.
-      setterId: appt.setterId,
-      closerId,
+    /*
+     * Un rendez-vous = une vente. Re-enregistrer « closé » sur le meme call
+     * (pour corriger un montant, par exemple) met a jour la vente existante :
+     * avant, chaque passage en creait une nouvelle et le dashboard cumulait
+     * 3 000 + 2 500 au lieu d'afficher 2 500 (vu le 2026-10-05).
+     */
+    const existing = db.sales.find((s) => s.appointmentId === appt.id && s.status !== "cancelled") ?? null;
+    const values = {
       offer: input.sale.offer.trim(),
       contractValue: Math.max(0, input.sale.contractValue || 0),
       cashCollected: Math.max(0, input.sale.cashCollected || 0),
@@ -334,28 +335,48 @@ export function recordOutcome(session: Session, id: string, input: OutcomeInput)
       installments: Math.max(0, input.sale.installments || 0),
       paymentMethod: input.sale.paymentMethod || "",
       soldAt: input.sale.soldAt || now,
-      status: "active",
-      refundAmount: 0,
-      refundedAt: "",
       notes: input.sale.notes || "",
-      createdBy: session.memberId,
-      createdAt: now,
-      updatedAt: now,
     };
-    db.sales.unshift(sale);
+    if (existing) {
+      const before = `${existing.contractValue} ${existing.currency} (${existing.cashCollected} encaissés)`;
+      Object.assign(existing, values, { closerId, updatedAt: now });
+      sale = existing;
+      log(db, session, {
+        action: "sale.updated",
+        entity: "sale",
+        entityId: sale.id,
+        summary: `Vente corrigée par ${memberName(db, closerId)} : ${before} → ${sale.contractValue} ${sale.currency} (${sale.cashCollected} encaissés)`,
+      });
+    } else {
+      sale = {
+        id: newId(),
+        leadId: appt.leadId,
+        appointmentId: appt.id,
+        // Attribution figee : elle vient du rendez-vous, jamais du lead.
+        setterId: appt.setterId,
+        closerId,
+        ...values,
+        status: "active",
+        refundAmount: 0,
+        refundedAt: "",
+        createdBy: session.memberId,
+        createdAt: now,
+        updatedAt: now,
+      };
+      db.sales.unshift(sale);
+      log(db, session, {
+        action: "sale.created",
+        entity: "sale",
+        entityId: sale.id,
+        summary: `Vente de ${sale.contractValue} ${sale.currency} enregistrée par ${memberName(db, closerId)} (setter : ${memberName(db, appt.setterId)})`,
+      });
+    }
 
     if (lead) {
       lead.stage = "closed-won";
       lead.dealValue = sale.contractValue;
       lead.closerId = closerId;
     }
-
-    log(db, session, {
-      action: "sale.created",
-      entity: "sale",
-      entityId: sale.id,
-      summary: `Vente de ${sale.contractValue} ${sale.currency} enregistrée par ${memberName(db, closerId)} (setter : ${memberName(db, appt.setterId)})`,
-    });
   }
 
   /* --- Relance --- */
