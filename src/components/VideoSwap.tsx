@@ -327,6 +327,12 @@ export function VideoSwap({
   const [productDesc, setProductDesc] = useState("");
   const [productBusy, setProductBusy] = useState(0);
   const [resolution, setResolution] = useLocalState<Resolution>("swap-resolution", "720p");
+  useEffect(() => {
+    if (provider !== "auto" && !PROVIDERS[provider].resolutions.includes(resolution)) {
+      setResolution(PROVIDERS[provider].resolutions[0] as Resolution);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider]);
   const [aspectRatio, setAspectRatio] = useLocalState<AspectChoice>("swap-aspect", "original");
   const [variants, setVariants] = useState(1);
 
@@ -894,7 +900,7 @@ export function VideoSwap({
               ))}
             </select>
             <div className="inline-flex rounded-full p-0.5" style={{ border: "1px solid var(--border)", background: "var(--surface)" }}>
-              {RESOLUTIONS.map((r) => (
+              {RESOLUTIONS.filter((r) => provider === "auto" || PROVIDERS[provider].resolutions.includes(r)).map((r) => (
                 <button key={r} type="button" className="px-2.5 h-[26px] rounded-full text-[12px]" disabled={disabledAll} onClick={() => setResolution(r)} style={resolution === r ? { background: "var(--accent)", color: "var(--accent-on)" } : undefined}>{r}</button>
               ))}
             </div>
@@ -1315,7 +1321,7 @@ export function VideoSwap({
         <div className="flex flex-col gap-1">
           <span className="label-xs">Résolution</span>
           <div className="flex gap-1.5">
-            {RESOLUTIONS.map((r) => <Chip key={r} active={resolution === r} onClick={() => setResolution(r)} disabled={disabledAll}>{r}</Chip>)}
+            {RESOLUTIONS.filter((r) => provider === "auto" || PROVIDERS[provider].resolutions.includes(r)).map((r) => <Chip key={r} active={resolution === r} onClick={() => setResolution(r)} disabled={disabledAll}>{r}</Chip>)}
           </div>
         </div>
         <div className="flex flex-col gap-1">

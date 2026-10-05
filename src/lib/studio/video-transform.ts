@@ -225,8 +225,15 @@ export function readableProviderError(provider: StudioJob["provider"], raw: stri
   let why = raw?.trim() ?? "";
   if (m.includes("file type") || m.includes("not supported")) {
     why = "format de fichier refusé (vidéo en MP4/MOV, image en JPG/PNG).";
-  } else if (m.includes("ratio")) {
+  } else if (/^generation failed\.?$/.test(m) || m === "failed") {
+    // Higgsfield ne dit rien de plus. Dans les cas vus, la cause etait du
+    // cote des entrees : pas de visage net sur la reference, ou un swap que
+    // le modele n'a pas su tenir sur cette video.
+    why =
+      "le modèle n'a pas réussi ce rendu (Higgsfield ne donne pas la raison). À essayer : une photo de référence avec le visage bien visible de face en première position, une consigne plus simple, ou une autre vidéo source. Réessayer tel quel marche parfois.";
+  } else if (/(aspect )?ratio/.test(m)) {
     // Avant « duration » : le refus de ratio de Seedance cite aussi la duree.
+    // Mot entier : « Generation failed » contient « ratio » et tombait ici a tort.
     why = "format de sortie refusé par le modèle (il doit suivre la vidéo source).";
   } else if (m.includes("not within the range") || m.includes("allowed options")) {
     why = "un réglage envoyé n'est pas accepté par le modèle.";
