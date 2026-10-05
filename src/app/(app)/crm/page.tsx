@@ -2,6 +2,7 @@
 
 import { EntityView } from "@/components/EntityView";
 import { StatTile } from "@/components/ui";
+import { InstallmentAlerts } from "@/components/sales/InstallmentAlerts";
 import { LEADS } from "@/lib/schemas";
 import { fmtEur, fmtInt, fmtPct } from "@/lib/format";
 import type { Lead } from "@/lib/types";
@@ -18,11 +19,15 @@ export default function CrmPage() {
         const inPipe = leads.filter((l) => !l.stage.startsWith("closed"));
         const decided = won.length + lost.length;
         return (
+          <div className="flex flex-col gap-3">
+          {/* Échéances de paiement du jour : l'alerte demandée par le closer, visible aussi ici. */}
+          <InstallmentAlerts horizon={7} />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatTile label="Pipeline ouvert" value={fmtEur(inPipe.reduce((a, l) => a + (l.dealValue || 0), 0))} hint={`${inPipe.length} leads actifs`} />
             <StatTile label="Closé" value={fmtEur(won.reduce((a, l) => a + (l.dealValue || 0), 0))} hint={`${won.length} ventes`} accent="var(--good)" />
             <StatTile label="Taux de closing" value={decided ? fmtPct((won.length / decided) * 100) : "—"} hint={decided ? `${won.length} / ${decided} décidés` : "Aucun deal tranché"} />
             <StatTile label="Calls bookés" value={fmtInt(leads.filter((l) => l.stage === "call-book").length)} />
+          </div>
           </div>
         );
       }}

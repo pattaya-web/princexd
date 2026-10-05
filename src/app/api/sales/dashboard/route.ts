@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { readDB } from "@/lib/db";
 import { readSession, requireSales } from "@/lib/sales/access";
+import { installmentAlerts } from "@/lib/sales/installments";
 import { handle } from "@/lib/sales/http";
 import { rangeFromParams, inRange } from "@/lib/sales/period";
 import {
@@ -122,6 +123,11 @@ export async function GET(req: NextRequest) {
         overdue: pendingFollowUps.filter((f) => f.dueAt < new Date().toISOString()).length,
         pending: pendingFollowUps.length,
       },
+      // Echeances de paiement arrivees a date (aujourd'hui ou en retard).
+      installments: (() => {
+        const alerts = installmentAlerts(db, session, 0);
+        return { due: alerts.length, overdue: alerts.filter((a) => a.state === "overdue").length };
+      })(),
       members: session.isAdmin ? db.team.map(publicMember) : [],
       logs: session.isAdmin ? db.activityLogs.slice(0, 12) : [],
       activity: session.isAdmin ? recentActivity(db) : null,

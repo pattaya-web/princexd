@@ -1,7 +1,7 @@
 "use client";
 
 import { hasRole, sessionHas } from "@/lib/sales/roles";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fmtDate, fmtDualTime, fmtMoney, label } from "@/lib/format";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { APPOINTMENT_SOURCES, APPOINTMENT_STATUSES, canConfirm, CONFIRMATION_LABEL } from "@/lib/sales/constants";
@@ -54,6 +54,11 @@ export function AppointmentsBoard({
   const [confirmation, setConfirmation] = useState("");
   const [q, setQ] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  // `?open=<id>` (lien depuis une alerte du CRM) ouvre directement la fiche.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("open");
+    if (id) setOpenId(id);
+  }, []);
   const [assigning, setAssigning] = useState("");
   const toast = useToast();
 

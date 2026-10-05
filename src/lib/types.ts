@@ -1195,6 +1195,22 @@ export interface Sale {
    * la commission sur le cash tombe au mois ou l'argent arrive vraiment.
    */
   collections?: SaleCollection[];
+  /**
+   * Plan de paiement en plusieurs fois : les echeances a venir, calculees a
+   * la vente (un mois d'ecart, reste reparti) et modifiables ensuite. La
+   * premiere echeance (cash du jour) n'y figure pas.
+   */
+  schedule?: SaleInstallment[];
+}
+
+/** Une echeance de paiement. `paidAt` vide tant qu'elle n'est pas encaissee. */
+export interface SaleInstallment {
+  /** Numero dans le plan, premiere echeance (cash du jour) = 1. */
+  n: number;
+  /** AAAA-MM-JJ. */
+  dueAt: string;
+  amount: number;
+  paidAt: string;
 }
 
 export interface SaleCollection {

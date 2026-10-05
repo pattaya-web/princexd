@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client";
 import { useSalesData } from "@/lib/sales/client";
 import { fmtDateTime, fmtMoney, label, parisDay, parisToIso } from "@/lib/format";
-import { canConfirm, LOST_REASONS, PAYMENT_TYPES } from "@/lib/sales/constants";
+import { canConfirm, LOST_REASONS } from "@/lib/sales/constants";
+import { buildSchedule } from "@/lib/sales/installments";
 import { Field, Modal, Spinner, useToast } from "@/components/ui";
 import { ConfirmationSelect, IgHandle, StatusBadge } from "./bits";
 import type { PublicMember } from "@/lib/sales/repo";
@@ -99,9 +100,8 @@ export function AppointmentDetail({
   };
   const [contractValue, setContractValue] = useState("");
   const [cashCollected, setCashCollected] = useState("");
-  const [paymentType, setPaymentType] = useState<PaymentType>("paid-in-full");
-  const [installments, setInstallments] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("");
+  /* « Payé en N fois » : 1 = comptant. Les échéances suivantes se calculent toutes seules. */
+  const [installments, setInstallments] = useState("1");
   const [followUpAt, setFollowUpAt] = useState("");
   const [followUpNotes, setFollowUpNotes] = useState("");
   const [rescheduledAt, setRescheduledAt] = useState("");
@@ -145,6 +145,37 @@ export function AppointmentDetail({
   const [colAt, setColAt] = useState(parisDay(0));
   const [colMethod, setColMethod] = useState("");
   const [colNote, setColNote] = useState("");
+  /** Une échéance encaissée en un clic : le montant prévu, aujourd'hui. */
+  const collectInstallment = async (n: number, amount: number) => {
+    if (!detail?.sale || !appt) return;
+    setSaving(true);
+    try {
+      const r = await api<{ remaining: number }>(`/api/sales/deals/${detail.sale.id}`, {
+        method: "POST",
+        body: JSON.stringify({ amount, installmentN: n, note: `Échéance ${n}` }),
+      });
+      toast(r.remaining > 0 ? `Échéance ${n} encaissée. Reste ${fmtMoney(r.remaining, detail.sale.currency)}.` : `Échéance ${n} encaissée : contrat soldé.`);
+      await load(appt.id);
+      onChanged();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setSaving(false);
+    }
+  };
+  /** Déplacer une échéance. */
+  const setDue = async (n: number, dueAt: string) => {
+    if (!detail?.sale || !appt || !dueAt) return;
+    try {
+      const schedule = (detail.sale.schedule ?? []).map((it) => (it.n === n ? { ...it, dueAt } : it));
+      await api(`/api/sales/deals/${detail.sale.id}`, { method: "PATCH", body: JSON.stringify({ schedule }) });
+      await load(appt.id);
+      onChanged();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
   const collect = async () => {
     if (!detail?.sale || !appt) return;
     setSaving(true);
@@ -192,9 +223,7 @@ export function AppointmentDetail({
     setOffer("");
     setContractValue("");
     setCashCollected("");
-    setPaymentType("paid-in-full");
-    setInstallments("");
-    setPaymentMethod("");
+    setInstallments("1");
     setFollowUpAt("");
     setFollowUpNotes("");
     setRescheduledAt("");
@@ -336,9 +365,9 @@ export function AppointmentDetail({
         contractValue: contract,
         cashCollected: cash,
         currency: detail?.currency ?? "USD",
-        paymentType,
-        installments: Number(installments || 0),
-        paymentMethod,
+        paymentType: Number(installments) > 1 ? "installments" : "paid-in-full",
+        installments: Math.max(1, Number(installments) || 1),
+        paymentMethod: "",
         soldAt: new Date().toISOString(),
         notes: "",
       };
@@ -557,38 +586,31 @@ export function AppointmentDetail({
                   onChange={(e) => setCashCollected(e.target.value)}
                 />
               </Field>
-              <Field label="Type de paiement">
-                <select
-                  className="select"
-                  value={paymentType}
-                  onChange={(e) => setPaymentType(e.target.value as PaymentType)}
-                >
-                  {PAYMENT_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {label(t)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              {paymentType === "installments" && (
-                <Field label="Nombre d'échéances">
-                  <input
-                    className="input num"
-                    type="number"
-                    min={0}
-                    value={installments}
-                    placeholder="3"
-                    onChange={(e) => setInstallments(e.target.value)}
-                  />
-                </Field>
-              )}
-              <Field label="Moyen de paiement" className={paymentType === "installments" ? "" : "sm:col-span-2"}>
-                <input
-                  className="input"
-                  value={paymentMethod}
-                  placeholder="Stripe, virement, PayPal…"
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                />
+              <Field label="Paiement" className="sm:col-span-2">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {[1, 2, 3, 4].map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        className={`btn btn-sm ${Number(installments) === k ? "btn-primary" : ""}`}
+                        onClick={() => setInstallments(String(k))}
+                      >
+                        {k === 1 ? "En 1 fois" : `En ${k} fois`}
+                      </button>
+                    ))}
+                  </div>
+                  {Number(installments) > 1 && Number(contractValue) > 0 && (() => {
+                    const plan = buildSchedule(Number(contractValue), Number(cashCollected || 0), Number(installments), new Date().toISOString());
+                    return plan.length ? (
+                      <p className="dim text-[12px] num">
+                        Prochaines échéances :{" "}
+                        {plan.map((it) => `${fmtMoney(it.amount, detail.currency)} le ${it.dueAt.split("-").reverse().join("/")}`).join(" · ")}
+                        <span className="block">Un mois d&apos;écart, dates modifiables ensuite. Le jour venu, l&apos;échéance remonte en alerte.</span>
+                      </p>
+                    ) : null;
+                  })()}
+                </div>
               </Field>
             </div>
           )}
@@ -806,77 +828,81 @@ export function AppointmentDetail({
             </div>
           )}
 
-          {/* Vente */}
-          {detail.sale && (
-            <div>
-              <div className="label-xs mb-1.5">Vente</div>
-              <div className="card-flat px-3.5 py-3">
-                <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                  <span className="text-[13px] font-semibold">{detail.sale.offer}</span>
-                  <span className="badge badge-good">{label(detail.sale.status)}</span>
-                </div>
-                <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-2">
-                  <span className="text-[12.5px]">
-                    <span className="dim">Contrat </span>
-                    <span className="num font-semibold">
-                      {fmtMoney(detail.sale.contractValue, detail.sale.currency)}
-                    </span>
-                  </span>
-                  <span className="text-[12.5px]">
-                    <span className="dim">Encaissé </span>
-                    <span className="num font-semibold" style={{ color: "var(--emerald)" }}>
-                      {fmtMoney(detail.sale.cashCollected, detail.sale.currency)}
-                    </span>
-                  </span>
-                  {detail.sale.refundAmount > 0 && (
-                    <span className="text-[12.5px]">
-                      <span className="dim">Remboursé </span>
-                      <span className="num font-semibold" style={{ color: "var(--critical)" }}>
-                        {fmtMoney(detail.sale.refundAmount, detail.sale.currency)}
-                      </span>
-                    </span>
-                  )}
-                  <span className="badge !text-[10.5px] !py-0">{label(detail.sale.paymentType)}</span>
-                  {detail.sale.installments > 0 && (
-                    <span className="dim text-[11.5px] num">{detail.sale.installments} échéances</span>
-                  )}
-                </div>
+          {/* Vente : l'offre, les montants, le plan de paiement. */}
+          {detail.sale && (() => {
+            const sale = detail.sale;
+            const remaining = Math.max(0, Math.round((sale.contractValue - sale.cashCollected) * 100) / 100);
+            const canCollect = session.isAdmin || sale.closerId === session.memberId;
+            const schedule = sale.schedule ?? [];
+            const todayKey = parisDay(0);
+            const times = Math.max(sale.installments || 1, schedule.length + (sale.cashCollected > 0 ? 1 : 0), 1);
+            return (
+              <div>
+                <div className="label-xs mb-1.5">Vente</div>
+                <div className="card-flat px-3.5 py-3 flex flex-col gap-3">
+                  <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                    <span className="text-[14px] font-semibold">{sale.offer}</span>
+                    <span className={`badge ${sale.status === "active" ? "badge-good" : ""} !text-[10.5px] !py-0`}>{label(sale.status)}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <div className="label-xs">Valeur contrat</div>
+                      <div className="num text-[17px] font-semibold">{fmtMoney(sale.contractValue, sale.currency)}</div>
+                    </div>
+                    <div>
+                      <div className="label-xs">Cash encaissé</div>
+                      <div className="num text-[17px] font-semibold" style={{ color: "var(--emerald)" }}>{fmtMoney(sale.cashCollected, sale.currency)}</div>
+                      {remaining > 0 && <div className="dim text-[11px] num">reste {fmtMoney(remaining, sale.currency)}</div>}
+                    </div>
+                    <div>
+                      <div className="label-xs">Paiement</div>
+                      <div className="text-[15px] font-semibold">{times > 1 ? `En ${times} fois` : "En 1 fois"}</div>
+                      {sale.refundAmount > 0 && <div className="num text-[11px]" style={{ color: "var(--critical)" }}>remboursé {fmtMoney(sale.refundAmount, sale.currency)}</div>}
+                    </div>
+                  </div>
 
-                {/* Encaissements : ce qui est arrive, quand, et ce qu'il reste a percevoir. */}
-                {(() => {
-                  const sale = detail.sale!;
-                  const remaining = Math.max(0, sale.contractValue - sale.cashCollected);
-                  const canCollect = session.isAdmin || sale.closerId === session.memberId;
-                  const cols = sale.collections ?? [];
-                  return (
-                    <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <span className="text-[12.5px]">
-                          <span className="dim">Reste à encaisser </span>
-                          <span className="num font-semibold" style={{ color: remaining > 0 ? "var(--warning)" : "var(--emerald)" }}>
-                            {remaining > 0 ? fmtMoney(remaining, sale.currency) : "0, contrat soldé"}
-                          </span>
-                        </span>
-                        {canCollect && remaining > 0 && sale.status !== "cancelled" && !collecting && (
-                          <button className="btn btn-sm btn-primary" onClick={() => setCollecting(true)}>
-                            + Encaissement reçu
-                          </button>
-                        )}
-                      </div>
-                      {cols.length > 0 && (
-                        <ul className="mt-2 flex flex-col gap-1">
-                          {cols.map((c) => (
-                            <li key={c.id} className="text-[12px] flex items-baseline gap-2 flex-wrap">
-                              <span className="num font-semibold" style={{ color: "var(--emerald)" }}>+ {fmtMoney(c.amount, sale.currency)}</span>
-                              <span className="dim num">{fmtDateTime(c.at).slice(0, 8)}</span>
-                              {c.method && <span className="dim">· {c.method}</span>}
-                              {c.note && <span className="dim">· {c.note}</span>}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {collecting && (
-                        <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                  {schedule.length > 0 && (
+                    <ul className="flex flex-col gap-1">
+                      {schedule.map((it) => {
+                        const state = it.paidAt ? "paid" : it.dueAt < todayKey ? "overdue" : it.dueAt === todayKey ? "today" : "soon";
+                        const color = state === "paid" ? "var(--emerald)" : state === "overdue" ? "var(--critical)" : state === "today" ? "var(--warning)" : "var(--text-2)";
+                        return (
+                          <li key={it.n} className="flex items-center gap-2 flex-wrap text-[12.5px] rounded-[8px] px-2.5 py-1.5" style={{ background: "var(--surface-2)", borderLeft: `3px solid ${color}` }}>
+                            <span className="font-semibold">Échéance {it.n}/{times}</span>
+                            <span className="num font-semibold">{fmtMoney(it.amount, sale.currency)}</span>
+                            {canCollect && !it.paidAt && sale.status !== "cancelled" ? (
+                              <input
+                                type="date"
+                                className="input !h-[26px] !text-[11.5px] !w-auto num"
+                                value={it.dueAt}
+                                onChange={(e) => void setDue(it.n, e.target.value)}
+                                title="Date de l'échéance (modifiable)"
+                              />
+                            ) : (
+                              <span className="num dim">{it.dueAt.split("-").reverse().join("/")}</span>
+                            )}
+                            <span className="text-[11.5px] font-semibold" style={{ color }}>
+                              {state === "paid" ? `✓ payée le ${it.paidAt.slice(0, 10).split("-").reverse().join("/")}` : state === "overdue" ? "⚠ en retard" : state === "today" ? "● aujourd'hui" : "à venir"}
+                            </span>
+                            {canCollect && !it.paidAt && sale.status !== "cancelled" && (
+                              <button className="btn btn-sm btn-primary ml-auto" onClick={() => void collectInstallment(it.n, it.amount)} disabled={saving}>
+                                Encaissé ✓
+                              </button>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  {remaining <= 0 ? (
+                    <div className="text-[12.5px] font-semibold" style={{ color: "var(--emerald)" }}>✓ Contrat soldé</div>
+                  ) : canCollect && sale.status !== "cancelled" ? (
+                    <div>
+                      {!collecting ? (
+                        <button type="button" className="link text-[12px]" onClick={() => setCollecting(true)}>+ Encaissement d&apos;un autre montant</button>
+                      ) : (
+                        <div className="grid sm:grid-cols-2 gap-3">
                           <Field label={`Montant reçu (${sale.currency})`} hint={`Maximum ${fmtMoney(remaining, sale.currency)}`}>
                             <input className="input num" type="number" min={0} max={remaining} value={colAmount} onChange={(e) => setColAmount(e.target.value)} autoFocus />
                           </Field>
@@ -887,12 +913,10 @@ export function AppointmentDetail({
                             <input className="input" placeholder="Virement, Stripe, PayPal…" value={colMethod} onChange={(e) => setColMethod(e.target.value)} />
                           </Field>
                           <Field label="Note (optionnel)">
-                            <input className="input" placeholder="2e échéance sur 3" value={colNote} onChange={(e) => setColNote(e.target.value)} />
+                            <input className="input" placeholder="Acompte complémentaire" value={colNote} onChange={(e) => setColNote(e.target.value)} />
                           </Field>
                           <div className="sm:col-span-2 flex gap-2 justify-end">
-                            <button className="btn" onClick={() => setCollecting(false)} disabled={saving}>
-                              Annuler
-                            </button>
+                            <button className="btn" onClick={() => setCollecting(false)} disabled={saving}>Annuler</button>
                             <button className="btn btn-primary" onClick={() => void collect()} disabled={saving || !(Number(colAmount) > 0)}>
                               {saving ? <span className="spinner" /> : "Enregistrer l'encaissement"}
                             </button>
@@ -900,41 +924,49 @@ export function AppointmentDetail({
                         </div>
                       )}
                     </div>
-                  );
-                })()}
+                  ) : null}
 
-                {/*
-                  Passage de la vente au coaching.
-                  Reserve a l'admin : c'est lui qui decide quand l'onboarding
-                  commence reellement, pas le closer qui vient de signer.
-                */}
-                {session.isAdmin && (
-                  <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
-                    {detail.student ? (
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <span className="text-[12.5px]">
-                          <span className="dim">Élève inscrit : </span>
-                          <strong>{detail.student.program}</strong>
-                          <span className="dim"> · {label(detail.student.status)} · </span>
-                          <span className="num">{detail.student.progress} %</span>
-                        </span>
-                        <a href="/eleves" className="btn btn-sm">
-                          Suivi élève
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <span className="dim text-[12px]">Pas encore inscrit en coaching.</span>
-                        <button className="btn btn-sm btn-primary" onClick={openEnroll}>
-                          Inscrire l&apos;élève
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  {(sale.collections ?? []).length > 0 && (
+                    <details>
+                      <summary className="dim text-[11.5px] cursor-pointer select-none">Historique des encaissements · {(sale.collections ?? []).length}</summary>
+                      <ul className="mt-1.5 flex flex-col gap-1">
+                        {(sale.collections ?? []).map((c) => (
+                          <li key={c.id} className="text-[12px] flex items-baseline gap-2 flex-wrap">
+                            <span className="num font-semibold" style={{ color: "var(--emerald)" }}>+ {fmtMoney(c.amount, sale.currency)}</span>
+                            <span className="dim num">{fmtDateTime(c.at).slice(0, 8)}</span>
+                            {c.method && <span className="dim">· {c.method}</span>}
+                            {c.note && <span className="dim">· {c.note}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+
+                  {/* Passage au coaching : decision de l'admin. */}
+                  {session.isAdmin && (
+                    <div className="pt-2 flex items-center justify-between gap-3 flex-wrap" style={{ borderTop: "1px solid var(--border)" }}>
+                      {detail.student ? (
+                        <>
+                          <span className="text-[12px]">
+                            <span className="dim">Élève inscrit : </span>
+                            <strong>{detail.student.program}</strong>
+                            <span className="dim"> · {label(detail.student.status)} · </span>
+                            <span className="num">{detail.student.progress} %</span>
+                          </span>
+                          <a href="/eleves" className="btn btn-sm">Suivi élève</a>
+                        </>
+                      ) : (
+                        <>
+                          <span className="dim text-[12px]">Pas encore inscrit en coaching.</span>
+                          <button className="btn btn-sm" onClick={openEnroll}>Inscrire l&apos;élève</button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Relances en cours */}
           {detail.followUps.length > 0 && (

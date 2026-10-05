@@ -3,7 +3,7 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { Forbidden, readSession, requireSales } from "@/lib/sales/access";
 import { handle, num } from "@/lib/sales/http";
 import { patchSale } from "@/lib/sales/repo";
-import type { PaymentType, SaleStatus } from "@/lib/types";
+import type { PaymentType, SaleInstallment, SaleStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +31,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (body.installments !== undefined) patch.installments = Math.max(0, num(body.installments));
     if (typeof body.paymentType === "string") patch.paymentType = body.paymentType as PaymentType;
     if (typeof body.status === "string") patch.status = body.status as SaleStatus;
+    // Plan de paiement : dates et montants des echeances, reverifies un a un.
+    if (Array.isArray(body.schedule)) {
+      patch.schedule = (body.schedule as Record<string, unknown>[])
+        .filter((it) => it && typeof it === "object")
+        .map((it) => ({
+          n: Math.max(1, Math.floor(num(it.n))),
+          dueAt: typeof it.dueAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(it.dueAt) ? it.dueAt : "",
+          amount: Math.max(0, num(it.amount)),
+          paidAt: typeof it.paidAt === "string" ? it.paidAt : "",
+        }))
+        .filter((it) => it.dueAt) as SaleInstallment[];
+    }
 
     return patchSale(session, id, patch);
   });
@@ -47,7 +59,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   return handle(async () => {
     const session = requireSales(readSession(req));
     const { id } = await ctx.params;
-    const body = (await req.json().catch(() => ({}))) as { amount?: unknown; at?: string; method?: string; note?: string };
+    const body = (await req.json().catch(() => ({}))) as { amount?: unknown; at?: string; method?: string; note?: string; installmentN?: unknown };
 
     const db = readDB();
     const sale = db.sales.find((s) => s.id === id);
@@ -70,6 +82,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     ];
     sale.cashCollected = Math.round((sale.cashCollected + amount) * 100) / 100;
     sale.updatedAt = now;
+
+    /*
+     * L'echeance correspondante est marquee payee : celle designee par le
+     * bouton « Encaissé », sinon la plus ancienne encore due dont le montant
+     * tient dans ce qui vient d'arriver.
+     */
+    const wanted = Math.floor(num(body.installmentN));
+    const plan = sale.schedule ?? [];
+    const target = wanted > 0 ? plan.find((it) => it.n === wanted && !it.paidAt) : plan.find((it) => !it.paidAt && it.amount <= amount + 0.01);
+    if (target) target.paidAt = at;
 
     const lead = db.leads.find((l) => l.id === sale.leadId);
     db.activityLogs.unshift({

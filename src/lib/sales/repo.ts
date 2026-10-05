@@ -12,6 +12,7 @@
  * si le process mourait au milieu.
  */
 import { newId, readDB, writeDB } from "../db";
+import { buildSchedule, mergePaid } from "./installments";
 import type {
   ActivityLog,
   Appointment,
@@ -337,9 +338,10 @@ export function recordOutcome(session: Session, id: string, input: OutcomeInput)
       soldAt: input.sale.soldAt || now,
       notes: input.sale.notes || "",
     };
+    const schedule = buildSchedule(values.contractValue, values.cashCollected, values.installments, values.soldAt);
     if (existing) {
       const before = `${existing.contractValue} ${existing.currency} (${existing.cashCollected} encaissés)`;
-      Object.assign(existing, values, { closerId, updatedAt: now });
+      Object.assign(existing, values, { closerId, updatedAt: now, schedule: mergePaid(schedule, existing.schedule) });
       sale = existing;
       log(db, session, {
         action: "sale.updated",
@@ -356,6 +358,7 @@ export function recordOutcome(session: Session, id: string, input: OutcomeInput)
         setterId: appt.setterId,
         closerId,
         ...values,
+        schedule,
         status: "active",
         refundAmount: 0,
         refundedAt: "",
@@ -518,7 +521,7 @@ export function patchAppointment(
 export function patchSale(
   session: Session,
   id: string,
-  patch: Partial<Pick<Sale, "cashCollected" | "contractValue" | "status" | "refundAmount" | "notes" | "offer" | "paymentType" | "installments" | "paymentMethod">>,
+  patch: Partial<Pick<Sale, "cashCollected" | "contractValue" | "status" | "refundAmount" | "notes" | "offer" | "paymentType" | "installments" | "paymentMethod" | "schedule">>,
 ) {
   const db = readDB();
   const sale = db.sales.find((s) => s.id === id);

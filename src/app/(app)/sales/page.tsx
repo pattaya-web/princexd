@@ -8,6 +8,7 @@ import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { Card, Empty, ErrorNote, PageHeader, Spinner, StatTile } from "@/components/ui";
 import { Funnel, PeriodPicker, Ratio } from "@/components/sales/bits";
 import { OffersCard } from "@/components/sales/OffersCard";
+import { InstallmentAlerts } from "@/components/sales/InstallmentAlerts";
 import { AppointmentModal } from "@/components/sales/AppointmentModal";
 import { useSales } from "@/components/sales/context";
 import { MemberHome } from "@/components/sales/MemberHome";
@@ -161,6 +162,7 @@ export default function SalesDashboardPage() {
             />
           </div>
 
+          {session.isAdmin && <InstallmentAlerts />}
           {session.isAdmin && <OffersCard editable />}
 
           <div className="grid lg:grid-cols-2 gap-4 items-start">

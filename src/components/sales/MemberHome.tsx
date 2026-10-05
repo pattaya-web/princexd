@@ -6,6 +6,7 @@ import { api } from "@/lib/client";
 import { fmtDualDateTime, fmtDay, fmtInt, fmtMoney, fmtTime, relative } from "@/lib/format";
 import { CallsCalendar } from "./CallsCalendar";
 import { OffersCard } from "./OffersCard";
+import { InstallmentAlerts } from "./InstallmentAlerts";
 import { useEffect } from "react";
 import type { WorkSession } from "@/lib/types";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
@@ -24,6 +25,7 @@ interface MemberPayload {
   kpis: SalesKpis;
   commissions: { setters: number; closers: number; due: number };
   followUps: { overdue: number; pending: number };
+  installments?: { due: number; overdue: number };
   currency: string;
 }
 
@@ -293,6 +295,9 @@ export function MemberHome() {
           )}
         </div>
 
+        {/* ---------------------- Échéances à encaisser ---------------------- */}
+        {!isSetter && <InstallmentAlerts onOpen={(id) => setOpenId(id)} />}
+
         {/* ------------------------------- Offres ------------------------------- */}
         {!isSetter && <OffersCard />}
 
@@ -498,6 +503,13 @@ export function MemberHome() {
                 label="Créneaux à confirmer"
                 count={proposed.length}
               />
+              {!isSetter && (
+                <Todo
+                  done={(data?.installments?.due ?? 0) === 0}
+                  label={data?.installments?.overdue ? "Échéances de paiement en retard" : "Échéances de paiement à encaisser"}
+                  count={data?.installments?.due ?? 0}
+                />
+              )}
               {/* Les rendez-vous dont le lead n'a pas confirmé sa présence : a relancer avant le call. */}
               <Todo
                 done={nextCalls.filter((c) => canConfirm(c.status) && !c.confirmation).length === 0}
