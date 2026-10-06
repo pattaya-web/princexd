@@ -84,6 +84,19 @@ export function ViewSwitcher() {
     }
   };
 
+  /** L'espace de la VA outreach : un jeton « va » en apercu, puis sa page. */
+  const viewAsVa = async () => {
+    setBusy("va");
+    try {
+      if (session.impersonated) await api("/api/sales/session", { method: "DELETE" });
+      await api("/api/sales/session/view-as", { method: "POST", body: JSON.stringify({ role: "va" }) });
+      forgetSession();
+      window.location.href = "/va/outreach";
+    } finally {
+      setBusy("");
+    }
+  };
+
   /*
    * Tous les comptes, un choix par metier : « Noa H · closer » et « Noa H ·
    * setter » sont deux entrees. Les boutons Setter / Closer restent un
@@ -111,16 +124,19 @@ export function ViewSwitcher() {
     }
   };
 
-  const current: "admin" | "setter" | "closer" = session.isAdmin
+  const current: "admin" | "setter" | "closer" | "va" = session.isAdmin
     ? "admin"
-    : session.role === "closer"
-      ? "closer"
-      : "setter";
+    : session.role === "va"
+      ? "va"
+      : session.role === "closer"
+        ? "closer"
+        : "setter";
 
-  const options: { key: "admin" | "setter" | "closer"; label: string; name?: string }[] = [
+  const options: { key: "admin" | "setter" | "closer" | "va"; label: string; name?: string }[] = [
     { key: "admin", label: "Admin", name: "Moi" },
     { key: "setter", label: "Setter", name: firstOf("setter")?.name },
     { key: "closer", label: "Closer", name: firstOf("closer")?.name },
+    { key: "va", label: "VA", name: "Outreach Instagram" },
   ];
 
   return (
@@ -145,7 +161,7 @@ export function ViewSwitcher() {
               key={o.key}
               disabled={disabled || Boolean(busy)}
               title={disabled ? `Aucun ${o.label.toLowerCase()} créé` : o.name}
-              onClick={() => (o.key === "admin" ? void backToAdmin() : void viewAs(o.key))}
+              onClick={() => (o.key === "admin" ? void backToAdmin() : o.key === "va" ? void viewAsVa() : void viewAs(o.key))}
               className="flex-1 h-[24px] rounded-[5px] text-[11px] font-medium transition-colors"
               style={{
                 background: active ? "var(--surface)" : "transparent",
@@ -185,7 +201,7 @@ export function ViewSwitcher() {
       {/* Qui l'on incarne : sans ce rappel, on oublie qu'on est en apercu et on
           s'etonne de ne plus voir la moitie du tool. */}
       <div className="dim text-[10.5px] mt-1.5 truncate">
-        {current === "admin" ? "Accès complet" : `Dans la peau de ${session.memberName} (${session.role})`}
+        {current === "admin" ? "Accès complet" : current === "va" ? "Dans la peau de la VA (outreach)" : `Dans la peau de ${session.memberName} (${session.role})`}
       </div>
     </div>
   );

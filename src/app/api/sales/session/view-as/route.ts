@@ -35,8 +35,26 @@ export async function POST(req: NextRequest) {
 
   const { memberId, role: wanted } = (await req.json().catch(() => ({}))) as {
     memberId?: string;
-    role?: "setter" | "closer";
+    role?: "setter" | "closer" | "va";
   };
+
+  /*
+   * Apercu de l'espace de la VA : pas de membre derriere, un jeton « va »
+   * marque impersonated. Memes droits que la vraie VA, donc meme page, memes
+   * refus — c'est ce qui permet de verifier ce qu'elle voit vraiment.
+   */
+  if (wanted === "va") {
+    const res = NextResponse.json({ ok: true, role: "va", memberId: "", memberName: "VA Outreach" });
+    res.cookies.set(SESSION_COOKIE, issueToken({ role: "va", memberId: "", memberName: "VA Outreach", impersonated: true }), {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: Math.min(SESSION_MAX_AGE_S, 60 * 60 * 8),
+      secure: process.env.NODE_ENV === "production",
+    });
+    return res;
+  }
+
   if (!memberId) return NextResponse.json({ error: "memberId manquant." }, { status: 400 });
 
   const member = readDB().team.find((m) => m.id === memberId);

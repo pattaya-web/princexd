@@ -51,14 +51,14 @@ export async function POST(req: NextRequest) {
   return handle(async () => {
     const session = requireAdmin(readSession(req));
     const body = (await req.json()) as { name?: unknown; fileName?: unknown; contacts?: unknown };
-    const name = required(body.name, "Le nom de la liste").slice(0, 120);
+    const name = required(body.name, "The list name").slice(0, 120);
     const raw = Array.isArray(body.contacts) ? (body.contacts as Record<string, unknown>[]) : [];
-    if (!raw.length) throw new Error("Le fichier ne contient aucun pseudo Instagram exploitable.");
-    if (raw.length > 20_000) throw new Error("Trop de contacts d'un coup : découpe le fichier (20 000 lignes maximum).");
+    if (!raw.length) throw new Error("The file contains no usable Instagram username.");
+    if (raw.length > 20_000) throw new Error("Too many contacts at once: split the file (20,000 rows maximum).");
 
     const db = readDB();
     if (db.outreachLists.some((l) => l.name.trim().toLowerCase() === name.trim().toLowerCase())) {
-      throw new Error("Une liste porte déjà ce nom. Choisis-en un autre pour ne pas les confondre.");
+      throw new Error("A list already has this name. Pick another one so they are not mixed up.");
     }
     const now = new Date().toISOString();
     const list: OutreachList = {
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
         createdAt: now,
       });
     }
-    if (!contacts.length) throw new Error("Aucun pseudo Instagram valide dans ce fichier.");
+    if (!contacts.length) throw new Error("No valid Instagram username in this file.");
 
     db.outreachLists.unshift(list);
     db.outreachContacts.push(...contacts);

@@ -607,7 +607,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const nav = isSalesOnly
     ? NAV.filter((g) => g.section === "Sales")
     : isVa
-      ? [{ section: "Outreach", items: [{ href: "/va/outreach", label: "Prospection Instagram", icon: "✉" }] }]
+      ? [{ section: "Outreach", items: [{ href: "/va/outreach", label: "Instagram Outreach", icon: "✉" }] }]
       : isEditor
       ? [
           {

@@ -162,7 +162,7 @@ export function issueVaToken(): string {
 /** L'outreach Instagram : la VA et l'admin, personne d'autre. */
 export function requireOutreach(session: Session): Session {
   if (session.isAdmin || session.role === "va") return session;
-  throw new Forbidden("Cet espace est réservé à la prospection Instagram.");
+  throw new Forbidden("This area is reserved for Instagram outreach.");
 }
 
 /**
@@ -229,8 +229,9 @@ export function readSession(req: NextRequest): Session {
     return sessionFor(member, Boolean(claims.impersonated), only);
   }
 
-  // VA outreach : jeton sans membre, un seul espace.
-  if (claims?.role === "va" && !claims.memberId) return VA;
+  // VA outreach : jeton sans membre, un seul espace. En apercu (admin qui
+  // regarde), memes droits, juste le bandeau et le retour admin en plus.
+  if (claims?.role === "va" && !claims.memberId) return claims.impersonated ? { ...VA, impersonated: true } : VA;
 
   // Monteur entre par le code global (jeton sans membre) ou par l'ancien cookie.
   if (claims?.role === "editor") return EDITOR;

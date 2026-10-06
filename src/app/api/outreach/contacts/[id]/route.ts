@@ -18,13 +18,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const session = requireOutreach(readSession(req));
     const { id } = await ctx.params;
     const body = (await req.json().catch(() => ({}))) as { status?: unknown };
-    if (!isOutreachStatus(body.status)) throw new Error("Statut inconnu.");
+    if (!isOutreachStatus(body.status)) throw new Error("Unknown status.");
     if (body.status === "to-contact" && !session.isAdmin) {
-      throw new Forbidden("Seul l'administrateur peut remettre un contact en « To Contact ».");
+      throw new Forbidden("Only the admin can set a contact back to “To Contact”.");
     }
     const db = readDB();
     const contact = db.outreachContacts.find((c) => c.id === id);
-    if (!contact) throw new Error("Contact introuvable.");
+    if (!contact) throw new Error("Contact not found.");
     if (contact.status !== body.status) {
       const now = new Date().toISOString();
       // Premier DM : on date le passage hors de « To Contact », une fois pour toutes.

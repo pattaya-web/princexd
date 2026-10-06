@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const { id } = await ctx.params;
     const db = readDB();
     const list = db.outreachLists.find((l) => l.id === id);
-    if (!list) throw new Error("Liste introuvable : elle a peut-être été supprimée.");
+    if (!list) throw new Error("List not found: it may have been deleted.");
     const contacts = db.outreachContacts.filter((c) => c.listId === id).sort((a, b) => a.order - b.order);
     return { list, contacts };
   });
@@ -24,10 +24,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     requireAdmin(readSession(req));
     const { id } = await ctx.params;
     const body = (await req.json().catch(() => ({}))) as { name?: unknown };
-    const name = required(body.name, "Le nom").slice(0, 120);
+    const name = required(body.name, "The name").slice(0, 120);
     const db = readDB();
     const list = db.outreachLists.find((l) => l.id === id);
-    if (!list) throw new Error("Liste introuvable.");
+    if (!list) throw new Error("List not found.");
     list.name = name;
     writeDB(db);
     return { list };
@@ -46,7 +46,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     const { id } = await ctx.params;
     const db = readDB();
     const list = db.outreachLists.find((l) => l.id === id);
-    if (!list) throw new Error("Liste introuvable.");
+    if (!list) throw new Error("List not found.");
     const before = db.outreachContacts.length;
     db.outreachContacts = db.outreachContacts.filter((c) => c.listId !== id);
     db.outreachLists = db.outreachLists.filter((l) => l.id !== id);

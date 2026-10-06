@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
-import { fmtDate, fmtInt } from "@/lib/format";
+/* This tab is used by an English-speaking VA: every label, toast and date is in English. */
+const fmtInt = (n: number) => Math.round(n || 0).toLocaleString("en-US");
+const fmtDate = (iso: string) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/Paris" }).format(new Date(iso)) : "—");
 import { useSession } from "@/lib/sales/client";
 import { Card, CopyButton, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, useToast } from "@/components/ui";
 import { mapContacts, OUTREACH_LABEL, OUTREACH_STATUSES, OUTREACH_TONE, parseCsv, type CsvMapping } from "@/lib/outreach";
@@ -74,7 +76,7 @@ export default function OutreachPage() {
       const r = await api<{ dailyGoal: number }>("/api/outreach/message", { method: "PATCH", body: JSON.stringify({ dailyGoal: Number(goalDraft) }) });
       setToday((t) => (t ? { ...t, goal: r.dailyGoal } : t));
       setEditingGoal(false);
-      toast(`Objectif du jour : ${r.dailyGoal} DM.`);
+      toast(`Daily goal: ${r.dailyGoal} DMs.`);
     } catch (e) {
       toast((e as Error).message, "err");
     }
@@ -91,7 +93,7 @@ export default function OutreachPage() {
       const r = await api<{ message: string }>("/api/outreach/message", { method: "PATCH", body: JSON.stringify({ message: messageDraft }) });
       setMessage(r.message);
       setEditingMessage(false);
-      toast("Message enregistré. La VA le voit dès son prochain chargement.");
+      toast("Message saved. The VA sees it on next load.");
     } catch (e) {
       toast((e as Error).message, "err");
     } finally {
@@ -102,9 +104,9 @@ export default function OutreachPage() {
   const copyMessage = async () => {
     try {
       await navigator.clipboard.writeText(message);
-      toast("Message copié. Colle-le dans le DM Instagram.");
+      toast("Message copied. Paste it in the Instagram DM.");
     } catch {
-      toast("Copie impossible : sélectionne le texte et copie-le à la main.", "err");
+      toast("Could not copy: select the text and copy it manually.", "err");
     }
   };
 
@@ -240,7 +242,7 @@ export default function OutreachPage() {
       );
     } catch (e) {
       setContacts((cur) => cur.map((x) => (x.id === c.id ? { ...x, status: before } : x)));
-      toast(`Non enregistré : ${(e as Error).message}`, "err");
+      toast(`Not saved: ${(e as Error).message}`, "err");
     }
   };
 
@@ -265,7 +267,7 @@ export default function OutreachPage() {
         method: "POST",
         body: JSON.stringify({ name: importName.trim(), fileName: importFile.name, contacts: importFile.mapping.contacts }),
       });
-      toast(`Liste « ${r.list.name} » créée : ${r.list.total} contacts.`);
+      toast(`List “${r.list.name}” created: ${r.list.total} contacts.`);
       setImporting(false);
       setImportFile(null);
       setImportName("");
@@ -279,10 +281,10 @@ export default function OutreachPage() {
   };
 
   const deleteList = async (l: OutreachListRow) => {
-    if (!window.confirm(`Supprimer la liste « ${l.name} » et ses ${l.total} contacts ? Cette action est définitive.`)) return;
+    if (!window.confirm(`Delete list “${l.name}” and its ${l.total} contacts? This cannot be undone.`)) return;
     try {
       await api(`/api/outreach/lists/${l.id}`, { method: "DELETE" });
-      toast("Liste supprimée.");
+      toast("List deleted.");
       const ls = await loadLists();
       if (listId === l.id) setListId(ls[0]?.id ?? "");
     } catch (e) {
@@ -301,7 +303,7 @@ export default function OutreachPage() {
         actions={
           <>
             {lists && lists.length > 0 && (
-              <select className="select !w-auto max-w-[260px]" value={listId} onChange={(e) => setListId(e.target.value)} title="Liste en cours">
+              <select className="select !w-auto max-w-[260px]" value={listId} onChange={(e) => setListId(e.target.value)} title="Current list">
                 {lists.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.name} · {l.total - l.counts["to-contact"]}/{l.total}
@@ -312,10 +314,10 @@ export default function OutreachPage() {
             {isAdmin && (
               <>
                 <button className="btn" onClick={() => setShowLists((v) => !v)}>
-                  {showLists ? "Masquer les listes" : "Toutes les listes"}
+                  {showLists ? "Hide lists" : "All lists"}
                 </button>
                 <button className="btn btn-primary" onClick={() => setImporting(true)}>
-                  + Importer un CSV
+                  + Import CSV
                 </button>
               </>
             )}
@@ -336,12 +338,12 @@ export default function OutreachPage() {
           style={today.count >= today.goal ? { borderColor: "color-mix(in srgb, var(--good) 45%, transparent)" } : undefined}
         >
           <div className="min-w-0">
-            <div className="label-xs">Objectif du jour</div>
+            <div className="label-xs">Daily goal</div>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-[30px] font-semibold num leading-none" style={{ letterSpacing: "-0.035em", color: today.count >= today.goal ? "var(--good)" : undefined }}>
                 {fmtInt(today.count)}
               </span>
-              <span className="dim text-[14px] num">/ {fmtInt(today.goal)} DM</span>
+              <span className="dim text-[14px] num">/ {fmtInt(today.goal)} DMs</span>
               {isAdmin && !editingGoal && (
                 <button
                   className="link text-[11.5px]"
@@ -350,7 +352,7 @@ export default function OutreachPage() {
                     setEditingGoal(true);
                   }}
                 >
-                  ✎ modifier
+                  ✎ edit
                 </button>
               )}
               {editingGoal && (
@@ -372,7 +374,7 @@ export default function OutreachPage() {
                     OK
                   </button>
                   <button className="btn btn-sm" onClick={() => setEditingGoal(false)}>
-                    Annuler
+                    Cancel
                   </button>
                 </span>
               )}
@@ -387,8 +389,8 @@ export default function OutreachPage() {
             </div>
             <div className="dim text-[12px] mt-1.5 num">
               {today.count >= today.goal
-                ? `Objectif atteint 🎉 ${today.count - today.goal > 0 ? `+${fmtInt(today.count - today.goal)} au-dessus.` : "Bravo."}`
-                : `Encore ${fmtInt(today.goal - today.count)} DM à envoyer aujourd'hui. Chaque « Mark Contacted » compte, toutes listes confondues.`}
+                ? `Goal reached 🎉 ${today.count - today.goal > 0 ? `+${fmtInt(today.count - today.goal)} over.` : "Well done."}`
+                : `${fmtInt(today.goal - today.count)} DMs left today. Every “Mark Contacted” counts, across all lists.`}
             </div>
           </div>
         </div>
@@ -397,13 +399,13 @@ export default function OutreachPage() {
       {/* ------------------------------- Le message -------------------------------- */}
       {lists && (
         <Card
-          title="Message à envoyer"
-          subtitle="Copie-le, ouvre Instagram, colle-le dans le DM, reviens cliquer « Mark Contacted »."
+          title="Message to send"
+          subtitle="Copy it, open Instagram, paste it in the DM, come back and click “Mark Contacted”."
           className="mb-4"
           actions={
             editingMessage ? undefined : (
               <>
-                <CopyButton text={message} label="Copier le message" />
+                <CopyButton text={message} label="Copy message" />
                 {isAdmin && (
                   <button
                     className="btn btn-sm"
@@ -412,7 +414,7 @@ export default function OutreachPage() {
                       setEditingMessage(true);
                     }}
                   >
-                    ✎ Modifier
+                    ✎ Edit
                   </button>
                 )}
               </>
@@ -424,10 +426,10 @@ export default function OutreachPage() {
               <textarea className="input w-full !text-[14px] leading-relaxed" rows={3} value={messageDraft} onChange={(e) => setMessageDraft(e.target.value)} autoFocus />
               <div className="flex gap-2 justify-end">
                 <button className="btn btn-sm" onClick={() => setEditingMessage(false)} disabled={savingMessage}>
-                  Annuler
+                  Cancel
                 </button>
                 <button className="btn btn-sm btn-primary" onClick={() => void saveMessage()} disabled={savingMessage || !messageDraft.trim()}>
-                  {savingMessage ? <span className="spinner" /> : "Enregistrer"}
+                  {savingMessage ? <span className="spinner" /> : "Save"}
                 </button>
               </div>
             </div>
@@ -444,22 +446,22 @@ export default function OutreachPage() {
 
       {/* ------------------------------ Listes (admin) ----------------------------- */}
       {isAdmin && showLists && lists && (
-        <Card title="Toutes les listes" subtitle="Chaque import est une liste à part. Son avancement est gardé pour toujours." padded={false} className="mb-4">
+        <Card title="All lists" subtitle="Each import is its own list. Progress is kept forever." padded={false} className="mb-4">
           {!lists.length ? (
-            <Empty>Aucune liste. Importe ton premier CSV.</Empty>
+            <Empty>No list yet. Import your first CSV.</Empty>
           ) : (
             <div className="scroll-x">
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Liste</th>
-                    <th>Importée le</th>
+                    <th>List</th>
+                    <th>Imported</th>
                     <th className="text-right">Total</th>
                     <th className="text-right">To Contact</th>
                     <th className="text-right">Contacted</th>
                     <th className="text-right">Replied</th>
                     <th className="text-right">Issues</th>
-                    <th>Avancement</th>
+                    <th>Progress</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -490,7 +492,7 @@ export default function OutreachPage() {
                         </td>
                         <td className="text-right">
                           <button className="btn btn-sm btn-ghost" style={{ color: "var(--critical)" }} onClick={() => void deleteList(l)}>
-                            Supprimer
+                            Delete
                           </button>
                         </td>
                       </tr>
@@ -510,12 +512,12 @@ export default function OutreachPage() {
             action={
               isAdmin ? (
                 <button className="btn btn-primary" onClick={() => setImporting(true)}>
-                  + Importer un CSV
+                  + Import CSV
                 </button>
               ) : undefined
             }
           >
-            {isAdmin ? "Aucune liste pour l'instant. Importe un CSV de contacts Instagram pour commencer." : "Aucune liste à traiter pour le moment."}
+            {isAdmin ? "No list yet. Import a CSV of Instagram contacts to get started." : "No list to work on yet."}
           </Empty>
         </Card>
       )}
@@ -527,8 +529,8 @@ export default function OutreachPage() {
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-[15px] font-semibold truncate">{list?.name ?? current?.name ?? "…"}</span>
               <span className="dim text-[12px] num">
-                Total : {fmtInt(contacts.length)} · To Contact : {fmtInt(counts["to-contact"])} · Contacted : {fmtInt(counts.contacted)} · Replied :{" "}
-                {fmtInt(counts.replied)} · Issues : {fmtInt(counts.issue)}
+                Total: {fmtInt(contacts.length)} · To Contact: {fmtInt(counts["to-contact"])} · Contacted: {fmtInt(counts.contacted)} · Replied:{" "}
+                {fmtInt(counts.replied)} · Issues: {fmtInt(counts.issue)}
               </span>
               <span className="ml-auto flex items-center gap-2 min-w-[140px]">
                 <div className="flex-1 rounded-[6px] overflow-hidden" style={{ height: 8, background: "var(--surface-3)" }}>
@@ -562,7 +564,7 @@ export default function OutreachPage() {
               </div>
               <input
                 className="input !h-[36px] flex-1 min-w-[180px]"
-                placeholder="Rechercher un @username ou un nom…"
+                placeholder="Search @username or name…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -577,11 +579,11 @@ export default function OutreachPage() {
           )}
           {loading && !contacts.length ? (
             <Card>
-              <Spinner label="Chargement des contacts…" />
+              <Spinner label="Loading contacts…" />
             </Card>
           ) : !shown.length ? (
             <Card>
-              <Empty>{contacts.length ? "Aucun contact ne correspond à ce filtre." : "Cette liste est vide."}</Empty>
+              <Empty>{contacts.length ? "No contact matches this filter." : "This list is empty."}</Empty>
             </Card>
           ) : (
             <>
@@ -629,7 +631,7 @@ export default function OutreachPage() {
                         </td>
                         <td>
                           <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                            <button className="btn btn-sm btn-ghost" onClick={() => void copyMessage()} title="Copier le message à envoyer">
+                            <button className="btn btn-sm btn-ghost" onClick={() => void copyMessage()} title="Copy the message to send">
                               📋 Copy message
                             </button>
                             <a href={`https://instagram.com/${c.username}`} target="_blank" rel="noreferrer" className="btn btn-sm">
@@ -718,23 +720,23 @@ export default function OutreachPage() {
             setImportFile(null);
           }
         }}
-        title="Importer une liste de contacts"
+        title="Import a contact list"
         footer={
           <>
             <button className="btn" onClick={() => setImporting(false)} disabled={importBusy}>
-              Annuler
+              Cancel
             </button>
             <button className="btn btn-primary" onClick={() => void doImport()} disabled={importBusy || !importFile || !importFile.mapping.contacts.length || !importName.trim()}>
-              {importBusy ? <span className="spinner" /> : `Créer la liste${importFile ? ` (${fmtInt(importFile.mapping.contacts.length)} contacts)` : ""}`}
+              {importBusy ? <span className="spinner" /> : `Create list${importFile ? ` (${fmtInt(importFile.mapping.contacts.length)} contacts)` : ""}`}
             </button>
           </>
         }
       >
         <div className="flex flex-col gap-3">
-          <Field label="Nom de la liste" hint="Ex. INSYDER - Active Leads 07 Oct, Old Leads October, Competitor Followers 01.">
+          <Field label="List name" hint="e.g. INSYDER - Active Leads 07 Oct, Old Leads October, Competitor Followers 01.">
             <input className="input" value={importName} onChange={(e) => setImportName(e.target.value)} placeholder="Competitor Followers 01" autoFocus />
           </Field>
-          <Field label="Fichier CSV" hint="Colonnes reconnues : username, instagram, instagram_username, handle, url… et full_name / name pour le nom. Une seule colonne de pseudos marche aussi.">
+          <Field label="CSV file" hint="Recognized columns: username, instagram, instagram_username, handle, url… and full_name / name for the name. A single column of usernames works too.">
             <input
               type="file"
               accept=".csv,text/csv,text/plain"
@@ -748,21 +750,20 @@ export default function OutreachPage() {
           {importFile && (
             <div className="card-flat px-3.5 py-3 text-[12.5px] flex flex-col gap-1">
               <div>
-                <strong>{importFile.name}</strong> · {fmtInt(importFile.mapping.contacts.length)} contact{importFile.mapping.contacts.length > 1 ? "s" : ""} prêt
-                {importFile.mapping.contacts.length > 1 ? "s" : ""}
+                <strong>{importFile.name}</strong> · {fmtInt(importFile.mapping.contacts.length)} contact{importFile.mapping.contacts.length > 1 ? "s" : ""} ready
               </div>
               <div className="dim">
-                Pseudo lu dans « {importFile.mapping.usernameColumn || "?"} »{importFile.mapping.nameColumn ? `, nom dans « ${importFile.mapping.nameColumn} »` : ", pas de colonne nom"}.
-                {importFile.mapping.skipped > 0 && ` ${importFile.mapping.skipped} ligne${importFile.mapping.skipped > 1 ? "s" : ""} sans pseudo ignorée${importFile.mapping.skipped > 1 ? "s" : ""}.`}
-                {importFile.mapping.duplicates > 0 && ` ${importFile.mapping.duplicates} doublon${importFile.mapping.duplicates > 1 ? "s" : ""} retiré${importFile.mapping.duplicates > 1 ? "s" : ""}.`}
+                Username read from “{importFile.mapping.usernameColumn || "?"}”{importFile.mapping.nameColumn ? `, name from “${importFile.mapping.nameColumn}”` : ", no name column"}.
+                {importFile.mapping.skipped > 0 && ` ${importFile.mapping.skipped} row${importFile.mapping.skipped > 1 ? "s" : ""} without a username skipped.`}
+                {importFile.mapping.duplicates > 0 && ` ${importFile.mapping.duplicates} duplicate${importFile.mapping.duplicates > 1 ? "s" : ""} removed.`}
               </div>
               {importFile.mapping.contacts.length > 0 && (
                 <div className="dim truncate">
-                  Aperçu : {importFile.mapping.contacts.slice(0, 6).map((c) => `@${c.username}`).join(", ")}
+                  Preview: {importFile.mapping.contacts.slice(0, 6).map((c) => `@${c.username}`).join(", ")}
                   {importFile.mapping.contacts.length > 6 ? "…" : ""}
                 </div>
               )}
-              {!importFile.mapping.contacts.length && <ErrorNote>Aucun pseudo Instagram trouvé dans ce fichier.</ErrorNote>}
+              {!importFile.mapping.contacts.length && <ErrorNote>No Instagram username found in this file.</ErrorNote>}
             </div>
           )}
         </div>

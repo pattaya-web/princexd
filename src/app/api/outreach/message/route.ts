@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest) {
     if (typeof body.message === "string") patch.outreachMessage = body.message.trim().slice(0, 2000) || DEFAULT_OUTREACH_MESSAGE;
     if (body.dailyGoal !== undefined) {
       const n = Math.round(Number(body.dailyGoal));
-      if (!Number.isFinite(n) || n < 1 || n > 5000) throw new Error("L'objectif du jour doit être un nombre entre 1 et 5000.");
+      if (!Number.isFinite(n) || n < 1 || n > 5000) throw new Error("The daily goal must be a number between 1 and 5000.");
       patch.outreachDailyGoal = n;
     }
     const s = saveSettings(patch);
