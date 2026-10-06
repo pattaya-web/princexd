@@ -168,6 +168,8 @@ export interface Settings {
   vaPasswordHash?: string;
   /** Message que la VA copie-colle en DM Instagram. Ecrit par l'admin. */
   outreachMessage?: string;
+  /** Objectif de DM envoyes par jour (contacts passes en « Contacted »). 50 par defaut. */
+  outreachDailyGoal?: number;
   /** Bloc-notes libre de la to-do flottante, et date de sa derniere sauvegarde. */
   todoNotes?: string;
   todoNotesAt?: string;
@@ -990,6 +992,12 @@ export interface OutreachContact {
   extra: Record<string, string>;
   status: OutreachStatus;
   statusAt: string;
+  /**
+   * Premier passage hors de « To Contact » (DM envoye). Ne bouge plus
+   * ensuite : c'est ce qui compte dans l'objectif du jour, meme si le
+   * contact repond plus tard et change de statut.
+   */
+  contactedAt?: string;
   /** Position dans le fichier d'origine. */
   order: number;
   createdAt: string;

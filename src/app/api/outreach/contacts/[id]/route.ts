@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
 import { Forbidden, readSession, requireOutreach } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
-import { isOutreachStatus } from "@/lib/outreach";
+import { dailyProgress, isOutreachStatus } from "@/lib/outreach";
 
 export const dynamic = "force-dynamic";
 
@@ -26,10 +26,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const contact = db.outreachContacts.find((c) => c.id === id);
     if (!contact) throw new Error("Contact introuvable.");
     if (contact.status !== body.status) {
+      const now = new Date().toISOString();
+      // Premier DM : on date le passage hors de « To Contact », une fois pour toutes.
+      if (!contact.contactedAt && contact.status === "to-contact" && body.status !== "to-contact") contact.contactedAt = now;
+      // L'admin remet en « To Contact » : le DM n'a pas eu lieu, il ne compte plus.
+      if (body.status === "to-contact") contact.contactedAt = undefined;
       contact.status = body.status;
-      contact.statusAt = new Date().toISOString();
+      contact.statusAt = now;
       writeDB(db);
     }
-    return { contact };
+    return { contact, today: dailyProgress(db.outreachContacts, db.settings.outreachDailyGoal) };
   });
 }

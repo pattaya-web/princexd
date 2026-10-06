@@ -30,6 +30,23 @@ export const OUTREACH_TONE: Record<OutreachStatus, string> = {
   issue: "var(--critical)",
 };
 
+export const DEFAULT_OUTREACH_DAILY_GOAL = 50;
+
+/** Jour AAAA-MM-JJ a Paris : la journee de la VA, pas celle du serveur. */
+export function parisDayOf(iso: string | Date = new Date()): string {
+  return new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(typeof iso === "string" ? new Date(iso) : iso);
+}
+
+/** DM envoyes aujourd'hui, toutes listes confondues, face a l'objectif. */
+export function dailyProgress(
+  contacts: { contactedAt?: string }[],
+  goal: number | undefined,
+): { day: string; count: number; goal: number } {
+  const day = parisDayOf();
+  const count = contacts.reduce((a, c) => a + (c.contactedAt && parisDayOf(c.contactedAt) === day ? 1 : 0), 0);
+  return { day, count, goal: goal && goal > 0 ? Math.round(goal) : DEFAULT_OUTREACH_DAILY_GOAL };
+}
+
 export const isOutreachStatus = (s: unknown): s is OutreachStatus =>
   typeof s === "string" && (OUTREACH_STATUSES as string[]).includes(s);
 

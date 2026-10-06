@@ -65,6 +65,21 @@ export default function OutreachPage() {
   const [listsError, setListsError] = useState("");
   const [listId, setListId] = useState<string>("");
 
+  /* --------------------------- Objectif du jour --------------------------- */
+  const [today, setToday] = useState<{ day: string; count: number; goal: number } | null>(null);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalDraft, setGoalDraft] = useState("");
+  const saveGoal = async () => {
+    try {
+      const r = await api<{ dailyGoal: number }>("/api/outreach/message", { method: "PATCH", body: JSON.stringify({ dailyGoal: Number(goalDraft) }) });
+      setToday((t) => (t ? { ...t, goal: r.dailyGoal } : t));
+      setEditingGoal(false);
+      toast(`Objectif du jour : ${r.dailyGoal} DM.`);
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
   /* ------------------------------- Message ------------------------------- */
   const [message, setMessage] = useState("");
   const [editingMessage, setEditingMessage] = useState(false);
@@ -95,9 +110,10 @@ export default function OutreachPage() {
 
   const loadLists = useCallback(async () => {
     try {
-      const r = await api<{ lists: OutreachListRow[]; message: string }>("/api/outreach/lists");
+      const r = await api<{ lists: OutreachListRow[]; message: string; today: { day: string; count: number; goal: number } }>("/api/outreach/lists");
       setLists(r.lists);
       setMessage(r.message);
+      setToday(r.today);
       setListsError("");
       return r.lists;
     } catch (e) {
@@ -215,7 +231,8 @@ export default function OutreachPage() {
     setContacts((cur) => cur.map((x) => (x.id === c.id ? { ...x, status, statusAt: new Date().toISOString() } : x)));
     if (status === "contacted") goNext(c.id);
     try {
-      await api(`/api/outreach/contacts/${c.id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      const r = await api<{ today?: { day: string; count: number; goal: number } }>(`/api/outreach/contacts/${c.id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      if (r.today) setToday(r.today);
       setLists((cur) =>
         cur?.map((l) =>
           l.id === c.listId ? { ...l, counts: { ...l.counts, [before]: Math.max(0, l.counts[before] - 1), [status]: l.counts[status] + 1 } } : l,
@@ -309,6 +326,71 @@ export default function OutreachPage() {
       {listsError && (
         <div className="mb-4">
           <ErrorNote>{listsError}</ErrorNote>
+        </div>
+      )}
+
+      {/* ---------------------------- Objectif du jour ----------------------------- */}
+      {today && (
+        <div
+          className="card px-4 py-3 mb-3 flex items-center gap-4 flex-wrap"
+          style={today.count >= today.goal ? { borderColor: "color-mix(in srgb, var(--good) 45%, transparent)" } : undefined}
+        >
+          <div className="min-w-0">
+            <div className="label-xs">Objectif du jour</div>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-[30px] font-semibold num leading-none" style={{ letterSpacing: "-0.035em", color: today.count >= today.goal ? "var(--good)" : undefined }}>
+                {fmtInt(today.count)}
+              </span>
+              <span className="dim text-[14px] num">/ {fmtInt(today.goal)} DM</span>
+              {isAdmin && !editingGoal && (
+                <button
+                  className="link text-[11.5px]"
+                  onClick={() => {
+                    setGoalDraft(String(today.goal));
+                    setEditingGoal(true);
+                  }}
+                >
+                  ✎ modifier
+                </button>
+              )}
+              {editingGoal && (
+                <span className="flex items-center gap-1.5">
+                  <input
+                    className="input num !w-[90px] !h-[30px]"
+                    type="number"
+                    min={1}
+                    max={5000}
+                    value={goalDraft}
+                    autoFocus
+                    onChange={(e) => setGoalDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void saveGoal();
+                      if (e.key === "Escape") setEditingGoal(false);
+                    }}
+                  />
+                  <button className="btn btn-sm btn-primary" onClick={() => void saveGoal()}>
+                    OK
+                  </button>
+                  <button className="btn btn-sm" onClick={() => setEditingGoal(false)}>
+                    Annuler
+                  </button>
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex-1 min-w-[160px]">
+            <div className="rounded-[6px] overflow-hidden" style={{ height: 10, background: "var(--surface-3)" }}>
+              <div
+                className="h-full transition-[width]"
+                style={{ width: `${Math.min(100, (today.count / Math.max(1, today.goal)) * 100)}%`, background: today.count >= today.goal ? "var(--good)" : "var(--grad-accent)" }}
+              />
+            </div>
+            <div className="dim text-[12px] mt-1.5 num">
+              {today.count >= today.goal
+                ? `Objectif atteint 🎉 ${today.count - today.goal > 0 ? `+${fmtInt(today.count - today.goal)} au-dessus.` : "Bravo."}`
+                : `Encore ${fmtInt(today.goal - today.count)} DM à envoyer aujourd'hui. Chaque « Mark Contacted » compte, toutes listes confondues.`}
+            </div>
+          </div>
         </div>
       )}
 
