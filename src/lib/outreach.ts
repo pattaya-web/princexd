@@ -10,6 +10,10 @@ import type { OutreachStatus } from "./types";
 
 export const OUTREACH_STATUSES: OutreachStatus[] = ["to-contact", "contacted", "replied", "issue"];
 
+/** Le DM d'ouverture, tel que l'admin l'a dicte. Modifiable depuis la page Outreach. */
+export const DEFAULT_OUTREACH_MESSAGE =
+  "Salut, petite question : tu es déjà lancé en e-commerce ou tu regardes encore comment te lancer ?";
+
 /** Libelles en anglais, comme demande : la VA travaille en anglais. */
 export const OUTREACH_LABEL: Record<OutreachStatus, string> = {
   "to-contact": "To Contact",

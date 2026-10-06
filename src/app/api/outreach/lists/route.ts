@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { newId, readDB, writeDB } from "@/lib/db";
 import { readSession, requireAdmin, requireOutreach } from "@/lib/sales/access";
 import { handle, required } from "@/lib/sales/http";
-import { cleanUsername } from "@/lib/outreach";
+import { cleanUsername, DEFAULT_OUTREACH_MESSAGE } from "@/lib/outreach";
 import type { OutreachContact, OutreachList, OutreachStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       .slice()
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .map((l) => summarize(db, l));
-    return { lists };
+    return { lists, message: db.settings.outreachMessage ?? DEFAULT_OUTREACH_MESSAGE };
   });
 }
 

@@ -166,6 +166,8 @@ export interface Settings {
    */
   vaUsername?: string;
   vaPasswordHash?: string;
+  /** Message que la VA copie-colle en DM Instagram. Ecrit par l'admin. */
+  outreachMessage?: string;
   /** Bloc-notes libre de la to-do flottante, et date de sa derniere sauvegarde. */
   todoNotes?: string;
   todoNotesAt?: string;

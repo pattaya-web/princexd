@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { fmtDate, fmtInt } from "@/lib/format";
 import { useSession } from "@/lib/sales/client";
-import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, useToast } from "@/components/ui";
+import { Card, CopyButton, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, useToast } from "@/components/ui";
 import { mapContacts, OUTREACH_LABEL, OUTREACH_STATUSES, OUTREACH_TONE, parseCsv, type CsvMapping } from "@/lib/outreach";
 import type { OutreachListRow } from "@/app/api/outreach/lists/route";
 import type { OutreachContact, OutreachList, OutreachStatus } from "@/lib/types";
@@ -65,10 +65,39 @@ export default function OutreachPage() {
   const [listsError, setListsError] = useState("");
   const [listId, setListId] = useState<string>("");
 
+  /* ------------------------------- Message ------------------------------- */
+  const [message, setMessage] = useState("");
+  const [editingMessage, setEditingMessage] = useState(false);
+  const [messageDraft, setMessageDraft] = useState("");
+  const [savingMessage, setSavingMessage] = useState(false);
+  const saveMessage = async () => {
+    setSavingMessage(true);
+    try {
+      const r = await api<{ message: string }>("/api/outreach/message", { method: "PATCH", body: JSON.stringify({ message: messageDraft }) });
+      setMessage(r.message);
+      setEditingMessage(false);
+      toast("Message enregistré. La VA le voit dès son prochain chargement.");
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setSavingMessage(false);
+    }
+  };
+  /** Copie le DM dans le presse-papiers : un clic, puis Instagram. */
+  const copyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(message);
+      toast("Message copié. Colle-le dans le DM Instagram.");
+    } catch {
+      toast("Copie impossible : sélectionne le texte et copie-le à la main.", "err");
+    }
+  };
+
   const loadLists = useCallback(async () => {
     try {
-      const r = await api<{ lists: OutreachListRow[] }>("/api/outreach/lists");
+      const r = await api<{ lists: OutreachListRow[]; message: string }>("/api/outreach/lists");
       setLists(r.lists);
+      setMessage(r.message);
       setListsError("");
       return r.lists;
     } catch (e) {
@@ -283,6 +312,54 @@ export default function OutreachPage() {
         </div>
       )}
 
+      {/* ------------------------------- Le message -------------------------------- */}
+      {lists && (
+        <Card
+          title="Message à envoyer"
+          subtitle="Copie-le, ouvre Instagram, colle-le dans le DM, reviens cliquer « Mark Contacted »."
+          className="mb-4"
+          actions={
+            editingMessage ? undefined : (
+              <>
+                <CopyButton text={message} label="Copier le message" />
+                {isAdmin && (
+                  <button
+                    className="btn btn-sm"
+                    onClick={() => {
+                      setMessageDraft(message);
+                      setEditingMessage(true);
+                    }}
+                  >
+                    ✎ Modifier
+                  </button>
+                )}
+              </>
+            )
+          }
+        >
+          {editingMessage ? (
+            <div className="flex flex-col gap-2">
+              <textarea className="input w-full !text-[14px] leading-relaxed" rows={3} value={messageDraft} onChange={(e) => setMessageDraft(e.target.value)} autoFocus />
+              <div className="flex gap-2 justify-end">
+                <button className="btn btn-sm" onClick={() => setEditingMessage(false)} disabled={savingMessage}>
+                  Annuler
+                </button>
+                <button className="btn btn-sm btn-primary" onClick={() => void saveMessage()} disabled={savingMessage || !messageDraft.trim()}>
+                  {savingMessage ? <span className="spinner" /> : "Enregistrer"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p
+              className="text-[15px] leading-relaxed whitespace-pre-wrap select-all rounded-[10px] px-3.5 py-3"
+              style={{ background: "var(--surface-2)", border: "1px dashed var(--border-strong)" }}
+            >
+              {message}
+            </p>
+          )}
+        </Card>
+      )}
+
       {/* ------------------------------ Listes (admin) ----------------------------- */}
       {isAdmin && showLists && lists && (
         <Card title="Toutes les listes" subtitle="Chaque import est une liste à part. Son avancement est gardé pour toujours." padded={false} className="mb-4">
@@ -470,6 +547,9 @@ export default function OutreachPage() {
                         </td>
                         <td>
                           <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button className="btn btn-sm btn-ghost" onClick={() => void copyMessage()} title="Copier le message à envoyer">
+                              📋 Copy message
+                            </button>
                             <a href={`https://instagram.com/${c.username}`} target="_blank" rel="noreferrer" className="btn btn-sm">
                               Open Instagram ↗
                             </a>
@@ -522,7 +602,10 @@ export default function OutreachPage() {
                       </span>
                     </div>
                     {c.name && <div className="text-[13px] mt-0.5 truncate">{c.name}</div>}
-                    <div className="grid grid-cols-2 gap-2 mt-3">
+                    <button className="btn btn-ghost w-full !h-[40px] mt-3" onClick={() => void copyMessage()}>
+                      📋 Copy message
+                    </button>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
                       <a href={`https://instagram.com/${c.username}`} target="_blank" rel="noreferrer" className="btn !h-[46px] !text-[14px]">
                         Open Instagram ↗
                       </a>
