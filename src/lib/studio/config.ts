@@ -277,7 +277,7 @@ export const TALKING_PHOTO = {
   creditsPerSec: { "480p": 18, "720p": 30 } as Record<"480p" | "720p", number>,
   verifiedPricing: false,
   maxAudioSec: 90,
-  defaultPrompt: "A person talking naturally to the camera, subtle head movements, natural blinking and expressions, steady framing.",
+  defaultPrompt: "A person talking naturally to the camera, subtle head movements, natural blinking and expressions, steady framing. No subtitles, no captions, no on-screen text, no watermark.",
 };
 
 /**

@@ -40,7 +40,9 @@ No face flickering.
 No extra fingers.
 No warped hands.
 No deformed face.
-No duplicated body parts.`;
+No duplicated body parts.
+
+Never add text of any kind: no subtitles, no captions, no on-screen text, no text overlay, no watermark, no logo. If the source video has burned-in captions, do not reproduce or rewrite them; render that area as clean background.`;
 
 export const SYSTEM_PROMPTS: Record<TransformType, string> = {
   full: `Replace the main subject in the source video with the person shown in the reference image.
@@ -157,7 +159,7 @@ export const TRANSFORM_LABELS: Record<TransformType, string> = {
 };
 
 export const DEFAULT_NEGATIVE_PROMPT =
-  "identity drift, face flicker, deformed face, distorted eyes, bad anatomy, extra fingers, warped hands, duplicated limbs, changing clothes, changing background, camera changes, unrealistic skin, plastic skin, morphing";
+  "identity drift, face flicker, deformed face, distorted eyes, bad anatomy, extra fingers, warped hands, duplicated limbs, changing clothes, changing background, camera changes, unrealistic skin, plastic skin, morphing, subtitles, captions, on-screen text, text overlay, watermark, logo";
 
 /** Nom du sujet « produit » côté Kling : référencé par @produit dans le prompt. */
 export const PRODUCT_ELEMENT = "produit";

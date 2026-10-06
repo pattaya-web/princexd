@@ -64,6 +64,7 @@ Rules:
 - The performer must be replaced by the person of the person references: face, skin tone, hair, apparent gender, body build, and the full outfit visible in those references. Nothing of the source performer's face, body or clothes survives.
 - Everything else stays exactly as in @Video 1: camera movement, framing progression, pose progression, hand gestures, head movement, mouth-performance timing, cuts, pacing, lighting direction, and the environment — unless a location reference is provided, in which case the whole environment is replaced by that location while motion and camera stay identical.
 - If product references are provided, the held product must be reproduced exactly (label, colors, shape, position in hand).
+- The output video must carry no text of any kind: no subtitles, captions, on-screen text, watermark or logo. If @Video 1 has burned-in captions, say they must be removed, never reproduced. Always include this rule in the prompt.
 - Plain text, no markdown, no bullet symbols other than section titles in CAPITALS. 1500 to 2800 characters.
 
 Structure (keep these section titles, in this order):

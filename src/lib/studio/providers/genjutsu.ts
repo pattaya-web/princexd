@@ -99,8 +99,11 @@ async function hfFetch(url: string, init: RequestInit = {}): Promise<Record<stri
  */
 export function genjutsuPrompt(i: ProviderInput): string {
   const user = i.userPrompt?.trim() ?? "";
+  // Interdiction du texte a l'ecran : sans elle, le modele « reecrit » des
+  // sous-titres hallucines sur une video parlee.
+  const noText = "Do not add any subtitles, captions, on-screen text, watermark or logo.";
   // Une consigne deja structuree (bouton « Rédiger la consigne ») part telle quelle.
-  if (/^edit @video/i.test(user)) return user.slice(0, 3900);
+  if (/^edit @video/i.test(user)) return `${user.slice(0, 3900 - noText.length - 1)} ${noText}`;
   const several = (i.referenceImageUrls?.length ?? 0) > 1;
   const parts = [
     several
@@ -112,6 +115,7 @@ export function genjutsuPrompt(i: ProviderInput): string {
     parts.push(`Keep the product held in the hand exactly as shown in the product reference images (${i.product.description?.trim() || "the product"}): same label, colors and shape.`);
   }
   parts.push(i.sceneImageUrl ? "Keep the original video's motion, camera, framing and timing." : "Keep the original video's motion, camera, framing, background and timing.");
+  parts.push(noText);
   if (user) parts.push(user);
   return parts.join(" ").slice(0, 3900);
 }
