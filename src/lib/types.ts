@@ -156,6 +156,8 @@ export interface Settings {
   salesDailyTasks?: string[];
   /** Bascule unique en euros (2026-10-06) : date a laquelle une base en USD par defaut est passee en EUR. */
   salesCurrencyEurAt?: string;
+  /** Idem pour les enregistrements (ventes, regles, versements) encore libelles en USD. */
+  salesEurRecordsAt?: string;
   /** Objectif de cash encaisse par mois civil, dans la devise des ventes. 0 ou absent = pas d'objectif. */
   salesMonthlyGoal?: number;
   /** Derniere synchro reussie, pour ne pas retaper l'API a chaque navigation. */

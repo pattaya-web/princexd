@@ -102,6 +102,45 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       }
     }
 
+    /*
+     * Coordonnees du lead corrigees depuis la fiche (admin) : nom, email,
+     * telephone, pays. Une faute de frappe a l'import ne doit pas obliger a
+     * passer par le CRM.
+     */
+    if (body.lead && typeof body.lead === "object") {
+      requireAdmin(session);
+      const db = readDB();
+      const appt = db.appointments.find((a) => a.id === id);
+      if (!appt) throw new Forbidden("Rendez-vous introuvable.");
+      const lead = db.leads.find((l) => l.id === appt.leadId);
+      if (lead) {
+        const l = body.lead as Record<string, unknown>;
+        const str = (v: unknown, max = 200) => (typeof v === "string" ? v.trim().slice(0, max) : undefined);
+        const name = str(l.name);
+        if (name !== undefined) {
+          if (!name) throw new Error("Le nom du lead ne peut pas être vide.");
+          lead.name = name;
+        }
+        const email = str(l.email);
+        if (email !== undefined) lead.email = email;
+        const phone = str(l.phone, 40);
+        if (phone !== undefined) lead.phone = phone;
+        const country = str(l.country, 60);
+        if (country !== undefined) lead.country = country;
+        db.activityLogs.unshift({
+          id: newId(),
+          at: new Date().toISOString(),
+          actorId: session.memberId,
+          actorName: session.memberName || "Moi",
+          action: "lead.updated",
+          entity: "lead",
+          entityId: lead.id,
+          summary: `Coordonnées de ${lead.name} corrigées`,
+        });
+        writeDB(db);
+      }
+    }
+
     return patchAppointment(session, id, patch);
   });
 }

@@ -487,10 +487,36 @@ export function patchAppointment(
   }
 
   const before = appt.closerId;
+  const beforeSetter = appt.setterId;
   Object.assign(appt, patch);
   appt.updatedAt = new Date().toISOString();
 
   if (patch.status && patch.status !== appt.status) pushHistory(appt, session, patch.status);
+
+  /*
+   * L'attribution suit sur la vente : commissions et classements se lisent
+   * sur `sale.setterId` / `sale.closerId`. Corriger le closer d'un call deja
+   * close sans corriger la vente laisserait la commission au mauvais membre.
+   */
+  const sale = db.sales.find((s) => s.appointmentId === appt.id && s.status !== "cancelled");
+  if (sale) {
+    if (patch.closerId !== undefined && sale.closerId !== patch.closerId) {
+      sale.closerId = patch.closerId;
+      sale.updatedAt = appt.updatedAt;
+    }
+    if (patch.setterId !== undefined && sale.setterId !== patch.setterId) {
+      sale.setterId = patch.setterId;
+      sale.updatedAt = appt.updatedAt;
+    }
+  }
+  if (patch.setterId !== undefined && patch.setterId !== beforeSetter) {
+    log(db, session, {
+      action: "appointment.assigned",
+      entity: "appointment",
+      entityId: appt.id,
+      summary: `${memberName(db, patch.setterId)} attribué comme setter`,
+    });
+  }
 
   if (patch.closerId !== undefined && patch.closerId !== before) {
     const lead = db.leads.find((l) => l.id === appt.leadId);
@@ -521,7 +547,7 @@ export function patchAppointment(
 export function patchSale(
   session: Session,
   id: string,
-  patch: Partial<Pick<Sale, "cashCollected" | "contractValue" | "status" | "refundAmount" | "notes" | "offer" | "paymentType" | "installments" | "paymentMethod" | "schedule">>,
+  patch: Partial<Pick<Sale, "cashCollected" | "contractValue" | "status" | "refundAmount" | "notes" | "offer" | "paymentType" | "installments" | "paymentMethod" | "schedule" | "soldAt">>,
 ) {
   const db = readDB();
   const sale = db.sales.find((s) => s.id === id);
@@ -534,7 +560,23 @@ export function patchSale(
     throw new Forbidden("Remboursements et annulations sont réservés à l'administrateur.");
   }
 
+  if (patch.cashCollected !== undefined && patch.cashCollected > (patch.contractValue ?? sale.contractValue) + 0.005) {
+    throw new Error("Le cash encaissé ne peut pas dépasser la valeur du contrat.");
+  }
+  // Corriger la date de vente est une correction d'admin : elle deplace la vente d'un mois a l'autre.
+  if (patch.soldAt !== undefined && !session.isAdmin) throw new Forbidden("Seul l'administrateur peut changer la date de vente.");
+
+  const moneyChanged = ["contractValue", "cashCollected", "installments", "soldAt"].some((k) => patch[k as keyof typeof patch] !== undefined);
   Object.assign(sale, patch);
+  /*
+   * Montants ou nombre d'echeances corriges sans plan explicite : le plan
+   * de paiement est recalcule, en gardant les echeances deja encaissees.
+   * Sans cela une vente passee de 3 000 a 2 500 garderait une echeance de
+   * 1 500 a venir qui ne correspond plus a rien.
+   */
+  if (moneyChanged && patch.schedule === undefined) {
+    sale.schedule = mergePaid(buildSchedule(sale.contractValue, sale.cashCollected, sale.installments, sale.soldAt), sale.schedule);
+  }
   if (patch.refundAmount !== undefined && patch.refundAmount > 0) {
     sale.refundedAt = new Date().toISOString();
     if (!patch.status) {

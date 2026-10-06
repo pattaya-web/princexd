@@ -31,6 +31,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (body.installments !== undefined) patch.installments = Math.max(0, num(body.installments));
     if (typeof body.paymentType === "string") patch.paymentType = body.paymentType as PaymentType;
     if (typeof body.status === "string") patch.status = body.status as SaleStatus;
+    if (typeof body.soldAt === "string" && !Number.isNaN(Date.parse(body.soldAt))) patch.soldAt = new Date(body.soldAt).toISOString();
     // Plan de paiement : dates et montants des echeances, reverifies un a un.
     if (Array.isArray(body.schedule)) {
       patch.schedule = (body.schedule as Record<string, unknown>[])

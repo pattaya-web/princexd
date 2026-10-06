@@ -184,6 +184,18 @@ export function readDB(): DB {
     settings.salesCurrencyEurAt = new Date().toISOString();
     writeDB(cache.db);
   }
+  // Les ventes, regles et versements portent leur propre devise : les
+  // montants saisis etaient deja des euros, seule l'etiquette etait fausse.
+  if (!settings.salesEurRecordsAt) {
+    const fix = (rows: { currency: string }[]) => {
+      for (const r of rows) if (r.currency === "USD") r.currency = "EUR";
+    };
+    fix(cache.db.sales);
+    fix(cache.db.commissionRules);
+    fix(cache.db.commissionPayments);
+    settings.salesEurRecordsAt = new Date().toISOString();
+    writeDB(cache.db);
+  }
   return cache.db;
 }
 

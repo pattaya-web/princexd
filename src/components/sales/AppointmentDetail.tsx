@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client";
 import { useSalesData } from "@/lib/sales/client";
 import { fmtDateTime, fmtMoney, label, parisDay, parisToIso } from "@/lib/format";
-import { canConfirm, LOST_REASONS } from "@/lib/sales/constants";
+import { canConfirm, LOST_REASONS, PAYMENT_TYPES, SALE_STATUSES } from "@/lib/sales/constants";
 import { buildSchedule } from "@/lib/sales/installments";
 import { Field, Modal, Spinner, useToast } from "@/components/ui";
 import { ConfirmationSelect, IgHandle, StatusBadge } from "./bits";
@@ -21,6 +21,7 @@ import type {
   RecapNextAction,
   EcomObjective,
   Sale,
+  SaleStatus,
   Session,
   Student,
 } from "@/lib/types";
@@ -202,6 +203,119 @@ export function AppointmentDetail({
   const [nextSessionAt, setNextSessionAt] = useState("");
 
   const closers = useMemo(() => members.filter((m) => hasRole(m, "closer") && m.status !== "inactif"), [members]);
+  const setters = useMemo(() => members.filter((m) => hasRole(m, "setter") && m.status !== "inactif"), [members]);
+
+  /* ----------------------- Corrections de l'admin ----------------------- */
+  /*
+   * L'admin corrige tout depuis la fiche : coordonnees du lead, setter,
+   * closer, et la vente elle-meme (offre, montants, type de paiement, date).
+   * Une erreur de saisie se repare la ou on la voit, pas dans trois ecrans.
+   */
+  const [editingLead, setEditingLead] = useState(false);
+  const [leadForm, setLeadForm] = useState({ name: "", email: "", phone: "", country: "" });
+  const openLeadEdit = () => {
+    setLeadForm({
+      name: detail?.lead?.name ?? "",
+      email: detail?.lead?.email ?? "",
+      phone: detail?.lead?.phone ?? "",
+      country: detail?.lead?.country ?? "",
+    });
+    setEditingLead(true);
+  };
+  const saveLead = async () => {
+    if (!appt) return;
+    setSaving(true);
+    try {
+      await api(`/api/sales/appointments/${appt.id}`, { method: "PATCH", body: JSON.stringify({ lead: leadForm }) });
+      toast("Coordonnées enregistrées.");
+      setEditingLead(false);
+      await load(appt.id);
+      onChanged();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const assignSetter = async (setterId: string) => {
+    if (!appt || !setterId) return;
+    try {
+      await api(`/api/sales/appointments/${appt.id}`, { method: "PATCH", body: JSON.stringify({ setterId }) });
+      toast("Setter modifié.");
+      await load(appt.id);
+      onChanged();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
+  const [editingSale, setEditingSale] = useState(false);
+  const [saleForm, setSaleForm] = useState({
+    offer: "",
+    contractValue: "",
+    cashCollected: "",
+    paymentType: "paid-in-full" as PaymentType,
+    installments: "1",
+    soldAt: "",
+    status: "active" as SaleStatus,
+    refundAmount: "",
+    notes: "",
+  });
+  const openSaleEdit = () => {
+    const sale = detail?.sale;
+    if (!sale) return;
+    setSaleForm({
+      offer: sale.offer,
+      contractValue: String(sale.contractValue),
+      cashCollected: String(sale.cashCollected),
+      paymentType: sale.paymentType,
+      installments: String(Math.max(1, sale.installments || 1)),
+      soldAt: sale.soldAt.slice(0, 10),
+      status: sale.status,
+      refundAmount: String(sale.refundAmount || ""),
+      notes: sale.notes ?? "",
+    });
+    setEditingSale(true);
+  };
+  const saveSale = async () => {
+    if (!detail?.sale || !appt) return;
+    const contractValue = Number(saleForm.contractValue);
+    const cashCollected = Number(saleForm.cashCollected);
+    if (!(contractValue > 0)) {
+      toast("La valeur de contrat doit être supérieure à 0.", "err");
+      return;
+    }
+    if (cashCollected > contractValue) {
+      toast("Le cash encaissé ne peut pas dépasser le contrat.", "err");
+      return;
+    }
+    setSaving(true);
+    try {
+      await api(`/api/sales/deals/${detail.sale.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          offer: saleForm.offer.trim() || detail.sale.offer,
+          contractValue,
+          cashCollected,
+          paymentType: saleForm.paymentType,
+          installments: saleForm.paymentType === "paid-in-full" ? 1 : Math.max(1, Number(saleForm.installments) || 1),
+          soldAt: saleForm.soldAt ? parisToIso(`${saleForm.soldAt}T12:00`) : detail.sale.soldAt,
+          status: saleForm.status,
+          refundAmount: Math.max(0, Number(saleForm.refundAmount) || 0),
+          notes: saleForm.notes,
+        }),
+      });
+      toast("Vente corrigée. Commissions et dashboard sont à jour.");
+      setEditingSale(false);
+      await load(appt.id);
+      onChanged();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const load = async (appointmentId: string) => {
     setLoading(true);
@@ -686,16 +800,45 @@ export function AppointmentDetail({
                     ✎ {detail.lead?.igUsername ? "modifier" : "saisir le pseudo"}
                   </button>
                   {appt.qualified && <span className="badge badge-good !text-[10px] !py-0">Qualifié</span>}
+                  {session.isAdmin && !editingLead && (
+                    <button type="button" className="link text-[11.5px]" onClick={openLeadEdit} title="Corriger le nom, l'email, le téléphone ou le pays">
+                      ✎ corriger
+                    </button>
+                  )}
                 </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-[12px]">
-                  {detail.lead?.email && <span>{detail.lead.email}</span>}
-                  {detail.lead?.phone && <span className="num">{detail.lead.phone}</span>}
-                  {detail.lead?.country && <span>{detail.lead.country}</span>}
-                  <span className="badge !text-[10.5px] !py-0">{label(appt.source)}</span>
-                </div>
+                {!editingLead && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-[12px]">
+                    {detail.lead?.email && <span>{detail.lead.email}</span>}
+                    {detail.lead?.phone && <span className="num">{detail.lead.phone}</span>}
+                    {detail.lead?.country && <span>{detail.lead.country}</span>}
+                    <span className="badge !text-[10.5px] !py-0">{label(appt.source)}</span>
+                  </div>
+                )}
               </div>
               <StatusBadge status={appt.status} />
             </div>
+            {editingLead && (
+              <div className="grid sm:grid-cols-2 gap-3 mt-3">
+                <Field label="Nom">
+                  <input className="input" value={leadForm.name} onChange={(e) => setLeadForm({ ...leadForm, name: e.target.value })} autoFocus />
+                </Field>
+                <Field label="Email">
+                  <input className="input" type="email" value={leadForm.email} onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })} />
+                </Field>
+                <Field label="Téléphone">
+                  <input className="input num" value={leadForm.phone} onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })} />
+                </Field>
+                <Field label="Pays">
+                  <input className="input" value={leadForm.country} placeholder="FR" onChange={(e) => setLeadForm({ ...leadForm, country: e.target.value })} />
+                </Field>
+                <div className="sm:col-span-2 flex gap-2 justify-end">
+                  <button className="btn btn-sm" onClick={() => setEditingLead(false)} disabled={saving}>Annuler</button>
+                  <button className="btn btn-sm btn-primary" onClick={() => void saveLead()} disabled={saving || !leadForm.name.trim()}>
+                    {saving ? <span className="spinner" /> : "Enregistrer"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Creneau et attribution */}
@@ -737,7 +880,23 @@ export function AppointmentDetail({
             </div>
             <div className="card-flat px-3 py-2.5">
               <div className="label-xs">Setter</div>
-              <div className="text-[13px] font-medium mt-1">{detail.setterName}</div>
+              {session.isAdmin ? (
+                <select
+                  className="select select-sm !text-[12.5px] mt-1"
+                  value={appt.setterId}
+                  onChange={(e) => void assignSetter(e.target.value)}
+                  title="Changer le setter : la vente et sa commission suivent"
+                >
+                  {!setters.some((m) => m.id === appt.setterId) && <option value={appt.setterId}>{detail.setterName}</option>}
+                  {setters.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="text-[13px] font-medium mt-1">{detail.setterName}</div>
+              )}
             </div>
             <div className="card-flat px-3 py-2.5">
               <div className="label-xs">Closer</div>
@@ -842,8 +1001,64 @@ export function AppointmentDetail({
                 <div className="card-flat px-3.5 py-3 flex flex-col gap-3">
                   <div className="flex items-baseline justify-between gap-3 flex-wrap">
                     <span className="text-[14px] font-semibold">{sale.offer}</span>
-                    <span className={`badge ${sale.status === "active" ? "badge-good" : ""} !text-[10.5px] !py-0`}>{label(sale.status)}</span>
+                    <span className="flex items-center gap-2">
+                      {session.isAdmin && !editingSale && (
+                        <button type="button" className="link text-[11.5px]" onClick={openSaleEdit} title="Corriger l'offre, les montants, le paiement ou la date de vente">
+                          ✎ corriger la vente
+                        </button>
+                      )}
+                      <span className={`badge ${sale.status === "active" ? "badge-good" : ""} !text-[10.5px] !py-0`}>{label(sale.status)}</span>
+                    </span>
                   </div>
+                  {editingSale && (
+                    <div className="grid sm:grid-cols-2 gap-3 pb-3" style={{ borderBottom: "1px solid var(--border)" }}>
+                      <Field label="Offre vendue">
+                        <input className="input" value={saleForm.offer} onChange={(e) => setSaleForm({ ...saleForm, offer: e.target.value })} autoFocus />
+                      </Field>
+                      <Field label="Date de vente">
+                        <input className="input" type="date" value={saleForm.soldAt} onChange={(e) => setSaleForm({ ...saleForm, soldAt: e.target.value })} />
+                      </Field>
+                      <Field label={`Valeur de contrat (${sale.currency})`}>
+                        <input className="input num" type="number" min={0} value={saleForm.contractValue} onChange={(e) => setSaleForm({ ...saleForm, contractValue: e.target.value })} />
+                      </Field>
+                      <Field label={`Cash encaissé au total (${sale.currency})`} hint="Acompte + échéances déjà reçues.">
+                        <input className="input num" type="number" min={0} value={saleForm.cashCollected} onChange={(e) => setSaleForm({ ...saleForm, cashCollected: e.target.value })} />
+                      </Field>
+                      <Field label="Type de paiement">
+                        <select className="select" value={saleForm.paymentType} onChange={(e) => setSaleForm({ ...saleForm, paymentType: e.target.value as PaymentType })}>
+                          {PAYMENT_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {label(t)}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Nombre de paiements" hint="Les échéances restantes sont recalculées, celles déjà encaissées sont gardées.">
+                        <input className="input num" type="number" min={1} max={12} value={saleForm.installments} disabled={saleForm.paymentType === "paid-in-full"} onChange={(e) => setSaleForm({ ...saleForm, installments: e.target.value })} />
+                      </Field>
+                      <Field label="Statut">
+                        <select className="select" value={saleForm.status} onChange={(e) => setSaleForm({ ...saleForm, status: e.target.value as SaleStatus })}>
+                          {SALE_STATUSES.map((t) => (
+                            <option key={t} value={t}>
+                              {label(t)}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label={`Montant remboursé (${sale.currency})`}>
+                        <input className="input num" type="number" min={0} value={saleForm.refundAmount} placeholder="0" onChange={(e) => setSaleForm({ ...saleForm, refundAmount: e.target.value })} />
+                      </Field>
+                      <Field label="Notes" className="sm:col-span-2">
+                        <input className="input" value={saleForm.notes} onChange={(e) => setSaleForm({ ...saleForm, notes: e.target.value })} />
+                      </Field>
+                      <div className="sm:col-span-2 flex gap-2 justify-end">
+                        <button className="btn btn-sm" onClick={() => setEditingSale(false)} disabled={saving}>Annuler</button>
+                        <button className="btn btn-sm btn-primary" onClick={() => void saveSale()} disabled={saving}>
+                          {saving ? <span className="spinner" /> : "Enregistrer la correction"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <div className="label-xs">Valeur contrat</div>
