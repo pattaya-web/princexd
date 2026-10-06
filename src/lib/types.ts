@@ -1318,6 +1318,12 @@ export interface CommissionPayment {
   /** Periode couverte, purement informative : le du se calcule en cumul. */
   periodFrom: string;
   periodTo: string;
+  /**
+   * « bonus » : prime, onboarding, geste commercial. Verse et trace comme un
+   * versement, mais hors commissions : il ne vient pas en deduction du du.
+   * Absent = versement de commission ordinaire.
+   */
+  kind?: "commission" | "bonus";
   createdBy: ID;
   createdAt: string;
 }

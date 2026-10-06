@@ -28,6 +28,8 @@ export async function POST(req: NextRequest) {
 
     const amount = num(body.amount);
     if (amount <= 0) throw new Error("Le montant doit être supérieur à 0.");
+    // Prime hors commissions (onboarding, geste) : pas de garde-fou sur le du.
+    const kind: "commission" | "bonus" = body.kind === "bonus" ? "bonus" : "commission";
 
     // Garde-fou : on refuse de verser plus que le solde du, sauf mention
     // explicite. Une avance reste possible, mais elle doit etre voulue.
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
       resolveRange("all"),
       db.settings.salesCurrency || "EUR",
     );
-    if (row && amount > row.due + 0.01 && !body.allowOverpay) {
+    if (kind === "commission" && row && amount > row.due + 0.01 && !body.allowOverpay) {
       throw new Error(
         `Le solde dû n'est que de ${row.due}. Coche « avance » pour verser davantage.`,
       );
@@ -55,6 +57,7 @@ export async function POST(req: NextRequest) {
       notes: (body.notes as string) || "",
       periodFrom: (body.periodFrom as string) || "",
       periodTo: (body.periodTo as string) || "",
+      kind,
     });
   });
 }

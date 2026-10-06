@@ -671,7 +671,10 @@ export function payCommission(
     action: "commission.paid",
     entity: "commission",
     entityId: payment.id,
-    summary: `${payment.amount} ${payment.currency} versés à ${memberName(db, payment.memberId)}`,
+    summary:
+      payment.kind === "bonus"
+        ? `${payment.amount} ${payment.currency} versés à ${memberName(db, payment.memberId)} (prime hors commissions${payment.notes ? ` : ${payment.notes}` : ""})`
+        : `${payment.amount} ${payment.currency} versés à ${memberName(db, payment.memberId)}`,
   });
 
   writeDB(db);

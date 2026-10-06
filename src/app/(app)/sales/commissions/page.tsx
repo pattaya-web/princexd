@@ -36,6 +36,7 @@ export default function CommissionsPage() {
   const [method, setMethod] = useState("");
   const [notes, setNotes] = useState("");
   const [allowOverpay, setAllowOverpay] = useState(false);
+  const [bonus, setBonus] = useState(false);
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<LedgerRow | null>(null);
 
@@ -56,6 +57,7 @@ export default function CommissionsPage() {
     setMethod("");
     setNotes("");
     setAllowOverpay(false);
+    setBonus(false);
   };
 
   const pay = async () => {
@@ -74,6 +76,7 @@ export default function CommissionsPage() {
           method,
           notes,
           allowOverpay,
+          kind: bonus ? "bonus" : "commission",
           paidAt: new Date().toISOString(),
         }),
       });
@@ -215,6 +218,7 @@ export default function CommissionsPage() {
                     <td className="text-right num font-semibold">{fmtMoney(p.amount, p.currency)}</td>
                     <td className="text-[12.5px]">{p.method || <span className="dim">—</span>}</td>
                     <td className="text-[12px] max-w-[240px] truncate">
+                      {p.kind === "bonus" && <span className="badge !text-[10px] !py-0 mr-1.5">Prime</span>}
                       {p.notes || <span className="dim">—</span>}
                     </td>
                   </tr>
@@ -324,11 +328,21 @@ export default function CommissionsPage() {
             <label className="flex items-center gap-2 text-[12.5px]">
               <input
                 type="checkbox"
-                checked={allowOverpay}
-                onChange={(e) => setAllowOverpay(e.target.checked)}
+                checked={bonus}
+                onChange={(e) => setBonus(e.target.checked)}
               />
-              Autoriser une avance au-delà du solde dû
+              Prime hors commissions (onboarding, geste) : tracée, mais ne solde aucune commission
             </label>
+            {!bonus && (
+              <label className="flex items-center gap-2 text-[12.5px]">
+                <input
+                  type="checkbox"
+                  checked={allowOverpay}
+                  onChange={(e) => setAllowOverpay(e.target.checked)}
+                />
+                Autoriser une avance au-delà du solde dû
+              </label>
+            )}
           </div>
         )}
       </Modal>

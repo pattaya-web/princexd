@@ -356,8 +356,9 @@ export function buildLedger(
           inRange(s.soldAt, range),
       );
 
+      // Les primes (onboarding, geste) sont tracees mais ne soldent pas de commission.
       const paidTotal = firstRowOfMember
-        ? payments.filter((p) => p.memberId === member.id).reduce((a, p) => a + (p.amount || 0), 0)
+        ? payments.filter((p) => p.memberId === member.id && p.kind !== "bonus").reduce((a, p) => a + (p.amount || 0), 0)
         : 0;
 
       const earnedTotal = allEntries.reduce((a, e) => a + e.amount, 0);
