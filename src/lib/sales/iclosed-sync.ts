@@ -1,6 +1,6 @@
 import { getSettings, newId, readDB, saveSettings, writeDB } from "@/lib/db";
 import { fetchUpcoming, getIclosedKey, type IclosedCall } from "@/lib/iclosed";
-import { findByIclosedId, fromIclosedCall, resolveCloser } from "./iclosed-link";
+import { findByIclosedId, fromIclosedCall, resolveCloser, utmRecord } from "./iclosed-link";
 import { memberRoles } from "./roles";
 import { createAppointment, upsertLead, type AppointmentInput } from "./repo";
 import type { Appointment, DB, Session, TeamMember } from "@/lib/types";
@@ -130,6 +130,7 @@ function createUnassigned(db: DB, input: AppointmentInput, closerId: string) {
     scheduledAt: input.scheduledAt,
     timezone: input.timezone,
     source: input.source,
+    ...(input.utm ? { utm: input.utm } : {}),
     status: "booked",
     qualified: false,
     setterNotes: input.setterNotes ?? "",
@@ -194,6 +195,13 @@ export async function syncIclosedUpcoming(opts: { force?: boolean } = {}): Promi
           let touched = false;
           if (url && existing.iclosedUrl !== url) {
             existing.iclosedUrl = url;
+            touched = true;
+          }
+          // Source du lien : connue des la creation, mais les rendez-vous
+          // importes avant cette evolution ne l'ont pas encore.
+          const utm = utmRecord(call);
+          if (utm && !existing.utm) {
+            existing.utm = utm;
             touched = true;
           }
           if (closerId) {

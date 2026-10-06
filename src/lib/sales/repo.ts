@@ -155,6 +155,8 @@ export interface AppointmentInput {
   setterId: string;
   closerId?: string;
   source: AppointmentSource;
+  /** Parametres du lien de reservation (voir lib/sales/sources.ts). */
+  utm?: Record<string, string>;
   iclosedUrl?: string;
   iclosedEventId?: string;
   setterNotes?: string;
@@ -192,6 +194,7 @@ export function createAppointment(session: Session, input: AppointmentInput): Cr
     scheduledAt: input.scheduledAt,
     timezone: input.timezone || "Europe/Paris",
     source: input.source,
+    ...(input.utm && Object.keys(input.utm).length ? { utm: input.utm } : {}),
     status: "booked",
     qualified: Boolean(input.qualified),
     setterNotes: input.setterNotes?.trim() || "",

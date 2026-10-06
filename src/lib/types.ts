@@ -158,6 +158,8 @@ export interface Settings {
   salesCurrencyEurAt?: string;
   /** Idem pour les enregistrements (ventes, regles, versements) encore libelles en USD. */
   salesEurRecordsAt?: string;
+  /** Dernier rattrapage des UTM iClosed sur les rendez-vous (page Sources). */
+  salesSourcesSyncAt?: string;
   /** Bloc-notes libre de la to-do flottante, et date de sa derniere sauvegarde. */
   todoNotes?: string;
   todoNotesAt?: string;
@@ -1136,6 +1138,12 @@ export interface Appointment {
   /** Fuseau dans lequel le rendez-vous a ete pris (affichage cote closer). */
   timezone: string;
   source: AppointmentSource;
+  /**
+   * Parametres du lien de reservation (utm_source, utm_medium, utm_campaign,
+   * utm_content, referent, identifiant Meta), tels que lus chez iClosed.
+   * Voir lib/sales/sources.ts. Absent sur les rendez-vous saisis a la main.
+   */
+  utm?: Record<string, string>;
   status: AppointmentStatus;
   /** Rendez-vous juge qualifie par l'admin : sert aux commissions "par rdv qualifie". */
   qualified: boolean;

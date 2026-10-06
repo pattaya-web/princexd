@@ -30,6 +30,7 @@ const TABS: Tab[] = [
   { href: "/sales/agenda", label: "Agenda", admin: true },
   { href: "/sales/pointage", label: "Shifts équipe", admin: true },
   { href: "/sales/suivi", label: "Suivi" },
+  { href: "/sales/sources", label: "Sources" },
   { href: "/sales/relances", label: "Relances" },
   { href: "/sales/setters", label: "Setters", role: "setter" },
   { href: "/sales/closers", label: "Closers", role: "closer" },

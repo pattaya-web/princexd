@@ -37,6 +37,7 @@ import type {
   TeamMember,
 } from "../types";
 import type { AppointmentInput } from "./repo";
+import { hasUtm, utmFromIclosed, type UtmInfo } from "./sources";
 
 /* ------------------------------ Le closer ------------------------------- */
 
@@ -177,11 +178,18 @@ export function fromIclosedCall(
     setterId: opts.setterId ?? "",
     closerId: opts.closerId ?? "",
     source: sourceFromUtm(call, opts.source ?? "inbound"),
+    utm: utmRecord(call),
     iclosedUrl: call.locationLinkInvitee || call.locationLink || "",
     iclosedEventId: call.id !== undefined ? String(call.id) : "",
     setterNotes: q?.lines.length ? `— Questionnaire iClosed —\n${q.lines.join("\n")}` : "",
     qualified: false,
   };
+}
+
+/** UTM d'un appel iClosed, sous la forme stockee sur le rendez-vous. */
+export function utmRecord(call: Partial<IclosedCall>): Record<string, string> | undefined {
+  const info: UtmInfo = utmFromIclosed(call.utm);
+  return hasUtm(info) ? (info as Record<string, string>) : undefined;
 }
 
 /**
