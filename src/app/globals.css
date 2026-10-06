@@ -864,32 +864,22 @@ b {
 
 /* ------------------------------ File de rendus ------------------------------ */
 
+/* La file du Studio se range au-dessus du bouton TODO, qui occupe le coin. */
 .jobs-dock {
   right: 16px;
-  bottom: 16px;
+  bottom: 76px;
   width: 268px;
   max-width: calc(100vw - 32px);
 }
 
-/* Bouton TODO : tout en haut, centré, par-dessus l'en-tête. */
+/* Bouton TODO : en bas à droite, comme la bulle d'un chat. */
 .todo-launcher {
-  top: 11px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 20px;
+  bottom: 20px;
 }
 .todo-launcher:hover {
   filter: brightness(1.06);
-}
-
-/* Téléphone : l'en-tête est déjà plein, le bouton descend en bas à droite. */
-@media (max-width: 767px) {
-  .todo-launcher {
-    top: auto;
-    bottom: 16px;
-    left: auto;
-    right: 16px;
-    transform: none;
-  }
+  transform: translateY(-1px);
 }
 
 /* Téléphone : le panneau de swap occupe le bas, la file monte sous l'en-tête. */

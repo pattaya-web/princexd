@@ -158,6 +158,9 @@ export interface Settings {
   salesCurrencyEurAt?: string;
   /** Idem pour les enregistrements (ventes, regles, versements) encore libelles en USD. */
   salesEurRecordsAt?: string;
+  /** Bloc-notes libre de la to-do flottante, et date de sa derniere sauvegarde. */
+  todoNotes?: string;
+  todoNotesAt?: string;
   /** Objectif de cash encaisse par mois civil, dans la devise des ventes. 0 ou absent = pas d'objectif. */
   salesMonthlyGoal?: number;
   /** Derniere synchro reussie, pour ne pas retaper l'API a chaque navigation. */

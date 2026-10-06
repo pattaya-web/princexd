@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { api } from "@/lib/client";
 import { useCollection, useDebouncedSave, useLocalState } from "@/lib/client";
 import { clipboardFiles } from "@/lib/upload-client";
 import { thumbUrl } from "@/components/MediaThumb";
@@ -13,11 +14,11 @@ import type { Todo } from "@/lib/types";
 /**
  * To-do flottante.
  *
- * Un gros bouton « TODO » tout en haut de chaque page, comme la bulle d'un
- * chatbot. Il ouvre un panneau que l'on déplace et redimensionne librement,
- * et dont la taille est mémorisée. Dedans : les tâches à cocher, avec
- * priorité, couleur, ordre manuel (glisser la poignée), un titre et une
- * description, des notes qui s'ouvrent au besoin, et des photos de rappel.
+ * Un bouton « TODO » en bas à droite de chaque page, comme la bulle d'un
+ * chat. Il ouvre un panneau que l'on déplace et redimensionne librement, et
+ * dont la taille est mémorisée. Deux onglets : les tâches à cocher (priorité,
+ * couleur, ordre manuel, notes, photos) et un bloc-notes libre pour ce qu'on
+ * griffonne sans vouloir en faire une tâche.
  *
  * La page /todo réutilise la même liste en pleine largeur.
  */
@@ -43,6 +44,64 @@ const bgOf = (c?: string) => COLORS.find((x) => x.key === (c ?? ""))?.bg || "";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const orderOf = (t: Todo) => (typeof t.order === "number" ? t.order : Number.MAX_SAFE_INTEGER);
+
+/** « il y a 2 min », « 14:05 », « hier » : quand le bloc-notes a été enregistré. */
+function savedLabel(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const diff = Date.now() - d.getTime();
+  if (diff < 60_000) return "à l'instant";
+  if (diff < 3_600_000) return `il y a ${Math.round(diff / 60_000)} min`;
+  const sameDay = d.toDateString() === new Date().toDateString();
+  const time = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(d);
+  return sameDay ? `à ${time}` : `le ${new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short" }).format(d)} à ${time}`;
+}
+
+/* ------------------------- Zone de texte qui grandit ------------------------ */
+
+/**
+ * Textarea qui prend la hauteur de son contenu, entre `minRows` et `maxRows`.
+ * Pour des notes, faire défiler trois lignes dans une boîte fixe est la
+ * première chose qui donne envie de ne plus rien écrire.
+ */
+function GrowingTextarea({
+  value,
+  onChange,
+  placeholder,
+  minRows = 3,
+  maxRows = 14,
+  className = "",
+  autoFocus,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  minRows?: number;
+  maxRows?: number;
+  className?: string;
+  autoFocus?: boolean;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const line = 20;
+    const max = maxRows * line + 16;
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, minRows * line + 16), max)}px`;
+    el.style.overflowY = el.scrollHeight > max ? "auto" : "hidden";
+  }, [value, minRows, maxRows]);
+  return (
+    <textarea
+      ref={ref}
+      className={`input w-full !text-[13px] leading-[20px] resize-none ${className}`}
+      value={value}
+      placeholder={placeholder}
+      autoFocus={autoFocus}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
 
 /* ------------------------------- Une tâche ------------------------------- */
 
@@ -72,18 +131,29 @@ function TodoItem({
   const [desc, setDesc] = useState(todo.description ?? "");
   const [notes, setNotes] = useState(todo.notes ?? "");
   const [title, setTitle] = useState(todo.text);
+  const [savedAt, setSavedAt] = useState("");
   useEffect(() => setDesc(todo.description ?? ""), [todo.description]);
   useEffect(() => setNotes(todo.notes ?? ""), [todo.notes]);
   useEffect(() => setTitle(todo.text), [todo.text]);
-  const saveDesc = useDebouncedSave<string>((v) => onPatch({ description: v }), 600);
-  const saveNotes = useDebouncedSave<string>((v) => onPatch({ notes: v }), 600);
+  const markSaved = () => setSavedAt(new Date().toISOString());
+  const saveDesc = useDebouncedSave<string>((v) => {
+    onPatch({ description: v });
+    markSaved();
+  }, 500);
+  const saveNotes = useDebouncedSave<string>((v) => {
+    onPatch({ notes: v });
+    markSaved();
+  }, 500);
   const saveTitle = useDebouncedSave<string>((v) => {
     if (v.trim()) onPatch({ text: v.trim() });
-  }, 600);
+  }, 500);
 
   const bg = bgOf(todo.color);
   const overdue = !todo.done && todo.due && todo.due < today();
   const photos = todo.photos ?? [];
+  // Aperçu replié : le détail, sinon la première ligne des notes.
+  const preview = (todo.description || (todo.notes ?? "").split("\n").find((l) => l.trim()) || "").trim();
+  const noteLines = (todo.notes ?? "").split("\n").filter((l) => l.trim()).length;
 
   const addPhotos = async (files: File[]) => {
     const imgs = files.filter((f) => f.type.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(f.name));
@@ -118,20 +188,26 @@ function TodoItem({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expanded, photos.length]);
 
+  /** Un clic sur la carte (hors champs et boutons) ouvre ou replie la tâche. */
+  const onRowClick = (e: React.MouseEvent) => {
+    const el = e.target as HTMLElement;
+    if (el.closest("input, textarea, button, a, select, label, summary")) return;
+    onExpand();
+  };
+
   return (
     <li
       className="rounded-[10px] transition-shadow"
       style={{
         background: bg ? `color-mix(in srgb, ${bg} 28%, var(--surface))` : "var(--surface)",
-        borderLeft: `4px solid ${bg || PRIO_COLOR[todo.priority]}`,
         border: "1px solid var(--border)",
         borderLeftWidth: 4,
         borderLeftColor: bg || PRIO_COLOR[todo.priority],
         opacity: dragging ? 0.55 : todo.done ? 0.7 : 1,
-        boxShadow: dragging ? "var(--shadow-lg)" : "none",
+        boxShadow: dragging ? "var(--shadow-lg)" : expanded ? "var(--shadow)" : "none",
       }}
     >
-      <div className="flex items-start gap-2 px-2 py-2">
+      <div className="flex items-start gap-2 px-2 py-2 cursor-pointer" onClick={onRowClick}>
         {/* Poignée : glisser pour réordonner. */}
         <button
           type="button"
@@ -145,7 +221,7 @@ function TodoItem({
         </button>
         <input
           type="checkbox"
-          className="mt-[3px] shrink-0"
+          className="mt-[3px] shrink-0 cursor-pointer"
           style={{ width: 18, height: 18, accentColor: "var(--accent)" }}
           checked={todo.done}
           onChange={onToggle}
@@ -162,6 +238,9 @@ function TodoItem({
                 saveTitle(e.target.value);
               }}
               onBlur={() => title.trim() && title.trim() !== todo.text && onPatch({ text: title.trim() })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              }}
               placeholder="Titre de la tâche"
             />
             <button
@@ -173,15 +252,20 @@ function TodoItem({
             >
               {todo.priority}
             </button>
-            <button type="button" className="btn btn-ghost btn-sm shrink-0 !px-1.5" onClick={onExpand} title={expanded ? "Replier" : "Description, notes, photos"}>
+            <button type="button" className="btn btn-ghost btn-sm shrink-0 !px-1.5" onClick={onExpand} title={expanded ? "Replier" : "Notes, photos, échéance"}>
               {expanded ? "▾" : "▸"}
             </button>
           </div>
-          {!expanded && (todo.description || photos.length > 0 || todo.due) && (
+          {!expanded && (preview || photos.length > 0 || todo.due || noteLines > 0) && (
             <div className="flex items-center gap-2 mt-0.5 text-[11.5px] dim min-w-0">
-              {todo.description && <span className="truncate">{todo.description}</span>}
+              {preview && <span className="truncate">{preview}</span>}
+              {noteLines > 0 && <span className="shrink-0" title={`${noteLines} ligne${noteLines > 1 ? "s" : ""} de notes`}>📝 {noteLines}</span>}
               {photos.length > 0 && <span className="shrink-0">📷 {photos.length}</span>}
-              {todo.due && <span className="shrink-0 num" style={{ color: overdue ? "var(--critical)" : undefined, fontWeight: overdue ? 600 : 400 }}>⏰ {todo.due}</span>}
+              {todo.due && (
+                <span className="shrink-0 num" style={{ color: overdue ? "var(--critical)" : undefined, fontWeight: overdue ? 600 : 400 }}>
+                  ⏰ {todo.due.split("-").reverse().slice(0, 2).join("/")}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -189,29 +273,30 @@ function TodoItem({
 
       {expanded && (
         <div className="px-2.5 pb-2.5 pl-[58px] flex flex-col gap-2">
-          <textarea
-            className="input w-full !text-[12.5px]"
-            rows={2}
-            placeholder="Description courte : quoi, pourquoi, pour qui…"
+          <input
+            className="input w-full !text-[12.5px] !h-[32px]"
+            placeholder="Détail en une ligne : quoi, pour qui…"
             value={desc}
             onChange={(e) => {
               setDesc(e.target.value);
               saveDesc(e.target.value);
             }}
           />
-          <details open={Boolean(notes)}>
-            <summary className="text-[11.5px] dim cursor-pointer select-none">Notes {notes ? `· ${notes.length} car.` : ""}</summary>
-            <textarea
-              className="input w-full !text-[12.5px] mt-1"
-              rows={5}
-              placeholder="Tout ce qu'il faut garder sous la main : liens, étapes, idées…"
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="label-xs">Notes</span>
+              <span className="dim text-[11px]">{savedAt ? `Enregistré ${savedLabel(savedAt)}` : "Enregistrement automatique"}</span>
+            </div>
+            <GrowingTextarea
               value={notes}
-              onChange={(e) => {
-                setNotes(e.target.value);
-                saveNotes(e.target.value);
+              onChange={(v) => {
+                setNotes(v);
+                saveNotes(v);
               }}
+              placeholder="Liens, étapes, idées… Tout ce qu'il faut garder sous la main. Ctrl+V colle une capture d'écran."
+              minRows={3}
             />
-          </details>
+          </div>
 
           {(photos.length > 0 || progress) && (
             <div className="flex flex-wrap gap-1.5">
@@ -243,7 +328,17 @@ function TodoItem({
           <div className="flex flex-wrap items-center gap-1.5">
             <label className="btn btn-sm cursor-pointer" title="Ajouter une photo (ou colle une capture avec Ctrl+V)">
               📷 Photo
-              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ""; void addPhotos(f); }} />
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const f = Array.from(e.target.files ?? []);
+                  e.target.value = "";
+                  void addPhotos(f);
+                }}
+              />
             </label>
             <span className="flex items-center gap-1 ml-1" title="Couleur">
               {COLORS.map((c) => (
@@ -252,18 +347,38 @@ function TodoItem({
                   type="button"
                   onClick={() => onPatch({ color: c.key })}
                   className="rounded-full"
-                  style={{ width: 16, height: 16, background: c.bg || "var(--surface-3)", border: (todo.color ?? "") === c.key ? "2px solid var(--accent)" : "1px solid var(--border)" }}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    background: c.bg || "var(--surface-3)",
+                    border: (todo.color ?? "") === c.key ? "2px solid var(--accent)" : "1px solid var(--border)",
+                  }}
                   title={c.label}
                 />
               ))}
             </span>
-            <select className="select select-xs !w-auto !text-[11.5px]" value={todo.priority} onChange={(e) => onPatch({ priority: e.target.value as Todo["priority"] })} title="Priorité">
+            <select
+              className="select select-xs !w-auto !text-[11.5px]"
+              value={todo.priority}
+              onChange={(e) => onPatch({ priority: e.target.value as Todo["priority"] })}
+              title="Priorité"
+            >
               {PRIOS.map((p) => (
-                <option key={p} value={p}>{p} · {PRIO_LABEL[p]}</option>
+                <option key={p} value={p}>
+                  {p} · {PRIO_LABEL[p]}
+                </option>
               ))}
             </select>
-            <input type="date" className="input !h-[26px] !text-[11.5px] !w-auto" value={todo.due} onChange={(e) => onPatch({ due: e.target.value })} title="Échéance" />
-            <button type="button" className="btn btn-sm btn-ghost ml-auto" style={{ color: "var(--critical)" }} onClick={onRemove}>Supprimer</button>
+            <input
+              type="date"
+              className="input !h-[26px] !text-[11.5px] !w-auto"
+              value={todo.due}
+              onChange={(e) => onPatch({ due: e.target.value })}
+              title="Échéance"
+            />
+            <button type="button" className="btn btn-sm btn-ghost ml-auto" style={{ color: "var(--critical)" }} onClick={onRemove}>
+              Supprimer
+            </button>
           </div>
         </div>
       )}
@@ -286,11 +401,17 @@ export function TodoList({ compact = false }: { compact?: boolean }) {
     () => rows.filter((t) => !t.done).sort((a, b) => orderOf(a) - orderOf(b) || b.createdAt.localeCompare(a.createdAt)),
     [rows],
   );
-  const done = useMemo(() => rows.filter((t) => t.done).sort((a, b) => (b.doneAt ?? b.createdAt).localeCompare(a.doneAt ?? a.createdAt)), [rows]);
+  const done = useMemo(
+    () => rows.filter((t) => t.done).sort((a, b) => (b.doneAt ?? b.createdAt).localeCompare(a.doneAt ?? a.createdAt)),
+    [rows],
+  );
 
   /* Ordre manuel : la liste locale bouge pendant le glisser, la base à la fin. */
   const [order, setOrder] = useState<string[] | null>(null);
-  const shown = useMemo(() => (order ? order.map((id) => active.find((t) => t.id === id)).filter(Boolean) as Todo[] : active), [order, active]);
+  const shown = useMemo(
+    () => (order ? (order.map((id) => active.find((t) => t.id === id)).filter(Boolean) as Todo[]) : active),
+    [order, active],
+  );
   const itemRefs = useRef(new Map<string, HTMLLIElement>());
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const dragRef = useRef<{ id: string; pointerId: number } | null>(null);
@@ -317,7 +438,10 @@ export function TodoList({ compact = false }: { compact?: boolean }) {
         if (!el) continue;
         const r = el.getBoundingClientRect();
         const mid = r.top + r.height / 2;
-        if (i < from && e.clientY < mid) { to = i; break; }
+        if (i < from && e.clientY < mid) {
+          to = i;
+          break;
+        }
         if (i > from && e.clientY > mid) to = i;
       }
       if (to === from) return prev;
@@ -343,14 +467,29 @@ export function TodoList({ compact = false }: { compact?: boolean }) {
     }
   };
 
-  const add = async () => {
+  /**
+   * Ajout rapide. Entrée ajoute et referme ; Maj+Entrée ajoute et ouvre la
+   * tâche pour écrire ses notes dans la foulée.
+   */
+  const add = async (openAfter = false) => {
     const t = text.trim();
     if (!t) return;
     try {
       const minOrder = active.length ? Math.min(...active.map(orderOf).filter((n) => n !== Number.MAX_SAFE_INTEGER), 0) : 0;
-      const created = await create({ text: t, priority, project: "", due: "", done: false, description: "", notes: "", color: "", photos: [], order: minOrder - 1 });
+      const created = await create({
+        text: t,
+        priority,
+        project: "",
+        due: "",
+        done: false,
+        description: "",
+        notes: "",
+        color: "",
+        photos: [],
+        order: minOrder - 1,
+      });
       setText("");
-      setExpanded(created.id);
+      if (openAfter) setExpanded(created.id);
     } catch (e) {
       toast((e as Error).message, "err");
     }
@@ -362,27 +501,59 @@ export function TodoList({ compact = false }: { compact?: boolean }) {
     await destroy(t.id).catch((e) => toast((e as Error).message, "err"));
   };
 
-  if (loading && !rows.length) return <div className="p-4"><Spinner label="Chargement de la to-do…" /></div>;
-  if (error) return <div className="p-3"><ErrorNote>{error}</ErrorNote></div>;
+  if (loading && !rows.length)
+    return (
+      <div className="p-4">
+        <Spinner label="Chargement de la to-do…" />
+      </div>
+    );
+  if (error)
+    return (
+      <div className="p-3">
+        <ErrorNote>{error}</ErrorNote>
+      </div>
+    );
 
   return (
     <div className="flex flex-col gap-2.5 h-full min-h-0">
       {/* Saisie rapide */}
-      <div className="flex items-center gap-1.5">
-        <input
-          className="input flex-1 !h-[34px]"
-          placeholder="Nouvelle tâche… (Entrée pour ajouter)"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void add()}
-        />
-        <select className="select !w-[64px] !h-[34px] !text-[12px]" value={priority} onChange={(e) => setPriority(e.target.value as Todo["priority"])} title="Priorité" style={{ color: PRIO_COLOR[priority], fontWeight: 700 }}>
-          {PRIOS.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <button className="btn btn-primary !h-[34px]" onClick={() => void add()} disabled={!text.trim()}>+</button>
+      <div>
+        <div className="flex items-center gap-1.5">
+          <input
+            className="input flex-1 !h-[36px]"
+            placeholder="Nouvelle tâche…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void add(e.shiftKey);
+            }}
+          />
+          <select
+            className="select !w-[64px] !h-[36px] !text-[12px]"
+            value={priority}
+            onChange={(e) => setPriority(e.target.value as Todo["priority"])}
+            title="Priorité"
+            style={{ color: PRIO_COLOR[priority], fontWeight: 700 }}
+          >
+            {PRIOS.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+          <button className="btn btn-primary !h-[36px]" onClick={() => void add(true)} disabled={!text.trim()} title="Ajouter et ouvrir les notes">
+            +
+          </button>
+        </div>
+        <div className="dim text-[11px] mt-1 pl-0.5">Entrée : ajouter · Maj+Entrée ou + : ajouter et écrire les notes · clic sur une tâche : l&apos;ouvrir</div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto pr-0.5" onPointerMove={onDragMove} onPointerUp={() => void onDragEnd()} onPointerCancel={() => void onDragEnd()}>
+      <div
+        className="flex-1 min-h-0 overflow-y-auto pr-0.5"
+        onPointerMove={onDragMove}
+        onPointerUp={() => void onDragEnd()}
+        onPointerCancel={() => void onDragEnd()}
+      >
         {!active.length && !done.length ? (
           <Empty>Rien à faire. Note ta première tâche ci-dessus.</Empty>
         ) : (
@@ -390,7 +561,14 @@ export function TodoList({ compact = false }: { compact?: boolean }) {
             {!active.length && <p className="dim text-[12.5px] text-center py-4">Tout est fait. 🎉</p>}
             <ul className={`flex flex-col ${compact ? "gap-1.5" : "gap-2"}`}>
               {shown.map((t) => (
-                <div key={t.id} ref={(el) => { if (el) itemRefs.current.set(t.id, el as unknown as HTMLLIElement); else itemRefs.current.delete(t.id); }} className="contents">
+                <div
+                  key={t.id}
+                  ref={(el) => {
+                    if (el) itemRefs.current.set(t.id, el as unknown as HTMLLIElement);
+                    else itemRefs.current.delete(t.id);
+                  }}
+                  className="contents"
+                >
                   <TodoItem
                     todo={t}
                     expanded={expanded === t.id}
@@ -441,18 +619,121 @@ export function TodoList({ compact = false }: { compact?: boolean }) {
   );
 }
 
+/* ------------------------------- Bloc-notes ------------------------------- */
+
+/**
+ * Un texte libre, enregistré tout seul. Pas de tâche, pas de case à cocher :
+ * l'endroit où l'on pose un numéro, une idée, le brouillon d'un message,
+ * avant de savoir ce qu'on en fera.
+ */
+export function Notepad() {
+  const [notes, setNotes] = useState("");
+  const [savedAt, setSavedAt] = useState("");
+  const [state, setState] = useState<"loading" | "ready" | "saving" | "error">("loading");
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    let alive = true;
+    api<{ notes: string; updatedAt: string }>("/api/notes")
+      .then((r) => {
+        if (!alive) return;
+        setNotes(r.notes);
+        setSavedAt(r.updatedAt);
+        setState("ready");
+      })
+      .catch(() => alive && setState("error"));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const save = useDebouncedSave<string>(async (v) => {
+    setState("saving");
+    try {
+      const r = await api<{ updatedAt: string }>("/api/notes", { method: "PATCH", body: JSON.stringify({ notes: v }) });
+      setSavedAt(r.updatedAt);
+      setState("ready");
+    } catch {
+      setState("error");
+    }
+  }, 600);
+
+  /** Insère la date du jour à la position du curseur : une ligne de journal. */
+  const stamp = () => {
+    const el = ref.current;
+    const d = new Date();
+    const line = `— ${new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "2-digit", month: "short" }).format(d)} ${new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(d)} —\n`;
+    const start = el?.selectionStart ?? notes.length;
+    const before = notes.slice(0, start);
+    const prefix = before && !before.endsWith("\n") ? "\n" : "";
+    const next = `${before}${prefix}${line}${notes.slice(el?.selectionEnd ?? start)}`;
+    setNotes(next);
+    save(next);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      const pos = (before + prefix + line).length;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  if (state === "loading") {
+    return (
+      <div className="p-4">
+        <Spinner label="Chargement du bloc-notes…" />
+      </div>
+    );
+  }
+
+  const words = notes.trim() ? notes.trim().split(/\s+/).length : 0;
+
+  return (
+    <div className="flex flex-col gap-2 h-full min-h-0">
+      <div className="flex items-center gap-2 flex-wrap">
+        <button type="button" className="btn btn-sm" onClick={stamp} title="Insérer la date et l'heure à l'endroit du curseur">
+          📅 Date
+        </button>
+        <span className="dim text-[11px] num">{words} mot{words > 1 ? "s" : ""}</span>
+        <span className="ml-auto text-[11px]" style={{ color: state === "error" ? "var(--critical)" : "var(--text-3)" }}>
+          {state === "saving" ? "Enregistrement…" : state === "error" ? "Non enregistré, réessaie" : savedAt ? `Enregistré ${savedLabel(savedAt)}` : "Enregistrement automatique"}
+        </span>
+      </div>
+      <textarea
+        ref={ref}
+        className="input flex-1 min-h-0 w-full !text-[13.5px] leading-[22px] resize-none"
+        placeholder={"Écris ici ce que tu veux garder sous la main : idées, numéros, brouillons de messages…\nTout est enregistré automatiquement."}
+        value={notes}
+        onChange={(e) => {
+          setNotes(e.target.value);
+          save(e.target.value);
+        }}
+        spellCheck
+      />
+    </div>
+  );
+}
+
 /* ------------------------------ Le panneau ------------------------------- */
 
-interface Box { x: number; y: number; w: number; h: number }
+interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 type ResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+type Tab = "tasks" | "notes";
 
-const DEFAULT_BOX: Box = { x: -1, y: 64, w: 440, h: 580 };
+const DEFAULT_BOX: Box = { x: -1, y: -1, w: 440, h: 600 };
 const MIN_W = 300;
 const MIN_H = 260;
+/** Place du bouton en bas à droite : le panneau s'ouvre juste au-dessus. */
+const LAUNCHER_GAP = 76;
 
 export function TodoDock() {
   const { rows } = useCollection<Todo>("todos");
   const [open, setOpen] = useLocalState<boolean>("todo-dock:open", false);
+  const [tab, setTab] = useLocalState<Tab>("todo-dock:tab", "tasks");
   const [box, setBox] = useLocalState<Box>("todo-dock:box", DEFAULT_BOX);
   const [max, setMax] = useState(false);
   const boxRef = useRef(box);
@@ -462,7 +743,8 @@ export function TodoDock() {
   const active = rows.filter((t) => !t.done);
   const urgent = active.filter((t) => t.priority === "P1").length;
 
-  // Première ouverture : à droite de l'écran, sous le bouton.
+  // Première ouverture : collé en bas à droite, au-dessus du bouton. Ensuite,
+  // là où on l'a laissé, ramené dans l'écran si la fenêtre a rétréci.
   const resolved = useMemo<Box>(() => {
     if (typeof window === "undefined") return box;
     const vw = window.innerWidth;
@@ -471,7 +753,7 @@ export function TodoDock() {
     const w = Math.min(box.w, vw - 16);
     const h = Math.min(box.h, vh - 72);
     const x = box.x < 0 ? Math.max(8, vw - w - 20) : Math.min(Math.max(0, box.x), Math.max(0, vw - w));
-    const y = Math.min(Math.max(56, box.y), Math.max(56, vh - h));
+    const y = box.y < 0 ? Math.max(56, vh - h - LAUNCHER_GAP) : Math.min(Math.max(56, box.y), Math.max(56, vh - h));
     return { x, y, w, h };
   }, [box, max]);
 
@@ -501,8 +783,14 @@ export function TodoDock() {
     const d = m.dir ?? "se";
     if (d.includes("e")) w = Math.max(MIN_W, s.w + dx);
     if (d.includes("s")) h = Math.max(MIN_H, s.h + dy);
-    if (d.includes("w")) { w = Math.max(MIN_W, s.w - dx); x = s.x + (s.w - w); }
-    if (d.includes("n")) { h = Math.max(MIN_H, s.h - dy); y = s.y + (s.h - h); }
+    if (d.includes("w")) {
+      w = Math.max(MIN_W, s.w - dx);
+      x = s.x + (s.w - w);
+    }
+    if (d.includes("n")) {
+      h = Math.max(MIN_H, s.h - dy);
+      y = s.y + (s.h - h);
+    }
     setBox({ x, y, w, h });
   };
   const onUp = () => {
@@ -520,33 +808,52 @@ export function TodoDock() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, setOpen]);
 
-  const handle = (dir: ResizeDir, style: React.CSSProperties, cursor: string) => (
-    <div key={dir} onPointerDown={startResize(dir)} style={{ position: "absolute", ...style, cursor, touchAction: "none", zIndex: 2 }} />
+  const handle = useCallback(
+    (dir: ResizeDir, style: React.CSSProperties, cursor: string) => (
+      <div key={dir} onPointerDown={startResize(dir)} style={{ position: "absolute", ...style, cursor, touchAction: "none", zIndex: 2 }} />
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resolved],
+  );
+
+  const tabBtn = (key: Tab, labelText: string) => (
+    <button
+      type="button"
+      onClick={() => setTab(key)}
+      className="px-2.5 h-[26px] rounded-[7px] text-[12.5px] font-medium transition-colors"
+      style={{
+        background: tab === key ? "var(--surface)" : "transparent",
+        color: tab === key ? "var(--text)" : "var(--text-2)",
+        boxShadow: tab === key ? "var(--shadow)" : "none",
+      }}
+    >
+      {labelText}
+    </button>
   );
 
   return (
     <>
-      {/* Le bouton, tout en haut, toujours visible. */}
+      {/* Le bouton, en bas à droite, toujours visible. */}
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="todo-launcher fixed z-40 flex items-center gap-2 rounded-full font-bold tracking-wide select-none"
+        className="todo-launcher fixed z-40 flex items-center gap-2 rounded-full font-bold tracking-wide select-none transition-transform"
         style={{
           background: open ? "var(--surface)" : "var(--accent)",
           color: open ? "var(--text)" : "var(--accent-on)",
           border: open ? "1px solid var(--border)" : "1px solid transparent",
           boxShadow: "var(--shadow-lg)",
-          padding: "8px 16px",
+          padding: "10px 18px",
           fontSize: 14,
         }}
-        title={open ? "Fermer la to-do" : "Ouvrir la to-do"}
+        title={open ? "Fermer la to-do (Échap)" : "Ouvrir la to-do et le bloc-notes"}
       >
-        <span style={{ fontSize: 16 }}>☑</span>
-        TODO
-        {active.length > 0 && (
+        <span style={{ fontSize: 16 }}>{open ? "✕" : "☑"}</span>
+        {open ? "Fermer" : "TODO"}
+        {!open && active.length > 0 && (
           <span
             className="num rounded-full px-1.5 text-[11.5px]"
-            style={{ background: urgent ? "var(--critical)" : open ? "var(--surface-3)" : "rgb(255 255 255 / 0.25)", color: urgent ? "#fff" : "inherit", minWidth: 20, textAlign: "center" }}
+            style={{ background: urgent ? "var(--critical)" : "rgb(255 255 255 / 0.25)", color: urgent ? "#fff" : "inherit", minWidth: 20, textAlign: "center" }}
             title={urgent ? `${urgent} urgente${urgent > 1 ? "s" : ""}` : `${active.length} à faire`}
           >
             {urgent || active.length}
@@ -572,25 +879,36 @@ export function TodoDock() {
           onPointerUp={onUp}
           onPointerCancel={onUp}
         >
-          {/* Barre : déplacer, agrandir, fermer */}
+          {/* Barre : onglets, déplacer, agrandir, fermer */}
           <div
-            className="flex items-center gap-2 px-3 py-2 select-none shrink-0"
+            className="flex items-center gap-2 px-2.5 py-2 select-none shrink-0"
             style={{ background: "var(--surface-2)", borderBottom: "1px solid var(--border)", cursor: "move", touchAction: "none" }}
             onPointerDown={startMove}
+            title="Glisser pour déplacer"
           >
-            <span className="text-[15px] font-bold">☑ To-do</span>
-            <span className="dim text-[12px] num">
-              {active.length} à faire{urgent ? ` · ${urgent} urgente${urgent > 1 ? "s" : ""}` : ""}
-            </span>
+            <div className="flex gap-1 p-1 rounded-[10px]" style={{ background: "var(--surface-3)" }}>
+              {tabBtn("tasks", `☑ Tâches${active.length ? ` · ${active.length}` : ""}`)}
+              {tabBtn("notes", "📝 Bloc-notes")}
+            </div>
+            {urgent > 0 && tab === "tasks" && (
+              <span className="text-[11.5px] font-semibold" style={{ color: "var(--critical)" }}>
+                {urgent} urgente{urgent > 1 ? "s" : ""}
+              </span>
+            )}
             <span className="ml-auto flex items-center gap-1">
-              <button type="button" className="btn btn-ghost btn-sm !px-2" onClick={() => setMax((v) => !v)} title={max ? "Taille normale" : "Plein écran"}>{max ? "🗗" : "🗖"}</button>
-              <button type="button" className="btn btn-ghost btn-sm !px-2" onClick={() => setOpen(false)} title="Fermer (Échap)">✕</button>
+              <a href="/todo" className="btn btn-ghost btn-sm !px-2" title="Ouvrir en pleine page">
+                ↗
+              </a>
+              <button type="button" className="btn btn-ghost btn-sm !px-2" onClick={() => setMax((v) => !v)} title={max ? "Taille normale" : "Plein écran"}>
+                {max ? "🗗" : "🗖"}
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm !px-2" onClick={() => setOpen(false)} title="Fermer (Échap)">
+                ✕
+              </button>
             </span>
           </div>
 
-          <div className="flex-1 min-h-0 p-2.5">
-            <TodoList compact />
-          </div>
+          <div className="flex-1 min-h-0 p-2.5">{tab === "tasks" ? <TodoList compact /> : <Notepad />}</div>
 
           {/* Poignées de redimensionnement : quatre bords, quatre coins. */}
           {handle("n", { top: -3, left: 10, right: 10, height: 7 }, "ns-resize")}
@@ -601,7 +919,20 @@ export function TodoDock() {
           {handle("nw", { top: -4, left: -4, width: 14, height: 14 }, "nwse-resize")}
           {handle("se", { bottom: -4, right: -4, width: 14, height: 14 }, "nwse-resize")}
           {handle("sw", { bottom: -4, left: -4, width: 14, height: 14 }, "nesw-resize")}
-          <div className="absolute" style={{ right: 3, bottom: 3, width: 10, height: 10, borderRight: "2px solid var(--text-3)", borderBottom: "2px solid var(--text-3)", borderRadius: 2, pointerEvents: "none", opacity: 0.6 }} />
+          <div
+            className="absolute"
+            style={{
+              right: 3,
+              bottom: 3,
+              width: 10,
+              height: 10,
+              borderRight: "2px solid var(--text-3)",
+              borderBottom: "2px solid var(--text-3)",
+              borderRadius: 2,
+              pointerEvents: "none",
+              opacity: 0.6,
+            }}
+          />
         </div>
       )}
     </>
