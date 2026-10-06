@@ -108,7 +108,7 @@ export function AppointmentsBoard({
   }>(`/api/sales/appointments?${query}`);
 
   const rows = data?.rows ?? [];
-  const currency = data?.currency ?? "USD";
+  const currency = data?.currency ?? "EUR";
 
   const afterChange = () => {
     void reload();

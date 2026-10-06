@@ -50,7 +50,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       setterName: names.get(appointment.setterId) ?? "—",
       closerName: appointment.closerId ? (names.get(appointment.closerId) ?? "—") : "",
       logs: session.isAdmin ? listLogs("appointment", appointment.id, 30) : [],
-      currency: db.settings.salesCurrency || "USD",
+      currency: db.settings.salesCurrency || "EUR",
     };
   });
 }

@@ -3,16 +3,28 @@ export const fmtInt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.
 export const fmtUsd = (n: number) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(n || 0);
 
+/**
+ * Couts factures en dollars par les fournisseurs IA (KIE, Higgsfield),
+ * affiches en euros : l'utilisateur raisonne en euros, partout. Le taux vient
+ * des Reglages (usdToEur) et est pousse ici par la barre laterale des qu'il
+ * est connu ; avant cela, le taux par defaut des Reglages s'applique.
+ */
+let usdToEur = 0.92;
+export function setUsdToEur(rate: number) {
+  if (Number.isFinite(rate) && rate > 0) usdToEur = rate;
+}
+export const fmtUsdInEur = (usd: number) => fmtMoney((usd || 0) * usdToEur, "EUR");
+
 export const fmtEur = (n: number) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n || 0);
 
 /**
  * Montant dans la devise du module commercial.
  *
- * Le reste du tool raisonne en euros ; les offres de coaching se vendent en
- * dollars. Une seule fonction pour les deux evite les conversions sauvages.
+ * Euro par defaut, comme le reste du tool ; la devise reste reglable dans
+ * Reglages pour le cas ou une offre se vendrait dans une autre monnaie.
  */
-export const fmtMoney = (n: number, currency = "USD") =>
+export const fmtMoney = (n: number, currency = "EUR") =>
   new Intl.NumberFormat("fr-FR", {
     style: "currency",
     currency,

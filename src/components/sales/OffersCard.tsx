@@ -21,7 +21,7 @@ export function OffersCard({ editable = false }: { editable?: boolean }) {
   const [saving, setSaving] = useState(false);
 
   const offers = data?.offers ?? [];
-  const currency = data?.currency ?? "USD";
+  const currency = data?.currency ?? "EUR";
 
   useEffect(() => {
     if (!editing) setDraft(offers.map((o) => ({ ...o })));

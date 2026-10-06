@@ -162,7 +162,7 @@ export default function TeamAccountsPage() {
   const [commissions, setCommissions] = useState<Record<CommercialRole, CommissionDraft>>(blankPerRole());
   const [commission, setCommission] = useState<CommissionDraft>(blankCommission("setter"));
 
-  const currency = data?.currency ?? "USD";
+  const currency = data?.currency ?? "EUR";
   const members = data?.members ?? [];
 
   /*

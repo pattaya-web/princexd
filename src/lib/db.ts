@@ -58,7 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
   weeklyPhotoGoal: 4,
   editorAccessCode: "",
   editorName: "Monteur",
-  salesCurrency: "USD",
+  salesCurrency: "EUR",
   salesAutoImport: false,
   salesDefaultSetterId: "",
   salesDefaultCloserId: "",
@@ -169,6 +169,20 @@ export function readDB(): DB {
   const db = cache.db as unknown as Record<string, unknown>;
   for (const [k, v] of Object.entries(EMPTY_DB)) {
     if (db[k] === undefined) db[k] = Array.isArray(v) ? [] : v;
+  }
+  /*
+   * Bascule unique en euros (2026-10-06).
+   *
+   * Les bases creees avant tournaient en USD par defaut sans que personne ne
+   * l'ait choisi ; l'equipe vend en euros. On ne force qu'une fois, puis la
+   * date sert de verrou : un passage volontaire en USD dans Reglages est
+   * ensuite respecte.
+   */
+  const settings = cache.db.settings;
+  if (!settings.salesCurrencyEurAt) {
+    if (settings.salesCurrency === "USD") settings.salesCurrency = "EUR";
+    settings.salesCurrencyEurAt = new Date().toISOString();
+    writeDB(cache.db);
   }
   return cache.db;
 }

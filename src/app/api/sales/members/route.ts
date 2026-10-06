@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   return handle(() => {
     const session = requireSales(readSession(req));
     const db = readDB();
-    const currency = db.settings.salesCurrency || "USD";
+    const currency = db.settings.salesCurrency || "EUR";
     const now = new Date().toISOString();
 
     const members = db.team
@@ -170,7 +170,7 @@ export async function POST(req: NextRequest) {
     db.team.unshift(member);
 
     /* --- Remuneration, fixee des l'onboarding, une regle par metier --- */
-    const currency = db.settings.salesCurrency || "USD";
+    const currency = db.settings.salesCurrency || "EUR";
     const rules: CommissionRule[] = [];
     const perRole = (body.commissions ?? {}) as Partial<Record<CommercialRole, Record<string, unknown>>>;
     const single = body.commission as Record<string, unknown> | undefined;

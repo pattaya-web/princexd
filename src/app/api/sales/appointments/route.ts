@@ -192,7 +192,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const currency = db.settings.salesCurrency || "USD";
+    const currency = db.settings.salesCurrency || "EUR";
 
     const data: AppointmentRow[] = page.map((a) => {
       const lead = leads.get(a.leadId);

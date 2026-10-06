@@ -28,7 +28,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (!member) throw new Forbidden("Membre introuvable.");
 
     const range = rangeFromParams(req.nextUrl.searchParams);
-    const currency = db.settings.salesCurrency || "USD";
+    const currency = db.settings.salesCurrency || "EUR";
     // Un membre setter ET closer est presente sous l'angle setter, mais ses
     // lignes de grand livre couvrent les deux metiers (`ledgers`).
     const roles = memberRoles(member);

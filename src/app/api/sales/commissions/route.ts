@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const session = requireSales(readSession(req));
     const db = readDB();
     const range = rangeFromParams(req.nextUrl.searchParams);
-    const currency = db.settings.salesCurrency || "USD";
+    const currency = db.settings.salesCurrency || "EUR";
 
     const members = session.isAdmin ? db.team : db.team.filter((m) => m.id === session.memberId);
 
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
       monthlyFixed: Math.max(0, num(body.monthlyFixed)),
       basis: body.basis === "contract" ? "contract" : "cash",
       onlyQualified: Boolean(body.onlyQualified),
-      currency: (body.currency as string) || db.settings.salesCurrency || "USD",
+      currency: (body.currency as string) || db.settings.salesCurrency || "EUR",
       effectiveFrom: (body.effectiveFrom as string) || new Date().toISOString().slice(0, 10),
       active: true,
       notes: (body.notes as string) || "",

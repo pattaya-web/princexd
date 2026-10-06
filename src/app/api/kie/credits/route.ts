@@ -13,11 +13,12 @@ export async function GET() {
       usd: credits * creditUsdRate,
       eur: credits * creditUsdRate * usdToEur,
       rate: creditUsdRate,
+      usdToEur,
     });
   } catch (e) {
     const err = e as KieError;
     return NextResponse.json(
-      { error: err.message, credits: null, usd: null, eur: null, rate: creditUsdRate },
+      { error: err.message, credits: null, usd: null, eur: null, rate: creditUsdRate, usdToEur },
       { status: err.code === 401 ? 401 : 502 },
     );
   }

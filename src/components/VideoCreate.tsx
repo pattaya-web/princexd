@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, useCollection, useLocalState } from "@/lib/client";
 import { uploadFile, takeFiles, clipboardFiles, droppedFiles } from "@/lib/upload-client";
-import { fmtInt, fmtUsd } from "@/lib/format";
+import { fmtInt, fmtUsdInEur } from "@/lib/format";
 import { CREATION } from "@/lib/studio/config";
 import type { CreateRequest, StudioCharacter, StudioJob } from "@/lib/studio/types";
 import { toSupportedImage } from "./MediaField";
@@ -295,7 +295,7 @@ export function VideoCreate({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: (
 
       <div className="flex items-center justify-between gap-3 pt-3 flex-wrap" style={{ borderTop: "1px solid var(--border)" }}>
         <span className="dim text-[12px] leading-snug">
-          <span className="font-medium" style={{ color: "var(--text)" }}>≈ {fmtInt(credits)} crédits</span> · {fmtUsd(credits * 0.005)}
+          <span className="font-medium" style={{ color: "var(--text)" }}>≈ {fmtInt(credits)} crédits</span> · {fmtUsdInEur(credits * 0.005)}
           {variants > 1 && <> · {variants} vidéos</>}
           <br /><span className="opacity-80">{CREATION.label} · ≈ {seconds} s · {resolution} · voix générée par le modèle · tarif estimé, à confirmer sur la première facture</span>
         </span>

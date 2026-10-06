@@ -364,7 +364,7 @@ export function AppointmentDetail({
         offer,
         contractValue: contract,
         cashCollected: cash,
-        currency: detail?.currency ?? "USD",
+        currency: detail?.currency ?? "EUR",
         paymentType: Number(installments) > 1 ? "installments" : "paid-in-full",
         installments: Math.max(1, Number(installments) || 1),
         paymentMethod: "",

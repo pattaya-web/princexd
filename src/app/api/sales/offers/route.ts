@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   return handle(async () => {
     requireSales(readSession(req));
     const s = getSettings();
-    return { offers: s.salesOffers ?? [], currency: s.salesCurrency || "USD" };
+    return { offers: s.salesOffers ?? [], currency: s.salesCurrency || "EUR" };
   });
 }
 
@@ -37,6 +37,6 @@ export async function PUT(req: NextRequest) {
       }))
       .filter((o) => o.name);
     saveSettings({ salesOffers: offers });
-    return { offers, currency: getSettings().salesCurrency || "USD" };
+    return { offers, currency: getSettings().salesCurrency || "EUR" };
   });
 }

@@ -177,7 +177,7 @@ function applyIclosedOutcome(
         // iClosed ne distingue pas contrat et cash encaisse : on prend le
         // montant du deal comme cash, quitte a le corriger dans la fiche.
         cashCollected: amount,
-        currency: readDB().settings.salesCurrency || "USD",
+        currency: readDB().settings.salesCurrency || "EUR",
         paymentType: "paid-in-full",
         installments: 0,
         paymentMethod: "",

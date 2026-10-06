@@ -134,7 +134,7 @@ export default function SalesLayout({ children }: { children: ReactNode }) {
     return {
       session,
       members: data?.members ?? [],
-      currency: data?.currency ?? "USD",
+      currency: data?.currency ?? "EUR",
       period,
       setPeriod,
       version,

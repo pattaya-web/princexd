@@ -46,7 +46,7 @@ export function TeamScope({ role }: { role: "setter" | "closer" }) {
     `/api/sales/dashboard?${periodQuery(period.period, period.from, period.to, { v: String(version) })}`,
   );
 
-  const currency = data?.currency ?? "USD";
+  const currency = data?.currency ?? "EUR";
   const isSetter = role === "setter";
   const k = data?.kpis;
 

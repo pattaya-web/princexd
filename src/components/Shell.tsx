@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { api, useLocalState } from "@/lib/client";
 import { forgetSession, useSession } from "@/lib/sales/client";
 import { ViewSwitcher } from "./sales/ViewSwitcher";
-import { fmtInt, fmtUsd } from "@/lib/format";
+import { fmtInt, fmtMoney, fmtUsdInEur, setUsdToEur } from "@/lib/format";
 
 /* --------------------------- Bascule de thème -------------------------- */
 
@@ -121,6 +121,7 @@ interface CreditsPayload {
   credits: number | null;
   usd: number | null;
   eur: number | null;
+  usdToEur?: number;
   error?: string;
 }
 
@@ -131,7 +132,9 @@ export function CreditsWidget() {
   const load = async () => {
     setLoading(true);
     try {
-      setData(await api<CreditsPayload>("/api/kie/credits"));
+      const payload = await api<CreditsPayload>("/api/kie/credits");
+      if (payload.usdToEur) setUsdToEur(payload.usdToEur);
+      setData(payload);
     } catch (e) {
       setData({ credits: null, usd: null, eur: null, error: (e as Error).message });
     } finally {
@@ -191,7 +194,7 @@ export function CreditsWidget() {
           </div>
           <div className="flex items-center justify-between gap-2 mt-0.5">
             <span className="mono text-[11.5px]" style={{ color: low ? "var(--warning)" : "var(--text-2)" }}>
-              ≈ {data?.usd !== null && data?.usd !== undefined ? fmtUsd(data.usd) : "—"}
+              ≈ {data?.eur !== null && data?.eur !== undefined ? fmtMoney(data.eur, "EUR") : "—"}
             </span>
             {low && <span className="badge badge-warn !py-0">Bas</span>}
           </div>
@@ -276,7 +279,7 @@ export function HiggsfieldWidget() {
               setDraft(data?.balanceUsd !== null && data?.balanceUsd !== undefined ? String(data.balanceUsd) : "");
               setEditing((v) => !v);
             }}
-            title="Saisir le solde lu sur console.higgsfield.ai"
+            title="Saisir le solde en dollars lu sur console.higgsfield.ai (affiché ensuite en euros)"
           >
             ✎
           </button>
@@ -322,7 +325,7 @@ export function HiggsfieldWidget() {
         <>
           <div className="flex items-baseline gap-1.5 mt-1.5">
             <span className="text-[22px] font-medium num" style={{ letterSpacing: "-0.03em" }}>
-              {fmtUsd(remaining)}
+              {fmtUsdInEur(remaining)}
             </span>
             <span className="dim text-[11.5px]">estimés</span>
           </div>
@@ -334,7 +337,7 @@ export function HiggsfieldWidget() {
           </div>
           {data && data.jobs > 0 && (
             <p className="text-[11px] mt-1 dim leading-snug">
-              {data.jobs} rendu{data.jobs > 1 ? "s" : ""} déduit{data.jobs > 1 ? "s" : ""} ({fmtUsd(data.spentUsd)}) depuis ta saisie.
+              {data.jobs} rendu{data.jobs > 1 ? "s" : ""} déduit{data.jobs > 1 ? "s" : ""} ({fmtUsdInEur(data.spentUsd)}) depuis ta saisie.
             </p>
           )}
         </>

@@ -39,7 +39,7 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
     `/api/sales/members/${id}?${periodQuery(period.period, period.from, period.to, { v: String(version) })}`,
   );
 
-  const currency = data?.currency ?? "USD";
+  const currency = data?.currency ?? "EUR";
   const s = data?.stats;
   const ledger = data?.ledger;
   const isSetter = data?.isSetter ?? true;

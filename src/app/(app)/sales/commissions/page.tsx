@@ -43,7 +43,7 @@ export default function CommissionsPage() {
     `/api/sales/commissions?${periodQuery(period.period, period.from, period.to, { v: String(version) })}`,
   );
 
-  const currency = data?.currency ?? "USD";
+  const currency = data?.currency ?? "EUR";
   const rows = data?.rows ?? [];
   const totalDue = rows.reduce((a, r) => a + r.due, 0);
   const totalEarned = rows.reduce((a, r) => a + r.earnedInPeriod, 0);

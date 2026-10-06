@@ -617,13 +617,12 @@ export default function ReglagesPage() {
             </div>
           </Card>
 
-          {/* Le module commercial raisonne dans sa propre devise : les offres se
-              vendent en dollars alors que le reste du tool compte en euros. */}
+          {/* Devise du module commercial : euro par defaut, modifiable ici. */}
           <Card title="Équipe commerciale">
             <Field label="Devise des ventes et commissions">
               <select
                 className="select"
-                value={s.salesCurrency ?? "USD"}
+                value={s.salesCurrency ?? "EUR"}
                 onChange={(e) => set("salesCurrency", e.target.value)}
               >
                 <option value="USD">USD — dollar américain</option>

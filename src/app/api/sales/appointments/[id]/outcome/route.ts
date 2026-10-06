@@ -74,7 +74,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         offer: required(sale.offer, "L'offre vendue"),
         contractValue,
         cashCollected,
-        currency: (sale.currency as string) || getSettings().salesCurrency || "USD",
+        currency: (sale.currency as string) || getSettings().salesCurrency || "EUR",
         paymentType: ((sale.paymentType as PaymentType) || "paid-in-full") as PaymentType,
         installments: num(sale.installments),
         paymentMethod: (sale.paymentMethod as string) || "",

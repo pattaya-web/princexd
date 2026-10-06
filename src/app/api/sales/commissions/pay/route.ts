@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       db.sales,
       db.commissionPayments,
       resolveRange("all"),
-      db.settings.salesCurrency || "USD",
+      db.settings.salesCurrency || "EUR",
     );
     if (row && amount > row.due + 0.01 && !body.allowOverpay) {
       throw new Error(
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     return payCommission(session, {
       memberId,
       amount,
-      currency: (body.currency as string) || db.settings.salesCurrency || "USD",
+      currency: (body.currency as string) || db.settings.salesCurrency || "EUR",
       paidAt: (body.paidAt as string) || new Date().toISOString(),
       method: (body.method as string) || "",
       notes: (body.notes as string) || "",

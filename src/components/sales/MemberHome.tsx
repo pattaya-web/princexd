@@ -142,7 +142,7 @@ export function MemberHome() {
   };
 
   const k = data?.kpis;
-  const currency = data?.currency ?? "USD";
+  const currency = data?.currency ?? "EUR";
   const nextCalls = upcoming?.rows ?? [];
 
   /* Creneaux : on ne montre que ce qui n'est pas encore passe. */

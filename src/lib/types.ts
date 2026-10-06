@@ -119,7 +119,7 @@ export interface Settings {
   /** Code d'accès du monteur : lui ouvre /monteur et rien d'autre. */
   editorAccessCode: string;
   editorName: string;
-  /** Devise du module commercial (ISO 4217). Les offres sont vendues en dollars. */
+  /** Devise du module commercial (ISO 4217). Euro par defaut : l'equipe vend et raisonne en euros. */
   salesCurrency: string;
   /** Les offres a vendre, dans l'ordre de pitch. Ecrites par l'admin, lues par les closers. */
   salesOffers?: SalesOffer[];

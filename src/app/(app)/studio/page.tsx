@@ -29,7 +29,7 @@ import { MediaField } from "@/components/MediaField";
 import { ElementField, ELEMENT_NAME, EMPTY_ELEMENT, type ElementValue } from "@/components/ElementField";
 import { SkPage } from "@/components/Skeleton";
 import { fetchStudioJobs, GENERATIONS_EVENT, readStudioJobsCache, STUDIO_JOBS_EVENT } from "@/components/JobsDock";
-import { duration, estimateSec, fmtInt, fmtUsd, label, relative } from "@/lib/format";
+import { duration, estimateSec, fmtInt, fmtUsdInEur, label, relative } from "@/lib/format";
 import type { Generation } from "@/lib/types";
 import { ThumbImg, VideoThumb } from "@/components/MediaThumb";
 
@@ -748,11 +748,11 @@ function StudioInner() {
                       {model.creditsPerSec ? (
                         <>
                           {fmtInt(model.creditsPerSec)} crédits/s — soit ≈{" "}
-                          {fmtInt(model.approxCredits)} · {fmtUsd(model.approxCredits * CREDIT_USD)} pour 10 s
+                          {fmtInt(model.approxCredits)} · {fmtUsdInEur(model.approxCredits * CREDIT_USD)} pour 10 s
                         </>
                       ) : (
                         <>
-                          ≈ {fmtInt(model.approxCredits)} crédits · {fmtUsd(model.approxCredits * CREDIT_USD)}
+                          ≈ {fmtInt(model.approxCredits)} crédits · {fmtUsdInEur(model.approxCredits * CREDIT_USD)}
                         </>
                       )}
                     </span>

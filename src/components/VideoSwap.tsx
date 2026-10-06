@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { api, useCollection, useLocalState } from "@/lib/client";
 import { uploadFile } from "@/lib/upload-client";
-import { fmtInt, fmtUsd } from "@/lib/format";
+import { fmtInt, fmtUsdInEur } from "@/lib/format";
 import { PROVIDERS, PROVIDER_IDS, MAX_VARIANTS } from "@/lib/studio/config";
 import { DEFAULT_NEGATIVE_PROMPT, STYLE_PROMPTS, TRANSFORM_LABELS } from "@/lib/studio/prompts";
 import { VOICE_AMBIENCE_LABEL, VOICE_MODE_LABEL } from "@/lib/studio/labels";
@@ -958,8 +958,8 @@ export function VideoSwap({
             <span className="swap-quote dim text-[12px] leading-snug">
               {quote ? (
                 quote.billedBy
-                  ? <>≈ {fmtUsd(quote.usd)} · {quote.billedBy}{quote.variants > 1 ? ` · ${quote.variants} vidéos` : ""}</>
-                  : <><span className="font-medium" style={{ color: "var(--text)" }}>{quote.verified ? "" : "≈ "}{fmtInt(quote.credits)} crédits</span> · {fmtUsd(quote.usd)}{quote.variants > 1 ? ` · ${quote.variants} vidéos` : ""} · {quote.providerLabel}</>
+                  ? <>≈ {fmtUsdInEur(quote.usd)} · {quote.billedBy}{quote.variants > 1 ? ` · ${quote.variants} vidéos` : ""}</>
+                  : <><span className="font-medium" style={{ color: "var(--text)" }}>{quote.verified ? "" : "≈ "}{fmtInt(quote.credits)} crédits</span> · {fmtUsdInEur(quote.usd)}{quote.variants > 1 ? ` · ${quote.variants} vidéos` : ""} · {quote.providerLabel}</>
               ) : "Dépose une vidéo pour voir le coût."}
               {voiceMode === "transform" && selectedVoice && <> · voix {selectedVoice.name}</>}
             </span>
@@ -1370,13 +1370,13 @@ export function VideoSwap({
           {quote ? (
             <>
               {quote.billedBy ? (
-                <span className="font-medium" style={{ color: "var(--text)" }}>≈ {fmtUsd(quote.usd)} facturés par {quote.billedBy}</span>
+                <span className="font-medium" style={{ color: "var(--text)" }}>≈ {fmtUsdInEur(quote.usd)} facturés par {quote.billedBy}</span>
               ) : (
                 <>
                   <span className="font-medium" style={{ color: "var(--text)" }}>
                     {quote.verified ? "" : "≈ "}{fmtInt(quote.credits)} crédits
                   </span>
-                  {" "}· {fmtUsd(quote.usd)}
+                  {" "}· {fmtUsdInEur(quote.usd)}
                 </>
               )}
               {quote.variants > 1 && <> · {quote.variants} vidéos</>}
