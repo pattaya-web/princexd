@@ -112,3 +112,39 @@ export function rangeFromParams(params: URLSearchParams): Range {
   if (!known.includes(key)) return resolveRange("30d");
   return resolveRange(key, params.get("from") ?? "", params.get("to") ?? "");
 }
+
+/**
+ * Fenetre immediatement precedente, de meme duree.
+ *
+ * C'est la base de comparaison des indicateurs (« +12 % vs 30 jours
+ * precedents »). Les fenetres sans bornes reelles — « Tout », « À venir », un
+ * « sur mesure » sans date de debut — n'ont pas d'equivalent precedent : on
+ * renvoie null et l'ecran n'affiche aucune variation.
+ */
+export function previousRange(range: Range): Range | null {
+  if (range.key === "all" || range.key === "upcoming") return null;
+  const from = new Date(range.from).getTime();
+  const to = new Date(range.to).getTime();
+  if (!Number.isFinite(from) || !Number.isFinite(to) || from <= 0 || to <= from) return null;
+  const span = to - from;
+  return {
+    from: new Date(from - span - 1).toISOString(),
+    to: new Date(from - 1).toISOString(),
+    key: range.key,
+    label: `${range.label} précédent`,
+  };
+}
+
+/** Mois civil en cours, du 1er a maintenant, dans le fuseau local du serveur. */
+export function currentMonthRange(now = new Date()): Range & { dayOfMonth: number; daysInMonth: number } {
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return {
+    from: startOfDay(start).toISOString(),
+    to: endOfDay(now).toISOString(),
+    key: "month",
+    label: "Ce mois",
+    dayOfMonth: now.getDate(),
+    daysInMonth,
+  };
+}

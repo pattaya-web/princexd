@@ -289,3 +289,27 @@ export function lostReasons(appointments: Appointment[], range: Range) {
     .map(([key, count]) => ({ key, count }))
     .sort((a, b) => b.count - a.count);
 }
+
+/* ------------------------------ Cash date ------------------------------- */
+
+/**
+ * Cash reellement arrive dans la fenetre, echeances comprises.
+ *
+ * `cashCollected` est un total : pour savoir ce qui est tombe ce mois-ci, on
+ * date chaque encaissement comme le fait le grand livre — la premiere partie
+ * au jour de la vente, chaque echeance au jour ou elle a ete encaissee. C'est
+ * la mesure qui sert a l'objectif mensuel.
+ */
+export function cashInRange(sales: Sale[], range: Range): number {
+  let total = 0;
+  for (const s of sales) {
+    const cash = netCash(s);
+    if (!cash) continue;
+    const cols = (s.collections ?? []).filter((c) => c.amount > 0);
+    const later = cols.reduce((a, c) => a + c.amount, 0);
+    const first = Math.max(0, cash - later);
+    if (first > 0 && inRange(s.soldAt, range)) total += first;
+    for (const c of cols) if (inRange(c.at, range)) total += c.amount;
+  }
+  return money(total);
+}

@@ -154,6 +154,10 @@ export interface Settings {
   salesBookingUrl?: string;
   /** Liste de taches quotidiennes des setters (une par ligne), editable par l'admin. */
   salesDailyTasks?: string[];
+  /** Bascule unique en euros (2026-10-06) : date a laquelle une base en USD par defaut est passee en EUR. */
+  salesCurrencyEurAt?: string;
+  /** Objectif de cash encaisse par mois civil, dans la devise des ventes. 0 ou absent = pas d'objectif. */
+  salesMonthlyGoal?: number;
   /** Derniere synchro reussie, pour ne pas retaper l'API a chaque navigation. */
   salesLastSyncAt: string;
   /* --- Systeme.io : leads de la landing page. Priorite a SYSTEMEIO_API_KEY. --- */

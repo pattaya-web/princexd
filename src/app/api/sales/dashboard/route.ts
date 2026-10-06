@@ -3,8 +3,9 @@ import { readDB } from "@/lib/db";
 import { readSession, requireSales } from "@/lib/sales/access";
 import { installmentAlerts } from "@/lib/sales/installments";
 import { handle } from "@/lib/sales/http";
-import { rangeFromParams, inRange } from "@/lib/sales/period";
+import { currentMonthRange, inRange, previousRange, rangeFromParams } from "@/lib/sales/period";
 import {
+  cashInRange,
   closerLeaderboard,
   computeFunnel,
   computeKpis,
@@ -16,6 +17,7 @@ import { buildLedger } from "@/lib/sales/commissions";
 import { publicMember } from "@/lib/sales/repo";
 import { sessionHas } from "@/lib/sales/roles";
 import type { Appointment, Sale } from "@/lib/types";
+import { isAttended, isDead } from "@/lib/sales/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +33,7 @@ export async function GET(req: NextRequest) {
     const session = requireSales(readSession(req));
     const db = readDB();
     const range = rangeFromParams(req.nextUrl.searchParams);
-    const currency = db.settings.salesCurrency || "USD";
+    const currency = db.settings.salesCurrency || "EUR";
 
     /*
      * Perimetre de lecture.
@@ -70,6 +72,10 @@ export async function GET(req: NextRequest) {
     const pendingFollowUps = followUps.filter((f) => f.status === "pending");
 
     const kpis = computeKpis(appointments, sales, range, pendingFollowUps.length);
+
+    // Meme calcul sur la fenetre precedente : c'est ce qui donne les « +12 % ».
+    const prevRange = previousRange(range);
+    const previous = prevRange ? computeKpis(appointments, sales, prevRange, 0) : null;
 
     // Haut du funnel : les leads crees sur la periode, tous canaux confondus.
     const leadCount = session.isAdmin
@@ -128,6 +134,9 @@ export async function GET(req: NextRequest) {
         const alerts = installmentAlerts(db, session, 0);
         return { due: alerts.length, overdue: alerts.filter((a) => a.state === "overdue").length };
       })(),
+      previous,
+      goal: session.isAdmin ? monthlyGoal(db) : null,
+      attention: session.isAdmin ? attentionItems(db) : null,
       members: session.isAdmin ? db.team.map(publicMember) : [],
       logs: session.isAdmin ? db.activityLogs.slice(0, 12) : [],
       activity: session.isAdmin ? recentActivity(db) : null,
@@ -185,5 +194,100 @@ function recentActivity(db: ReturnType<typeof readDB>): ActivityBlocks {
     tasksToday,
     appointments: pick((a) => a.startsWith("appointment.") || a.startsWith("sale.") || a.startsWith("lead."), 15),
     payments: pick((a) => a === "commission.paid", 10),
+  };
+}
+
+/* ----------------------------- Objectif du mois ------------------------- */
+
+export interface GoalBlock {
+  /** Objectif de cash du mois civil. 0 = pas d'objectif fixe. */
+  target: number;
+  /** Cash arrive depuis le 1er du mois, echeances comprises. */
+  cash: number;
+  /** Cash du mois precedent complet, pour situer le rythme. */
+  lastMonth: number;
+  /** Projection a fin de mois au rythme actuel. */
+  projected: number;
+  dayOfMonth: number;
+  daysInMonth: number;
+}
+
+/**
+ * Objectif mensuel : toujours le mois civil en cours, quelle que soit la
+ * periode choisie en haut de page. Un objectif « sur 7 jours glissants » ne
+ * veut rien dire pour une equipe payee au mois.
+ */
+function monthlyGoal(db: ReturnType<typeof readDB>): GoalBlock {
+  const month = currentMonthRange();
+  const cash = cashInRange(db.sales, month);
+  const prevStart = new Date(new Date(month.from).getFullYear(), new Date(month.from).getMonth() - 1, 1);
+  const prevEnd = new Date(new Date(month.from).getTime() - 1);
+  const lastMonth = cashInRange(db.sales, { from: prevStart.toISOString(), to: prevEnd.toISOString(), key: "custom", label: "" });
+  return {
+    target: Math.max(0, db.settings.salesMonthlyGoal ?? 0),
+    cash,
+    lastMonth,
+    projected: Math.round((cash / month.dayOfMonth) * month.daysInMonth),
+    dayOfMonth: month.dayOfMonth,
+    daysInMonth: month.daysInMonth,
+  };
+}
+
+/* --------------------------------- À traiter ---------------------------- */
+
+export interface AttentionItem {
+  id: string;
+  leadName: string;
+  at: string;
+  who: string;
+}
+
+export interface AttentionBlock {
+  /** Calls passes dont le resultat n'a pas ete saisi : le show rate ment tant qu'ils trainent. */
+  noOutcome: AttentionItem[];
+  /** Calls dans les 48 h sans confirmation du lead : les no-shows de demain. */
+  unconfirmed: AttentionItem[];
+  /** Calls a venir sans closer : personne ne les prendra. */
+  unassigned: AttentionItem[];
+}
+
+/**
+ * Ce que l'admin doit regler pour que les chiffres restent vrais.
+ *
+ * Les trois listes sont des problemes de donnees ou d'organisation, pas des
+ * indicateurs : chacune ouvre la fiche concernee en un clic.
+ */
+function attentionItems(db: ReturnType<typeof readDB>): AttentionBlock {
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const in48h = new Date(now.getTime() + 48 * 3_600_000).toISOString();
+  const names = new Map(db.team.map((m) => [m.id, m.name]));
+  const leads = new Map(db.leads.map((l) => [l.id, l.name || (l.igUsername ? `@${l.igUsername}` : "Lead")]));
+
+  const item = (a: Appointment, who: string): AttentionItem => ({
+    id: a.id,
+    leadName: leads.get(a.leadId) ?? "Lead",
+    at: a.scheduledAt,
+    who,
+  });
+  const pending = (a: Appointment) => !isDead(a.status) && !isAttended(a.status) && a.status !== "no-show";
+  const byDate = (x: AttentionItem, y: AttentionItem) => x.at.localeCompare(y.at);
+
+  return {
+    noOutcome: db.appointments
+      .filter((a) => pending(a) && a.scheduledAt < nowIso)
+      .map((a) => item(a, names.get(a.closerId) ?? "sans closer"))
+      .sort(byDate)
+      .slice(0, 8),
+    unconfirmed: db.appointments
+      .filter((a) => pending(a) && a.scheduledAt >= nowIso && a.scheduledAt <= in48h && a.confirmation !== "confirmed")
+      .map((a) => item(a, names.get(a.setterId) ?? "—"))
+      .sort(byDate)
+      .slice(0, 8),
+    unassigned: db.appointments
+      .filter((a) => pending(a) && a.scheduledAt >= nowIso && !a.closerId)
+      .map((a) => item(a, names.get(a.setterId) ?? "—"))
+      .sort(byDate)
+      .slice(0, 8),
   };
 }
