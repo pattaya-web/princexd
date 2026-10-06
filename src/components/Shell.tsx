@@ -473,6 +473,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/sales/rendez-vous", label: "Rendez-vous", icon: "▤" },
       { href: "/sales/relances", label: "Relances", icon: "↻" },
       { href: "/sales/commissions", label: "Commissions", icon: "▦" },
+      { href: "/va/outreach", label: "Outreach VA", icon: "✉" },
       { href: "/sales/guide", label: "Guide d'utilisation", icon: "?" },
     ],
   },
@@ -540,6 +541,7 @@ const ROLE_LABEL: Record<string, string> = {
   setter: "setter",
   closer: "closer",
   editor: "monteur",
+  va: "VA outreach",
 };
 
 /**
@@ -600,9 +602,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const isSalesOnly = session?.role === "setter" || session?.role === "closer";
   // Le monteur ne voit que ses deux outils : son board et le Studio IA.
   const isEditor = session?.role === "editor";
+  // La VA de prospection ne voit qu'une page : la sienne.
+  const isVa = session?.role === "va";
   const nav = isSalesOnly
     ? NAV.filter((g) => g.section === "Sales")
-    : isEditor
+    : isVa
+      ? [{ section: "Outreach", items: [{ href: "/va/outreach", label: "Prospection Instagram", icon: "✉" }] }]
+      : isEditor
       ? [
           {
             section: "Montage",
@@ -695,8 +701,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <ViewSwitcher />
           <SessionBadge />
           {/* Le solde de credits IA ne concerne pas l'equipe commerciale. */}
-          {!isSalesOnly && <CreditsWidget />}
-          {!isSalesOnly && <HiggsfieldWidget />}
+          {!isSalesOnly && !isVa && <CreditsWidget />}
+          {!isSalesOnly && !isVa && <HiggsfieldWidget />}
         </div>
       </aside>
 
@@ -715,7 +721,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           {/* Sur téléphone, les objectifs du jour défilent horizontalement au lieu de déborder. */}
           <div className="min-w-0 flex-1 overflow-x-auto scroll-x">
             {/* Attendre la session : monté trop tôt, le monteur déclenchait un appel refusé à /api/today. */}
-            {session && !isSalesOnly && !isEditor && <DailyBar />}
+            {session && !isSalesOnly && !isEditor && !isVa && <DailyBar />}
           </div>
           <div className="hidden md:block shrink-0">
             <Clocks />
@@ -739,9 +745,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Hors du <main> : il ne doit pas etre remonte a chaque navigation. */}
-      <JobsDock />
-      {/* La to-do flottante est la mienne : ni l'equipe commerciale ni le monteur ne la voient. */}
-      {session && !isSalesOnly && !isEditor && <TodoDock />}
+      {!isVa && <JobsDock />}
+      {/* La to-do flottante est la mienne : ni l'equipe commerciale, ni le monteur, ni la VA ne la voient. */}
+      {session && !isSalesOnly && !isEditor && !isVa && <TodoDock />}
       <NewVersionBanner />
     </div>
   );

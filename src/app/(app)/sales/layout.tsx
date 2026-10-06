@@ -122,7 +122,7 @@ export default function SalesLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Toute l'equipe declenche la synchro : un closer doit voir ses calls du
     // jour sans attendre que l'admin ouvre le tool.
-    if (!session || session.role === "anonyme" || session.role === "editor" || synced.current) return;
+    if (!session || session.role === "anonyme" || session.role === "editor" || session.role === "va" || synced.current) return;
     synced.current = true;
     void api<{ created: number }>("/api/sales/iclosed/sync", { method: "POST" })
       .then((r) => {
@@ -156,7 +156,7 @@ export default function SalesLayout({ children }: { children: ReactNode }) {
   // Le monteur et les comptes desactives n'ont rien a faire ici. Le middleware
   // les redirige deja ; ce garde-fou couvre le cas ou la page est atteinte
   // malgre tout, par exemple apres une desactivation en cours de session.
-  if (!value || session?.role === "anonyme" || session?.role === "editor") {
+  if (!value || session?.role === "anonyme" || session?.role === "editor" || session?.role === "va") {
     return (
       <Card>
         <ErrorNote>

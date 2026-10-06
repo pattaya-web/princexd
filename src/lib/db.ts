@@ -70,6 +70,8 @@ export const DEFAULT_SETTINGS: Settings = {
 
 const EMPTY_DB: DB = {
   settings: DEFAULT_SETTINGS,
+  outreachLists: [],
+  outreachContacts: [],
   posts: [],
   stories: [],
   followers: [],

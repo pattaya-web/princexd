@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSettings, saveSettings } from "@/lib/db";
+import { hashPassword } from "@/lib/sales/access";
 import type { Settings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +61,11 @@ function publicView(s: Settings) {
     // Les cookies restent sur le serveur : on ne renvoie que leur presence.
     igCookies: "",
     igCookiesSet: Boolean(s.igCookies?.trim()),
+    // Acces VA : l'environnement l'emporte ; le hash ne sort jamais.
+    vaUsername: process.env.VA_USERNAME?.trim() || s.vaUsername || "",
+    vaPasswordHash: "",
+    vaPasswordSet: Boolean(process.env.VA_PASSWORD?.trim() || s.vaPasswordHash),
+    vaSource: process.env.VA_USERNAME?.trim() && process.env.VA_PASSWORD?.trim() ? "env" : s.vaPasswordHash ? "reglages" : "absente",
   };
 }
 
@@ -84,6 +90,20 @@ export async function PATCH(req: NextRequest) {
   } else if (body.higgsfieldBalanceUsd === null || body.higgsfieldBalanceUsd === undefined) {
     delete body.higgsfieldBalanceUsd;
   }
+  // Mot de passe VA : hache a l'arrivee, jamais stocke en clair. Vide = on garde.
+  const raw = body as Record<string, unknown>;
+  if (typeof raw.vaPassword === "string") {
+    if (raw.vaPassword.trim()) {
+      if (raw.vaPassword.trim().length < 6) {
+        return NextResponse.json({ error: "Le mot de passe de la VA doit faire au moins 6 caractères." }, { status: 400 });
+      }
+      body.vaPasswordHash = hashPassword(raw.vaPassword.trim());
+    }
+    delete raw.vaPassword;
+  }
+  delete raw.vaPasswordSet;
+  delete raw.vaSource;
+  if (typeof body.vaUsername === "string") body.vaUsername = body.vaUsername.trim().toLowerCase();
   // Cookies : vide = on garde ; « CLEAR » = on efface.
   if (typeof body.igCookies === "string") {
     if (body.igCookies === "CLEAR") body.igCookies = "";

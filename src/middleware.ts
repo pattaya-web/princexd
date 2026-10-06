@@ -42,6 +42,15 @@ const EDITOR_APIS = [
   "/api/ai/image-edit",
 ];
 
+/*
+ * --- VA outreach ---
+ *
+ * Une seule page et ses API. Tout le reste (CRM, ventes, reglages, Studio)
+ * lui est ferme, et un detour par une autre adresse la ramene chez elle.
+ */
+const VA_PAGES = ["/va"];
+const VA_APIS = ["/api/outreach/", "/api/sales/session", "/api/version"];
+
 /* --- Equipe commerciale --- */
 const SALES_PAGES = ["/sales"];
 
@@ -102,6 +111,11 @@ export function middleware(req: NextRequest) {
   if (role === "editor") {
     if (matches(pathname, EDITOR_PAGES) || matches(pathname, EDITOR_APIS)) return NextResponse.next();
     return deny(req, "/monteur");
+  }
+
+  if (role === "va") {
+    if (matches(pathname, VA_PAGES) || matches(pathname, VA_APIS)) return NextResponse.next();
+    return deny(req, "/va/outreach");
   }
 
   if (role === "setter" || role === "closer") {

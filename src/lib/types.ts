@@ -160,6 +160,12 @@ export interface Settings {
   salesEurRecordsAt?: string;
   /** Dernier rattrapage des UTM iClosed sur les rendez-vous (page Sources). */
   salesSourcesSyncAt?: string;
+  /**
+   * Acces de la VA outreach, quand il n'est pas fourni par l'environnement
+   * (VA_USERNAME / VA_PASSWORD, qui l'emportent). Mot de passe hache (scrypt).
+   */
+  vaUsername?: string;
+  vaPasswordHash?: string;
   /** Bloc-notes libre de la to-do flottante, et date de sa derniere sauvegarde. */
   todoNotes?: string;
   todoNotesAt?: string;
@@ -802,6 +808,8 @@ export interface RedoItem {
 
 export interface DB {
   settings: Settings;
+  outreachLists: OutreachList[];
+  outreachContacts: OutreachContact[];
   posts: Post[];
   stories: Story[];
   followers: FollowerPoint[];
@@ -951,6 +959,40 @@ export interface Testimonial {
 
 export type CollectionName = Exclude<keyof DB, "settings">;
 
+/* ----------------------------- Outreach VA ------------------------------ */
+
+/** Avancement d'un contact Instagram a prospecter. Quatre etats, pas plus. */
+export type OutreachStatus = "to-contact" | "contacted" | "replied" | "issue";
+
+/**
+ * Liste de prospection : un import CSV = une liste. Les listes ne se
+ * melangent jamais, et chacune garde son avancement pour etre reprise plus
+ * tard exactement ou elle en etait.
+ */
+export interface OutreachList {
+  id: ID;
+  name: string;
+  /** Nom du fichier importe, pour s'y retrouver. */
+  fileName: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface OutreachContact {
+  id: ID;
+  listId: ID;
+  /** Pseudo Instagram, sans arobase, en minuscules. La donnee principale. */
+  username: string;
+  name: string;
+  /** Autres colonnes du CSV, conservees telles quelles sans etre affichees. */
+  extra: Record<string, string>;
+  status: OutreachStatus;
+  statusAt: string;
+  /** Position dans le fichier d'origine. */
+  order: number;
+  createdAt: string;
+}
+
 /**
  * Session de travail pointee par un membre (« Démarrer » / « Terminer »).
  *
@@ -989,7 +1031,7 @@ export type SalesRole = "admin" | "setter" | "closer";
  * tool, qu'il ne faut surtout pas casser. `admin` = un membre a qui j'ai donne
  * les pleins pouvoirs. Les deux ont exactement les memes droits.
  */
-export type SessionRole = "owner" | "admin" | "setter" | "closer" | "editor" | "anonyme";
+export type SessionRole = "owner" | "admin" | "setter" | "closer" | "editor" | "va" | "anonyme";
 
 export interface Session {
   /** Role principal : sert au routage. Les droits fins passent par `roles`. */
@@ -1358,7 +1400,7 @@ export interface ActivityLog {
   actorName: string;
   /** Verbe machine : "appointment.created", "sale.created", "commission.paid"… */
   action: string;
-  entity: "appointment" | "sale" | "follow-up" | "lead" | "member" | "commission";
+  entity: "appointment" | "sale" | "follow-up" | "lead" | "member" | "commission" | "outreach";
   entityId: ID;
   /** Phrase lisible affichee telle quelle dans le journal. */
   summary: string;

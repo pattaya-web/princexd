@@ -99,6 +99,8 @@ export const normalizeUsername = (u: string) => u.trim().toLowerCase();
 
 const OWNER: Session = { role: "owner", roles: [], memberId: "", memberName: "Moi", isAdmin: true };
 const EDITOR: Session = { role: "editor", roles: [], memberId: "", memberName: "Monteur", isAdmin: false };
+/** La VA de prospection Instagram : une seule page, rien d'autre. */
+const VA: Session = { role: "va", roles: [], memberId: "", memberName: "VA Outreach", isAdmin: false, canLogout: true };
 const ANON: Session = { role: "anonyme", roles: [], memberId: "", memberName: "", isAdmin: false };
 
 /* --------------------------- Mot de passe proprietaire --------------------- */
@@ -125,6 +127,42 @@ export function verifyOwnerPassword(password: string): boolean {
 
 export function issueOwnerToken(): string {
   return issueToken({ role: "owner", memberId: "", memberName: "Moi" });
+}
+
+/* ------------------------------ Acces VA -------------------------------- */
+
+/**
+ * Identifiants de la VA outreach.
+ *
+ * L'environnement (VA_USERNAME / VA_PASSWORD) l'emporte, comme pour les cles
+ * API ; a defaut, l'identifiant et le mot de passe haches saisis dans
+ * Reglages. Rien n'est jamais ecrit en dur dans le code ni envoye au
+ * navigateur.
+ */
+export function verifyVaLogin(username: string, password: string): boolean {
+  const u = normalizeUsername(username);
+  if (!u || !password) return false;
+  const envUser = process.env.VA_USERNAME?.trim();
+  const envPass = process.env.VA_PASSWORD?.trim();
+  if (envUser && envPass) {
+    if (normalizeUsername(envUser) !== u) return false;
+    const a = Buffer.from(envPass);
+    const b = Buffer.from(password);
+    return a.length === b.length && timingSafeEqual(a, b);
+  }
+  const s = readDB().settings;
+  if (!s.vaUsername || !s.vaPasswordHash) return false;
+  return normalizeUsername(s.vaUsername) === u && verifyPassword(password, s.vaPasswordHash);
+}
+
+export function issueVaToken(): string {
+  return issueToken({ role: "va", memberId: "", memberName: "VA Outreach" });
+}
+
+/** L'outreach Instagram : la VA et l'admin, personne d'autre. */
+export function requireOutreach(session: Session): Session {
+  if (session.isAdmin || session.role === "va") return session;
+  throw new Forbidden("Cet espace est réservé à la prospection Instagram.");
 }
 
 /**
@@ -190,6 +228,9 @@ export function readSession(req: NextRequest): Session {
     const only = claims.impersonated && (claims.role === "setter" || claims.role === "closer") ? claims.role : undefined;
     return sessionFor(member, Boolean(claims.impersonated), only);
   }
+
+  // VA outreach : jeton sans membre, un seul espace.
+  if (claims?.role === "va" && !claims.memberId) return VA;
 
   // Monteur entre par le code global (jeton sans membre) ou par l'ancien cookie.
   if (claims?.role === "editor") return EDITOR;

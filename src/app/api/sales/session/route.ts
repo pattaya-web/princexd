@@ -7,8 +7,10 @@ import {
   ownerAuthEnabled,
   readSession,
   sessionFor,
+  issueVaToken,
   verifyOwnerPassword,
   verifyPassword,
+  verifyVaLogin,
 } from "@/lib/sales/access";
 import { LEGACY_ROLE_COOKIE, peekClaims, SESSION_COOKIE, SESSION_MAX_AGE_S } from "@/lib/sales/session";
 import type { TeamMember } from "@/lib/types";
@@ -75,6 +77,24 @@ export async function POST(req: NextRequest) {
         return res;
       }
     }
+  }
+
+  // VA outreach : identifiant + mot de passe de l'environnement (ou des
+  // Reglages). Un seul espace, /va/outreach, et une session longue pour ne
+  // pas la faire se reconnecter dix fois par jour.
+  if (username && password && verifyVaLogin(username, password)) {
+    const res = NextResponse.json({
+      ok: true,
+      role: "va",
+      roles: [],
+      memberId: "",
+      memberName: "VA Outreach",
+      isAdmin: false,
+      redirect: "/va/outreach",
+    });
+    res.cookies.set(SESSION_COOKIE, issueVaToken(), cookieOptions(SESSION_MAX_AGE_S));
+    res.cookies.delete(LEGACY_ROLE_COOKIE);
+    return res;
   }
 
   // Proprietaire (site en ligne) : le mot de passe seul suffit, l'identifiant

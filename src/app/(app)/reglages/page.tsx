@@ -21,6 +21,8 @@ type View = Settings & {
   systemeioApiKeyMask?: string;
   systemeioApiKeySource?: string;
   systemeioWebhookSecretSet?: boolean;
+  vaPasswordSet?: boolean;
+  vaSource?: string;
   higgsfieldKeySource?: string;
 };
 
@@ -41,6 +43,8 @@ const TEXT_MODELS = ["gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash"];
 export default function ReglagesPage() {
   const toast = useToast();
   const [s, setS] = useState<View | null>(null);
+  /** Mot de passe de la VA : saisi ici, hache par le serveur, jamais relu. */
+  const [vaPassword, setVaPassword] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [iclosedKey, setIclosedKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
@@ -84,6 +88,7 @@ export default function ReglagesPage() {
       if (sioKey.trim()) payload.systemeioApiKey = sioKey.trim();
       else delete payload.systemeioApiKey;
       delete payload.systemeioWebhookSecret;
+      if (vaPassword.trim()) (payload as Record<string, unknown>).vaPassword = vaPassword.trim();
       const next = await api<View>("/api/settings", { method: "PATCH", body: JSON.stringify(payload) });
       setS(next);
       setApiKey("");
@@ -91,6 +96,7 @@ export default function ReglagesPage() {
       setOpenaiKey("");
       setElevenKey("");
       setHfSecret("");
+      setVaPassword("");
       toast("Réglages enregistrés.");
     } catch (e) {
       setError((e as Error).message);
@@ -632,6 +638,44 @@ export default function ReglagesPage() {
                 <option value="CAD">CAD — dollar canadien</option>
               </select>
             </Field>
+          </Card>
+
+          {/* La VA de prospection Instagram : un seul espace (/va/outreach).
+              L'environnement (VA_USERNAME / VA_PASSWORD) l'emporte sur ces champs. */}
+          <Card
+            title="Accès VA outreach"
+            subtitle="Identifiant et mot de passe de la personne qui prospecte sur Instagram. Elle n'accède qu'à la page Outreach."
+          >
+            {s.vaSource === "env" ? (
+              <p className="text-[12.5px] dim">
+                Accès défini par l&apos;environnement du serveur (VA_USERNAME / VA_PASSWORD) : identifiant{" "}
+                <code className="mono">{s.vaUsername}</code>. Modifie-le dans Coolify.
+              </p>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="Identifiant">
+                  <input
+                    className="input"
+                    value={s.vaUsername ?? ""}
+                    placeholder="outreach"
+                    autoCapitalize="none"
+                    onChange={(e) => set("vaUsername", e.target.value)}
+                  />
+                </Field>
+                <Field
+                  label={s.vaPasswordSet ? "Nouveau mot de passe" : "Mot de passe"}
+                  hint={s.vaPasswordSet ? "Un mot de passe est déjà enregistré : laisse vide pour le garder." : "6 caractères minimum."}
+                >
+                  <input
+                    className="input"
+                    type="password"
+                    value={vaPassword}
+                    autoComplete="new-password"
+                    onChange={(e) => setVaPassword(e.target.value)}
+                  />
+                </Field>
+              </div>
+            )}
           </Card>
 
           <Card
