@@ -448,8 +448,9 @@ export function patchAppointment(
    * Confirmation du rendez-vous : ouverte a quiconque voit la fiche (le
    * setter, son closer, l'admin). Elle fait avancer le statut : un call
    * « booked » confirme passe en « confirmed », et retirer la confirmation
-   * le ramene a « booked ». « Pas de reponse » ne touche pas au statut, il
-   * previent juste que le call est a risque.
+   * le ramene a « booked ». « En attente de reponse » (message envoye) et
+   * « Pas de reponse » ne touchent pas au statut : le premier dit que le
+   * setter a fait sa part, le second que le call est a risque.
    */
   const { confirmation, ...rest } = patch;
   patch = rest;
@@ -461,7 +462,16 @@ export function patchAppointment(
     if (confirmation === "confirmed" && (appt.status === "booked" || appt.status === "rescheduled")) {
       pushHistory(appt, session, "confirmed", "Rendez-vous confirmé avec le lead");
     } else if (confirmation !== "confirmed" && appt.status === "confirmed") {
-      pushHistory(appt, session, "booked", confirmation === "no-answer" ? "Pas de réponse à la confirmation" : "Confirmation retirée");
+      pushHistory(
+        appt,
+        session,
+        "booked",
+        confirmation === "no-answer"
+          ? "Pas de réponse à la confirmation"
+          : confirmation === "awaiting"
+            ? "Confirmation à nouveau en attente de réponse"
+            : "Confirmation retirée",
+      );
     }
     const lead = db.leads.find((l) => l.id === appt.leadId);
     log(db, session, {
@@ -473,7 +483,9 @@ export function patchAppointment(
           ? `Rendez-vous de ${lead?.name ?? "un lead"} confirmé`
           : confirmation === "no-answer"
             ? `${lead?.name ?? "Le lead"} ne répond pas à la confirmation`
-            : `Confirmation du rendez-vous de ${lead?.name ?? "un lead"} retirée`,
+            : confirmation === "awaiting"
+              ? `Message de confirmation envoyé à ${lead?.name ?? "un lead"}, en attente de réponse`
+              : `Confirmation du rendez-vous de ${lead?.name ?? "un lead"} retirée`,
     });
   }
 

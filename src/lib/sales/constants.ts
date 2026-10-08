@@ -139,10 +139,11 @@ export const NEXT_STATUSES: Record<AppointmentStatus, AppointmentStatus[]> = {
 };
 
 /** Choix du menu « Confirmation », dans l'ordre d'affichage. */
-export const CONFIRMATIONS: AppointmentConfirmation[] = ["", "confirmed", "no-answer"];
+export const CONFIRMATIONS: AppointmentConfirmation[] = ["", "awaiting", "confirmed", "no-answer"];
 
 export const CONFIRMATION_LABEL: Record<AppointmentConfirmation, string> = {
   "": "À confirmer",
+  awaiting: "En attente de réponse",
   confirmed: "Confirmé",
   "no-answer": "Pas de réponse",
 };

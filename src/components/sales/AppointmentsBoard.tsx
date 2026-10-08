@@ -204,6 +204,7 @@ export function AppointmentsBoard({
           >
             <option value="">Confirmation : toutes</option>
             <option value="pending">{CONFIRMATION_LABEL[""]}</option>
+            <option value="awaiting">{CONFIRMATION_LABEL.awaiting}</option>
             <option value="confirmed">{CONFIRMATION_LABEL.confirmed}</option>
             <option value="no-answer">{CONFIRMATION_LABEL["no-answer"]}</option>
           </select>

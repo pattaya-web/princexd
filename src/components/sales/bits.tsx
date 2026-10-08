@@ -28,14 +28,25 @@ export function Pill({ children, tone }: { children: ReactNode; tone?: "good" | 
 
 /* ---------------------------- Confirmation ------------------------------ */
 
-/** Couleur d'une confirmation : vert confirme, rouge pas de reponse, orange en attente. */
+/**
+ * Couleur d'une confirmation : vert confirme, rouge pas de reponse, bleu
+ * message envoye (on attend le lead), orange rien fait encore.
+ */
 export function confirmationColor(c: AppointmentConfirmation): string {
-  return c === "confirmed" ? "var(--emerald)" : c === "no-answer" ? "var(--critical)" : "var(--warning)";
+  return c === "confirmed"
+    ? "var(--emerald)"
+    : c === "no-answer"
+      ? "var(--critical)"
+      : c === "awaiting"
+        ? "var(--accent)"
+        : "var(--warning)";
 }
 
 /**
- * Menu « Confirmation » d'un rendez-vous : À confirmer / Confirmé / Pas de
- * réponse. Il enregistre tout de suite, sans ouvrir la fiche : le setter
+ * Menu « Confirmation » d'un rendez-vous : À confirmer / En attente de
+ * réponse / Confirmé / Pas de réponse. « En attente » se coche quand le
+ * message de confirmation est parti ; on revient ensuite noter la réponse.
+ * Il enregistre tout de suite, sans ouvrir la fiche : le setter
  * passe sa liste du lendemain en quelques clics. Colore selon la valeur pour
  * que les calls a risque sautent aux yeux dans un tableau.
  */
@@ -63,7 +74,9 @@ export function ConfirmationSelect({
           ? "Rendez-vous confirmé."
           : next === "no-answer"
             ? "Pas de réponse notée. Relance le lead avant le call."
-            : "Confirmation remise à zéro.",
+            : next === "awaiting"
+              ? "Message envoyé. Reviens noter la réponse du lead."
+              : "Confirmation remise à zéro.",
       );
       onSaved?.();
     } catch (e) {

@@ -1093,8 +1093,12 @@ export type AppointmentStatus =
  * est un call a risque ; « pas de reponse » dit au closer de ne pas compter
  * dessus et au setter de relancer. Distinct du statut, qui suit la vie du
  * rendez-vous : confirmer un call « booked » le passe en « confirmed ».
+ *
+ * « awaiting » est l'etape intermediaire : le message de confirmation est
+ * parti, on attend la reponse du lead. Elle finit en « confirmed » ou en
+ * « no-answer ».
  */
-export type AppointmentConfirmation = "" | "confirmed" | "no-answer";
+export type AppointmentConfirmation = "" | "awaiting" | "confirmed" | "no-answer";
 
 /** Une offre du catalogue : ce que le closer vend, a quel prix, avec quels arguments. */
 export interface SalesOffer {

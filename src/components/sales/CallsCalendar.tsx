@@ -190,8 +190,8 @@ export function CallsCalendar({
                         <div className="text-[12px] truncate">{r.leadName}</div>
                         {past && <div className="text-[10.5px] font-medium truncate" style={{ color: tone }}>{statusLabel(r.status)}</div>}
                         {!past && canConfirm(r.status) && (
-                          <div className="text-[10.5px] font-medium truncate" style={{ color: r.confirmation === "confirmed" ? "#16a34a" : r.confirmation === "no-answer" ? "#ef4444" : "#f59e0b" }}>
-                            {r.confirmation === "confirmed" ? "✓ " : r.confirmation === "no-answer" ? "✗ " : "? "}
+                          <div className="text-[10.5px] font-medium truncate" style={{ color: r.confirmation === "confirmed" ? "#16a34a" : r.confirmation === "no-answer" ? "#ef4444" : r.confirmation === "awaiting" ? "#3b82f6" : "#f59e0b" }}>
+                            {r.confirmation === "confirmed" ? "✓ " : r.confirmation === "no-answer" ? "✗ " : r.confirmation === "awaiting" ? "… " : "? "}
                             {CONFIRMATION_LABEL[r.confirmation]}
                           </div>
                         )}
