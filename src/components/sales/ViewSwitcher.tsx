@@ -61,7 +61,9 @@ export function ViewSwitcher() {
     // En apercu (jeton d'un membre), cet appel est refuse : on l'ignore.
     api<{ students: StudentAccessRow[] }>("/api/formation/access")
       .then((d) => {
-        if (alive) setStudents(d.students.filter((s) => s.hasPassword));
+        // Tous les eleves, meme sans identifiants : l'apercu sert justement
+        // a voir la plateforme avant de distribuer les acces.
+        if (alive) setStudents(d.students);
       })
       .catch(() => {});
     return () => {
@@ -162,7 +164,9 @@ export function ViewSwitcher() {
     { key: "setter", label: "Setter", name: firstOf("setter")?.name },
     { key: "closer", label: "Closer", name: firstOf("closer")?.name },
     { key: "va", label: "VA", name: "Outreach Instagram" },
-    { key: "student", label: "Élève", name: firstStudent?.name },
+    // Sans aucun eleve en base, le bouton ouvre quand meme la plateforme :
+    // la vue admin de /formation est celle de l'eleve, brouillons en plus.
+    { key: "student", label: "Élève", name: firstStudent?.name ?? "Plateforme de formation" },
   ];
 
   return (
@@ -193,7 +197,9 @@ export function ViewSwitcher() {
                   : o.key === "va"
                     ? void viewAsVa()
                     : o.key === "student"
-                      ? firstStudent && void viewAsStudent(firstStudent.id)
+                      ? firstStudent
+                        ? void viewAsStudent(firstStudent.id)
+                        : (window.location.href = "/formation")
                       : void viewAs(o.key)
               }
               className="flex-1 h-[24px] rounded-[5px] text-[11px] font-medium transition-colors"

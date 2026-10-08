@@ -193,11 +193,9 @@ export default function StudentAccessPage() {
                       <button className="btn btn-sm" onClick={() => openEdit(s)}>
                         {s.hasPassword ? "Identifiants" : "Créer l'accès"}
                       </button>
-                      {s.hasPassword && (
-                        <button className="btn btn-sm btn-ghost ml-1" onClick={() => void viewAs(s)} title="Ouvrir la plateforme comme cet élève">
-                          Voir comme
-                        </button>
-                      )}
+                      <button className="btn btn-sm btn-ghost ml-1" onClick={() => void viewAs(s)} title="Ouvrir la plateforme comme cet élève">
+                        Voir comme
+                      </button>
                     </td>
                   </tr>
                 ))}
