@@ -3,7 +3,7 @@ import path from "node:path";
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { readDB } from "../db";
-import type { Session, SessionRole, TeamMember } from "../types";
+import type { Session, SessionRole, Student, TeamMember } from "../types";
 import { memberRoles, primaryRole, sessionHas, type CommercialRole } from "./roles";
 import { LEGACY_ROLE_COOKIE, SESSION_COOKIE, SESSION_MAX_AGE_S, type SessionClaims } from "./session";
 
@@ -159,6 +159,49 @@ export function issueVaToken(): string {
   return issueToken({ role: "va", memberId: "", memberName: "VA Outreach" });
 }
 
+/* ------------------------------ Acces eleve ------------------------------ */
+
+/**
+ * Connexion d'un eleve a la plateforme de formation.
+ *
+ * L'identifiant et le mot de passe sont poses par l'admin sur la fiche de
+ * l'eleve (« Accès élèves »). On parcourt tous les eleves avant de repondre,
+ * comme pour l'equipe : s'arreter au premier echec laisserait deviner quels
+ * identifiants existent.
+ */
+export function findStudentByLogin(username: string, password: string): Student | null {
+  const u = normalizeUsername(username);
+  if (!u || !password) return null;
+  let hit: Student | null = null;
+  for (const s of readDB().students) {
+    if (normalizeUsername(s.username ?? "") !== u || !s.passwordHash) continue;
+    if (verifyPassword(password, s.passwordHash)) hit = hit ?? s;
+  }
+  return hit;
+}
+
+export function issueStudentToken(student: Student, impersonated = false): string {
+  return issueToken({ role: "student", memberId: student.id, memberName: student.name, impersonated });
+}
+
+function studentSession(student: Student, impersonated: boolean): Session {
+  return {
+    role: "student",
+    roles: [],
+    memberId: student.id,
+    memberName: student.name,
+    isAdmin: false,
+    canLogout: true,
+    impersonated,
+  };
+}
+
+/** La plateforme de formation : les eleves et l'admin, personne d'autre. */
+export function requireFormation(session: Session): Session {
+  if (session.isAdmin || session.role === "student") return session;
+  throw new Forbidden("Cet espace est réservé aux élèves de la formation.");
+}
+
 /** L'outreach Instagram : la VA et l'admin, personne d'autre. */
 export function requireOutreach(session: Session): Session {
   if (session.isAdmin || session.role === "va") return session;
@@ -216,6 +259,19 @@ export function readSession(req: NextRequest): Session {
   // Proprietaire connecte par mot de passe (site en ligne).
   if (claims?.role === "owner" && !claims.memberId) {
     return ownerAuthEnabled() ? { ...OWNER, canLogout: true } : OWNER;
+  }
+
+  /*
+   * Eleve : jeton « student » portant l'id de sa fiche. La fiche fait foi : un
+   * eleve dont l'acces a ete coupe garde un cookie valide mais n'entre plus.
+   * En apercu (admin qui regarde), l'acces coupe n'empeche pas de verifier
+   * ce qu'il verrait.
+   */
+  if (claims?.role === "student" && claims.memberId) {
+    const student = readDB().students.find((s) => s.id === claims.memberId);
+    if (!student) return ANON;
+    if (!student.portalAccess && !claims.impersonated) return ANON;
+    return studentSession(student, Boolean(claims.impersonated));
   }
 
   if (claims?.memberId) {

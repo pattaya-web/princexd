@@ -478,9 +478,16 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     ],
   },
   {
+    section: "Formation",
+    items: [
+      { href: "/formation", label: "Plateforme élèves", icon: "▶" },
+      { href: "/formation/modules", label: "Modules vidéo", icon: "▤" },
+      { href: "/formation/eleves", label: "Accès élèves", icon: "⚿" },
+    ],
+  },
+  {
     section: "Business",
     items: [
-      { href: "/crm", label: "CRM", icon: "◉" },
       { href: "/eleves", label: "Élèves", icon: "✓" },
       { href: "/sales/agenda", label: "Agenda des calls", icon: "☏" },
       { href: "/pubs/creas", label: "Ads & Scripts", icon: "▶" },
@@ -542,6 +549,7 @@ const ROLE_LABEL: Record<string, string> = {
   closer: "closer",
   editor: "monteur",
   va: "VA outreach",
+  student: "élève",
 };
 
 /**
@@ -604,10 +612,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const isEditor = session?.role === "editor";
   // La VA de prospection ne voit qu'une page : la sienne.
   const isVa = session?.role === "va";
+  // Un eleve ne voit que sa formation.
+  const isStudent = session?.role === "student";
   const nav = isSalesOnly
     ? NAV.filter((g) => g.section === "Sales")
     : isVa
       ? [{ section: "Outreach", items: [{ href: "/va/outreach", label: "Instagram Outreach", icon: "✉" }] }]
+      : isStudent
+        ? [{ section: "Formation", items: [{ href: "/formation", label: "Mes modules", icon: "▶" }] }]
       : isEditor
       ? [
           {
@@ -701,8 +713,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <ViewSwitcher />
           <SessionBadge />
           {/* Le solde de credits IA ne concerne pas l'equipe commerciale. */}
-          {!isSalesOnly && !isVa && <CreditsWidget />}
-          {!isSalesOnly && !isVa && <HiggsfieldWidget />}
+          {!isSalesOnly && !isVa && !isStudent && <CreditsWidget />}
+          {!isSalesOnly && !isVa && !isStudent && <HiggsfieldWidget />}
         </div>
       </aside>
 
@@ -721,7 +733,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           {/* Sur téléphone, les objectifs du jour défilent horizontalement au lieu de déborder. */}
           <div className="min-w-0 flex-1 overflow-x-auto scroll-x">
             {/* Attendre la session : monté trop tôt, le monteur déclenchait un appel refusé à /api/today. */}
-            {session && !isSalesOnly && !isEditor && !isVa && <DailyBar />}
+            {session && !isSalesOnly && !isEditor && !isVa && !isStudent && <DailyBar />}
           </div>
           <div className="hidden md:block shrink-0">
             <Clocks />
@@ -745,9 +757,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Hors du <main> : il ne doit pas etre remonte a chaque navigation. */}
-      {!isVa && <JobsDock />}
-      {/* La to-do flottante est la mienne : ni l'equipe commerciale, ni le monteur, ni la VA ne la voient. */}
-      {session && !isSalesOnly && !isEditor && !isVa && <TodoDock />}
+      {!isVa && !isStudent && <JobsDock />}
+      {/* La to-do flottante est la mienne : ni l'equipe commerciale, ni le monteur, ni la VA, ni les eleves ne la voient. */}
+      {session && !isSalesOnly && !isEditor && !isVa && !isStudent && <TodoDock />}
       <NewVersionBanner />
     </div>
   );

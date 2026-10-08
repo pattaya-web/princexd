@@ -104,6 +104,7 @@ const EMPTY_DB: DB = {
   taskChecks: [],
   broll: [],
   adBoards: [],
+  courseModules: [],
 };
 
 function ensureFile() {

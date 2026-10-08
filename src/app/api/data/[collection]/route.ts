@@ -49,6 +49,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ collection:
   if (!key) return NextResponse.json({ error: "Collection inconnue" }, { status: 404 });
 
   const rows = list(key);
+  // Le hash du mot de passe d'un eleve n'a rien a faire dans le navigateur,
+  // meme celui de l'admin : la page Eleves n'en a aucun usage.
+  if (key === "students") {
+    return NextResponse.json((rows as unknown as Record<string, unknown>[]).map(({ passwordHash: _hash, ...rest }) => rest));
+  }
   const heavy = HEAVY[key];
   if (req.nextUrl.searchParams.get("light") !== "1" || !heavy) {
     return NextResponse.json(rows);

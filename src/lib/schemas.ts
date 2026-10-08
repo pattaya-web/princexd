@@ -72,33 +72,24 @@ export const LEADS: EntitySpec = {
   ],
 };
 
+/**
+ * Fiche eleve reduite a l'onboarding (2026-10-08) : nom prenom, email, contrat
+ * signe et sa date. Les anciens champs (programme, prix, avancement…) restent
+ * en base pour les fiches creees avant et pour le lien avec la vente, mais
+ * ne sont plus saisis ici. L'acces a la plateforme se gere dans
+ * Formation → Accès élèves.
+ */
 export const STUDENTS: EntitySpec = {
   collection: "students",
   singular: "Élève",
   plural: "Élèves",
   titleKey: "name",
-  boardKey: "status",
   sort: { key: "createdAt", dir: "desc" },
   fields: [
-    f("name", "Nom", "text"),
-    f("handle", "@ Instagram", "text"),
-    f("phone", "Téléphone", "text", { placeholder: "+33 6 12 34 56 78" }),
-    // Recopie depuis le lead a l'inscription : sans champ, la donnee existait
-    // en base sans jamais etre lisible ni corrigeable.
-    f("email", "Email", "text", { formOnly: true }),
-    f("program", "Programme", "text", { placeholder: "Accompagnement 3 mois" }),
-    f("status", "Statut", "select", { options: ["onboarding", "actif", "pause", "termine"], default: "onboarding" }),
-    f("progress", "Avancement", "pct", { default: 0 }),
-    f("price", "Prix (€)", "money", { default: 0 }),
-    f("paid", "Encaissé (€)", "money", { default: 0 }),
-    f("startedAt", "Début", "date"),
-    f("nextSessionAt", "Prochaine session", "datetime"),
-    f("objective", "Objectif", "text", { formOnly: true }),
-    f("result", "Résultat obtenu", "textarea", {
-      formOnly: true,
-      placeholder: "Le matériau de tes contenus preuve : chiffres, avant/après…",
-    }),
-    f("notes", "Notes", "textarea", { formOnly: true }),
+    f("name", "Nom prénom", "text"),
+    f("email", "Email", "text", { placeholder: "prenom@exemple.fr" }),
+    f("contractSigned", "Contrat signé avec l'élève", "bool", { default: false }),
+    f("contractAt", "Date du contrat", "date"),
   ],
 };
 

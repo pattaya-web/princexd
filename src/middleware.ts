@@ -51,6 +51,17 @@ const EDITOR_APIS = [
 const VA_PAGES = ["/va"];
 const VA_APIS = ["/api/outreach/", "/api/sales/session", "/api/version"];
 
+/*
+ * --- Eleve de la formation ---
+ *
+ * La plateforme (/formation) et ses API, rien d'autre. Les pages de gestion
+ * (modules, acces) sont a l'admin : un eleve qui en tape l'adresse revient a
+ * ses modules.
+ */
+const STUDENT_PAGES = ["/formation"];
+const STUDENT_ADMIN_PAGES = ["/formation/modules", "/formation/eleves"];
+const STUDENT_APIS = ["/api/formation/", "/api/sales/session", "/api/version"];
+
 /* --- Equipe commerciale --- */
 const SALES_PAGES = ["/sales"];
 
@@ -116,6 +127,12 @@ export function middleware(req: NextRequest) {
   if (role === "va") {
     if (matches(pathname, VA_PAGES) || matches(pathname, VA_APIS)) return NextResponse.next();
     return deny(req, "/va/outreach");
+  }
+
+  if (role === "student") {
+    if (matches(pathname, STUDENT_ADMIN_PAGES)) return deny(req, "/formation");
+    if (matches(pathname, STUDENT_PAGES) || matches(pathname, STUDENT_APIS)) return NextResponse.next();
+    return deny(req, "/formation");
   }
 
   if (role === "setter" || role === "closer") {

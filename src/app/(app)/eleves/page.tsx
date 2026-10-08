@@ -1,11 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { EntityView } from "@/components/EntityView";
 import { StatTile } from "@/components/ui";
 import { STUDENTS } from "@/lib/schemas";
-import { fmtEur, fmtInt } from "@/lib/format";
+import { fmtInt } from "@/lib/format";
 import type { Student } from "@/lib/types";
 
+/**
+ * Fiches eleves : l'onboarding tient en quatre champs (nom prenom, email,
+ * contrat signe, date du contrat). L'acces a la plateforme de formation se
+ * donne ensuite dans Formation → Accès élèves.
+ */
 export default function ElevesPage() {
   return (
     <EntityView
@@ -13,25 +19,23 @@ export default function ElevesPage() {
       title="Élèves"
       summary={(rows) => {
         const students = rows as unknown as Student[];
-        const actifs = students.filter((s) => s.status === "actif" || s.status === "onboarding");
-        const ca = students.reduce((a, s) => a + (s.price || 0), 0);
-        const encaisse = students.reduce((a, s) => a + (s.paid || 0), 0);
-        const withResult = students.filter((s) => s.result?.trim());
+        const signed = students.filter((s) => s.contractSigned);
+        const withAccess = students.filter((s) => s.portalAccess);
         return (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatTile label="Élèves actifs" value={fmtInt(actifs.length)} hint={`${students.length} au total`} />
-            <StatTile label="CA signé" value={fmtEur(ca)} />
-            <StatTile
-              label="Reste à encaisser"
-              value={fmtEur(ca - encaisse)}
-              hint={`${fmtEur(encaisse)} déjà encaissés`}
-              accent={ca - encaisse > 0 ? "var(--warning)" : undefined}
-            />
-            <StatTile
-              label="Preuves dispo"
-              value={fmtInt(withResult.length)}
-              accent="var(--good)"
-            />
+          <div className="flex flex-wrap items-start gap-3">
+            <div className="grid grid-cols-3 gap-3 flex-1 min-w-[280px]">
+              <StatTile label="Élèves" value={fmtInt(students.length)} />
+              <StatTile
+                label="Contrats signés"
+                value={fmtInt(signed.length)}
+                hint={students.length - signed.length > 0 ? `${students.length - signed.length} en attente` : undefined}
+                accent={students.length - signed.length > 0 ? "var(--warning)" : "var(--good)"}
+              />
+              <StatTile label="Accès plateforme" value={fmtInt(withAccess.length)} hint="ouverts" />
+            </div>
+            <Link href="/formation/eleves" className="btn btn-sm self-center">
+              Gérer les accès à la formation
+            </Link>
           </div>
         );
       }}

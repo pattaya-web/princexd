@@ -411,7 +411,7 @@ export default function DashboardPage() {
 
           <Card
             title="Leads chauds"
-            actions={<Link href="/crm" className="btn btn-sm">CRM</Link>}
+            actions={<Link href="/sales/leads" className="btn btn-sm">À appeler</Link>}
             padded={false}
           >
             {!hotLeads.length ? (

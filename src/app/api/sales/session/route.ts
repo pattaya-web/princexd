@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSettings, readDB, writeDB } from "@/lib/db";
 import {
+  findStudentByLogin,
   issueOwnerToken,
+  issueStudentToken,
   issueToken,
   normalizeUsername,
   ownerAuthEnabled,
@@ -76,6 +78,38 @@ export async function POST(req: NextRequest) {
         res.cookies.delete(LEGACY_ROLE_COOKIE);
         return res;
       }
+    }
+  }
+
+  /*
+   * Eleve de la formation : identifiant + mot de passe poses par l'admin sur
+   * sa fiche. Un seul espace, /formation. L'acces coupe est dit clairement :
+   * un « identifiant incorrect » ferait croire a l'eleve qu'il s'est trompe.
+   */
+  if (username && password) {
+    const student = findStudentByLogin(username, password);
+    if (student) {
+      if (!student.portalAccess) {
+        return NextResponse.json({ error: "Ton accès à la formation est désactivé. Contacte ton coach." }, { status: 403 });
+      }
+      const db = readDB();
+      const row = db.students.find((s) => s.id === student.id);
+      if (row) {
+        row.portalLastSeenAt = new Date().toISOString();
+        writeDB(db);
+      }
+      const res = NextResponse.json({
+        ok: true,
+        role: "student",
+        roles: [],
+        memberId: student.id,
+        memberName: student.name,
+        isAdmin: false,
+        redirect: "/formation",
+      });
+      res.cookies.set(SESSION_COOKIE, issueStudentToken(student), cookieOptions(SESSION_MAX_AGE_S));
+      res.cookies.delete(LEGACY_ROLE_COOKIE);
+      return res;
     }
   }
 

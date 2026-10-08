@@ -5,6 +5,7 @@ import { api } from "@/lib/client";
 import { forgetSession, useSession } from "@/lib/sales/client";
 import type { PublicMember } from "@/lib/sales/repo";
 import { hasRole } from "@/lib/sales/roles";
+import type { StudentAccessRow } from "@/lib/formation";
 
 /**
  * Bascule entre les trois vues du tool : admin, setter, closer.
@@ -42,6 +43,7 @@ export async function enterView(memberId: string, role: "setter" | "closer", imp
 export function ViewSwitcher() {
   const { session } = useSession();
   const [members, setMembers] = useState<PublicMember[]>([]);
+  const [students, setStudents] = useState<StudentAccessRow[]>([]);
   const [busy, setBusy] = useState("");
 
   // On ne charge l'annuaire que pour qui peut s'en servir.
@@ -53,6 +55,13 @@ export function ViewSwitcher() {
     api<{ members: PublicMember[] }>("/api/sales/members")
       .then((d) => {
         if (alive) setMembers(d.members);
+      })
+      .catch(() => {});
+    // Les eleves avec un acces : pour ouvrir la plateforme dans leur peau.
+    // En apercu (jeton d'un membre), cet appel est refuse : on l'ignore.
+    api<{ students: StudentAccessRow[] }>("/api/formation/access")
+      .then((d) => {
+        if (alive) setStudents(d.students.filter((s) => s.hasPassword));
       })
       .catch(() => {});
     return () => {
@@ -113,6 +122,20 @@ export function ViewSwitcher() {
     );
   const currentKey = session.impersonated ? `${session.memberId}:${session.role}` : "";
 
+  /** La plateforme de formation dans la peau d'un eleve precis. */
+  const viewAsStudent = async (studentId: string) => {
+    setBusy("student");
+    try {
+      if (session.impersonated) await api("/api/sales/session", { method: "DELETE" });
+      await api("/api/sales/session/view-as", { method: "POST", body: JSON.stringify({ role: "student", studentId }) });
+      forgetSession();
+      window.location.href = "/formation";
+    } finally {
+      setBusy("");
+    }
+  };
+  const firstStudent = students.slice().sort((a, b) => a.name.localeCompare(b.name, "fr"))[0];
+
   const backToAdmin = async () => {
     setBusy("admin");
     try {
@@ -124,19 +147,22 @@ export function ViewSwitcher() {
     }
   };
 
-  const current: "admin" | "setter" | "closer" | "va" = session.isAdmin
+  const current: "admin" | "setter" | "closer" | "va" | "student" = session.isAdmin
     ? "admin"
     : session.role === "va"
       ? "va"
-      : session.role === "closer"
-        ? "closer"
-        : "setter";
+      : session.role === "student"
+        ? "student"
+        : session.role === "closer"
+          ? "closer"
+          : "setter";
 
-  const options: { key: "admin" | "setter" | "closer" | "va"; label: string; name?: string }[] = [
+  const options: { key: "admin" | "setter" | "closer" | "va" | "student"; label: string; name?: string }[] = [
     { key: "admin", label: "Admin", name: "Moi" },
     { key: "setter", label: "Setter", name: firstOf("setter")?.name },
     { key: "closer", label: "Closer", name: firstOf("closer")?.name },
     { key: "va", label: "VA", name: "Outreach Instagram" },
+    { key: "student", label: "Élève", name: firstStudent?.name },
   ];
 
   return (
@@ -161,7 +187,15 @@ export function ViewSwitcher() {
               key={o.key}
               disabled={disabled || Boolean(busy)}
               title={disabled ? `Aucun ${o.label.toLowerCase()} créé` : o.name}
-              onClick={() => (o.key === "admin" ? void backToAdmin() : o.key === "va" ? void viewAsVa() : void viewAs(o.key))}
+              onClick={() =>
+                o.key === "admin"
+                  ? void backToAdmin()
+                  : o.key === "va"
+                    ? void viewAsVa()
+                    : o.key === "student"
+                      ? firstStudent && void viewAsStudent(firstStudent.id)
+                      : void viewAs(o.key)
+              }
               className="flex-1 h-[24px] rounded-[5px] text-[11px] font-medium transition-colors"
               style={{
                 background: active ? "var(--surface)" : "transparent",
@@ -178,13 +212,15 @@ export function ViewSwitcher() {
       </div>
 
       {/* Le compte precis a incarner, quel que soit son metier. */}
-      {choices.length > 0 && (
+      {(choices.length > 0 || students.length > 0) && (
         <select
           className="select select-xs !text-[11px] mt-1.5"
-          value={currentKey}
+          value={session.role === "student" && session.impersonated ? `student:${session.memberId}` : currentKey}
           disabled={Boolean(busy)}
           onChange={(e) => {
-            const c = choices.find((x) => x.key === e.target.value);
+            const v = e.target.value;
+            if (v.startsWith("student:")) return void viewAsStudent(v.slice("student:".length));
+            const c = choices.find((x) => x.key === v);
             if (c) void viewAs(c.role, c.memberId);
             else void backToAdmin();
           }}
@@ -195,13 +231,27 @@ export function ViewSwitcher() {
               {c.label}
             </option>
           ))}
+          {students
+            .slice()
+            .sort((a, b) => a.name.localeCompare(b.name, "fr"))
+            .map((s) => (
+              <option key={`student:${s.id}`} value={`student:${s.id}`}>
+                {s.name} · élève
+              </option>
+            ))}
         </select>
       )}
 
       {/* Qui l'on incarne : sans ce rappel, on oublie qu'on est en apercu et on
           s'etonne de ne plus voir la moitie du tool. */}
       <div className="dim text-[10.5px] mt-1.5 truncate">
-        {current === "admin" ? "Accès complet" : current === "va" ? "Dans la peau de la VA (outreach)" : `Dans la peau de ${session.memberName} (${session.role})`}
+        {current === "admin"
+          ? "Accès complet"
+          : current === "va"
+            ? "Dans la peau de la VA (outreach)"
+            : current === "student"
+              ? `Dans la peau de ${session.memberName} (élève)`
+              : `Dans la peau de ${session.memberName} (${session.role})`}
       </div>
     </div>
   );

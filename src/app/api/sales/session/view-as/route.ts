@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readDB } from "@/lib/db";
-import { issueToken, readSession, requireAdmin } from "@/lib/sales/access";
+import { issueStudentToken, issueToken, readSession, requireAdmin } from "@/lib/sales/access";
 import { SESSION_COOKIE, SESSION_MAX_AGE_S } from "@/lib/sales/session";
 import { memberRoles, primaryRole } from "@/lib/sales/roles";
 import type { SessionRole } from "@/lib/types";
@@ -33,10 +33,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Action réservée à l'administrateur." }, { status: 403 });
   }
 
-  const { memberId, role: wanted } = (await req.json().catch(() => ({}))) as {
+  const { memberId, studentId, role: wanted } = (await req.json().catch(() => ({}))) as {
     memberId?: string;
-    role?: "setter" | "closer" | "va";
+    studentId?: string;
+    role?: "setter" | "closer" | "va" | "student";
   };
+
+  /*
+   * Apercu de la plateforme de formation dans la peau d'un eleve precis :
+   * memes modules, meme avancement. Le marquage « terminé » est ignore en
+   * apercu, pour ne pas ecrire dans la progression reelle de l'eleve.
+   */
+  if (wanted === "student") {
+    if (!studentId) return NextResponse.json({ error: "studentId manquant." }, { status: 400 });
+    const student = readDB().students.find((s) => s.id === studentId);
+    if (!student) return NextResponse.json({ error: "Élève introuvable." }, { status: 404 });
+    const res = NextResponse.json({ ok: true, role: "student", memberId: student.id, memberName: student.name });
+    res.cookies.set(SESSION_COOKIE, issueStudentToken(student, true), {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: Math.min(SESSION_MAX_AGE_S, 60 * 60 * 8),
+      secure: process.env.NODE_ENV === "production",
+    });
+    return res;
+  }
 
   /*
    * Apercu de l'espace de la VA : pas de membre derriere, un jeton « va »

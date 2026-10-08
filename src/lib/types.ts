@@ -434,6 +434,50 @@ export interface Student {
   email?: string;
   phone?: string;
   currency?: string;
+  /** Contrat signe avec l'eleve a l'onboarding, et sa date. */
+  contractSigned?: boolean;
+  contractAt?: string;
+  /* --- Acces a la plateforme de formation (/formation). ---
+     Identifiant + mot de passe haches, definis par l'admin dans « Accès
+     élèves ». `portalAccess` coupe l'acces sans effacer les identifiants. */
+  username?: string;
+  passwordHash?: string;
+  portalAccess?: boolean;
+  portalLastSeenAt?: string;
+  /** Modules video marques « terminé » par l'eleve, dans l'ordre ou il les a coches. */
+  completedModules?: ID[];
+}
+
+/* ------------------------- Plateforme de formation ------------------------ */
+
+/** Une objection qui revient souvent, et la reponse a y apporter. */
+export interface CourseObjection {
+  id: ID;
+  question: string;
+  answer: string;
+}
+
+/**
+ * Un module video de la formation e-commerce.
+ *
+ * La video est hebergee sur YouTube (non repertoriee) : on ne stocke que le
+ * lien. En dessous, une annexe en texte libre (notes, liens, etapes) et la
+ * liste des objections frequentes. `order` donne l'ordre de visionnage ;
+ * un module non publie n'est visible que par l'admin.
+ */
+export interface CourseModule {
+  id: ID;
+  title: string;
+  /** Une ou deux phrases sous le titre : de quoi parle le module. */
+  summary: string;
+  youtubeUrl: string;
+  /** Annexe affichee sous la video. Texte libre, mise en forme legere (titres, listes, liens). */
+  annex: string;
+  objections: CourseObjection[];
+  order: number;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CallEvent {
@@ -851,6 +895,8 @@ export interface DB {
   taskChecks: TaskCheck[];
   /** Bibliotheque de B-roll partagee avec le monteur, hors dossiers de montage. */
   broll: BrollItem[];
+  /** Modules video de la plateforme de formation des eleves. */
+  courseModules: CourseModule[];
   /** Tableaux de strategie creative (facon Miro) de la section Ads. */
   adBoards: AdBoard[];
 }
@@ -1041,7 +1087,7 @@ export type SalesRole = "admin" | "setter" | "closer";
  * tool, qu'il ne faut surtout pas casser. `admin` = un membre a qui j'ai donne
  * les pleins pouvoirs. Les deux ont exactement les memes droits.
  */
-export type SessionRole = "owner" | "admin" | "setter" | "closer" | "editor" | "va" | "anonyme";
+export type SessionRole = "owner" | "admin" | "setter" | "closer" | "editor" | "va" | "student" | "anonyme";
 
 export interface Session {
   /** Role principal : sert au routage. Les droits fins passent par `roles`. */
