@@ -5,6 +5,7 @@ import { api } from "@/lib/client";
 import { fmtDateTime, label, relative } from "@/lib/format";
 import { Empty, Field, Modal, Spinner, useToast } from "@/components/ui";
 import { StatusBadge } from "./bits";
+import { AttributionBlock } from "./AttributionBlock";
 import type { ActivityLog, Lead } from "@/lib/types";
 import type { AppointmentStatus } from "@/lib/types";
 
@@ -171,6 +172,16 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
                 </>
               )}
             </dl>
+
+            {/* D'ou vient ce lead : first touch, jamais ecrase par un DM ulterieur. */}
+            <AttributionBlock
+              lead={l}
+              isAdmin
+              onChanged={(lead) => {
+                setData((d) => (d ? { ...d, lead } : d));
+                onChanged();
+              }}
+            />
 
             {/* Rendez-vous de ce contact, passes et a venir. */}
             <div>

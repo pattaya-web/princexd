@@ -36,6 +36,7 @@ import type {
 import { canSee, Forbidden } from "./access";
 import { isDead } from "./constants";
 import { isCommercial, memberRoles, sessionHas, type CommercialRole } from "./roles";
+import { applyTouch, touchFromUtm, type TouchHint } from "./attribution";
 
 /* -------------------------------- Audit --------------------------------- */
 
@@ -89,6 +90,8 @@ export function upsertLead(
     timezone?: string;
     source?: string;
     setterId?: string;
+    /** Parametres du lien de reservation : l'attribution du lead en depend. */
+    utm?: Record<string, string>;
   },
 ): Lead {
   const handle = cleanHandle(input.igUsername ?? "");
@@ -112,6 +115,8 @@ export function upsertLead(
     existing.country = existing.country || input.country || "";
     existing.timezone = existing.timezone || input.timezone || "";
     if (!existing.setterId && input.setterId) existing.setterId = input.setterId;
+    // Interaction ulterieure : le last touch bouge, la source d'acquisition reste.
+    applyTouch(existing, touchFromUtm(input.utm, { hint: TOUCH_HINT[input.source ?? ""] ?? "" }));
     return existing;
   }
 
@@ -137,9 +142,19 @@ export function upsertLead(
     timezone: input.timezone?.trim() || "",
     setterId: input.setterId || "",
   };
+  applyTouch(lead, touchFromUtm(input.utm, { hint: TOUCH_HINT[input.source ?? ""] ?? "" }), lead.createdAt);
   db.leads.unshift(lead);
   return lead;
 }
+
+/** Indice d'origine d'un rendez-vous pose a la main, pour l'attribution du lead. */
+const TOUCH_HINT: Record<string, TouchHint> = {
+  "instagram-dm": "instagram-dm",
+  "instagram-story": "instagram-story",
+  "instagram-reel": "instagram-reel",
+  outbound: "outreach",
+  referral: "referral",
+};
 
 /* ----------------------------- Rendez-vous ------------------------------- */
 

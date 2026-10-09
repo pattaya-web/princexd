@@ -5,6 +5,7 @@ import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
 import { getSystemeioKey, syncSystemeio } from "@/lib/systemeio";
 import { leadIsOut, type Lead } from "@/lib/types";
+import { applyTouch } from "@/lib/sales/attribution";
 
 export const dynamic = "force-dynamic";
 
@@ -417,6 +418,8 @@ export async function POST(req: NextRequest) {
       };
       db.leads.unshift(lead);
     }
+    // Contact Instagram : premiere source s'il n'en a pas, simple interaction sinon.
+    applyTouch(lead, { hint: "instagram-dm" }, now);
     if (!lead.declaredAt) lead.declaredAt = now;
     if (body.note?.trim()) lead.notes = [lead.notes, body.note.trim()].filter(Boolean).join("\n");
     db.activityLogs.unshift({

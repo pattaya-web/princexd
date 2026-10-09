@@ -39,6 +39,9 @@ function secret(): string {
   return generated;
 }
 
+/** Le meme secret sert a chiffrer les jetons Meta (lib/mediabuying/crypto). */
+export const sessionSecret = secret;
+
 const b64url = (s: string) => Buffer.from(s, "utf8").toString("base64url");
 
 const sign = (payload: string) => createHmac("sha256", secret()).update(payload).digest("base64url");

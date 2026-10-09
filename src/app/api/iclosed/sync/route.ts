@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
 import { fetchCalls, IclosedError, mapCallStatus, toCallEvent, toLead } from "@/lib/iclosed";
+import { applyTouch } from "@/lib/sales/attribution";
+import { touchOf } from "@/lib/iclosed";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -62,6 +64,7 @@ export async function POST(req: NextRequest) {
       const lead = toLead(raw, mapCallStatus(raw));
       const known = db.leads.find((l) => l.id === lead.id);
       if (known) {
+        applyTouch(known, touchOf(raw));
         known.callAt = lead.callAt;
         known.painPoint = lead.painPoint || known.painPoint;
         known.notes = lead.notes || known.notes;

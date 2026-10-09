@@ -3,6 +3,16 @@ import type { StudioCharacter, StudioJob } from "./studio/types";
 
 export type ID = string;
 
+import type {
+  AdInternalData,
+  CampaignDraft,
+  CampaignInternalData,
+  MediaBuyingAuditLog,
+  MediaBuyingSettings,
+  MetaConnection,
+  MetaSnapshot,
+} from "./mediabuying/types";
+
 /** Un jour de croissance : gagnes viennent de l'API, perdus sont derives. */
 export interface IgDayPoint {
   date: string;   // YYYY-MM-DD
@@ -177,6 +187,8 @@ export interface Settings {
   salesMonthlyGoal?: number;
   /** Derniere synchro reussie, pour ne pas retaper l'API a chaque navigation. */
   salesLastSyncAt: string;
+  /** Attribution des leads existants derivee une fois (lib/sales/attribution). */
+  attributionBackfilledAt?: string;
   /* --- Systeme.io : leads de la landing page. Priorite a SYSTEMEIO_API_KEY. --- */
   systemeioApiKey?: string;
   /** Secret du webhook, genere ici et transmis a Systeme.io a la creation. */
@@ -381,7 +393,46 @@ export interface Lead {
   callbackAt?: string;
   /** Declare par un setter (« j'ai envoye le lien du calendrier ») : date de la declaration. */
   declaredAt?: string;
+  /* --- Attribution d'acquisition (src/lib/sales/attribution.ts). ---
+     `sourceChannel`, `funnelSource`, `campaignId`, `adsetId`, `adId` sont
+     l'attribution EFFECTIVE : un miroir du first touch, jamais ecrase par
+     une interaction ulterieure (un lead venu d'une pub Meta qui ecrit ensuite
+     en DM reste META_ADS). Le last touch vit a part, pour l'analyse. */
+  sourceChannel?: SourceChannel;
+  funnelSource?: string;
+  campaignId?: string;
+  adsetId?: string;
+  adId?: string;
+  campaignName?: string;
+  adsetName?: string;
+  adName?: string;
+  firstTouchSourceChannel?: SourceChannel;
+  firstTouchFunnelSource?: string;
+  firstTouchCampaignId?: string;
+  firstTouchAdsetId?: string;
+  firstTouchAdId?: string;
+  firstTouchUtmSource?: string;
+  firstTouchUtmMedium?: string;
+  firstTouchUtmCampaign?: string;
+  firstTouchUtmContent?: string;
+  firstTouchUtmTerm?: string;
+  firstTouchPlacement?: string;
+  firstTouchFbclid?: string;
+  firstTouchAt?: string;
+  /** Vrai quand le first touch est juge fiable (IDs Meta, fbclid, utm payant) : plus rien ne l'ecrase automatiquement. */
+  firstTouchReliable?: boolean;
+  lastTouchSourceChannel?: SourceChannel;
+  lastTouchFunnelSource?: string;
+  lastTouchAt?: string;
+  /** Attribution corrigee a la main : verrouillee, seule une autre correction manuelle la change. */
+  attributionLocked?: boolean;
+  attributionOverriddenAt?: string;
+  /** Fixture de demonstration generee en memoire : jamais ecrit en base. */
+  mock?: boolean;
 }
+
+/** Canal d'acquisition standardise. */
+export type SourceChannel = "META_ADS" | "INSTAGRAM" | "ORGANIC" | "REFERRAL" | "AFFILIATE" | "OTHER" | "UNKNOWN";
 
 /**
  * Statut d'appel d'un prospect de la landing page.
@@ -899,6 +950,21 @@ export interface DB {
   courseModules: CourseModule[];
   /** Tableaux de strategie creative (facon Miro) de la section Ads. */
   adBoards: AdBoard[];
+  /* --- Media buying Meta Ads (src/lib/mediabuying) --- */
+  /** Comptes publicitaires Meta connectes (jeton chiffre). */
+  metaConnections: MetaConnection[];
+  /** Photo des campagnes / ad sets / ads / stats par compte, relue par l'interface. */
+  mbSnapshots: MetaSnapshot[];
+  /** Cibles (CPL, CTR…) et objectifs de leads par compte. */
+  mbSettings: MediaBuyingSettings[];
+  /** Phase, objectif et notes internes par campagne Meta. */
+  mbCampaignData: CampaignInternalData[];
+  /** Winner / loser et notes internes par ad Meta. */
+  mbAdData: AdInternalData[];
+  /** Journal de toutes les actions faites depuis l'outil. */
+  mbAuditLogs: MediaBuyingAuditLog[];
+  /** Campagnes preparees dans le builder, publiees ou non. */
+  mbDrafts: CampaignDraft[];
 }
 
 /* ===================================================================== *

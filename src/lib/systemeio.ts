@@ -3,6 +3,7 @@ import { getSettings, newId, readDB, writeDB } from "@/lib/db";
 import { salesMembers } from "@/lib/sales/repo";
 import { memberRoles } from "@/lib/sales/roles";
 import type { DB, Lead, TeamMember } from "@/lib/types";
+import { applyTouch } from "./sales/attribution";
 
 /**
  * Systeme.io : les prospects de la landing page arrivent dans le CRM.
@@ -306,6 +307,8 @@ export function importContacts(db: DB, contacts: SioContact[], actorName = "Syst
       callAttempts: 0,
       lastCallAt: "",
     };
+    // La page d'opt-in dit le funnel ; les utm arriveront avec le lien iClosed.
+    applyTouch(lead, { landingUrl: lead.sourceUrl, hint: "systemeio" }, lead.optInAt || lead.createdAt);
     db.leads.unshift(lead);
     db.activityLogs.unshift({
       id: newId(),

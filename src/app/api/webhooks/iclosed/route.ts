@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
 import { syncIclosedUpcoming } from "@/lib/sales/iclosed-sync";
 import type { CallEvent, Lead } from "@/lib/types";
+import { applyTouch } from "@/lib/sales/attribution";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,7 @@ export async function POST(req: NextRequest) {
         notes: email ? `Email : ${email}` : "",
         createdAt: new Date().toISOString(),
       };
+      applyTouch(lead, { manualSource: "bio-link", hint: "iclosed" }, lead.createdAt);
       db.leads.unshift(lead);
     } else if (known.stage === "nouveau" || known.stage === "contacte" || known.stage === "conversation") {
       known.stage = "call-book";

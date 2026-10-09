@@ -1,5 +1,6 @@
 import { getSettings } from "./db";
 import type { CallEvent, Lead, LeadStage } from "./types";
+import { applyTouch, touchFromUtm, type TouchInput } from "./sales/attribution";
 
 export const ICLOSED_BASE = "https://public.api.iclosed.io";
 
@@ -244,7 +245,7 @@ export function toCallEvent(c: IclosedCall): CallEvent {
   };
 }
 
-export function toLead(c: IclosedCall, status: CallEvent["status"]): Lead {
+function toLeadBase(c: IclosedCall, status: CallEvent["status"]): Lead {
   const q = qualification(c);
   const notes = [
     c.inviteeEmail ? `Email : ${c.inviteeEmail}` : "",
@@ -304,4 +305,18 @@ export async function fetchUpcoming(maxPages = 12, perPage = 50): Promise<Iclose
     if (seen.size >= (res.data?.count ?? 0)) break;
   }
   return [...seen.values()].filter((c) => (c.dateTimeUTC ?? "") > now);
+}
+
+/** Parametres utm du lien de reservation, tels que l'attribution les lit. */
+export function touchOf(c: IclosedCall): TouchInput {
+  const utm: Record<string, string> = {};
+  for (const u of c.utm ?? []) if (u.utmKey) utm[u.utmKey] = u.utmValue;
+  return touchFromUtm(utm, { hint: "iclosed", manualSource: "bio-link" });
+}
+
+/** Lead iClosed avec son attribution : les utm du lien de reservation font foi. */
+export function toLead(c: IclosedCall, status: CallEvent["status"]): Lead {
+  const lead = toLeadBase(c, status);
+  applyTouch(lead, touchOf(c), lead.createdAt);
+  return lead;
 }

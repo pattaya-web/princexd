@@ -105,6 +105,13 @@ const EMPTY_DB: DB = {
   broll: [],
   adBoards: [],
   courseModules: [],
+  metaConnections: [],
+  mbSnapshots: [],
+  mbSettings: [],
+  mbCampaignData: [],
+  mbAdData: [],
+  mbAuditLogs: [],
+  mbDrafts: [],
 };
 
 function ensureFile() {

@@ -468,7 +468,8 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
   {
     section: "Sales",
     items: [
-      { href: "/sales", label: "Sales Dashboard", icon: "◈" },
+      { href: "/sales", label: "Dashboard équipe", icon: "◈" },
+      { href: "/sales/dashboard", label: "Sales Dashboard", icon: "◎" },
       { href: "/sales/leads", label: "À appeler", icon: "☏" },
       { href: "/sales/rendez-vous", label: "Rendez-vous", icon: "▤" },
       { href: "/sales/relances", label: "Relances", icon: "↻" },
@@ -491,7 +492,8 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/eleves", label: "Élèves", icon: "✓" },
       { href: "/sales/agenda", label: "Agenda des calls", icon: "☏" },
       { href: "/pubs/creas", label: "Ads & Scripts", icon: "▶" },
-      { href: "/pubs", label: "Meta Ads", icon: "◐" },
+      { href: "/mediabuying", label: "Meta Ads", icon: "◐" },
+      { href: "/pubs", label: "Ads (saisie manuelle)", icon: "▤" },
       { href: "/equipe", label: "Équipe", icon: "⚇" },
     ],
   },
