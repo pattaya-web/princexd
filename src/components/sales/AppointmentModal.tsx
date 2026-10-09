@@ -3,9 +3,10 @@
 import { hasRole } from "@/lib/sales/roles";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
-import { isoToParisInput, label, parisToIso } from "@/lib/format";
+import { label, parisToIso } from "@/lib/format";
 import { APPOINTMENT_SOURCES } from "@/lib/sales/constants";
 import { Field, Modal, useToast } from "@/components/ui";
+import { SlotPicker } from "./bits";
 import type { PublicMember } from "@/lib/sales/repo";
 import type { AppointmentSource, Session } from "@/lib/types";
 
@@ -30,13 +31,16 @@ const TIMEZONES = [
   "Australia/Sydney",
 ];
 
-/** Creneau par defaut : aujourd'hui, a la prochaine heure ronde, heure de Paris. */
-function defaultSlot() {
+/**
+ * Creneau par defaut (ISO UTC) : la prochaine heure ronde, ou 10 h a Paris
+ * le jour choisi quand on arrive depuis une case de l'agenda.
+ */
+function defaultSlot(day?: string): string {
+  if (day) return parisToIso(`${day}T10:00`);
   const d = new Date();
   d.setMinutes(0, 0, 0);
   d.setHours(d.getHours() + 1);
-  const [date, time] = isoToParisInput(d).split("T");
-  return { date, time };
+  return d.toISOString();
 }
 
 export interface AppointmentModalProps {
@@ -45,24 +49,24 @@ export interface AppointmentModalProps {
   onSaved: () => void;
   session: Session;
   members: PublicMember[];
+  /** « AAAA-MM-JJ » : jour pre-rempli quand on clique sur une case de l'agenda. */
+  initialDate?: string;
 }
 
-export function AppointmentModal({ open, onClose, onSaved, session, members }: AppointmentModalProps) {
+export function AppointmentModal({ open, onClose, onSaved, session, members, initialDate }: AppointmentModalProps) {
   const toast = useToast();
   const igRef = useRef<HTMLInputElement>(null);
 
   const setters = useMemo(() => members.filter((m) => hasRole(m, "setter") && m.status !== "inactif"), [members]);
   const closers = useMemo(() => members.filter((m) => hasRole(m, "closer") && m.status !== "inactif"), [members]);
 
-  const slot = defaultSlot();
   const [igUsername, setIg] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("");
   const [timezone, setTimezone] = useState("Europe/Paris");
-  const [date, setDate] = useState(slot.date);
-  const [time, setTime] = useState(slot.time);
+  const [scheduledAt, setScheduledAt] = useState(() => defaultSlot());
   const [setterId, setSetterId] = useState(session.memberId);
   const [closerId, setCloserId] = useState("");
   const [source, setSource] = useState<AppointmentSource>("instagram-dm");
@@ -75,14 +79,12 @@ export function AppointmentModal({ open, onClose, onSaved, session, members }: A
   // proposer les restes du rendez-vous precedent.
   useEffect(() => {
     if (!open) return;
-    const next = defaultSlot();
     setIg("");
     setName("");
     setEmail("");
     setPhone("");
     setCountry("");
-    setDate(next.date);
-    setTime(next.time);
+    setScheduledAt(defaultSlot(initialDate));
     setCloserId("");
     setSource("instagram-dm");
     setIclosedUrl("");
@@ -90,7 +92,7 @@ export function AppointmentModal({ open, onClose, onSaved, session, members }: A
     setMore(false);
     setSetterId(session.isAdmin ? (setters[0]?.id ?? "") : session.memberId);
     setTimeout(() => igRef.current?.focus(), 60);
-  }, [open, session.isAdmin, session.memberId, setters]);
+  }, [open, initialDate, session.isAdmin, session.memberId, setters]);
 
   const save = async () => {
     if (!igUsername.trim() && !name.trim()) {
@@ -98,7 +100,7 @@ export function AppointmentModal({ open, onClose, onSaved, session, members }: A
       igRef.current?.focus();
       return;
     }
-    if (!date || !time) {
+    if (!scheduledAt) {
       toast("Renseigne la date et l'heure du rendez-vous.", "err");
       return;
     }
@@ -113,9 +115,9 @@ export function AppointmentModal({ open, onClose, onSaved, session, members }: A
           phone: phone.trim(),
           country: country.trim(),
           timezone,
-          // Le creneau est saisi en heure de Paris, quel que soit l'ordinateur,
-          // puis converti en ISO : la base ne stocke que de l'UTC.
-          scheduledAt: parisToIso(`${date}T${time}`),
+          // Le selecteur rend deja un ISO UTC, quel que soit le fuseau
+          // (Paris ou Dubai) dans lequel l'heure a ete tapee.
+          scheduledAt,
           setterId,
           closerId,
           source,
@@ -183,14 +185,9 @@ export function AppointmentModal({ open, onClose, onSaved, session, members }: A
           </div>
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Date">
-            <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </Field>
-          <Field label="Heure (Paris)">
-            <input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-          </Field>
-        </div>
+        <Field label="Date et heure">
+          <SlotPicker value={scheduledAt} onChange={setScheduledAt} />
+        </Field>
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Fuseau du prospect">

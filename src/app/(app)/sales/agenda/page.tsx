@@ -26,6 +26,8 @@ export default function AgendaPage() {
   const [who, setWho] = useState<string>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  /** Jour pre-rempli quand on clique le « + » d'une case de l'agenda. */
+  const [addDay, setAddDay] = useState<string | undefined>(undefined);
   const [syncing, setSyncing] = useState(false);
 
   const closers = useMemo(() => members.filter((m) => hasRole(m, "closer") && m.status !== "inactif"), [members]);
@@ -96,13 +98,19 @@ export default function AgendaPage() {
     <>
       <PageHeader
         title="Agenda des calls"
-        subtitle="Tous les calls à venir, iClosed et rendez-vous posés par les setters. Choisis sur chaque carte qui le prend."
+        subtitle="Tous les calls à venir, iClosed et rendez-vous posés à la main. Le « + » d'un jour ajoute un rendez-vous, un clic sur une carte permet de changer l'heure."
         actions={
           <>
             <button className="btn" onClick={() => void syncNow()} disabled={syncing} title="Relire iClosed tout de suite">
               {syncing ? <span className="spinner" /> : "↻ Vérifier iClosed maintenant"}
             </button>
-            <button className="btn btn-primary" onClick={() => setAdding(true)}>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setAddDay(undefined);
+                setAdding(true);
+              }}
+            >
               + Rendez-vous
             </button>
           </>
@@ -132,7 +140,17 @@ export default function AgendaPage() {
         })}
       </div>
 
-      <CallsCalendar rows={rows} role="admin" onOpen={setOpenId} closers={closers} onAssign={assign} />
+      <CallsCalendar
+        rows={rows}
+        role="admin"
+        onOpen={setOpenId}
+        closers={closers}
+        onAssign={assign}
+        onAdd={(day) => {
+          setAddDay(day);
+          setAdding(true);
+        }}
+      />
 
       <AppointmentDetail
         id={openId}
@@ -154,6 +172,7 @@ export default function AgendaPage() {
         }}
         session={session}
         members={members}
+        initialDate={addDay}
       />
     </>
   );

@@ -12,6 +12,7 @@
  * si le process mourait au milieu.
  */
 import { newId, readDB, writeDB } from "../db";
+import { fmtDualDateTime } from "../format";
 import { buildSchedule, mergePaid } from "./installments";
 import type {
   ActivityLog,
@@ -503,10 +504,35 @@ export function patchAppointment(
 
   const before = appt.closerId;
   const beforeSetter = appt.setterId;
+  const beforeAt = appt.scheduledAt;
   Object.assign(appt, patch);
   appt.updatedAt = new Date().toISOString();
 
   if (patch.status && patch.status !== appt.status) pushHistory(appt, session, patch.status);
+
+  /*
+   * Creneau change depuis la fiche (« Geneva etait a 9 h, on la remet a
+   * 20 h ») : le lead suit, l'historique garde l'ancienne heure, et un call
+   * deja note no-show redevient un rendez-vous a venir. Un call closé ou
+   * perdu garde son resultat, seule son heure est corrigee.
+   */
+  if (patch.scheduledAt !== undefined && patch.scheduledAt !== beforeAt) {
+    const lead = db.leads.find((l) => l.id === appt.leadId);
+    if (lead) lead.callAt = patch.scheduledAt;
+    const note = `Déplacé du ${fmtDualDateTime(beforeAt)} au ${fmtDualDateTime(patch.scheduledAt)}`;
+    if (appt.status === "no-show") {
+      appt.completedAt = "";
+      pushHistory(appt, session, "rescheduled", note);
+    } else {
+      pushHistory(appt, session, appt.status, note);
+    }
+    log(db, session, {
+      action: "appointment.rescheduled",
+      entity: "appointment",
+      entityId: appt.id,
+      summary: `Rendez-vous de ${lead?.name ?? "un lead"} déplacé au ${fmtDualDateTime(patch.scheduledAt)}`,
+    });
+  }
 
   /*
    * L'attribution suit sur la vente : commissions et classements se lisent

@@ -4,11 +4,11 @@ import { hasRole, sessionHas } from "@/lib/sales/roles";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client";
 import { useSalesData } from "@/lib/sales/client";
-import { fmtDateTime, fmtMoney, label, parisDay, parisToIso } from "@/lib/format";
+import { fmtDateTime, fmtDualTime, fmtMoney, label, parisDay, parisToIso } from "@/lib/format";
 import { canConfirm, LOST_REASONS, PAYMENT_TYPES, SALE_STATUSES } from "@/lib/sales/constants";
 import { buildSchedule } from "@/lib/sales/installments";
 import { Field, Modal, Spinner, useToast } from "@/components/ui";
-import { ConfirmationSelect, IgHandle, StatusBadge } from "./bits";
+import { ConfirmationSelect, IgHandle, SlotPicker, StatusBadge } from "./bits";
 import type { PublicMember } from "@/lib/sales/repo";
 import type {
   ActivityLog,
@@ -106,6 +106,9 @@ export function AppointmentDetail({
   const [followUpAt, setFollowUpAt] = useState("");
   const [followUpNotes, setFollowUpNotes] = useState("");
   const [rescheduledAt, setRescheduledAt] = useState("");
+  /* Changement d'heure direct depuis la fiche, sans passer par le recap. */
+  const [editingSlot, setEditingSlot] = useState(false);
+  const [slot, setSlot] = useState("");
 
   /*
    * Recap du call (demande des closers) : closé ?, pitché ?, infos du lead,
@@ -342,6 +345,7 @@ export function AppointmentDetail({
     setFollowUpNotes("");
     setRescheduledAt("");
     setRecap(false);
+    setEditingSlot(false);
     void load(id);
     // `load` est stable pour un id donne ; l'ajouter aux deps relancerait
     // la requete a chaque frappe dans le formulaire.
@@ -354,6 +358,24 @@ export function AppointmentDetail({
     (session.isAdmin || (sessionHas(session, "closer") && appt?.closerId === session.memberId));
 
   /* ------------------------------ Actions ------------------------------ */
+
+  /** Deplace le rendez-vous a un autre creneau : la date change, rien d'autre. */
+  const saveSlot = async () => {
+    if (!appt || !slot) return toast("Indique la nouvelle date et heure.", "err");
+    if (slot === appt.scheduledAt) return setEditingSlot(false);
+    setSaving(true);
+    try {
+      await api(`/api/sales/appointments/${appt.id}`, { method: "PATCH", body: JSON.stringify({ scheduledAt: slot }) });
+      toast(`Rendez-vous déplacé : ${fmtDualTime(slot)}.`);
+      setEditingSlot(false);
+      await load(appt.id);
+      onChanged();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   /** Pseudo Instagram saisi a la main : l'import iClosed n'en invente plus. */
   const editHandle = async () => {
@@ -844,9 +866,43 @@ export function AppointmentDetail({
           {/* Creneau et attribution */}
           <div className="grid sm:grid-cols-3 gap-3">
             <div className="card-flat px-3 py-2.5">
-              <div className="label-xs">Rendez-vous</div>
-              <div className="text-[13px] font-medium num mt-1">{fmtDateTime(appt.scheduledAt)}</div>
-              <div className="dim text-[11px] mt-0.5">{appt.timezone}</div>
+              <div className="label-xs flex items-center justify-between">
+                <span>Rendez-vous</span>
+                {!editingSlot && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm !h-[22px] !px-1.5 !text-[11px]"
+                    onClick={() => {
+                      setSlot(appt.scheduledAt);
+                      setEditingSlot(true);
+                    }}
+                    title="Changer la date ou l'heure de ce rendez-vous"
+                  >
+                    ✎ Modifier
+                  </button>
+                )}
+              </div>
+              {editingSlot ? (
+                <div className="mt-1.5 flex flex-col gap-2">
+                  <SlotPicker value={slot} onChange={setSlot} compact autoFocus />
+                  <div className="flex gap-1.5 justify-end">
+                    <button className="btn btn-sm" onClick={() => setEditingSlot(false)} disabled={saving}>
+                      Annuler
+                    </button>
+                    <button className="btn btn-sm btn-primary" onClick={() => void saveSlot()} disabled={saving || !slot}>
+                      {saving ? <span className="spinner" /> : "Déplacer"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="text-[13px] font-medium num mt-1">{fmtDateTime(appt.scheduledAt)}</div>
+                  <div className="dim text-[11px] mt-0.5">
+                    {fmtDualTime(appt.scheduledAt)}
+                    {appt.timezone && appt.timezone !== "Europe/Paris" ? ` · prospect : ${appt.timezone}` : ""}
+                  </div>
+                </>
+              )}
               {/* Confirmation par le setter : le closer sait si le call tient. */}
               {canConfirm(appt.status) && (
                 <div className="mt-2">

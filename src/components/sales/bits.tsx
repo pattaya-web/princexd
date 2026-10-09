@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { api } from "@/lib/client";
-import { label } from "@/lib/format";
+import { fmtDay, fmtTime, isoToParisInput, label, parisToIso, SECOND_TZ, TEAM_TZ } from "@/lib/format";
 import { PERIODS, type PeriodKey } from "@/lib/sales/period";
 import { CONFIRMATION_LABEL, CONFIRMATIONS, statusTone } from "@/lib/sales/constants";
 import { Empty, useToast } from "@/components/ui";
@@ -429,6 +429,106 @@ export function TrendChart({ points, from, to }: { points: TrendPoint[]; from: s
         })}
         <line x1={padL} x2={W - 8} y1={y(0)} y2={y(0)} stroke="var(--border-strong)" strokeWidth={1} />
       </svg>
+    </div>
+  );
+}
+
+/* ------------------------------ Créneau -------------------------------- */
+
+/** Fuseaux dans lesquels on tape une heure : l'equipe est a Paris, le proprietaire a Dubai. */
+const SLOT_ZONES: { tz: string; short: string; long: string }[] = [
+  { tz: TEAM_TZ, short: "FR", long: "heure de Paris" },
+  { tz: SECOND_TZ, short: "DXB", long: "heure de Dubaï" },
+];
+const SLOT_TZ_KEY = "sales.slot-tz";
+
+/** Fuseau de saisie retenu d'une fois sur l'autre : on le choisit une fois, pas a chaque rendez-vous. */
+function rememberedZone(): string {
+  try {
+    const v = localStorage.getItem(SLOT_TZ_KEY);
+    if (v && SLOT_ZONES.some((z) => z.tz === v)) return v;
+  } catch {
+    /* navigation privee, stockage bloque : on retombe sur Paris */
+  }
+  return TEAM_TZ;
+}
+
+/**
+ * Saisie d'un creneau : date, heure, et le fuseau dans lequel l'heure est
+ * tapee (Paris ou Dubai). La valeur echangee est toujours un ISO UTC, le
+ * fuseau ne sert qu'a l'affichage : basculer FR → DXB ne deplace pas le
+ * rendez-vous, il montre la meme heure vue d'ailleurs. L'heure dans l'autre
+ * fuseau est rappelee en dessous pour eviter l'erreur classique de +2 h.
+ */
+export function SlotPicker({
+  value,
+  onChange,
+  autoFocus,
+  compact,
+}: {
+  /** ISO UTC, ou vide. */
+  value: string;
+  onChange: (iso: string) => void;
+  autoFocus?: boolean;
+  /** Champs reduits, pour une fiche plutot qu'un formulaire. */
+  compact?: boolean;
+}) {
+  const [tz, setTz] = useState(rememberedZone);
+  const local = value ? isoToParisInput(value, tz) : "";
+  const [date, time] = local ? local.split("T") : ["", ""];
+  const other = SLOT_ZONES.find((z) => z.tz !== tz) ?? SLOT_ZONES[0];
+
+  const emit = (d: string, t: string) => {
+    if (!d || !t) return onChange("");
+    onChange(parisToIso(`${d}T${t}`, tz));
+  };
+  const pickZone = (next: string) => {
+    setTz(next);
+    try {
+      localStorage.setItem(SLOT_TZ_KEY, next);
+    } catch {
+      /* idem */
+    }
+  };
+
+  const inputCls = compact ? "input !h-[32px] !text-[12.5px]" : "input";
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2 flex-wrap">
+        <input className={`${inputCls} !w-auto`} type="date" value={date} autoFocus={autoFocus} onChange={(e) => emit(e.target.value, time || "10:00")} />
+        <input className={`${inputCls} !w-auto num`} type="time" value={time} onChange={(e) => emit(date, e.target.value)} />
+        <div className="flex rounded-[7px] overflow-hidden shrink-0" style={{ border: "1px solid var(--border)" }} title="Fuseau dans lequel tu tapes l'heure">
+          {SLOT_ZONES.map((z) => {
+            const active = z.tz === tz;
+            return (
+              <button
+                key={z.tz}
+                type="button"
+                onClick={() => pickZone(z.tz)}
+                className="px-2.5 text-[11.5px] font-semibold"
+                style={{
+                  height: compact ? 30 : 36,
+                  background: active ? "var(--accent)" : "var(--surface-2)",
+                  color: active ? "#fff" : "var(--text-2)",
+                }}
+                aria-pressed={active}
+              >
+                {z.short}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="dim text-[11.5px]">
+        {value ? (
+          <>
+            {fmtDay(value, tz)} {time} {SLOT_ZONES.find((z) => z.tz === tz)?.long} ·{" "}
+            <span className="num">{fmtTime(value, other.tz)}</span> {other.long}
+          </>
+        ) : (
+          `Heure tapée en ${SLOT_ZONES.find((z) => z.tz === tz)?.long}.`
+        )}
+      </div>
     </div>
   );
 }

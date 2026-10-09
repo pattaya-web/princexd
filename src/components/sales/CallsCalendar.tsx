@@ -45,6 +45,7 @@ export function CallsCalendar({
   onOpen,
   closers,
   onAssign,
+  onAdd,
   title,
 }: {
   rows: AppointmentRow[];
@@ -53,6 +54,8 @@ export function CallsCalendar({
   /** Admin : closers proposes sur chaque carte. */
   closers?: PublicMember[];
   onAssign?: (id: string, closerId: string) => void;
+  /** Un « + » sur chaque jour : creer un rendez-vous a cette date. */
+  onAdd?: (day: string) => void;
   title?: string;
 }) {
   const [week, setWeek] = useState(0);
@@ -107,6 +110,11 @@ export function CallsCalendar({
               >
                 {isToday ? "Aujourd'hui · " : ""}
                 {label(d)} · {items.length}
+                {onAdd && (
+                  <button type="button" className="btn btn-ghost btn-sm !h-[22px] !px-1.5 ml-2" onClick={() => onAdd(d)} title="Ajouter un rendez-vous ce jour">
+                    +
+                  </button>
+                )}
               </div>
               {items.map((r) => {
                 const tone = toneOf(r);
@@ -166,7 +174,19 @@ export function CallsCalendar({
             >
               <div className="label-xs mb-1.5 flex items-center justify-between">
                 <span style={isToday ? { color: "var(--accent)" } : undefined}>{label(d)}</span>
-                {items.length > 0 && <span className="num">{items.length}</span>}
+                <span className="flex items-center gap-1">
+                  {items.length > 0 && <span className="num">{items.length}</span>}
+                  {onAdd && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm !h-[20px] !px-1.5 !text-[12px]"
+                      onClick={() => onAdd(d)}
+                      title="Ajouter un rendez-vous ce jour"
+                    >
+                      +
+                    </button>
+                  )}
+                </span>
               </div>
               {items.length === 0 ? (
                 <div className="dim text-[11px]">—</div>
