@@ -206,6 +206,34 @@ export function readDB(): DB {
     settings.salesEurRecordsAt = new Date().toISOString();
     writeDB(cache.db);
   }
+  /*
+   * Une vente par rendez-vous (2026-10-10).
+   *
+   * Avant le 2026-10-05, re-enregistrer « closé » sur le meme call creait une
+   * seconde vente : la fiche montrait l'une, le CRM et le dashboard l'autre.
+   * On garde, par rendez-vous, la vente mise a jour le plus recemment (celle
+   * que la fiche affiche) et on annule les autres, une seule fois.
+   */
+  if (!settings.salesDedupedAt) {
+    const byAppt = new Map<string, typeof cache.db.sales>();
+    for (const s of cache.db.sales) {
+      if (s.status === "cancelled" || !s.appointmentId) continue;
+      byAppt.set(s.appointmentId, [...(byAppt.get(s.appointmentId) ?? []), s]);
+    }
+    const now = new Date().toISOString();
+    for (const group of byAppt.values()) {
+      if (group.length < 2) continue;
+      const keep = [...group].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+      for (const s of group) {
+        if (s === keep) continue;
+        s.status = "cancelled";
+        s.notes = `${s.notes ? `${s.notes}\n` : ""}Doublon annulé automatiquement le ${now.slice(0, 10)} : la vente ${keep.id} fait foi.`;
+        s.updatedAt = now;
+      }
+    }
+    settings.salesDedupedAt = now;
+    writeDB(cache.db);
+  }
   return cache.db;
 }
 

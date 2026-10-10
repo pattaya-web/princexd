@@ -9,7 +9,7 @@ import type { Appointment, DB, FollowUp, Lead, Sale, Session } from "../types";
 import { canSee } from "./access";
 import { sessionHas } from "./roles";
 import { funnelLabel, SOURCE_CHANNEL_LABEL } from "./attribution";
-import { leadBusiness } from "./business";
+import { activeSale, leadBusiness } from "./business";
 import { isoToParisInput, parisDay } from "../format";
 import type { CrmFollowUp, CrmOptions, CrmPayload, CrmRow, CrmSale, CrmTodo, FollowUpBucket, PaymentStatus, QuickView } from "./crm-types";
 
@@ -78,8 +78,11 @@ export function buildCrm(db: DB, session: Session): CrmPayload {
     const biz = leadBusiness(lead, appts, sales, currency);
 
     const live = appts.filter((a) => a.status !== "cancelled").sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt));
-    const appt = live[0] ?? null;
-    const sale = sales.sort((a, b) => b.soldAt.localeCompare(a.soldAt))[0] ?? null;
+    // Le rendez-vous principal : celui de la vente s'il y en a une, sinon le plus recent.
+    const withSale = live.find((a) => sales.some((s) => s.appointmentId === a.id && s.status !== "cancelled"));
+    const appt = withSale ?? live[0] ?? null;
+    // Meme vente que la fiche detaillee : une seule source de verite.
+    const sale = activeSale(sales, appt);
     const pendingFu = fus.filter((f) => f.status === "pending").sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0] ?? null;
     const lastDone = fus.filter((f) => f.status === "done").sort((a, b) => (b.completedAt || b.dueAt).localeCompare(a.completedAt || a.dueAt))[0] ?? null;
 

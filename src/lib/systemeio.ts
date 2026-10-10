@@ -3,7 +3,7 @@ import { getSettings, newId, readDB, writeDB } from "@/lib/db";
 import { salesMembers } from "@/lib/sales/repo";
 import { memberRoles } from "@/lib/sales/roles";
 import type { DB, Lead, TeamMember } from "@/lib/types";
-import { applyTouch } from "./sales/attribution";
+import { applyTouch, ensureFunnelsV2, funnelsOf } from "./sales/attribution";
 
 /**
  * Systeme.io : les prospects de la landing page arrivent dans le CRM.
@@ -237,6 +237,7 @@ export interface ImportReport {
 /** Integre des contacts dans la base (sans ecrire : l'appelant fait le writeDB). */
 export function importContacts(db: DB, contacts: SioContact[], actorName = "Systeme.io"): ImportReport {
   const report: ImportReport = { examined: contacts.length, created: 0, updated: 0, known: 0, skipped: 0, leads: [] };
+  ensureFunnelsV2(db);
   const filter = db.settings.systemeioSourceFilter ?? "";
   const ignored = new Set(db.settings.systemeioIgnoredIds ?? []);
   const today = new Date().toISOString().slice(0, 10);
@@ -247,7 +248,7 @@ export function importContacts(db: DB, contacts: SioContact[], actorName = "Syst
     const phone = normalizePhone(fieldOf(c, "phone_number"));
     if (!sioId || (!email && !phone)) { report.skipped++; continue; }
     // Le filtre des reglages, plus les URL / tags des funnels declares : un funnel organique remonte aussi.
-    if (!matchesSourceFilter(c, [filter, ...(db.settings.salesFunnels ?? []).map((f) => f.match)].filter(Boolean).join(","))) { report.skipped++; continue; }
+    if (!matchesSourceFilter(c, [filter, ...funnelsOf(db).map((f) => f.match)].filter(Boolean).join(","))) { report.skipped++; continue; }
     // Supprime a la main par l'admin : on ne le fait pas revenir.
     if (ignored.has(sioId)) { report.skipped++; continue; }
 
@@ -309,7 +310,7 @@ export function importContacts(db: DB, contacts: SioContact[], actorName = "Syst
       lastCallAt: "",
     };
     // La page d'opt-in dit le funnel ; les utm arriveront avec le lien iClosed.
-    applyTouch(lead, { landingUrl: lead.sourceUrl, hint: "systemeio" }, lead.optInAt || lead.createdAt, db.settings.salesFunnels ?? []);
+    applyTouch(lead, { landingUrl: lead.sourceUrl, hint: "systemeio" }, lead.optInAt || lead.createdAt, funnelsOf(db));
     db.leads.unshift(lead);
     db.activityLogs.unshift({
       id: newId(),

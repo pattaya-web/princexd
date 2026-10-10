@@ -14,7 +14,7 @@ import { leadIsOut } from "../types";
 import { dayIn } from "../mediabuying/metrics";
 import type { DateRange, MetaSnapshot } from "../mediabuying/types";
 import { mockBusinessData } from "./mock-leads";
-import { backfillAttribution, FUNNELS, funnelLabel, SOURCE_CHANNEL_LABEL } from "./attribution";
+import { backfillAttribution, ensureFunnelsV2, FUNNELS, funnelLabel, SOURCE_CHANNEL_LABEL } from "./attribution";
 import { PIPELINE_STAGES, type BookingStatus, type LeadBusiness, type PipelineStage, type SaleStatusView, type ShowStatus } from "./business-types";
 
 export * from "./business-types";
@@ -31,10 +31,23 @@ function mainAppointment(appts: Appointment[]): Appointment | null {
   return sorted.find((a) => a.status !== "cancelled") ?? sorted[0];
 }
 
+/**
+ * LA vente d'un lead, la meme partout (fiche, CRM, dashboards) : celle
+ * rattachee a son rendez-vous principal, sinon la plus recemment mise a
+ * jour. Une seule source de verite ; les montants viennent de la vente.
+ */
+export function activeSale(sales: Sale[], appt: Appointment | null): Sale | null {
+  const live = sales.filter((s) => s.status !== "cancelled");
+  if (appt) {
+    const own = live.filter((s) => s.appointmentId === appt.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    if (own) return own;
+  }
+  return live.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null;
+}
+
 export function leadBusiness(lead: Lead, appts: Appointment[], sales: Sale[], defaultCurrency: string, tz = "Europe/Paris"): LeadBusiness {
   const appt = mainAppointment(appts);
-  const liveSales = sales.filter((s) => s.status !== "cancelled");
-  const sale = liveSales.sort((a, b) => b.soldAt.localeCompare(a.soldAt))[0] ?? null;
+  const sale = activeSale(sales, appt);
 
   let bookingStatus: BookingStatus | null = null;
   if (appt) {
@@ -121,6 +134,10 @@ export function businessDataset(db: DB): BusinessDataset {
   if (!db.settings.attributionBackfilledAt) {
     backfillAttribution(db);
     db.settings.attributionBackfilledAt = new Date().toISOString();
+    writeDB(db);
+  }
+  if (!db.settings.salesFunnelsV2At) {
+    ensureFunnelsV2(db);
     writeDB(db);
   }
   const currency = db.settings.salesCurrency || "EUR";

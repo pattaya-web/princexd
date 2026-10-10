@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { newId, readDB, writeDB } from "@/lib/db";
 import { readSession, requireAdmin, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
-import { DEFAULT_FUNNELS, reattributeFromFunnels, SOURCE_CHANNELS } from "@/lib/sales/attribution";
+import { ensureFunnelsV2, funnelsOf, reattributeFromFunnels, SOURCE_CHANNELS } from "@/lib/sales/attribution";
 import type { SalesFunnel, SourceChannel } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,10 @@ export async function GET(req: NextRequest) {
   return handle(() => {
     requireSales(readSession(req));
     const db = readDB();
-    return { rows: db.settings.salesFunnels ?? DEFAULT_FUNNELS, custom: Boolean(db.settings.salesFunnels) };
+    const before = db.settings.salesFunnelsV2At;
+    ensureFunnelsV2(db);
+    if (before !== db.settings.salesFunnelsV2At) writeDB(db);
+    return { rows: funnelsOf(db), custom: Boolean(db.settings.salesFunnels) };
   });
 }
 

@@ -55,10 +55,30 @@ export const funnelLabel = (key: string, custom?: SalesFunnel[]) => custom?.find
 
 /** Funnels par defaut tant que l'admin n'en a pas declare. */
 export const DEFAULT_FUNNELS: SalesFunnel[] = [
-  { key: "lp1_ads", label: "LP1 Ads", channel: "META_ADS", match: "royalscalebymady.fr", script: "" },
-  { key: "organic_masterclass", label: "Masterclass organique", channel: "ORGANIC", match: "", script: "" },
+  { key: "lp1_ads", label: "LP1 Ads", channel: "META_ADS", match: "/lp1-ads", script: "" },
+  { key: "organic_masterclass", label: "LP organique (authenticitemady)", channel: "ORGANIC", match: "/authenticitemady", script: "" },
   { key: "instagram_dm", label: "Instagram DM", channel: "INSTAGRAM", match: "", script: "" },
 ];
+
+/** Les funnels en vigueur : ceux de l'admin, sinon ceux par defaut. */
+export function funnelsOf(db: DB): SalesFunnel[] {
+  return db.settings.salesFunnels?.length ? db.settings.salesFunnels : DEFAULT_FUNNELS;
+}
+
+/**
+ * Pose les funnels par defaut (LP1 Ads / LP organique) une seule fois et
+ * reattribue les leads d'opt-in : avant, tout royalscalebymady.fr passait en
+ * Ads, la LP organique comprise.
+ */
+export function ensureFunnelsV2(db: DB): number {
+  if (db.settings.salesFunnelsV2At) return 0;
+  const current = db.settings.salesFunnels ?? [];
+  const merged = [...DEFAULT_FUNNELS.map((d) => current.find((c) => c.key === d.key && c.match && c.match !== "royalscalebymady.fr") ?? d), ...current.filter((c) => !DEFAULT_FUNNELS.some((d) => d.key === c.key))];
+  db.settings.salesFunnels = merged;
+  const n = reattributeFromFunnels(db, merged);
+  db.settings.salesFunnelsV2At = new Date().toISOString();
+  return n;
+}
 
 const needles = (match: string) => match.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
 
@@ -75,7 +95,8 @@ export function funnelForUrl(url: string, funnels: SalesFunnel[]): SalesFunnel |
  * attribution payante precise arrivee plus tard pourra la completer.
  */
 const KNOWN_LANDING_PAGES: { test: RegExp; funnelSource: string; channel: SourceChannel }[] = [
-  { test: /royalscalebymady\.fr/i, funnelSource: "lp1_ads", channel: "META_ADS" },
+  { test: /royalscalebymady\.fr\/lp1-ads/i, funnelSource: "lp1_ads", channel: "META_ADS" },
+  { test: /royalscalebymady\.fr\/authenticitemady/i, funnelSource: "organic_masterclass", channel: "ORGANIC" },
 ];
 
 /* ------------------------------- Resolution --------------------------- */
@@ -342,7 +363,9 @@ export function backfillAttribution(db: DB): number {
 export function reattributeFromFunnels(db: DB, funnels: SalesFunnel[]): number {
   let n = 0;
   for (const lead of db.leads) {
-    if (lead.attributionLocked || lead.firstTouchReliable || !lead.sourceUrl) continue;
+    if (lead.attributionLocked || !lead.sourceUrl) continue;
+    // Une attribution payante identifiee (utm, fbclid, IDs Meta) ne bouge pas ; une attribution d'opt-in, si.
+    if (lead.firstTouchReliable && (lead.firstTouchFbclid || lead.firstTouchUtmSource || lead.firstTouchAdId || lead.firstTouchCampaignId)) continue;
     const hit = funnelForUrl(lead.sourceUrl, funnels);
     if (!hit || (lead.firstTouchFunnelSource === hit.key && lead.firstTouchSourceChannel === hit.channel)) continue;
     lead.firstTouchSourceChannel = hit.channel;

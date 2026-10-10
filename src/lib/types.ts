@@ -191,6 +191,10 @@ export interface Settings {
   attributionBackfilledAt?: string;
   /** Funnels declares par l'admin : reconnaissance par URL / tag Systeme.io, canal, script d'appel. */
   salesFunnels?: SalesFunnel[];
+  /** Funnels par defaut poses une fois (LP1 Ads / LP organique) et leads reattribues. */
+  salesFunnelsV2At?: string;
+  /** Ventes en double sur un meme rendez-vous annulees une fois (bug d'avant le 2026-10-05). */
+  salesDedupedAt?: string;
   /* --- Systeme.io : leads de la landing page. Priorite a SYSTEMEIO_API_KEY. --- */
   systemeioApiKey?: string;
   /** Secret du webhook, genere ici et transmis a Systeme.io a la creation. */

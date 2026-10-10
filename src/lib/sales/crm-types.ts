@@ -21,7 +21,7 @@ export const QUICK_VIEWS: { key: QuickView; label: string; hint: string }[] = [
 ];
 
 export type PaymentStatus = "paid" | "partial" | "pending";
-export const PAYMENT_LABEL: Record<PaymentStatus, string> = { paid: "Payé", partial: "Paiement partiel", pending: "Paiement en attente" };
+export const PAYMENT_LABEL: Record<PaymentStatus, string> = { paid: "Soldé", partial: "Paiement partiel", pending: "Paiement en attente" };
 
 export type FollowUpBucket = "overdue" | "today" | "tomorrow" | "later";
 export const FOLLOWUP_BUCKET_LABEL: Record<FollowUpBucket, string> = { overdue: "En retard", today: "Aujourd'hui", tomorrow: "Demain", later: "Plus tard" };
