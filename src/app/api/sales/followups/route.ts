@@ -4,6 +4,7 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { readSession, requireSales } from "@/lib/sales/access";
 import { handle, required } from "@/lib/sales/http";
 import type { FollowUp } from "@/lib/types";
+import { startFollowUpSequence } from "@/lib/sales/repo";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +81,8 @@ export async function POST(req: NextRequest) {
   return handle(async () => {
     const session = requireSales(readSession(req));
     const body = (await req.json()) as Record<string, unknown>;
+    // `sequence: true` : relance 1 a J+1, la derniere a J+3 suivra si pas de reponse.
+    if (body.sequence === true) return startFollowUpSequence(session, required(body.appointmentId, "Le rendez-vous"), typeof body.notes === "string" ? body.notes : "");
     const db = readDB();
 
     const appointmentId = required(body.appointmentId, "Le rendez-vous");

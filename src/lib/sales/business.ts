@@ -354,7 +354,7 @@ export function aggregateBusiness(db: DB, opts: { range: DateRange; filters: Bus
         break;
       case "funnel":
         funnelSource = first.funnelSource;
-        label = funnelLabel(first.funnelSource);
+        label = funnelLabel(first.funnelSource, db.settings.salesFunnels);
         spend = isPaid("", first.funnelSource) ? spendFor(ds, spendBy, scope) : null;
         break;
       case "campaign":
@@ -408,7 +408,7 @@ export function aggregateBusiness(db: DB, opts: { range: DateRange; filters: Bus
     pipeline: PIPELINE_STAGES.map((p) => ({ ...p, n: pipelineCounts.get(p.key) ?? 0 })),
     options: {
       sources: [...srcCount].map(([key, n]) => ({ key, label: SOURCE_CHANNEL_LABEL[key], n })).sort((a, b) => b.n - a.n),
-      funnels: [...funnelCount].map(([key, n]) => ({ key, label: funnelLabel(key), channel: FUNNELS.find((f) => f.key === key)?.channel ?? "UNKNOWN", n })).sort((a, b) => b.n - a.n),
+      funnels: [...funnelCount].map(([key, n]) => ({ key, label: funnelLabel(key, db.settings.salesFunnels), channel: db.settings.salesFunnels?.find((f) => f.key === key)?.channel ?? FUNNELS.find((f) => f.key === key)?.channel ?? "UNKNOWN", n })).sort((a, b) => b.n - a.n),
       campaigns: campaigns.sort((a, b) => a.name.localeCompare(b.name)),
       adsets: adsets.sort((a, b) => a.name.localeCompare(b.name)),
       ads: ads.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 type Action = "status" | "reopen" | "attempt" | "reached" | "lost" | "note" | "assign" | "contact";
 
-const STATUSES: LeadCallStatus[] = ["no-answer", "message-sent", "callback", "reached", "not-interested", "wrong-number", "no-whatsapp"];
+const STATUSES: LeadCallStatus[] = ["no-answer", "message-sent", "callback", "reached", "not-interested", "wrong-number", "no-whatsapp", "cold"];
 
 const STATUS_LABEL: Record<LeadCallStatus, string> = {
   "no-answer": "ne répond pas",
@@ -19,6 +19,7 @@ const STATUS_LABEL: Record<LeadCallStatus, string> = {
   "not-interested": "pas intéressé",
   "wrong-number": "faux numéro",
   "no-whatsapp": "pas de WhatsApp",
+  cold: "lead froid (sans réponse)",
 };
 
 /**

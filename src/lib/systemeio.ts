@@ -246,7 +246,8 @@ export function importContacts(db: DB, contacts: SioContact[], actorName = "Syst
     const email = (c.email ?? "").trim().toLowerCase();
     const phone = normalizePhone(fieldOf(c, "phone_number"));
     if (!sioId || (!email && !phone)) { report.skipped++; continue; }
-    if (!matchesSourceFilter(c, filter)) { report.skipped++; continue; }
+    // Le filtre des reglages, plus les URL / tags des funnels declares : un funnel organique remonte aussi.
+    if (!matchesSourceFilter(c, [filter, ...(db.settings.salesFunnels ?? []).map((f) => f.match)].filter(Boolean).join(","))) { report.skipped++; continue; }
     // Supprime a la main par l'admin : on ne le fait pas revenir.
     if (ignored.has(sioId)) { report.skipped++; continue; }
 
@@ -308,7 +309,7 @@ export function importContacts(db: DB, contacts: SioContact[], actorName = "Syst
       lastCallAt: "",
     };
     // La page d'opt-in dit le funnel ; les utm arriveront avec le lien iClosed.
-    applyTouch(lead, { landingUrl: lead.sourceUrl, hint: "systemeio" }, lead.optInAt || lead.createdAt);
+    applyTouch(lead, { landingUrl: lead.sourceUrl, hint: "systemeio" }, lead.optInAt || lead.createdAt, db.settings.salesFunnels ?? []);
     db.leads.unshift(lead);
     db.activityLogs.unshift({
       id: newId(),

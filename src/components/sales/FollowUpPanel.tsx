@@ -61,6 +61,34 @@ export function FollowUpPanel({ appointmentId, followUps, canEdit, onChanged }: 
     }
   };
 
+  const sequence = async () => {
+    setBusy("seq");
+    try {
+      await api("/api/sales/followups", { method: "POST", body: JSON.stringify({ appointmentId, sequence: true }) });
+      toast("Séquence lancée : relance demain (J+1). Sans réponse, la dernière suivra à J+3.");
+      onChanged();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const noReply = async (f: FollowUp) => {
+    const last = f.step === 2;
+    if (last && !window.confirm("Dernière relance sans réponse : le lead passe en « froid » et le rendez-vous est classé perdu. Il reste consultable pour le tri. Confirmer ?")) return;
+    setBusy(f.id);
+    try {
+      const r = await api<{ next: FollowUp | null; cold: boolean }>(`/api/sales/followups/${f.id}/no-reply`, { method: "POST" });
+      toast(r.cold ? "Lead classé froid. Plus de relance programmée." : `Pas de réponse noté. Dernière relance le ${fmtDualDateTime(r.next!.dueAt)}.`);
+      onChanged();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy("");
+    }
+  };
+
   const create = async () => {
     if (!newAt) return toast("Choisis la date de la relance.", "err");
     setBusy("new");
@@ -94,6 +122,11 @@ export function FollowUpPanel({ appointmentId, followUps, canEdit, onChanged }: 
               {showClosed ? "masquer les clôturées" : `${closed.length} clôturée${closed.length > 1 ? "s" : ""}`}
             </button>
           )}
+          {canEdit && !adding && pending.length === 0 && (
+            <button type="button" className="btn btn-sm btn-primary !h-[24px] !text-[11.5px]" onClick={() => void sequence()} disabled={busy === "seq"} title="Relance 1 demain, dernière relance à J+3, puis lead froid">
+              {busy === "seq" ? <span className="spinner" /> : "▶ Séquence J+1 / J+3"}
+            </button>
+          )}
           {canEdit && !adding && (
             <button
               type="button"
@@ -103,7 +136,7 @@ export function FollowUpPanel({ appointmentId, followUps, canEdit, onChanged }: 
                 setNewAt(plusDays(new Date().toISOString(), 2));
               }}
             >
-              + Programmer une relance
+              + Relance libre
             </button>
           )}
         </span>
@@ -143,6 +176,8 @@ export function FollowUpPanel({ appointmentId, followUps, canEdit, onChanged }: 
                   <div className="text-[12.5px] font-semibold num" style={{ color: tone }}>
                     {fmtDualDateTime(f.dueAt)}
                     <span className="dim font-normal"> · {relative(f.dueAt)}</span>
+                    {f.step === 1 && <span className="badge !text-[10px] !py-0 ml-2">Relance 1/2</span>}
+                    {f.step === 2 && <span className="badge badge-warn !text-[10px] !py-0 ml-2">Dernière relance</span>}
                     {overdue && <span className="badge badge-danger !text-[10px] !py-0 ml-2">en retard</span>}
                     {f.status !== "pending" && <span className="badge !text-[10px] !py-0 ml-2">{label(f.status)}</span>}
                   </div>
@@ -152,8 +187,13 @@ export function FollowUpPanel({ appointmentId, followUps, canEdit, onChanged }: 
                 {canEdit && !isEditing && (
                   <div className="flex gap-1 shrink-0">
                     {f.status === "pending" && (
-                      <button className="btn btn-sm !h-[24px] !text-[11.5px]" onClick={() => void patch(f.id, { status: "done" }, "Relance clôturée.")} disabled={busy === f.id}>
+                      <button className="btn btn-sm !h-[24px] !text-[11.5px]" onClick={() => void patch(f.id, { status: "done" }, "Relance clôturée.")} disabled={busy === f.id} title="Le prospect a répondu / c'est réglé">
                         ✓ Faite
+                      </button>
+                    )}
+                    {f.status === "pending" && (
+                      <button className="btn btn-sm !h-[24px] !text-[11.5px]" style={{ color: "var(--critical)", borderColor: "color-mix(in srgb, var(--critical) 40%, transparent)" }} onClick={() => void noReply(f)} disabled={busy === f.id} title={f.step === 2 ? "Sans réponse : lead froid" : "Sans réponse : dernière relance à J+3"}>
+                        ✗ Pas de réponse{f.step === 2 ? " → froid" : " → J+3"}
                       </button>
                     )}
                     <button

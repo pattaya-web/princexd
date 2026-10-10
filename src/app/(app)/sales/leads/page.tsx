@@ -1,84 +1,59 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "@/lib/client";
-import { fmtDateTime, isoToParisInput, parisDay, parisToIso, parisWeekday, relative } from "@/lib/format";
+import { fmtDateTime, fmtTime, isoToParisInput, parisDay, parisToIso, parisWeekday, relative } from "@/lib/format";
 import { useSalesData } from "@/lib/sales/client";
 import { hasRole } from "@/lib/sales/roles";
+import { DEFAULT_FUNNELS, SOURCE_CHANNEL_LABEL, SOURCE_CHANNELS } from "@/lib/sales/attribution";
 import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, useToast } from "@/components/ui";
 import { useSales } from "@/components/sales/context";
 import { LeadSheet } from "@/components/sales/LeadSheet";
-import Link from "next/link";
 import type { CallBucket, CallLeadRow } from "@/app/api/sales/leads/route";
 import type { PublicMember } from "@/lib/sales/repo";
-import type { LeadCallStatus } from "@/lib/types";
+import type { LeadCallStatus, SalesFunnel, SourceChannel } from "@/lib/types";
 
-/**
- * Code couleur, le meme partout sur la page : bord de ligne, pastille,
- * compteurs et legende. Un setter doit lire l'etat d'un contact sans lire
- * le texte.
- */
+/* ------------------------------- Couleurs ------------------------------ */
+
 const COLOR = {
-  new: "#94a3b8", //   gris : jamais appelé
-  yellow: "#eab308", // jaune : ne répond pas, à relancer
-  blue: "#3b82f6", //   bleu : veut être rappelé plus tard
-  violet: "#a855f7", // violet : joint, rendez-vous à fixer
-  green: "#22c55e", //  vert : rendez-vous posé
-  red: "#ef4444", //    rouge : pas intéressé, pas d'argent
+  new: "#94a3b8",
+  yellow: "#eab308",
+  blue: "#3b82f6",
+  violet: "#a855f7",
+  green: "#22c55e",
+  red: "#ef4444",
+  whatsapp: "#25d366",
 } as const;
 
+const TONE: Record<CallBucket, string> = { new: COLOR.new, retry: COLOR.yellow, due: COLOR.blue, later: COLOR.blue, talking: COLOR.violet, booked: COLOR.green, lost: COLOR.red };
 
-/** Couleur d'une ligne selon son etat. */
-const TONE: Record<CallBucket, string> = {
-  new: COLOR.new,
-  retry: COLOR.yellow,
-  due: COLOR.blue,
-  later: COLOR.blue,
-  talking: COLOR.violet,
-  booked: COLOR.green,
-  lost: COLOR.red,
-};
-
-/**
- * Filtres : un etat, ou tout. Servent aussi de legende. Pas de « rendez-vous
- * pose » ici : un lead froid qui prend rendez-vous quitte cette liste pour
- * Rendez-vous et l'Agenda, c'est un call de closing, plus un lead a appeler.
- */
 type FilterKey = "all" | "new" | "retry" | "callback" | "talking" | "lost";
 const FILTERS: { key: FilterKey; label: string; color?: string; buckets: CallBucket[] }[] = [
   { key: "all", label: "Tous", buckets: ["due", "new", "retry", "later", "talking", "lost"] },
-  { key: "new", label: "Non statués", color: COLOR.new, buckets: ["new"] },
-  { key: "retry", label: "Ne répond pas, à relancer", color: COLOR.yellow, buckets: ["retry"] },
-  { key: "callback", label: "À rappeler plus tard", color: COLOR.blue, buckets: ["due", "later"] },
+  { key: "new", label: "Nouveaux", color: COLOR.new, buckets: ["new"] },
+  { key: "retry", label: "Pas de réponse · message envoyé", color: COLOR.yellow, buckets: ["retry"] },
+  { key: "callback", label: "À rappeler", color: COLOR.blue, buckets: ["due", "later"] },
   { key: "talking", label: "Joints, RDV à fixer", color: COLOR.violet, buckets: ["talking"] },
-  { key: "lost", label: "Pas intéressés · faux numéros", color: COLOR.red, buckets: ["lost"] },
+  { key: "lost", label: "Perdus · leads froids", color: COLOR.red, buckets: ["lost"] },
 ];
 
-function Dot({ color }: { color: string }) {
-  return <span className="inline-block w-[10px] h-[10px] rounded-full shrink-0" style={{ background: color, boxShadow: `0 0 0 2px color-mix(in srgb, ${color} 25%, transparent)` }} />;
-}
-
 const STATUS_LABEL: Record<LeadCallStatus, string> = {
-  "no-answer": "Ne répond pas",
-  "message-sent": "Message envoyé",
-  callback: "Demande à être rappelé",
-  reached: "Appelé, joint",
+  "no-answer": "Pas de réponse",
+  "message-sent": "Message WA envoyé",
+  callback: "À rappeler",
+  reached: "Joint",
   "not-interested": "Pas intéressé",
   "wrong-number": "Faux numéro",
   "no-whatsapp": "Pas de WhatsApp",
+  cold: "Lead froid · sans réponse",
 };
 
-/** Inscrit depuis plus de 30 jours : un lead froid devenu glacial. */
-const STALE_DAYS = 30;
-const isStale = (l: CallLeadRow) => Date.now() - new Date(l.optInAt || l.createdAt).getTime() > STALE_DAYS * 86_400_000;
-
 const COUNTRY: Record<string, string> = { FR: "France", BE: "Belgique", CH: "Suisse", CA: "Canada", AE: "Émirats", MA: "Maroc", DZ: "Algérie", TN: "Tunisie", LU: "Luxembourg" };
-
-/** Heure locale du prospect approximee par son pays : appeler un Canadien a 9 h de Paris, c'est 3 h chez lui. */
 function localHint(country?: string): string {
-  const tz: Record<string, string> = { CA: "America/Toronto", AE: "Asia/Dubai", MA: "Africa/Casablanca", DZ: "Africa/Algiers", TN: "Africa/Tunis", CH: "Europe/Zurich", BE: "Europe/Brussels", LU: "Europe/Luxembourg", FR: "Europe/Paris" };
+  const tz: Record<string, string> = { CA: "America/Toronto", AE: "Asia/Dubai", MA: "Africa/Casablanca", DZ: "Africa/Algiers", TN: "Africa/Tunis", CH: "Europe/Zurich", BE: "Europe/Brussels", LU: "Europe/Luxembourg" };
   const zone = country ? tz[country] : "";
-  if (!zone || zone === "Europe/Paris") return "";
+  if (!zone) return "";
   try {
     return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: zone }).format(new Date());
   } catch {
@@ -86,69 +61,104 @@ function localHint(country?: string): string {
   }
 }
 
-/** Valeur d'un <input type="datetime-local"> pour un instant, en heure de Paris. */
-const localInputValue = (d: Date): string => isoToParisInput(d);
+function Dot({ color }: { color: string }) {
+  return <span className="inline-block w-[9px] h-[9px] rounded-full shrink-0" style={{ background: color, boxShadow: `0 0 0 2px color-mix(in srgb, ${color} 25%, transparent)` }} />;
+}
+
+async function copy(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Numero avec bouton copier : on colle dans WhatsApp, pas d'onglet qui s'ouvre. */
+function PhoneCopy({ phone }: { phone: string }) {
+  const [done, setDone] = useState(false);
+  if (!phone) return <span className="badge badge-warn !text-[10px] !py-0">Pas de numéro</span>;
+  return (
+    <span className="inline-flex items-center gap-1">
+      <a href={`tel:${phone}`} className="num text-[13px] font-semibold sm:pointer-events-none sm:text-[color:var(--text)]" title="Appeler (téléphone)">
+        {phone}
+      </a>
+      <button
+        type="button"
+        className="btn btn-sm !h-[24px] !px-2 !text-[11px]"
+        style={done ? { borderColor: COLOR.green, color: COLOR.green } : undefined}
+        onClick={async () => {
+          if (await copy(phone)) {
+            setDone(true);
+            setTimeout(() => setDone(false), 1400);
+          }
+        }}
+        title="Copier le numéro"
+      >
+        {done ? "Copié ✓" : "Copier"}
+      </button>
+    </span>
+  );
+}
+
+/* ---------------------------------- Page --------------------------------- */
 
 /**
- * Les prospects de la landing page (Systeme.io), a appeler dans l'ordre.
- *
- * La liste se resynchronise a chaque ouverture (au plus toutes les trois
- * minutes), ne montre que ce qui reste a faire, dans l'ordre ou il faut le
- * faire, et chaque ligne se statue en un clic : ne repond pas, message
- * envoye, a rappeler a telle heure, joint, pas interesse, rendez-vous pris.
+ * Leads a traiter, en deux colonnes : ceux qui viennent des publicites et
+ * ceux qui viennent de l'organique, chacun filtrable par funnel. Chaque
+ * ligne se traite sans quitter la page : copier le numero, appeler, noter
+ * « pas de reponse » ou « message WhatsApp envoye », rappel, joint, RDV pris
+ * (le call part dans Rendez-vous et l'Agenda). Le script du funnel est a
+ * un clic pour le message a envoyer.
  */
-export default function CallLeadsPage() {
+export default function LeadsPage() {
   const { session, members, version, bump } = useSales();
   const toast = useToast();
   const [booking, setBooking] = useState<CallLeadRow | null>(null);
   const [callbackFor, setCallbackFor] = useState<CallLeadRow | null>(null);
+  const [cancelPending, setCancelPending] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [busy, setBusy] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
-  // Vrai quand le prochain statut pose doit d'abord annuler le rendez-vous du lead.
-  const [cancelPending, setCancelPending] = useState(false);
-  // Fiche contact ouverte (notes, historique, rendez-vous).
   const [sheetId, setSheetId] = useState<string | null>(null);
-  // Selection (admin) pour supprimer plusieurs leads d'un coup.
+  const [funnels, setFunnels] = useState<SalesFunnel[]>(DEFAULT_FUNNELS);
+  const [funnelsOpen, setFunnelsOpen] = useState(false);
+  const [scriptFor, setScriptFor] = useState<{ funnel: SalesFunnel; lead: CallLeadRow } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [deleting, setDeleting] = useState(false);
+  const [pick, setPick] = useState<{ ads: Set<string>; organic: Set<string> }>({ ads: new Set(), organic: new Set() });
 
   const setters = useMemo(() => members.filter((m) => hasRole(m, "setter") && m.status !== "inactif"), [members]);
 
   const { data, loading, error, reload } = useSalesData<{
     rows: CallLeadRow[];
     counts: Record<CallBucket, number> & { notInterested: number; hidden: number };
-    // (lost = pas intéressés des 30 derniers jours, notInterested = tous)
     lastSyncAt: string;
     syncError: string;
-    /** Leads frais a tous les setters, le premier qui appelle le prend. */
     pool: boolean;
     defaultCloserId: string;
     ownerMemberId: string;
   }>(`/api/sales/leads?v=${version}`, { every: 15_000 });
 
+  const loadFunnels = () => api<{ rows: SalesFunnel[] }>("/api/sales/funnels").then((r) => setFunnels(r.rows)).catch(() => undefined);
+  useEffect(() => {
+    void loadFunnels();
+  }, []);
+
+  const refresh = () => {
+    void reload();
+    bump();
+    window.dispatchEvent(new Event("sales:changed"));
+  };
 
   const setStatus = async (lead: CallLeadRow, status: LeadCallStatus, callbackAt?: string, note?: string, cancelAppointment = false) => {
     setBusy(lead.id);
     try {
-      await api(`/api/sales/leads/${lead.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ action: "status", status, callbackAt, note, cancelAppointment }),
-      });
-      toast(
-        cancelAppointment
-          ? `Rendez-vous annulé, ${lead.name} repasse en « ${STATUS_LABEL[status].toLowerCase()} ».`
-          : status === "callback" && callbackAt
-          ? `Rappel noté pour le ${fmtDateTime(callbackAt)}.`
-          : status === "not-interested"
-            ? `${lead.name} sort de la liste.`
-            : `Noté : ${STATUS_LABEL[status].toLowerCase()}.`,
-      );
-      void reload();
-      bump();
+      await api(`/api/sales/leads/${lead.id}`, { method: "PATCH", body: JSON.stringify({ action: "status", status, callbackAt, note, cancelAppointment }) });
+      toast(status === "callback" && callbackAt ? `Rappel noté pour le ${fmtDateTime(callbackAt)}.` : status === "not-interested" ? `${lead.name} sort de la liste.` : `${lead.name} : ${STATUS_LABEL[status].toLowerCase()}.`);
+      refresh();
     } catch (e) {
       toast((e as Error).message, "err");
-      // Lead pris par l'autre setter ou supprime pendant que la liste etait a jour chez lui, pas ici.
       void reload(true);
     } finally {
       setBusy("");
@@ -165,24 +175,29 @@ export default function CallLeadsPage() {
     }
   };
 
-  /** Suppression definitive (admin) : un ou plusieurs leads. */
+  const reopen = async (lead: CallLeadRow) => {
+    setBusy(lead.id);
+    try {
+      await api(`/api/sales/leads/${lead.id}`, { method: "PATCH", body: JSON.stringify({ action: "reopen" }) });
+      toast(`${lead.name} est de retour dans la liste.`);
+      refresh();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy("");
+    }
+  };
+
   const remove = async (leads: CallLeadRow[]) => {
     if (!leads.length) return;
-    const label = leads.length === 1 ? `${leads[0].name}` : `${leads.length} leads`;
-    if (!window.confirm(`Supprimer ${label} de la liste ? C'est définitif : la fiche, ses notes et son historique disparaissent, et Systeme.io ne le ramènera pas.`)) return;
+    const label = leads.length === 1 ? leads[0].name : `${leads.length} leads`;
+    if (!window.confirm(`Supprimer ${label} ? C'est définitif : la fiche, ses notes et son historique disparaissent.`)) return;
     setDeleting(true);
     try {
       const r = await api<{ deleted: number; kept: string[] }>("/api/sales/leads", { method: "DELETE", body: JSON.stringify({ ids: leads.map((l) => l.id) }) });
-      toast(
-        r.kept.length
-          ? `${r.deleted} supprimé${r.deleted > 1 ? "s" : ""}. Gardé${r.kept.length > 1 ? "s" : ""} (rendez-vous à venir) : ${r.kept.join(", ")}.`
-          : r.deleted === 1
-            ? `${leads[0].name} supprimé.`
-            : `${r.deleted} leads supprimés.`,
-      );
+      toast(r.kept.length ? `${r.deleted} supprimé(s). Gardé(s) (rendez-vous à venir) : ${r.kept.join(", ")}.` : `${r.deleted} supprimé${r.deleted > 1 ? "s" : ""}.`);
       setSelected(new Set());
-      void reload();
-      bump();
+      refresh();
     } catch (e) {
       toast((e as Error).message, "err");
     } finally {
@@ -190,52 +205,12 @@ export default function CallLeadsPage() {
     }
   };
 
-  const toggle = (id: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  const reopen = async (lead: CallLeadRow) => {
-    setBusy(lead.id);
-    try {
-      await api(`/api/sales/leads/${lead.id}`, { method: "PATCH", body: JSON.stringify({ action: "reopen" }) });
-      toast(`${lead.name} est de retour dans la liste.`);
-      void reload();
-      bump();
-    } catch (e) {
-      toast((e as Error).message, "err");
-      // Lead pris par l'autre setter ou supprime pendant que la liste etait a jour chez lui, pas ici.
-      void reload(true);
-    } finally {
-      setBusy("");
-    }
-  };
-
-  const assignAll = async (setterId: string) => {
-    try {
-      const r = await api<{ moved: number; setter: string }>("/api/sales/leads", { method: "PATCH", body: JSON.stringify({ setterId }) });
-      toast(r.moved ? `${r.moved} lead${r.moved > 1 ? "s" : ""} attribué${r.moved > 1 ? "s" : ""} à ${r.setter}.` : `Tout était déjà chez ${r.setter}.`);
-      void reload();
-      bump();
-    } catch (e) {
-      toast((e as Error).message, "err");
-    }
-  };
-
   const sync = async () => {
     setSyncing(true);
     try {
       const r = await api<{ examined: number; created: number; known: number; inBase: { toCall: number } }>("/api/sales/systemeio", { method: "POST" });
-      toast(
-        r.created
-          ? `${r.created} nouveau${r.created > 1 ? "x" : ""} lead${r.created > 1 ? "s" : ""} récupéré${r.created > 1 ? "s" : ""}.`
-          : `${r.examined} contact${r.examined > 1 ? "s" : ""} lu${r.examined > 1 ? "s" : ""} chez Systeme.io, ${r.known} déjà en base. ${r.inBase.toCall} à appeler au total.`,
-      );
-      void reload();
-      bump();
+      toast(r.created ? `${r.created} nouveau${r.created > 1 ? "x" : ""} lead${r.created > 1 ? "s" : ""} récupéré${r.created > 1 ? "s" : ""}.` : `${r.examined} contact${r.examined > 1 ? "s" : ""} lu${r.examined > 1 ? "s" : ""} chez Systeme.io, ${r.known} déjà en base.`);
+      refresh();
     } catch (e) {
       toast((e as Error).message, "err");
     } finally {
@@ -243,22 +218,13 @@ export default function CallLeadsPage() {
     }
   };
 
-  const rows = data?.rows ?? [];
-  const c = data?.counts;
-
-  /** Changement de statut d'un lead, partage entre le tableau (ordinateur) et les cartes (telephone). */
-  const pickFor = (l: CallLeadRow) => (v: string) => {
+  /** Changement de statut, avec les garde-fous (rendez-vous existant, raison de perte). */
+  const choose = (l: CallLeadRow, v: string) => {
     const booked = l.bucket === "booked";
     if (v === "booked") return setBooking(l);
-    /*
-     * Rendez-vous pris puis annule : changer le statut annule le rendez-vous
-     * a venir (le closer ne le voit plus) et le lead reprend sa place.
-     */
     let cancel = false;
     if (booked) {
-      if (v === "") return;
-      const when = l.appointmentAt ? ` du ${fmtDateTime(l.appointmentAt)}` : "";
-      if (!window.confirm(`${l.name} a un rendez-vous${when}. Changer son statut annule ce rendez-vous. Continuer ?`)) return;
+      if (!window.confirm(`${l.name} a un rendez-vous. Changer son statut annule ce rendez-vous. Continuer ?`)) return;
       cancel = true;
     }
     if (v === "callback") {
@@ -271,64 +237,35 @@ export default function CallLeadsPage() {
       return void setStatus(l, "not-interested", undefined, reason, cancel);
     }
     if (v === "delete") return void remove([l]);
-    if (v === "") return void reopen(l);
+    if (v === "reopen") return void reopen(l);
     void setStatus(l, v as LeadCallStatus, undefined, undefined, cancel);
   };
 
-  /** Options du menu de statut. */
-  const statusOptions = (booked: boolean) => (
-    <>
-      {booked ? <option value="booked">Rendez-vous posé</option> : <option value="">Non statué</option>}
-      <option value="no-answer">Ne répond pas</option>
-      <option value="message-sent">Message envoyé</option>
-      <option value="callback">À rappeler plus tard…</option>
-      <option value="reached">Joint, RDV à fixer</option>
-      {!booked && <option value="booked">Rendez-vous posé…</option>}
-      <option value="not-interested">Pas intéressé</option>
-      <option value="wrong-number">Faux numéro</option>
-      <option value="no-whatsapp">Pas de WhatsApp</option>
-      {session.isAdmin && <option value="delete">Supprimer de la liste…</option>}
-    </>
-  );
+  const rows = data?.rows ?? [];
+  const c = data?.counts;
+  const funnelOf = (l: CallLeadRow) => funnels.find((f) => f.key === (l.funnelSource ?? "")) ?? null;
+  const funnelLabelOf = (l: CallLeadRow) => funnelOf(l)?.label ?? l.funnelSource ?? "—";
+  const shown = rows.filter((r) => FILTERS.find((f) => f.key === filter)?.buckets.includes(r.bucket));
+  const isAds = (l: CallLeadRow) => (l.sourceChannel ?? "UNKNOWN") === "META_ADS";
 
-  const shownRows = rows.filter((r) => FILTERS.find((f) => f.key === filter)?.buckets.includes(r.bucket));
-  const selectedRows = shownRows.filter((r) => selected.has(r.id));
-  const allShownSelected = shownRows.length > 0 && shownRows.every((r) => selected.has(r.id));
-  const staleShown = shownRows.filter(isStale);
+  const columns: { key: "ads" | "organic"; title: string; hint: string; rows: CallLeadRow[] }[] = [
+    { key: "ads", title: "Leads Ads", hint: "Venus d'une publicité Meta (LP, utm, fbclid).", rows: shown.filter(isAds) },
+    { key: "organic", title: "Leads organiques", hint: "Instagram, YouTube, bouche à oreille, funnels organiques.", rows: shown.filter((l) => !isAds(l)) },
+  ];
+
+  const selectedRows = shown.filter((r) => selected.has(r.id));
 
   return (
     <>
       <PageHeader
-        title="À appeler — leads froids de la landing page"
-        subtitle={
-          data?.lastSyncAt
-            ? `Inscrits Systeme.io synchronisés ${relative(data.lastSyncAt)}. Appelle dans les cinq minutes qui suivent l'inscription : c'est là que ça décroche. Un rendez-vous posé part dans Rendez-vous et l'Agenda.`
-            : "Les prospects qui viennent de laisser leurs coordonnées sur la landing page."
-        }
+        title="Leads"
+        subtitle={data?.lastSyncAt ? `Inscrits Systeme.io synchronisés ${relative(data.lastSyncAt)}. Appelle d'abord ; pas de réponse → message WhatsApp avec le script du funnel. Un RDV pris part dans l'Agenda.` : "Les prospects qui viennent de laisser leurs coordonnées."}
         actions={
           <>
-            {session.isAdmin && setters.length > 0 && rows.some((r) => r.bucket !== "booked") && (
-              <select
-                className="select !w-auto !h-[30px] !text-[12.5px]"
-                value=""
-                title="Donner tous les leads encore à appeler à un setter, ou à tout le monde"
-                onChange={(e) => {
-                  const id = e.target.value;
-                  if (!id) return;
-                  if (id === "pool") {
-                    if (window.confirm("Remettre tous les leads à appeler à tout le monde ? Le premier setter qui appelle gardera le contact.")) void assignAll("");
-                    return;
-                  }
-                  const name = setters.find((m) => m.id === id)?.name ?? "";
-                  if (window.confirm(`Attribuer tous les leads à appeler à ${name} ?`)) void assignAll(id);
-                }}
-              >
-                <option value="">Tout attribuer à…</option>
-                <option value="pool">Tout le monde (premier qui appelle)</option>
-                {setters.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
+            {session.isAdmin && (
+              <button className="btn" onClick={() => setFunnelsOpen(true)} title="Déclarer les funnels : URL d'opt-in, canal, script">
+                ⚙ Funnels
+              </button>
             )}
             <button className="btn" onClick={() => void sync()} disabled={syncing} title="Relire Systeme.io tout de suite">
               {syncing ? <span className="spinner" /> : "↻ Vérifier les nouveaux"}
@@ -343,41 +280,6 @@ export default function CallLeadsPage() {
         </div>
       )}
 
-      {/* Admin : selection pour supprimer en bloc les inscrits qui n'ont plus rien a faire ici. */}
-      {session.isAdmin && rows.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mb-3 text-[12.5px]">
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={allShownSelected}
-              onChange={() => setSelected(allShownSelected ? new Set() : new Set(shownRows.map((r) => r.id)))}
-            />
-            Tout sélectionner ({shownRows.length})
-          </label>
-          {staleShown.length > 0 && (
-            <button
-              type="button"
-              className="btn btn-sm !h-[28px]"
-              title={`Sélectionner les inscrits depuis plus de ${STALE_DAYS} jours`}
-              onClick={() => setSelected(new Set(staleShown.map((r) => r.id)))}
-            >
-              Les plus de {STALE_DAYS} jours ({staleShown.length})
-            </button>
-          )}
-          {selectedRows.length > 0 && (
-            <>
-              <button type="button" className="btn btn-sm btn-danger !h-[28px]" disabled={deleting} onClick={() => void remove(selectedRows)}>
-                {deleting ? <span className="spinner" /> : `Supprimer ${selectedRows.length} lead${selectedRows.length > 1 ? "s" : ""}`}
-              </button>
-              <button type="button" className="btn btn-ghost btn-sm !h-[28px]" onClick={() => setSelected(new Set())}>
-                Annuler la sélection
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Filtres, qui font aussi legende : un clic n'affiche qu'un etat. */}
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
         {FILTERS.map((f) => {
           const n = f.buckets.reduce((acc, k) => acc + (c?.[k] ?? 0), 0);
@@ -388,12 +290,7 @@ export default function CallLeadsPage() {
               type="button"
               onClick={() => setFilter(f.key)}
               className="flex items-center gap-1.5 h-[30px] px-3 rounded-full text-[12.5px] font-medium transition-colors"
-              style={{
-                background: active ? (f.color ? `color-mix(in srgb, ${f.color} 28%, var(--surface))` : "var(--surface)") : "var(--surface-2)",
-                border: `1px solid ${active ? (f.color ?? "var(--text-2)") : "var(--border)"}`,
-                color: active ? "var(--text)" : "var(--text-2)",
-              }}
-              title={f.key === "all" ? "Tous les contacts" : `N'afficher que : ${f.label.toLowerCase()}`}
+              style={{ background: active ? (f.color ? `color-mix(in srgb, ${f.color} 28%, var(--surface))` : "var(--surface)") : "var(--surface-2)", border: `1px solid ${active ? (f.color ?? "var(--text-2)") : "var(--border)"}`, color: active ? "var(--text)" : "var(--text-2)" }}
             >
               {f.color && <Dot color={f.color} />}
               {f.label}
@@ -401,17 +298,19 @@ export default function CallLeadsPage() {
             </button>
           );
         })}
-        {/* Les rendez-vous poses ne sont plus ici : on dit ou ils sont. */}
         {(c?.booked ?? 0) > 0 && (
-          <Link
-            href="/sales/rendez-vous"
-            className="flex items-center gap-1.5 h-[30px] px-3 rounded-full text-[12.5px] font-medium ml-auto"
-            style={{ border: `1px solid ${COLOR.green}`, color: COLOR.green }}
-            title="Les leads qui ont pris rendez-vous sont dans Rendez-vous et l'Agenda"
-          >
+          <Link href="/sales/rendez-vous" className="flex items-center gap-1.5 h-[30px] px-3 rounded-full text-[12.5px] font-medium ml-auto" style={{ border: `1px solid ${COLOR.green}`, color: COLOR.green }}>
             <Dot color={COLOR.green} />
-            {c!.booked} rendez-vous posé{c!.booked > 1 ? "s" : ""} → Rendez-vous
+            {c!.booked} RDV pris → Rendez-vous
           </Link>
+        )}
+        {session.isAdmin && selectedRows.length > 0 && (
+          <span className="flex items-center gap-1.5 ml-auto">
+            <button className="btn btn-sm btn-danger !h-[28px]" disabled={deleting} onClick={() => void remove(selectedRows)}>
+              {deleting ? <span className="spinner" /> : `Supprimer ${selectedRows.length}`}
+            </button>
+            <button className="btn btn-ghost btn-sm !h-[28px]" onClick={() => setSelected(new Set())}>✕</button>
+          </span>
         )}
       </div>
 
@@ -422,262 +321,180 @@ export default function CallLeadsPage() {
       ) : !rows.length ? (
         <Card>
           <Empty>
-            {c?.hidden && data?.pool ? (
-              <>
-                {c.hidden} lead{c.hidden > 1 ? "s" : ""} à appeler existe{c.hidden > 1 ? "nt" : ""}, mais un autre setter {c.hidden > 1 ? "les" : "l&apos;"}a appelé{c.hidden > 1 ? "s" : ""} en premier : {c.hidden > 1 ? "ils sont" : "il est"} à lui.
-                <br />
-                Les prochains inscrits de la landing page apparaîtront ici pour tout le monde : le premier qui appelle garde le contact.
-              </>
-            ) : c?.hidden ? (
-              <>
-                {c.hidden} lead{c.hidden > 1 ? "s" : ""} à appeler existe{c.hidden > 1 ? "nt" : ""}, mais {c.hidden > 1 ? "ils sont attribués" : "il est attribué"} à un autre setter.
-                <br />
-                L&apos;admin peut te les donner : « À appeler », menu « Tout attribuer à… », ou setter par setter sur chaque ligne.
-              </>
+            {c?.hidden ? (
+              <>{c.hidden} lead{c.hidden > 1 ? "s" : ""} existe{c.hidden > 1 ? "nt" : ""} mais {c.hidden > 1 ? "sont attribués" : "est attribué"} à un autre setter.</>
             ) : (
-              <>Personne à appeler pour l&apos;instant. Les nouveaux inscrits de la landing page apparaîtront ici tout seuls.</>
+              <>Personne à traiter pour l&apos;instant. Les nouveaux inscrits apparaîtront ici tout seuls.</>
             )}
           </Empty>
         </Card>
       ) : (
-        <Card padded={false}>
-          {/* Telephone : une carte par contact, tout en colonne, gros boutons. */}
-          <ul className="sm:hidden">
-            {shownRows.map((l, i) => {
-              const tone = TONE[l.bucket];
-              const booked = l.bucket === "booked";
-              const lost = l.bucket === "lost";
-              const onPick = pickFor(l);
-              return (
-                <li
-                  key={l.id}
-                  className="px-3 py-3 flex flex-col gap-2"
-                  style={{
-                    background: `color-mix(in srgb, ${tone} ${lost ? 14 : 20}%, var(--surface))`,
-                    borderLeft: `4px solid ${tone}`,
-                    borderBottom: i < shownRows.length - 1 ? "1px solid var(--border)" : "none",
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    {session.isAdmin && (
-                      <input type="checkbox" className="mt-1 shrink-0" checked={selected.has(l.id)} onChange={() => toggle(l.id)} aria-label={`Sélectionner ${l.name}`} />
-                    )}
-                    <button type="button" onClick={() => setSheetId(l.id)} className="text-left min-w-0 flex-1">
-                      <span className="flex items-center gap-2 text-[14px] font-semibold">
-                        <Dot color={tone} />
-                        <span className="truncate">{l.name}</span>
-                      </span>
-                      <span className="dim text-[11.5px] block">
-                        inscrit {relative(l.optInAt || l.createdAt)}
-                        {l.country ? ` · ${COUNTRY[l.country] ?? l.country}` : ""}
-                        {!l.setterId ? " · sans setter" : ""}
-                      </span>
-                    </button>
-                    {l.phone ? (
-                      <a className="btn btn-primary !h-[36px] !px-3 shrink-0" href={`tel:${l.phone}`} title={l.phone}>
-                        ☏ Appeler
-                      </a>
-                    ) : (
-                      <span className="badge badge-warn !text-[10.5px] shrink-0">Pas de numéro</span>
-                    )}
-                  </div>
-                  <select
-                    className="select !h-[38px] !text-[13px] w-full"
-                    value={booked ? "booked" : (l.callStatus ?? "")}
-                    disabled={busy === l.id}
-                    onChange={(e) => onPick(e.target.value)}
-                    style={{ backgroundColor: `color-mix(in srgb, ${tone} 30%, var(--surface))`, borderColor: tone, fontWeight: 600 }}
-                  >
-                    {statusOptions(booked)}
-                  </select>
-                  <div className="text-[12px]">
-                    {booked && l.appointmentAt ? (
-                      <span style={{ color: COLOR.green, fontWeight: 600 }}>Call le {fmtDateTime(l.appointmentAt)}{l.closerName ? ` avec ${l.closerName}` : ""}</span>
-                    ) : l.callStatus === "callback" && l.callbackAt ? (
-                      <span style={{ color: COLOR.blue, fontWeight: 600 }}>{l.bucket === "due" ? "Rappel dû depuis le " : "Rappeler le "}{fmtDateTime(l.callbackAt)}</span>
-                    ) : l.callStatus ? (
-                      <span className="dim">{STATUS_LABEL[l.callStatus]}{l.lastCallAt ? `, ${relative(l.lastCallAt)}` : ""}</span>
-                    ) : (
-                      <span className="dim">Jamais appelé</span>
-                    )}
-                    {l.notes && <span className="block truncate mt-0.5">✎ {l.notes.split("\n").join(" · ")}</span>}
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {!booked && !lost && (
-                      <button className="btn !h-[34px] flex-1" onClick={() => setBooking(l)} disabled={busy === l.id}>
-                        ✓ Rendez-vous pris
+        <div className="grid lg:grid-cols-2 gap-4 items-start">
+          {columns.map((col) => {
+            const colFunnels = [...new Set(col.rows.map((l) => l.funnelSource ?? ""))];
+            const picked = pick[col.key];
+            const visible = picked.size ? col.rows.filter((l) => picked.has(l.funnelSource ?? "")) : col.rows;
+            return (
+              <Card
+                key={col.key}
+                padded={false}
+                title={
+                  <span className="flex items-center gap-2">
+                    {col.title}
+                    <span className="badge !text-[10.5px] !py-0 num">{visible.length}</span>
+                  </span>
+                }
+                subtitle={col.hint}
+              >
+                {/* Funnels de la colonne : un clic filtre, plusieurs se cumulent (A/B tests). */}
+                {colFunnels.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 px-3.5 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
+                    {colFunnels.map((k) => {
+                      const f = funnels.find((x) => x.key === k);
+                      const active = picked.has(k);
+                      const n = col.rows.filter((l) => (l.funnelSource ?? "") === k).length;
+                      return (
+                        <button
+                          key={k || "none"}
+                          type="button"
+                          className="h-[26px] px-2.5 rounded-full text-[11.5px] font-medium"
+                          style={{ background: active ? "var(--accent-soft)" : "var(--surface-2)", border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`, color: active ? "var(--accent)" : "var(--text-2)" }}
+                          onClick={() =>
+                            setPick((p) => {
+                              const next = new Set(p[col.key]);
+                              if (next.has(k)) next.delete(k);
+                              else next.add(k);
+                              return { ...p, [col.key]: next };
+                            })
+                          }
+                          title={f?.match ? `Reconnu par : ${f.match}` : "Funnel"}
+                        >
+                          {f?.label ?? (k || "sans funnel")} <span className="num opacity-70">{n}</span>
+                        </button>
+                      );
+                    })}
+                    {picked.size > 0 && (
+                      <button type="button" className="btn btn-ghost btn-sm !h-[26px] !text-[11px]" onClick={() => setPick((p) => ({ ...p, [col.key]: new Set() }))}>
+                        ✕ tous
                       </button>
                     )}
-                    {lost && (
-                      <button className="btn !h-[34px] flex-1" onClick={() => void reopen(l)} disabled={busy === l.id}>
-                        ↺ Remettre à appeler
-                      </button>
-                    )}
-                    <button className="btn btn-ghost !h-[34px]" onClick={() => setSheetId(l.id)}>
-                      Fiche
-                    </button>
-                    {session.isAdmin && setters.length > 0 && (
-                      <select className="select select-sm !w-auto" value={l.setterId ?? ""} onChange={(e) => void assign(l, e.target.value)}>
-                        <option value="">Tout le monde</option>
-                        {setters.map((m) => (
-                          <option key={m.id} value={m.id}>{m.name}</option>
-                        ))}
-                      </select>
-                    )}
                   </div>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="scroll-x hidden sm:block">
-            <table className="table">
-              <thead>
-                <tr>
-                  {session.isAdmin && <th style={{ width: 28 }} />}
-                  <th>Contact</th>
-                  <th style={{ width: 230 }}>Statut</th>
-                  <th>Détail</th>
-                  <th>Inscrit</th>
-                  <th>Téléphone</th>
-                  {session.isAdmin && <th>Setter</th>}
-                  <th className="text-right" style={{ width: 120 }} />
-                </tr>
-              </thead>
-              <tbody>
-                {shownRows.map((l) => {
-                    const tone = TONE[l.bucket];
-                    const hint = localHint(l.country);
-                    const booked = l.bucket === "booked";
-                    const lost = l.bucket === "lost";
-                    // Toute la ligne prend la couleur de l'etat, comme une ligne surlignee dans un tableur.
-                    const rowStyle: CSSProperties = { background: `color-mix(in srgb, ${tone} ${lost ? 14 : 20}%, var(--surface))` };
-                    const selectValue = booked ? "booked" : (l.callStatus ?? "");
-                    const onPick = pickFor(l);
-                    return (
-                      <tr key={l.id} style={rowStyle}>
-                        {session.isAdmin && (
-                          <td style={{ borderLeft: `4px solid ${tone}` }}>
-                            <input type="checkbox" checked={selected.has(l.id)} onChange={() => toggle(l.id)} aria-label={`Sélectionner ${l.name}`} />
-                          </td>
-                        )}
-                        <td style={session.isAdmin ? undefined : { borderLeft: `4px solid ${tone}` }}>
-                          <button
-                            type="button"
-                            onClick={() => setSheetId(l.id)}
-                            className="flex items-center gap-2 text-[13px] font-medium text-left hover:underline"
-                            title="Ouvrir la fiche : notes, historique, rendez-vous"
-                          >
-                            <Dot color={tone} />
-                            <span className="truncate max-w-[220px]">{l.name}</span>
-                          </button>
-                          {(l.country || !l.setterId) && (
-                            <div className="dim text-[11px] mt-0.5">
-                              {l.country ? `${COUNTRY[l.country] ?? l.country}${hint ? ` · il est ${hint} chez lui` : ""}` : ""}
-                              {!l.setterId && <span style={{ color: "var(--warning)" }}>{l.country ? " · " : ""}sans setter</span>}
+                )}
+                {visible.length === 0 ? (
+                  <Empty>Rien dans cette colonne avec ces filtres.</Empty>
+                ) : (
+                  <ul>
+                    {visible.map((l) => {
+                      const tone = TONE[l.bucket];
+                      const lost = l.bucket === "lost";
+                      const f = funnelOf(l);
+                      const local = localHint(l.country);
+                      const isBusy = busy === l.id;
+                      const since = l.optInAt || l.createdAt;
+                      return (
+                        <li key={l.id} className="px-3.5 py-2.5" style={{ borderBottom: "1px solid var(--border)", borderLeft: `4px solid ${tone}`, opacity: lost ? 0.75 : 1, background: selected.has(l.id) ? "var(--accent-soft)" : undefined }}>
+                          <div className="flex items-start gap-2.5">
+                            {session.isAdmin && (
+                              <input type="checkbox" className="mt-1" checked={selected.has(l.id)} onChange={() => setSelected((p) => { const n = new Set(p); if (n.has(l.id)) n.delete(l.id); else n.add(l.id); return n; })} />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <button type="button" className="text-[13.5px] font-semibold hover:underline text-left" onClick={() => setSheetId(l.id)} title="Ouvrir la fiche (notes, historique)">
+                                  {l.name}
+                                </button>
+                                <Dot color={tone} />
+                                <span className="dim text-[11.5px]">
+                                  {l.callStatus ? STATUS_LABEL[l.callStatus] : "jamais appelé"}
+                                  {l.callStatus === "callback" && l.callbackAt ? ` · ${fmtDateTime(l.callbackAt)}` : ""}
+                                  {l.callStatus === "no-answer" && (l.callAttempts ?? 0) > 1 ? ` (${l.callAttempts}×)` : ""}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mt-1 text-[12px]">
+                                <PhoneCopy phone={l.phone ?? ""} />
+                                <span className="dim num" title="Heure d'inscription (France)">
+                                  Inscrit {fmtDateTime(since)} <span className="opacity-70">({relative(since)})</span>
+                                </span>
+                                {l.country && l.country !== "FR" && (
+                                  <span className="dim">
+                                    {COUNTRY[l.country] ?? l.country}
+                                    {local ? ` · ${local} chez lui` : ""}
+                                  </span>
+                                )}
+                                <span className="badge !text-[10px] !py-0" title={f?.match ? `Reconnu par : ${f.match}` : "Funnel"}>
+                                  {funnelLabelOf(l)}
+                                </span>
+                                {l.email && <span className="dim truncate max-w-[180px]" title={l.email}>{l.email}</span>}
+                              </div>
+                              {l.notes && <div className="dim text-[11.5px] mt-1 truncate" title={l.notes}>✎ {l.notes.split("\n")[0]}</div>}
+
+                              {/* Actions : la sequence d'appel en un clic. */}
+                              <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                                {lost ? (
+                                  <button className="btn btn-sm !h-[28px]" disabled={isBusy} onClick={() => choose(l, "reopen")}>
+                                    Remettre dans la liste
+                                  </button>
+                                ) : (
+                                  <>
+                                    <button className="btn btn-sm !h-[28px]" disabled={isBusy} onClick={() => choose(l, "no-answer")} title="Appelé, pas de réponse">
+                                      ☏ Pas de réponse
+                                    </button>
+                                    <button
+                                      className="btn btn-sm !h-[28px] font-semibold"
+                                      style={{ background: COLOR.whatsapp, borderColor: COLOR.whatsapp, color: "#fff" }}
+                                      disabled={isBusy}
+                                      onClick={() => choose(l, "message-sent")}
+                                      title="Message WhatsApp envoyé"
+                                    >
+                                      WA envoyé
+                                    </button>
+                                    {f?.script && (
+                                      <button className="btn btn-sm !h-[28px]" onClick={() => setScriptFor({ funnel: f, lead: l })} title="Script du funnel à copier">
+                                        📋 Script
+                                      </button>
+                                    )}
+                                    <button className="btn btn-sm !h-[28px]" disabled={isBusy} onClick={() => choose(l, "callback")}>
+                                      ⏰ À rappeler
+                                    </button>
+                                    <button className="btn btn-sm !h-[28px]" disabled={isBusy} onClick={() => choose(l, "reached")} style={{ borderColor: COLOR.violet, color: COLOR.violet }}>
+                                      Joint
+                                    </button>
+                                    <button className="btn btn-sm btn-primary !h-[28px]" disabled={isBusy} onClick={() => choose(l, "booked")} title="Rendez-vous pris : le call part dans l'Agenda">
+                                      ✓ RDV pris
+                                    </button>
+                                    <select className="select select-xs !w-auto" value="" disabled={isBusy} onChange={(e) => choose(l, e.target.value)} title="Autres statuts">
+                                      <option value="">…</option>
+                                      <option value="not-interested">Pas intéressé</option>
+                                      <option value="wrong-number">Faux numéro</option>
+                                      <option value="no-whatsapp">Pas de WhatsApp</option>
+                                      <option value="cold">Lead froid (sans réponse)</option>
+                                      {session.isAdmin && <option value="delete">Supprimer</option>}
+                                    </select>
+                                  </>
+                                )}
+                                {session.isAdmin && setters.length > 0 && (
+                                  <select className="select select-xs !w-auto ml-auto" value={l.setterId ?? ""} onChange={(e) => void assign(l, e.target.value)} title="Setter">
+                                    <option value="">Tout le monde</option>
+                                    {setters.map((m) => (
+                                      <option key={m.id} value={m.id}>{m.name}</option>
+                                    ))}
+                                  </select>
+                                )}
+                                {!session.isAdmin && l.setterName && <span className="dim text-[11px] ml-auto">{l.setterName}</span>}
+                              </div>
                             </div>
-                          )}
-                          {/* Note libre : « RDV en physique le 15 octobre », un prenom, une objection… */}
-                          <button
-                            type="button"
-                            onClick={() => setSheetId(l.id)}
-                            className="text-[11px] mt-0.5 text-left max-w-[260px] truncate block"
-                            style={{ color: l.notes ? "var(--text)" : "var(--text-3)" }}
-                            title={l.notes || "Ajouter une note"}
-                          >
-                            ✎ {l.notes ? l.notes.split("\n").join(" · ") : "note"}
-                          </button>
-                        </td>
-                        <td>
-                          <select
-                            className="select select-sm !text-[12px]"
-                            value={selectValue}
-                            disabled={busy === l.id}
-                            onChange={(e) => onPick(e.target.value)}
-                            style={{ backgroundColor: `color-mix(in srgb, ${tone} 30%, var(--surface))`, borderColor: tone, fontWeight: 600 }}
-                            title={booked ? "Rendez-vous posé. Choisir un autre statut annule le rendez-vous." : "Changer le statut"}
-                          >
-                            {statusOptions(booked)}
-                          </select>
-                        </td>
-                        <td className="text-[12px]">
-                          {booked && l.appointmentAt ? (
-                            <span style={{ color: COLOR.green, fontWeight: 600 }}>
-                              Call le {fmtDateTime(l.appointmentAt)}{l.closerName ? ` avec ${l.closerName}` : ", closer à attribuer"}
-                            </span>
-                          ) : l.callStatus === "callback" && l.callbackAt ? (
-                            <span style={{ color: COLOR.blue, fontWeight: 600 }}>
-                              {l.bucket === "due" ? "Rappel dû depuis le " : "Rappeler le "}{fmtDateTime(l.callbackAt)}
-                            </span>
-                          ) : l.callStatus ? (
-                            <span className="dim">
-                              {STATUS_LABEL[l.callStatus]}
-                              {l.callStatus === "no-answer" && (l.callAttempts ?? 0) > 1 ? ` (${l.callAttempts} essais)` : ""}
-                              {l.lastCallAt ? `, ${relative(l.lastCallAt)}` : ""}
-                            </span>
-                          ) : (
-                            <span className="dim">Jamais appelé</span>
-                          )}
-                        </td>
-                        <td className="num text-[12px]" title={l.optInAt || l.createdAt}>{relative(l.optInAt || l.createdAt)}</td>
-                        <td>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {l.phone ? (
-                              <a className="btn btn-sm btn-primary !h-[26px]" href={`tel:${l.phone}`} title="Appeler">
-                                ☏ {l.phone}
-                              </a>
-                            ) : (
-                              <span className="badge badge-warn !text-[10.5px]">Pas de numéro</span>
-                            )}
-                            {l.email && (
-                              <a className="btn btn-sm btn-ghost !h-[26px] !text-[11.5px]" href={`mailto:${l.email}`} title={l.email}>
-                                ✉
-                              </a>
-                            )}
                           </div>
-                        </td>
-                        {session.isAdmin && (
-                          <td>
-                            <select
-                              className="select select-xs !text-[11.5px] !w-auto"
-                              value={l.setterId ?? ""}
-                              title="Setter chargé de ce lead (« Tout le monde » : le premier qui appelle le prend)"
-                              onChange={(e) => void assign(l, e.target.value)}
-                            >
-                              <option value="">Tout le monde</option>
-                              {setters.map((m) => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
-                              ))}
-                            </select>
-                          </td>
-                        )}
-                        <td className="text-right">
-                          {!booked && !lost && (
-                            <button className="btn btn-sm !h-[26px]" onClick={() => setBooking(l)} disabled={busy === l.id} title="Le prospect a accepté un rendez-vous">
-                              ✓ RDV
-                            </button>
-                          )}
-                          {lost && (
-                            <button className="btn btn-sm !h-[26px]" onClick={() => void reopen(l)} disabled={busy === l.id} title="Il revient : le remettre dans la liste">
-                              ↺ Remettre
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </Card>
+            );
+          })}
+        </div>
       )}
 
-      <LeadSheet
-        id={sheetId}
-        onClose={() => setSheetId(null)}
-        onChanged={() => {
-          void reload();
-        }}
-      />
+      <LeadSheet id={sheetId} onClose={() => setSheetId(null)} onChanged={refresh} />
 
       {callbackFor && (
         <CallbackModal
@@ -701,21 +518,25 @@ export default function CallLeadsPage() {
           lead={booking}
           isAdmin={session.isAdmin}
           memberId={session.memberId}
-          // Le setter qui est aussi closer se propose lui-meme ; sinon le
-          // closer par defaut des reglages. Le call arrive sur le bon dash.
-          defaultCloserId={
-            hasRole(session, "closer") && session.memberId
-              ? session.memberId
-              : session.isAdmin && data?.ownerMemberId
-                ? data.ownerMemberId
-                : (data?.defaultCloserId ?? "")
-          }
+          defaultCloserId={hasRole(session, "closer") && session.memberId ? session.memberId : session.isAdmin && data?.ownerMemberId ? data.ownerMemberId : (data?.defaultCloserId ?? "")}
           members={members}
           onClose={() => setBooking(null)}
           onDone={() => {
             setBooking(null);
-            void reload();
-            bump();
+            refresh();
+          }}
+        />
+      )}
+
+      {scriptFor && <ScriptModal funnel={scriptFor.funnel} lead={scriptFor.lead} onClose={() => setScriptFor(null)} />}
+
+      {funnelsOpen && (
+        <FunnelsModal
+          funnels={funnels}
+          onClose={() => setFunnelsOpen(false)}
+          onSaved={() => {
+            void loadFunnels();
+            refresh();
           }}
         />
       )}
@@ -723,35 +544,132 @@ export default function CallLeadsPage() {
   );
 }
 
+/* ------------------------------ Script du funnel ------------------------ */
+
+/** Le script du funnel, avec le prenom du lead deja remplace, a copier. */
+function ScriptModal({ funnel, lead, onClose }: { funnel: SalesFunnel; lead: CallLeadRow; onClose: () => void }) {
+  const first = (lead.name || "").split(" ")[0] || "";
+  const text = funnel.script.replace(/\{\{\s*prenom\s*\}\}|\{\{\s*prénom\s*\}\}|\{prenom\}/gi, first).replace(/\{\{\s*nom\s*\}\}|\{nom\}/gi, lead.name);
+  const [done, setDone] = useState(false);
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Script · ${funnel.label}`}
+      footer={
+        <>
+          <button className="btn" onClick={onClose}>Fermer</button>
+          <button
+            className="btn btn-primary"
+            onClick={async () => {
+              if (await copy(text)) {
+                setDone(true);
+                setTimeout(() => setDone(false), 1500);
+              }
+            }}
+          >
+            {done ? "Copié ✓" : "Copier le script"}
+          </button>
+        </>
+      }
+    >
+      <pre className="whitespace-pre-wrap text-[13px] leading-relaxed" style={{ fontFamily: "inherit" }}>{text}</pre>
+      <p className="dim text-[11.5px] mt-3">Dans le script, « {"{{prenom}}"} » et « {"{{nom}}"} » sont remplacés automatiquement.</p>
+    </Modal>
+  );
+}
+
+/* ------------------------------ Funnels (admin) ------------------------- */
+
+function FunnelsModal({ funnels, onClose, onSaved }: { funnels: SalesFunnel[]; onClose: () => void; onSaved: () => void }) {
+  const toast = useToast();
+  const [rows, setRows] = useState<SalesFunnel[]>(funnels.map((f) => ({ ...f })));
+  const [busy, setBusy] = useState(false);
+  const [reattribute, setReattribute] = useState(true);
+  const set = (i: number, patch: Partial<SalesFunnel>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await api<{ rows: SalesFunnel[]; reattributed: number }>("/api/sales/funnels", { method: "PUT", body: JSON.stringify({ rows, reattribute }) });
+      toast(`Funnels enregistrés${r.reattributed ? ` · ${r.reattributed} lead(s) réattribué(s)` : ""}.`);
+      onSaved();
+      onClose();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Funnels"
+      wide
+      footer={
+        <>
+          <label className="flex items-center gap-2 text-[12px] mr-auto">
+            <input type="checkbox" checked={reattribute} onChange={(e) => setReattribute(e.target.checked)} />
+            Réattribuer les leads d&apos;opt-in selon ces funnels
+          </label>
+          <button className="btn" onClick={onClose} disabled={busy}>Annuler</button>
+          <button className="btn btn-primary" onClick={() => void save()} disabled={busy}>
+            {busy ? <span className="spinner" /> : "Enregistrer"}
+          </button>
+        </>
+      }
+    >
+      <p className="dim text-[12.5px] mb-3">
+        Un funnel = une page d&apos;opt-in (ou un tag Systeme.io), un canal (Ads, organique…) et un script. Les leads dont l&apos;URL d&apos;inscription contient un des morceaux indiqués sont rangés dans ce funnel. Les leads Meta avec utm ou fbclid restent toujours en Ads.
+      </p>
+      <div className="flex flex-col gap-3">
+        {rows.map((f, i) => (
+          <div key={i} className="card-flat p-3 grid sm:grid-cols-[1fr_150px_1fr_auto] gap-2 items-start">
+            <Field label="Nom">
+              <input className="input !h-[34px]" value={f.label} onChange={(e) => set(i, { label: e.target.value })} placeholder="LP1 Ads" />
+            </Field>
+            <Field label="Canal">
+              <select className="select !h-[34px]" value={f.channel} onChange={(e) => set(i, { channel: e.target.value as SourceChannel })}>
+                {SOURCE_CHANNELS.filter((c) => c !== "UNKNOWN").map((c) => (
+                  <option key={c} value={c}>{SOURCE_CHANNEL_LABEL[c]}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Reconnu par (URL ou tag, virgules)">
+              <input className="input !h-[34px] mono !text-[12px]" value={f.match} onChange={(e) => set(i, { match: e.target.value })} placeholder="masterclass-organique, tag-organique" />
+            </Field>
+            <button className="btn btn-ghost btn-sm mt-5" onClick={() => setRows((r) => r.filter((_, j) => j !== i))} title="Retirer">✕</button>
+            <Field label="Script (appel / message WhatsApp)" className="sm:col-span-4">
+              <textarea className="textarea !min-h-[70px] !text-[12.5px]" value={f.script} onChange={(e) => set(i, { script: e.target.value })} placeholder={"Salut {{prenom}}, c'est Mady. Je t'ai appelé suite à ton inscription à la masterclass…"} />
+            </Field>
+            <div className="dim text-[11px] sm:col-span-4 mono">clé : {f.key || "(générée)"}</div>
+          </div>
+        ))}
+        <button className="btn btn-sm self-start" onClick={() => setRows((r) => [...r, { key: "", label: "", channel: "ORGANIC", match: "", script: "" }])}>
+          + Funnel
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 /* ------------------------------ À rappeler ------------------------------ */
 
-function CallbackModal({
-  lead,
-  onClose,
-  onPick,
-}: {
-  lead: CallLeadRow;
-  onClose: () => void;
-  onPick: (atIso: string, note: string) => Promise<void>;
-}) {
+function CallbackModal({ lead, onClose, onPick }: { lead: CallLeadRow; onClose: () => void; onPick: (atIso: string, note: string) => Promise<void> }) {
   const defaultAt = useMemo(() => {
     const d = new Date(Date.now() + 2 * 3600_000);
     d.setMinutes(0, 0, 0);
-    return localInputValue(d);
+    return isoToParisInput(d);
   }, []);
   const [at, setAt] = useState(defaultAt);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-
-  // Raccourcis : les cas qui reviennent a chaque appel, en heure de Paris.
-  const quick = (label: string, value: () => string) => (
+  const quick = (label: string, value: () => string): ReactNode => (
     <button type="button" className="btn btn-sm" onClick={() => setAt(value())}>
       {label}
     </button>
   );
-  // Prochain lundi a Paris (dans 7 jours si on est lundi).
   const nextMonday = () => parisDay(((8 - parisWeekday()) % 7) || 7);
-
   return (
     <Modal
       open
@@ -791,7 +709,7 @@ function CallbackModal({
         <Field label="Note" hint="Ce qu'il a dit, pour reprendre la conversation au bon endroit.">
           <textarea className="input w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
-        <p className="dim text-[12px]">Il remontera en haut de la liste, dans « Rappels à passer maintenant », dès que l&apos;heure sera passée.</p>
+        <p className="dim text-[12px]">Il remontera en haut de la liste et dans la cloche dès que l&apos;heure sera passée.</p>
       </div>
     </Modal>
   );
@@ -799,36 +717,25 @@ function CallbackModal({
 
 /* ------------------------------ RDV pris ------------------------------- */
 
-function BookModal({
-  lead,
-  isAdmin,
-  memberId,
-  defaultCloserId,
-  members,
-  onClose,
-  onDone,
-}: {
-  lead: CallLeadRow;
-  isAdmin: boolean;
-  memberId: string;
-  defaultCloserId: string;
-  members: PublicMember[];
-  onClose: () => void;
-  onDone: () => void;
-}) {
+function BookModal({ lead, isAdmin, memberId, defaultCloserId, members, onClose, onDone }: { lead: CallLeadRow; isAdmin: boolean; memberId: string; defaultCloserId: string; members: PublicMember[]; onClose: () => void; onDone: () => void }) {
   const toast = useToast();
   const closers = useMemo(() => members.filter((m) => hasRole(m, "closer")), [members]);
   const setters = useMemo(() => members.filter((m) => hasRole(m, "setter")), [members]);
   const defaultAt = useMemo(() => {
     const d = new Date(Date.now() + 24 * 3600_000);
     d.setMinutes(0, 0, 0);
-    return localInputValue(d);
+    return isoToParisInput(d);
   }, []);
   const [at, setAt] = useState(defaultAt);
   const [closerId, setCloserId] = useState(closers.some((m) => m.id === defaultCloserId) ? defaultCloserId : "");
   const [setterId, setSetterId] = useState(lead.setterId || memberId);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const quick = (label: string, value: () => string): ReactNode => (
+    <button type="button" className="btn btn-sm" onClick={() => setAt(value())}>
+      {label}
+    </button>
+  );
 
   const submit = async () => {
     setBusy(true);
@@ -850,7 +757,7 @@ function BookModal({
           setterNotes: notes,
         }),
       });
-      toast("Call de vente enregistré.");
+      toast(`RDV posé avec ${lead.name} le ${fmtDateTime(parisToIso(at))} (${fmtTime(parisToIso(at), "Asia/Dubai")} DXB) : il est dans l'Agenda.`);
       onDone();
     } catch (e) {
       toast((e as Error).message, "err");
@@ -863,17 +770,23 @@ function BookModal({
     <Modal
       open
       onClose={onClose}
-      title={`Call de vente avec ${lead.name}`}
+      title={`RDV pris avec ${lead.name}`}
       footer={
         <>
           <button className="btn" onClick={onClose} disabled={busy}>Annuler</button>
           <button className="btn btn-primary" onClick={() => void submit()} disabled={busy || !at}>
-            {busy ? <span className="spinner" /> : "Enregistrer le call"}
+            {busy ? <span className="spinner" /> : "Enregistrer le RDV"}
           </button>
         </>
       }
     >
       <div className="flex flex-col gap-3.5">
+        <div className="flex gap-1.5 flex-wrap">
+          {quick("Demain 10 h", () => `${parisDay(1)}T10:00`)}
+          {quick("Demain 14 h", () => `${parisDay(1)}T14:00`)}
+          {quick("Demain 18 h", () => `${parisDay(1)}T18:00`)}
+          {quick("Après-demain 10 h", () => `${parisDay(2)}T10:00`)}
+        </div>
         <Field label="Date et heure du call (heure de Paris)">
           <input className="input" type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
         </Field>
@@ -889,6 +802,7 @@ function BookModal({
           {isAdmin && (
             <Field label="Setter">
               <select className="select" value={setterId} onChange={(e) => setSetterId(e.target.value)}>
+                <option value="">—</option>
                 {setters.map((m) => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
@@ -899,6 +813,7 @@ function BookModal({
         <Field label="Notes pour le closer" hint="Ce qu'il cherche, son objection, son budget…">
           <textarea className="input w-full" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
+        <p className="dim text-[12px]">Le rendez-vous apparaît aussitôt dans Rendez-vous, l&apos;Agenda et la cloche (à confirmer sous 48 h).</p>
       </div>
     </Modal>
   );

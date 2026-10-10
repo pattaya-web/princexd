@@ -79,6 +79,21 @@ export function AlertsBell() {
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
+  const noReply = async (item: AlertItem) => {
+    if (!item.followUpId) return;
+    setBusy(item.id);
+    try {
+      const r = await api<{ cold: boolean }>(`/api/sales/followups/${item.followUpId}/no-reply`, { method: "POST" });
+      toast(r.cold ? `${item.leadName} classé lead froid.` : "Pas de réponse : dernière relance dans 2 jours.");
+      await load();
+      window.dispatchEvent(new Event("sales:changed"));
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy("");
+    }
+  };
+
   const act = async (item: AlertItem, body: Record<string, unknown>, ok: string) => {
     if (!item.followUpId) return;
     setBusy(item.id);
@@ -157,6 +172,9 @@ export function AlertsBell() {
                         </button>
                         <button className="btn btn-sm !h-[22px] !px-1.5 !text-[11px]" disabled={busy === i.id} onClick={() => void act(i, { contact: true }, "Relance notée, pense à la reporter.")}>
                           ✉ J&apos;ai relancé
+                        </button>
+                        <button className="btn btn-sm !h-[22px] !px-1.5 !text-[11px]" style={{ color: "var(--critical)" }} disabled={busy === i.id} onClick={() => void noReply(i)} title="Sans réponse : relance suivante, ou lead froid après la dernière">
+                          ✗ Pas de réponse
                         </button>
                         <button className="btn btn-sm !h-[22px] !px-1.5 !text-[11px]" onClick={() => setReschedule(i.id)}>
                           ↻ Reporter

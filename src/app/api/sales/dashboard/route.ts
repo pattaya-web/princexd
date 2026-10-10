@@ -270,7 +270,9 @@ function attentionItems(db: ReturnType<typeof readDB>): AttentionBlock {
     at: a.scheduledAt,
     who,
   });
-  const pending = (a: Appointment) => !isDead(a.status) && !isAttended(a.status) && a.status !== "no-show";
+  // Une relance en cours sur ce call vaut resultat : le closer l'a traite, il relance.
+  const followedUp = new Set(db.followUps.filter((f) => f.status === "pending").map((f) => f.appointmentId));
+  const pending = (a: Appointment) => !isDead(a.status) && !isAttended(a.status) && a.status !== "no-show" && !followedUp.has(a.id);
   const byDate = (x: AttentionItem, y: AttentionItem) => x.at.localeCompare(y.at);
 
   return {

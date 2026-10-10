@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { SourceChip } from "@/components/sales/AttributionBlock";
+import { AttentionCard, GoalCard } from "@/components/sales/DashboardBlocks";
+import type { AttentionBlock, GoalBlock } from "@/app/api/sales/dashboard/route";
 import { Card, Empty, ErrorNote, InfoNote, Modal, PageHeader, Spinner, Tabs } from "@/components/ui";
 import { api, useLocalState } from "@/lib/client";
 import { fmtDate, fmtDateTime, fmtMoney, label as crmLabel } from "@/lib/format";
@@ -94,6 +96,15 @@ export default function SalesDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<{ row: BusinessGroupRow | null; leads: LeadBusiness[] | null } | null>(null);
   const [view, setView] = useState<"table" | "pipeline">("table");
+  // Ce qu'il y a a regler (resultats a saisir, confirmations, sans closer) et l'objectif du mois.
+  const [ops, setOps] = useState<{ attention: AttentionBlock | null; goal: GoalBlock | null; currency: string; followUps: { overdue: number } } | null>(null);
+  const loadOps = () => api<{ attention: AttentionBlock | null; goal: GoalBlock | null; currency: string; followUps: { overdue: number } }>("/api/sales/dashboard?period=month").then(setOps).catch(() => undefined);
+  useEffect(() => {
+    void loadOps();
+    const on = () => void loadOps();
+    window.addEventListener("sales:changed", on);
+    return () => window.removeEventListener("sales:changed", on);
+  }, []);
 
   const query = useMemo(() => {
     const p = new URLSearchParams({ preset, groupBy });
@@ -191,6 +202,20 @@ export default function SalesDashboardPage() {
         }
       />
       {error && <div className="mb-3"><ErrorNote>{error}</ErrorNote></div>}
+      {ops && ops.followUps.overdue > 0 && (
+        <Link href="/sales/relances" className="block mb-4">
+          <div className="rounded-lg px-3.5 py-2.5 text-[12.5px] flex items-center gap-2" style={{ background: "color-mix(in srgb, var(--warning) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--warning) 35%, transparent)" }}>
+            <strong className="num">{ops.followUps.overdue}</strong>
+            relance{ops.followUps.overdue > 1 ? "s" : ""} en retard — à traiter avant que le lead refroidisse.
+          </div>
+        </Link>
+      )}
+      {ops?.attention && <AttentionCard block={ops.attention} />}
+      {ops?.goal && (
+        <div className="mb-4">
+          <GoalCard goal={ops.goal} currency={ops.currency} onSaved={() => void loadOps()} />
+        </div>
+      )}
       {report?.hasMock && (
         <div className="mb-3">
           <InfoNote>

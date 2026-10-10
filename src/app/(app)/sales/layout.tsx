@@ -19,14 +19,16 @@ interface Tab {
   label: string;
   /** Onglets reserves a l'admin. */
   admin?: boolean;
+  /** Onglet des membres seulement : l'admin a son Sales Dashboard. */
+  member?: boolean;
   /** Onglet ouvert aux membres qui exercent ce metier (et a l'admin). */
   role?: "setter" | "closer";
 }
 
 const TABS: Tab[] = [
-  { href: "/sales", label: "Dashboard" },
+  { href: "/sales", label: "Dashboard", member: true },
   { href: "/sales/dashboard", label: "Sales Dashboard", admin: true },
-  { href: "/sales/leads", label: "À appeler" },
+  { href: "/sales/leads", label: "Leads" },
   { href: "/sales/rendez-vous", label: "Rendez-vous" },
   { href: "/sales/agenda", label: "Agenda", admin: true },
   { href: "/sales/pointage", label: "Shifts équipe", admin: true },
@@ -42,7 +44,7 @@ const TABS: Tab[] = [
 
 /** L'onglet est-il ouvert a cette session ? */
 function allowed(t: Tab, session: Session): boolean {
-  if (session.isAdmin) return true;
+  if (session.isAdmin) return !t.member;
   if (t.admin) return false;
   if (t.role) return sessionHas(session, t.role);
   return true;
@@ -56,7 +58,7 @@ function allowed(t: Tab, session: Session): boolean {
  * inertes croit a un bug — autant lui dire franchement.
  */
 function isBlockedRoute(pathname: string, session: Session): boolean {
-  return TABS.some((t) => !allowed(t, session) && (pathname === t.href || pathname.startsWith(`${t.href}/`)));
+  return TABS.some((t) => !t.member && !allowed(t, session) && (pathname === t.href || pathname.startsWith(`${t.href}/`)));
 }
 
 function SubNav({ session }: { session: Session }) {

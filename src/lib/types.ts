@@ -189,6 +189,8 @@ export interface Settings {
   salesLastSyncAt: string;
   /** Attribution des leads existants derivee une fois (lib/sales/attribution). */
   attributionBackfilledAt?: string;
+  /** Funnels declares par l'admin : reconnaissance par URL / tag Systeme.io, canal, script d'appel. */
+  salesFunnels?: SalesFunnel[];
   /* --- Systeme.io : leads de la landing page. Priorite a SYSTEMEIO_API_KEY. --- */
   systemeioApiKey?: string;
   /** Secret du webhook, genere ici et transmis a Systeme.io a la creation. */
@@ -431,6 +433,18 @@ export interface Lead {
   mock?: boolean;
 }
 
+/** Un funnel d'acquisition declare par l'admin (landing page, lien, tag). */
+export interface SalesFunnel {
+  /** Cle machine stable : lp1_ads, organic_masterclass… */
+  key: string;
+  label: string;
+  channel: SourceChannel;
+  /** Morceaux d'URL ou tags Systeme.io, separes par des virgules, qui reconnaissent ce funnel. */
+  match: string;
+  /** Script d'appel / message WhatsApp a copier pour les leads de ce funnel. */
+  script: string;
+}
+
 /** Canal d'acquisition standardise. */
 export type SourceChannel = "META_ADS" | "INSTAGRAM" | "ORGANIC" | "REFERRAL" | "AFFILIATE" | "OTHER" | "UNKNOWN";
 
@@ -445,10 +459,11 @@ export type SourceChannel = "META_ADS" | "INSTAGRAM" | "ORGANIC" | "REFERRAL" | 
  *  - no-whatsapp    : pas de WhatsApp (les setters n'appellent que par la), sort de la liste.
  * « Rendez-vous pris » n'est pas un statut : c'est un rendez-vous cree.
  */
-export type LeadCallStatus = "no-answer" | "message-sent" | "callback" | "reached" | "not-interested" | "wrong-number" | "no-whatsapp";
+export type LeadCallStatus = "no-answer" | "message-sent" | "callback" | "reached" | "not-interested" | "wrong-number" | "no-whatsapp" | "cold";
 
 /** Statuts qui sortent le lead de la liste a appeler (il reste visible 30 jours en rouge, et peut etre remis). */
-export const LEAD_OUT_STATUSES: readonly LeadCallStatus[] = ["not-interested", "wrong-number", "no-whatsapp"];
+/** « cold » : lead froid, sans reponse apres la sequence de relances (J+1, J+3) ; garde pour le tri, plus relance. */
+export const LEAD_OUT_STATUSES: readonly LeadCallStatus[] = ["not-interested", "wrong-number", "no-whatsapp", "cold"];
 export const leadIsOut = (s?: LeadCallStatus) => Boolean(s) && LEAD_OUT_STATUSES.includes(s as LeadCallStatus);
 
 export interface Student {
@@ -1426,6 +1441,8 @@ export interface FollowUp {
   log?: FollowUpLog[];
   /** Dernier contact effectif avec le prospect (message, appel). */
   lastContactAt?: string;
+  /** Sequence : 1 = premiere relance (J+1), 2 = derniere relance (J+3). Sans valeur : relance libre. */
+  step?: 1 | 2;
 }
 
 export interface FollowUpLog {

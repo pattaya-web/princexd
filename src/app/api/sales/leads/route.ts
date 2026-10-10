@@ -133,6 +133,8 @@ export async function GET(req: NextRequest) {
     const bucketOf = (l: Lead): CallBucket | null => {
       const appt = nextAppt.get(l.id);
       if (appt) return "booked";
+      // Un lead froid (sequence de relances epuisee) reste visible pour le tri, sans limite de temps.
+      if (l.callStatus === "cold") return "lost";
       if (leadIsOut(l.callStatus)) return (l.lastCallAt ?? "") >= monthAgo ? "lost" : null;
       if (l.stage !== "nouveau" && l.stage !== "contacte" && l.stage !== "conversation") return null;
       switch (l.callStatus) {

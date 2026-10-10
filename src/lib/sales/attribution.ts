@@ -20,7 +20,7 @@
  *  8. UNKNOWN.
  */
 
-import type { DB, Lead, SourceChannel } from "../types";
+import type { DB, Lead, SalesFunnel, SourceChannel } from "../types";
 
 /* ------------------------------ Referentiels -------------------------- */
 
@@ -51,7 +51,23 @@ export const FUNNELS: { key: string; label: string; channel: SourceChannel }[] =
 
 const FUNNEL_BY_KEY = new Map(FUNNELS.map((f) => [f.key, f]));
 
-export const funnelLabel = (key: string) => FUNNEL_BY_KEY.get(key)?.label ?? key ?? "—";
+export const funnelLabel = (key: string, custom?: SalesFunnel[]) => custom?.find((f) => f.key === key)?.label ?? FUNNEL_BY_KEY.get(key)?.label ?? key ?? "—";
+
+/** Funnels par defaut tant que l'admin n'en a pas declare. */
+export const DEFAULT_FUNNELS: SalesFunnel[] = [
+  { key: "lp1_ads", label: "LP1 Ads", channel: "META_ADS", match: "royalscalebymady.fr", script: "" },
+  { key: "organic_masterclass", label: "Masterclass organique", channel: "ORGANIC", match: "", script: "" },
+  { key: "instagram_dm", label: "Instagram DM", channel: "INSTAGRAM", match: "", script: "" },
+];
+
+const needles = (match: string) => match.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+
+/** Le funnel declare qui reconnait cette URL d'opt-in. */
+export function funnelForUrl(url: string, funnels: SalesFunnel[]): SalesFunnel | null {
+  const u = url.toLowerCase();
+  if (!u) return null;
+  return funnels.find((f) => needles(f.match).some((n) => u.includes(n))) ?? null;
+}
 
 /**
  * Landing pages connues. Sans utm ni fbclid, un opt-in sur la LP de la
@@ -103,7 +119,7 @@ const PAID_UTM_MEDIUMS = new Set(["paid", "cpc", "ppc", "ads", "paid_social", "p
 const clean = (v?: string) => (v ?? "").trim();
 const lower = (v?: string) => clean(v).toLowerCase();
 
-export function resolveAcquisitionSource(t: TouchInput): ResolvedSource {
+export function resolveAcquisitionSource(t: TouchInput, funnels: SalesFunnel[] = []): ResolvedSource {
   const hasMetaIds = Boolean(clean(t.campaignId) || clean(t.adsetId) || clean(t.adId));
   const utmSource = lower(t.utmSource);
   const utmMedium = lower(t.utmMedium);
@@ -111,6 +127,10 @@ export function resolveAcquisitionSource(t: TouchInput): ResolvedSource {
 
   // 2. funnel_source explicite
   const funnel = lower(t.funnelSource);
+  const custom = funnel ? funnels.find((f) => f.key.toLowerCase() === funnel) : undefined;
+  if (custom) {
+    return { sourceChannel: custom.channel, funnelSource: custom.key, reliable: custom.channel !== "META_ADS" || hasMetaIds || paidUtm || Boolean(clean(t.fbclid)), via: "funnel_source" };
+  }
   if (funnel && FUNNEL_BY_KEY.has(funnel)) {
     const f = FUNNEL_BY_KEY.get(funnel)!;
     return { sourceChannel: f.channel, funnelSource: f.key, reliable: f.channel === "META_ADS" && (hasMetaIds || paidUtm || Boolean(clean(t.fbclid))) ? true : f.channel !== "META_ADS", via: "funnel_source" };
@@ -126,6 +146,8 @@ export function resolveAcquisitionSource(t: TouchInput): ResolvedSource {
   // 6. landing page connue
   const url = clean(t.landingUrl);
   if (url) {
+    const declared = funnelForUrl(url, funnels);
+    if (declared) return { sourceChannel: declared.channel, funnelSource: declared.key, reliable: declared.channel !== "META_ADS", via: "landing_page" };
     const hit = KNOWN_LANDING_PAGES.find((p) => p.test.test(url));
     if (hit) return { sourceChannel: hit.channel, funnelSource: hit.funnelSource, reliable: false, via: "landing_page" };
   }
@@ -192,8 +214,8 @@ function mirrorFirstTouch(lead: Lead) {
  * a jour ; le first touch seulement quand `canReplaceFirst` l'autorise.
  * Renvoie vrai si l'attribution effective a change.
  */
-export function applyTouch(lead: Lead, touch: TouchInput, at: string = new Date().toISOString()): boolean {
-  const r = resolveAcquisitionSource(touch);
+export function applyTouch(lead: Lead, touch: TouchInput, at: string = new Date().toISOString(), funnels: SalesFunnel[] = []): boolean {
+  const r = resolveAcquisitionSource(touch, funnels);
   lead.lastTouchSourceChannel = r.sourceChannel;
   lead.lastTouchFunnelSource = r.funnelSource;
   lead.lastTouchAt = at;
@@ -308,6 +330,27 @@ export function backfillAttribution(db: DB): number {
       lead.firstTouchReliable = false;
       mirrorFirstTouch(lead);
     }
+  }
+  return n;
+}
+
+/**
+ * Recalcule l'attribution des leads non verrouilles et non fiables (opt-in
+ * sans utm) quand les funnels declares changent. Les attributions payantes
+ * fiables et les corrections manuelles ne bougent pas.
+ */
+export function reattributeFromFunnels(db: DB, funnels: SalesFunnel[]): number {
+  let n = 0;
+  for (const lead of db.leads) {
+    if (lead.attributionLocked || lead.firstTouchReliable || !lead.sourceUrl) continue;
+    const hit = funnelForUrl(lead.sourceUrl, funnels);
+    if (!hit || (lead.firstTouchFunnelSource === hit.key && lead.firstTouchSourceChannel === hit.channel)) continue;
+    lead.firstTouchSourceChannel = hit.channel;
+    lead.firstTouchFunnelSource = hit.key;
+    lead.firstTouchReliable = false;
+    lead.sourceChannel = hit.channel;
+    lead.funnelSource = hit.key;
+    n++;
   }
   return n;
 }

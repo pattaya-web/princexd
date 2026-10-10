@@ -24,6 +24,7 @@ const STATUS: Record<string, string> = {
   "not-interested": "Pas intéressé",
   "wrong-number": "Faux numéro",
   "no-whatsapp": "Pas de WhatsApp",
+  cold: "Lead froid · sans réponse",
 };
 
 /**

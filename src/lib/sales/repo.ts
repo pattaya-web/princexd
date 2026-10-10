@@ -739,6 +739,110 @@ export function updateFollowUp(
   return fu;
 }
 
+/** Meme heure, N jours plus tard. */
+function daysLater(days: number, from = new Date()): string {
+  const d = new Date(from);
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
+/**
+ * Lance la sequence de relances d'un rendez-vous : premiere relance a J+1.
+ * La derniere (J+3) est creee par `followUpNoReply` si la premiere reste
+ * sans reponse.
+ */
+export function startFollowUpSequence(session: Session, appointmentId: string, notes = ""): FollowUp {
+  const db = readDB();
+  const appt = db.appointments.find((a) => a.id === appointmentId);
+  if (!appt) throw new Forbidden("Rendez-vous introuvable.");
+  if (!session.isAdmin && appt.closerId !== session.memberId && appt.setterId !== session.memberId) throw new Forbidden("Ce rendez-vous ne vous est pas attribué.");
+  const now = new Date().toISOString();
+  const fu: FollowUp = {
+    id: newId(),
+    leadId: appt.leadId,
+    appointmentId: appt.id,
+    closerId: appt.closerId || "",
+    dueAt: daysLater(1),
+    notes: notes || "Relance 1/2 (J+1)",
+    status: "pending",
+    createdBy: session.memberId,
+    createdAt: now,
+    completedAt: "",
+    step: 1,
+    log: [{ at: now, actorName: session.memberName || "Moi", kind: "note", note: "Séquence lancée : relance 1 à J+1, dernière relance à J+3, puis lead froid" }],
+  };
+  db.followUps.unshift(fu);
+  const lead = db.leads.find((l) => l.id === appt.leadId);
+  log(db, session, { action: "follow-up.created", entity: "follow-up", entityId: fu.id, summary: `Séquence de relances lancée pour ${lead?.name ?? "un lead"} (J+1 puis J+3)` });
+  writeDB(db);
+  return fu;
+}
+
+/**
+ * « Pas de réponse » sur une relance :
+ *  - relance 1 (ou relance libre) : elle est cloturee et la derniere relance
+ *    est programmee deux jours plus tard (J+3 depuis le depart) ;
+ *  - derniere relance : cloture, le lead passe « froid » (sans reponse), le
+ *    rendez-vous est perdu. Le lead reste en base pour le tri, on ne le
+ *    relance plus.
+ */
+export function followUpNoReply(session: Session, id: string): { next: FollowUp | null; cold: boolean } {
+  const db = readDB();
+  const fu = db.followUps.find((f) => f.id === id);
+  if (!fu) throw new Forbidden("Relance introuvable.");
+  const appt = db.appointments.find((a) => a.id === fu.appointmentId);
+  const own = fu.closerId === session.memberId || appt?.setterId === session.memberId || appt?.closerId === session.memberId;
+  if (!session.isAdmin && !own) throw new Forbidden("Cette relance ne vous est pas attribuée.");
+  const now = new Date().toISOString();
+  const actor = session.memberName || "Moi";
+  const lead = db.leads.find((l) => l.id === fu.leadId);
+  fu.log ??= [];
+  fu.lastContactAt = now;
+
+  if (fu.step !== 2) {
+    fu.status = "done";
+    fu.completedAt = now;
+    fu.log.push({ at: now, actorName: actor, kind: "contact", note: "Relancé, pas de réponse → dernière relance programmée (J+3)" });
+    const next: FollowUp = {
+      id: newId(),
+      leadId: fu.leadId,
+      appointmentId: fu.appointmentId,
+      closerId: fu.closerId,
+      dueAt: daysLater(2),
+      notes: `Dernière relance (J+3)${fu.notes && !fu.notes.startsWith("Relance 1/2") ? ` · ${fu.notes}` : ""}`,
+      status: "pending",
+      createdBy: session.memberId,
+      createdAt: now,
+      completedAt: "",
+      step: 2,
+      log: [{ at: now, actorName: actor, kind: "note", note: "Dernière relance : sans réponse, le lead passera en froid" }],
+    };
+    db.followUps.unshift(next);
+    log(db, session, { action: "follow-up.updated", entity: "follow-up", entityId: fu.id, summary: `${lead?.name ?? "Lead"} relancé sans réponse : dernière relance le ${fmtDualDateTime(next.dueAt)}` });
+    writeDB(db);
+    return { next, cold: false };
+  }
+
+  fu.status = "cancelled";
+  fu.completedAt = now;
+  fu.log.push({ at: now, actorName: actor, kind: "status", note: "Dernière relance sans réponse → lead froid" });
+  if (lead) {
+    lead.callStatus = "cold";
+    lead.lastCallAt = now;
+    lead.stage = "closed-lost";
+    lead.nextAction = "";
+    lead.nextActionAt = "";
+  }
+  if (appt && !isDead(appt.status) && appt.status !== "closed-won") {
+    pushHistory(appt, session, "closed-lost", "Lead froid : sans réponse après deux relances");
+    appt.lostReason = "other";
+    appt.completedAt = appt.completedAt || now;
+  }
+  log(db, session, { action: "lead.cold", entity: "lead", entityId: fu.leadId, summary: `${lead?.name ?? "Lead"} classé lead froid (sans réponse après J+1 et J+3)` });
+  writeDB(db);
+  return { next: null, cold: true };
+}
+
 /* ------------------------------ Commissions ------------------------------ */
 
 /**
