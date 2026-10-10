@@ -1422,6 +1422,18 @@ export interface FollowUp {
   createdBy: ID;
   createdAt: string;
   completedAt: string;
+  /** Journal de la relance : « message envoyé », reports, cloture. */
+  log?: FollowUpLog[];
+  /** Dernier contact effectif avec le prospect (message, appel). */
+  lastContactAt?: string;
+}
+
+export interface FollowUpLog {
+  at: string;
+  actorName: string;
+  /** « contact » : j'ai relancé ; « reschedule » : report ; « note » : commentaire ; « status » : cloture. */
+  kind: "contact" | "reschedule" | "note" | "status";
+  note: string;
 }
 
 /**

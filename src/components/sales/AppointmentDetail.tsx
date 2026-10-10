@@ -9,6 +9,7 @@ import { canConfirm, LOST_REASONS, PAYMENT_TYPES, SALE_STATUSES } from "@/lib/sa
 import { buildSchedule } from "@/lib/sales/installments";
 import { Field, Modal, Spinner, useToast } from "@/components/ui";
 import { ConfirmationSelect, IgHandle, SlotPicker, StatusBadge } from "./bits";
+import { FollowUpPanel } from "./FollowUpPanel";
 import type { PublicMember } from "@/lib/sales/repo";
 import type {
   ActivityLog,
@@ -1239,21 +1240,17 @@ export function AppointmentDetail({
             );
           })()}
 
-          {/* Relances en cours */}
-          {detail.followUps.length > 0 && (
-            <div>
-              <div className="label-xs mb-1.5">Relances</div>
-              <div className="flex flex-col gap-1.5">
-                {detail.followUps.map((f) => (
-                  <div key={f.id} className="card-flat px-3 py-2 flex items-center justify-between gap-3">
-                    <span className="text-[12.5px] num">{fmtDateTime(f.dueAt)}</span>
-                    <span className="text-[12px] flex-1 min-w-0 truncate">{f.notes}</span>
-                    <span className="badge !text-[10px] !py-0">{label(f.status)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Relances : modifiables (date, notes, journal, cloture), nouvelle relance. */}
+          <FollowUpPanel
+            appointmentId={appt.id}
+            followUps={detail.followUps}
+            canEdit={session.isAdmin || canRecord || appt.setterId === session.memberId}
+            onChanged={() => {
+              void load(appt.id);
+              onChanged();
+              window.dispatchEvent(new Event("sales:changed"));
+            }}
+          />
 
           {/* Actions du closer */}
           {canRecord && (

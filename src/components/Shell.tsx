@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { JobsDock } from "./JobsDock";
 import { TodoDock } from "./TodoDock";
+import { AlertsBell } from "./sales/AlertsBell";
 import { useBrollFresh } from "./BrollLibrary";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -740,6 +741,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="hidden md:block shrink-0">
             <Clocks />
           </div>
+          {session && !isEditor && !isVa && !isStudent && (
+            <div className="shrink-0">
+              <AlertsBell />
+            </div>
+          )}
           <div className="shrink-0">
             <ThemeToggle />
           </div>

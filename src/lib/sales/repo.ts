@@ -672,6 +672,73 @@ export function completeFollowUp(session: Session, id: string, status: FollowUp[
   return fu;
 }
 
+/**
+ * Modifie une relance : date (report), notes, journal (« j'ai relancé »),
+ * cloture. L'admin peut tout ; le closer, ses relances ; le setter, celles
+ * de ses leads. Chaque changement laisse une trace dans le journal de la
+ * relance, pour savoir ce qui a ete fait et quand.
+ */
+export function updateFollowUp(
+  session: Session,
+  id: string,
+  patch: { status?: FollowUp["status"]; dueAt?: string; notes?: string; note?: string; contact?: boolean },
+): FollowUp {
+  const db = readDB();
+  const fu = db.followUps.find((f) => f.id === id);
+  if (!fu) throw new Forbidden("Relance introuvable.");
+  const appt = db.appointments.find((a) => a.id === fu.appointmentId);
+  const own = fu.closerId === session.memberId || appt?.setterId === session.memberId || appt?.closerId === session.memberId;
+  if (!session.isAdmin && !own) throw new Forbidden("Cette relance ne vous est pas attribuée.");
+
+  const now = new Date().toISOString();
+  const actor = session.memberName || "Moi";
+  const lead = db.leads.find((l) => l.id === fu.leadId);
+  fu.log ??= [];
+  const summaries: string[] = [];
+
+  if (patch.dueAt && patch.dueAt !== fu.dueAt) {
+    if (Number.isNaN(Date.parse(patch.dueAt))) throw new Error("Date de relance invalide.");
+    fu.log.push({ at: now, actorName: actor, kind: "reschedule", note: `Reportée du ${fmtDualDateTime(fu.dueAt)} au ${fmtDualDateTime(patch.dueAt)}` });
+    summaries.push(`reportée au ${fmtDualDateTime(patch.dueAt)}`);
+    fu.dueAt = patch.dueAt;
+    // Une relance reportee redevient a faire.
+    if (fu.status !== "pending") {
+      fu.status = "pending";
+      fu.completedAt = "";
+    }
+  }
+  if (patch.notes !== undefined && patch.notes !== fu.notes) {
+    fu.notes = patch.notes.slice(0, 2000);
+    summaries.push("notes modifiées");
+  }
+  if (patch.note?.trim()) {
+    const note = patch.note.trim().slice(0, 500);
+    fu.log.push({ at: now, actorName: actor, kind: patch.contact ? "contact" : "note", note });
+    if (patch.contact) fu.lastContactAt = now;
+    summaries.push(patch.contact ? `relancé : ${note}` : `note : ${note}`);
+  } else if (patch.contact) {
+    fu.log.push({ at: now, actorName: actor, kind: "contact", note: "Prospect relancé" });
+    fu.lastContactAt = now;
+    summaries.push("prospect relancé");
+  }
+  if (patch.status && patch.status !== fu.status) {
+    fu.status = patch.status;
+    fu.completedAt = patch.status === "pending" ? "" : now;
+    fu.log.push({ at: now, actorName: actor, kind: "status", note: patch.status === "done" ? "Relance effectuée" : patch.status === "cancelled" ? "Relance abandonnée" : "Relance rouverte" });
+    summaries.push(patch.status === "done" ? "effectuée" : patch.status === "cancelled" ? "abandonnée" : "rouverte");
+  }
+  if (summaries.length) {
+    log(db, session, {
+      action: "follow-up.updated",
+      entity: "follow-up",
+      entityId: fu.id,
+      summary: `Relance de ${lead?.name ?? "un lead"} ${summaries.join(", ")}`,
+    });
+  }
+  writeDB(db);
+  return fu;
+}
+
 /* ------------------------------ Commissions ------------------------------ */
 
 /**

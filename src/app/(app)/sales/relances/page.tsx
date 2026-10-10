@@ -33,15 +33,28 @@ export default function FollowUpsPage() {
     counts: { overdue: number; today: number; upcoming: number };
   }>(`/api/sales/followups?v=${version}`);
 
-  const close = async (id: string, status: "done" | "cancelled") => {
+  const [rescheduling, setRescheduling] = useState<string | null>(null);
+
+  const patch = async (id: string, body: Record<string, unknown>, ok: string) => {
     try {
-      await api(`/api/sales/followups/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
-      toast(status === "done" ? "Relance clôturée." : "Relance annulée.");
+      await api(`/api/sales/followups/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+      toast(ok);
+      setRescheduling(null);
       void reload();
       bump();
+      window.dispatchEvent(new Event("sales:changed"));
     } catch (e) {
       toast((e as Error).message, "err");
     }
+  };
+  const close = (id: string, status: "done" | "cancelled") => patch(id, { status }, status === "done" ? "Relance clôturée." : "Relance annulée.");
+  /** Meme heure, N jours apres aujourd'hui. */
+  const plusDays = (from: string, days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const src = new Date(from);
+    d.setHours(src.getHours(), src.getMinutes(), 0, 0);
+    return d.toISOString();
   };
 
   const rows = data?.rows ?? [];
@@ -106,13 +119,32 @@ export default function FollowUpsPage() {
                       {session.isAdmin && f.closerName && (
                         <span className="badge !text-[10px] !py-0">{f.closerName}</span>
                       )}
-                      <span className="flex gap-1.5 shrink-0">
-                        <button className="btn btn-sm" onClick={() => void close(f.id, "done")}>
-                          Fait
-                        </button>
-                        <button className="btn btn-sm btn-ghost" onClick={() => void close(f.id, "cancelled")}>
-                          Abandonner
-                        </button>
+                      <span className="flex gap-1.5 shrink-0 flex-wrap">
+                        {rescheduling === f.id ? (
+                          <>
+                            {[1, 2, 3, 5, 7].map((d) => (
+                              <button key={d} className="btn btn-sm" onClick={() => void patch(f.id, { dueAt: plusDays(f.dueAt, d) }, `Relance reportée de ${d} jour${d > 1 ? "s" : ""}.`)}>
+                                +{d} j
+                              </button>
+                            ))}
+                            <button className="btn btn-sm btn-ghost" onClick={() => setRescheduling(null)}>✕</button>
+                          </>
+                        ) : (
+                          <>
+                            <button className="btn btn-sm" onClick={() => void close(f.id, "done")}>
+                              Fait
+                            </button>
+                            <button className="btn btn-sm" onClick={() => void patch(f.id, { contact: true }, "Relance notée.")} title="Noter que tu as relancé maintenant">
+                              ✉ Relancé
+                            </button>
+                            <button className="btn btn-sm" onClick={() => setRescheduling(f.id)}>
+                              ↻ Reporter
+                            </button>
+                            <button className="btn btn-sm btn-ghost" onClick={() => void close(f.id, "cancelled")}>
+                              Abandonner
+                            </button>
+                          </>
+                        )}
                       </span>
                     </li>
                   ))}
