@@ -1260,8 +1260,11 @@ export function AppointmentDetail({
                 <button className="btn btn-sm btn-primary" onClick={startRecap} title="Closé ? Pitché ? Infos du lead, budget, commentaire, action à venir">
                   ✎ Récap du call
                 </button>
+                <button className="btn btn-sm" style={{ borderColor: "var(--good)", color: "var(--good)" }} onClick={() => { setRecap(false); setOutcome("completed"); }} title="Le prospect est venu au call (le détail viendra avec le récap)">
+                  ✓ Show
+                </button>
                 <button className="btn btn-sm" onClick={() => { setRecap(false); setOutcome("no-show"); }} title="Le prospect n'est pas venu">
-                  {label("no-show")}
+                  ✗ {label("no-show")}
                 </button>
                 <button className="btn btn-sm" onClick={() => { setRecap(false); setOutcome("rescheduled"); }} title="Décaler ce rendez-vous sans faire de récap">
                   Décaler le rendez-vous

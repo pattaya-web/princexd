@@ -158,5 +158,7 @@ export const CALL_OUTCOMES: AppointmentStatus[] = [
   "closed-lost",
   "follow-up",
   "no-show",
+  // « Show » : le prospect est venu, le resultat detaille viendra avec le recap.
+  "completed",
   "rescheduled",
 ];
