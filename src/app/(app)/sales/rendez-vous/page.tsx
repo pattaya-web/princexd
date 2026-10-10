@@ -7,6 +7,7 @@ import { label, relative } from "@/lib/format";
 import { APPOINTMENT_SOURCES } from "@/lib/sales/constants";
 import { Field, InfoNote, Modal, PageHeader, Toggle, useToast } from "@/components/ui";
 import { AppointmentsBoard } from "@/components/sales/AppointmentsBoard";
+import { CrmBoard } from "@/components/sales/CrmBoard";
 import { AppointmentModal } from "@/components/sales/AppointmentModal";
 import { useSales } from "@/components/sales/context";
 import type { AppointmentSource } from "@/lib/types";
@@ -22,6 +23,8 @@ export default function AppointmentsPage() {
   const toast = useToast();
 
   const [adding, setAdding] = useState(false);
+  /* L'ancien tableau des rendez-vous reste disponible, replie. */
+  const [table, setTable] = useState(false);
   const [importing, setImporting] = useState(false);
   const [running, setRunning] = useState(false);
   const [setterId, setSetterId] = useState("");
@@ -110,9 +113,13 @@ export default function AppointmentsPage() {
   return (
     <>
       <PageHeader
-        title="Rendez-vous"
+        title="CRM"
+        subtitle="Recherche un lead, ou ouvre une vue : « À traiter » te montre ce qui demande une action maintenant."
         actions={
           <>
+            <button className="btn" onClick={() => setTable((v) => !v)} title="Liste détaillée des rendez-vous par période">
+              {table ? "Masquer le tableau" : "Vue tableau"}
+            </button>
             {session.isAdmin && (
               <button className="btn" onClick={() => void openImport()}>
                 Importer iClosed
@@ -127,14 +134,20 @@ export default function AppointmentsPage() {
         }
       />
 
-      <AppointmentsBoard
-        session={session}
-        members={members}
-        period={period}
-        onPeriodChange={setPeriod}
-        onChanged={bump}
-        refreshKey={version}
-      />
+      <CrmBoard session={session} members={members} refreshKey={version} onChanged={bump} />
+
+      {table && (
+        <div className="mt-6">
+          <AppointmentsBoard
+            session={session}
+            members={members}
+            period={period}
+            onPeriodChange={setPeriod}
+            onChanged={bump}
+            refreshKey={version}
+          />
+        </div>
+      )}
 
       <AppointmentModal
         open={adding}

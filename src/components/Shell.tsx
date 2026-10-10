@@ -471,7 +471,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     items: [
       { href: "/sales/dashboard", label: "Sales Dashboard", icon: "◎" },
       { href: "/sales/leads", label: "Leads", icon: "☏" },
-      { href: "/sales/rendez-vous", label: "Rendez-vous", icon: "▤" },
+      { href: "/sales/rendez-vous", label: "CRM", icon: "▤" },
       { href: "/sales/relances", label: "Relances", icon: "↻" },
       { href: "/sales/commissions", label: "Commissions", icon: "▦" },
       { href: "/va/outreach", label: "Outreach VA", icon: "✉" },
