@@ -1,8 +1,8 @@
-import { execFile } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
-import { createHash } from "node:crypto";
-import { promisify } from "node:util";
+import { execFile } from "child_process";
+import fs from "fs";
+import path from "path";
+import { createHash } from "crypto";
+import { promisify } from "util";
 import { isAllowedRemote } from "@/lib/studio/media";
 
 /**

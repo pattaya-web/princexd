@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes } from "crypto";
 import { NextRequest } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
 import { readSession, requireAdmin, requireSales } from "@/lib/sales/access";

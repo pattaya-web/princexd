@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
 import { ensureLocal, MediaError, runFf } from "@/lib/studio/media";
 import { cloneVoice, ElevenLabsError, getElevenLabsKey, isolateVoice } from "@/lib/studio/providers/elevenlabs";
 import { downloadAudio, DownloadError, isSupportedUrl } from "@/lib/ytdlp";

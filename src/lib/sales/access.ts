@@ -1,6 +1,6 @@
-import fs from "node:fs";
-import path from "node:path";
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import fs from "fs";
+import path from "path";
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
 import { readDB } from "../db";
 import type { Session, SessionRole, Student, TeamMember } from "../types";

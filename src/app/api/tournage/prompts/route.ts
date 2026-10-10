@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "node:fs/promises";
-import path from "node:path";
+import fs from "fs/promises";
+import path from "path";
 import { newId } from "@/lib/db";
 import { askVision, parseJsonLoose, uploadToKie } from "@/lib/kie";
 

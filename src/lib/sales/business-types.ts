@@ -59,3 +59,35 @@ export interface LeadBusiness {
   pipelineStage: PipelineStage;
 }
 
+
+/** Une echeance de paiement, en retard ou a venir, lisible depuis le dashboard. */
+export interface DueInstallment {
+  saleId: string;
+  appointmentId: string;
+  leadId: string;
+  leadName: string;
+  /** AAAA-MM-JJ. */
+  dueAt: string;
+  amount: number;
+  /** Numero de l'echeance dans le plan et nombre total. */
+  n: number;
+  of: number;
+  overdue: boolean;
+}
+
+/** Tresorerie des ventes reelles : ce qui est encaisse, ce qui reste, et quand. */
+export interface Cashflow {
+  /** Cash encaisse sur la periode (ventes + encaissements dates dans la periode). */
+  cashInRange: number;
+  /** Cash encaisse depuis le 1er du mois. */
+  cashMonth: number;
+  /** Reste a encaisser sur toutes les ventes actives. */
+  remainingTotal: number;
+  /** Ventes actives avec un reste a encaisser. */
+  pendingSales: number;
+  overdue: DueInstallment[];
+  /** Echeances des 30 prochains jours. */
+  upcoming: DueInstallment[];
+  upcomingTotal: number;
+  overdueTotal: number;
+}

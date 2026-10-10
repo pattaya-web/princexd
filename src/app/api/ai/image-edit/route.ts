@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refuseUnless } from "@/lib/sales/access";
-import fs from "node:fs/promises";
-import path from "node:path";
+import fs from "fs/promises";
+import path from "path";
 import { insert, newId } from "@/lib/db";
 import { getOpenAiKey, OpenAiError } from "@/lib/openai";
 import type { Generation } from "@/lib/types";

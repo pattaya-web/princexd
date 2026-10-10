@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "node:fs";
+import fs from "fs";
 import { ensureRemoteThumb, thumbWidth } from "@/lib/thumbs";
 
 export const dynamic = "force-dynamic";

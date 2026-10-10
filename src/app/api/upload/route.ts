@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refuseUnless } from "@/lib/sales/access";
-import fs from "node:fs/promises";
-import { createWriteStream } from "node:fs";
-import { Readable, Transform } from "node:stream";
-import { pipeline } from "node:stream/promises";
-import path from "node:path";
+import fs from "fs/promises";
+import { createWriteStream } from "fs";
+import { Readable, Transform } from "stream";
+import { pipeline } from "stream/promises";
+import path from "path";
 import { newId } from "@/lib/db";
 
 export const dynamic = "force-dynamic";

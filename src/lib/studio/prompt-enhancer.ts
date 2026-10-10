@@ -1,6 +1,6 @@
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
 import { askText, askVision, KieError } from "@/lib/kie";
 import { getOpenAiKey, OPENAI_BASE } from "@/lib/openai";
 import { ensureLocal, probe, publishToKie, runFf } from "./media";

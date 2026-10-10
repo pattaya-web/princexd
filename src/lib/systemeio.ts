@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { getSettings, newId, readDB, writeDB } from "@/lib/db";
 import { salesMembers } from "@/lib/sales/repo";
 import { memberRoles } from "@/lib/sales/roles";

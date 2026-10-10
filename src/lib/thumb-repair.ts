@@ -1,5 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
+import fs from "fs";
+import path from "path";
 import { fetchMedia, findCreatorMedia, mapThumbnail } from "@/lib/instagram";
 import { cacheImage } from "@/lib/thumb-cache";
 import type { DB } from "@/lib/types";

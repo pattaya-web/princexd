@@ -1,5 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
+import fs from "fs";
+import path from "path";
 import type { CollectionName, DB, Settings } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");

@@ -1,58 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { SourceChip } from "@/components/sales/AttributionBlock";
-import { AttentionCard, GoalCard } from "@/components/sales/DashboardBlocks";
-import type { AttentionBlock, GoalBlock } from "@/app/api/sales/dashboard/route";
-import { Card, Empty, ErrorNote, InfoNote, Modal, PageHeader, Spinner, Tabs } from "@/components/ui";
+import { AttentionCard } from "@/components/sales/DashboardBlocks";
+import { Card, Empty, ErrorNote, Modal, PageHeader, Spinner, Tabs } from "@/components/ui";
 import { api, useLocalState } from "@/lib/client";
 import { fmtDate, fmtDateTime, fmtMoney, label as crmLabel } from "@/lib/format";
 import { RANGE_PRESETS, type RangePreset } from "@/lib/mediabuying/metrics";
-import { funnelLabel, SOURCE_CHANNEL_LABEL } from "@/lib/sales/attribution";
-import { BOOKING_STATUS_LABEL, SALE_STATUS_LABEL } from "@/lib/sales/business-types";
+import { funnelLabel } from "@/lib/sales/attribution";
+import { BOOKING_STATUS_LABEL, SALE_STATUS_LABEL, type DueInstallment } from "@/lib/sales/business-types";
 import type { BusinessGroupRow, BusinessMetrics, BusinessReport, GroupBy, LeadBusiness } from "@/lib/sales/business";
+import type { AttentionBlock } from "@/app/api/sales/dashboard/route";
 
 /* ------------------------------- Formats ------------------------------- */
 
 type Fmt = "int" | "money" | "pct" | "x";
-const KPIS: { key: keyof BusinessMetrics; label: string; fmt: Fmt; ads?: boolean }[] = [
-  { key: "leads", label: "Leads", fmt: "int" },
-  { key: "validLeads", label: "Valid leads", fmt: "int" },
-  { key: "qualifiedLeads", label: "Qualified leads", fmt: "int" },
-  { key: "bookings", label: "Bookings", fmt: "int" },
-  { key: "bookingRate", label: "Booking rate", fmt: "pct" },
-  { key: "shows", label: "Shows", fmt: "int" },
-  { key: "showRate", label: "Show rate", fmt: "pct" },
-  { key: "sales", label: "Sales", fmt: "int" },
-  { key: "closeRate", label: "Close rate", fmt: "pct" },
-  { key: "revenue", label: "Revenue", fmt: "money" },
-  { key: "cashCollected", label: "Cash collected", fmt: "money" },
-  { key: "spend", label: "Spend (ads)", fmt: "money", ads: true },
-  { key: "costPerBooking", label: "Cost / Booking", fmt: "money", ads: true },
-  { key: "costPerShow", label: "Cost / Show", fmt: "money", ads: true },
-  { key: "cac", label: "CAC", fmt: "money", ads: true },
-  { key: "roas", label: "ROAS", fmt: "x", ads: true },
-];
-
-const TABLE_COLS: { key: keyof BusinessMetrics; label: string; fmt: Fmt }[] = [
-  { key: "spend", label: "Spend", fmt: "money" },
-  { key: "leads", label: "Leads", fmt: "int" },
-  { key: "validLeads", label: "Valid", fmt: "int" },
-  { key: "qualifiedLeads", label: "Qualif.", fmt: "int" },
-  { key: "cpl", label: "CPL", fmt: "money" },
-  { key: "bookings", label: "Bookings", fmt: "int" },
-  { key: "bookingRate", label: "Bkg rate", fmt: "pct" },
-  { key: "shows", label: "Shows", fmt: "int" },
-  { key: "showRate", label: "Show rate", fmt: "pct" },
-  { key: "sales", label: "Sales", fmt: "int" },
-  { key: "closeRate", label: "Close rate", fmt: "pct" },
-  { key: "revenue", label: "Revenue", fmt: "money" },
-  { key: "cashCollected", label: "Cash", fmt: "money" },
-  { key: "cac", label: "CAC", fmt: "money" },
-  { key: "roas", label: "ROAS", fmt: "x" },
-];
-
 function fmt(v: number | null | undefined, f: Fmt, currency: string): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
   if (f === "money") return fmtMoney(v, currency);
@@ -61,12 +24,57 @@ function fmt(v: number | null | undefined, f: Fmt, currency: string): string {
   return new Intl.NumberFormat("fr-FR").format(Math.round(v));
 }
 
+const GOOD = "var(--good)";
+const WARN = "var(--warning)";
+const BAD = "var(--critical)";
+
+/** Une case : un chiffre, un libelle, une ligne d'explication. Rien d'autre. */
+function Tile({ label, value, sub, color, big }: { label: string; value: ReactNode; sub?: ReactNode; color?: string; big?: boolean }) {
+  return (
+    <div className="card px-4 py-3.5 min-w-0">
+      <div className="label-xs truncate">{label}</div>
+      <div className={`${big ? "text-[30px]" : "text-[24px]"} font-semibold num leading-none mt-2`} style={{ letterSpacing: "-0.03em", color }}>
+        {value}
+      </div>
+      {sub && <div className="dim text-[11.5px] mt-1.5 truncate">{sub}</div>}
+    </div>
+  );
+}
+
+function Section({ title, hint, children, right }: { title: string; hint?: string; children: ReactNode; right?: ReactNode }) {
+  return (
+    <section className="mb-5">
+      <div className="flex items-baseline justify-between gap-3 mb-2">
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-[15px] font-semibold">{title}</h2>
+          {hint && <span className="dim text-[11.5px]">{hint}</span>}
+        </div>
+        {right}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 const GROUPS: { key: GroupBy; label: string }[] = [
   { key: "source", label: "Source" },
   { key: "funnel", label: "Funnel" },
   { key: "campaign", label: "Campaign" },
   { key: "adset", label: "Ad set" },
   { key: "ad", label: "Creative" },
+];
+
+const TABLE_COLS: { key: keyof BusinessMetrics; label: string; fmt: Fmt; paid?: boolean }[] = [
+  { key: "leads", label: "Leads", fmt: "int" },
+  { key: "bookings", label: "RDV", fmt: "int" },
+  { key: "shows", label: "Shows", fmt: "int" },
+  { key: "showRate", label: "Show rate", fmt: "pct" },
+  { key: "sales", label: "Closés", fmt: "int" },
+  { key: "closeRate", label: "Close rate", fmt: "pct" },
+  { key: "revenue", label: "CA", fmt: "money" },
+  { key: "cashCollected", label: "Cash", fmt: "money" },
+  { key: "spend", label: "Spend", fmt: "money", paid: true },
+  { key: "cac", label: "CAC", fmt: "money", paid: true },
 ];
 
 interface Filters {
@@ -82,23 +90,24 @@ interface Filters {
 const NO_FILTERS: Filters = { source: "", funnel: "", campaignId: "", adsetId: "", adId: "", crmStage: "", bookingStatus: "", saleStatus: "" };
 
 /**
- * Sales Dashboard : un seul tableau de bord pour tout le business, toutes
- * sources confondues, filtre et groupe par source d'acquisition (first
- * touch). Les calculs tournent cote serveur.
+ * Sales Dashboard : les chiffres du business en cases lisibles (calls,
+ * shows, closes, cash, reste a encaisser, echeances), puis la repartition
+ * par source en bas, filtres replies. Calculs cote serveur.
  */
 export default function SalesDashboardPage() {
   const [preset, setPreset] = useLocalState<RangePreset>("sales.dash.preset", "last30");
   const [custom, setCustom] = useState({ from: "", to: "" });
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [groupBy, setGroupBy] = useLocalState<GroupBy>("sales.dash.group", "source");
   const [report, setReport] = useState<BusinessReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<{ row: BusinessGroupRow | null; leads: LeadBusiness[] | null } | null>(null);
   const [view, setView] = useState<"table" | "pipeline">("table");
-  // Ce qu'il y a a regler (resultats a saisir, confirmations, sans closer) et l'objectif du mois.
-  const [ops, setOps] = useState<{ attention: AttentionBlock | null; goal: GoalBlock | null; currency: string; followUps: { overdue: number } } | null>(null);
-  const loadOps = () => api<{ attention: AttentionBlock | null; goal: GoalBlock | null; currency: string; followUps: { overdue: number } }>("/api/sales/dashboard?period=month").then(setOps).catch(() => undefined);
+  const [ops, setOps] = useState<{ attention: AttentionBlock | null; followUps: { overdue: number } } | null>(null);
+
+  const loadOps = () => api<{ attention: AttentionBlock | null; followUps: { overdue: number } }>("/api/sales/dashboard?period=month").then(setOps).catch(() => undefined);
   useEffect(() => {
     void loadOps();
     const on = () => void loadOps();
@@ -145,21 +154,40 @@ export default function SalesDashboardPage() {
 
   const set = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }));
   const o = report?.options;
+  const t = report?.totals;
+  const cf = report?.cashflow;
   const currency = report?.currency ?? "EUR";
   const paidView = !filters.source || filters.source === "META_ADS";
-  const activeFilters = Object.entries(filters).filter(([, v]) => v).length;
-
-  // Cascade : les ad sets suivent la campagne choisie, les creatives l'ad set.
+  const activeFilters = Object.values(filters).filter(Boolean).length;
   const adsets = (o?.adsets ?? []).filter((a) => !filters.campaignId || a.campaignId === filters.campaignId);
   const ads = (o?.ads ?? []).filter((a) => (!filters.adsetId || a.adsetId === filters.adsetId) && (!filters.campaignId || a.campaignId === filters.campaignId));
 
-  const Sel = ({ label, value, onChange, children, disabled }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode; disabled?: boolean }) => (
+  const Sel = ({ label, value, onChange, children, disabled }: { label: string; value: string; onChange: (v: string) => void; children: ReactNode; disabled?: boolean }) => (
     <label className="flex flex-col gap-1 min-w-0">
       <span className="label-xs">{label}</span>
-      <select className="select select-sm !w-auto max-w-[200px]" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+      <select className="select select-sm" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
         {children}
       </select>
     </label>
+  );
+
+  const Due = ({ rows, tone }: { rows: DueInstallment[]; tone: string }) => (
+    <ul className="flex flex-col">
+      {rows.map((d) => (
+        <li key={`${d.saleId}-${d.n}`} style={{ borderBottom: "1px solid var(--border)" }}>
+          <Link href={`/sales/rendez-vous?open=${d.appointmentId}`} className="flex items-center gap-3 px-3.5 py-2 text-[12.5px] row-hover">
+            <span className="num w-[64px] shrink-0" style={{ color: tone }}>
+              {fmtDate(`${d.dueAt}T12:00:00Z`)}
+            </span>
+            <span className="font-medium truncate flex-1">{d.leadName}</span>
+            <span className="dim text-[11px] shrink-0">
+              {d.n}/{d.of}
+            </span>
+            <span className="num font-semibold shrink-0">{fmtMoney(d.amount, currency)}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 
   return (
@@ -176,7 +204,6 @@ export default function SalesDashboardPage() {
     >
       <PageHeader
         title="Sales Dashboard"
-        subtitle="Tout le business en un seul endroit, par source d'acquisition : quel canal, quelle campagne, quelle créative amène les ventes."
         actions={
           <div className="flex items-center gap-1.5 flex-wrap">
             <select className="select select-sm !w-auto" value={preset} onChange={(e) => setPreset(e.target.value as RangePreset)}>
@@ -192,16 +219,96 @@ export default function SalesDashboardPage() {
                 <input className="input !h-[30px] !w-auto !text-[12.5px]" type="date" value={custom.to} onChange={(e) => setCustom({ ...custom, to: e.target.value })} />
               </>
             )}
-            {report && (
-              <span className="dim text-[11.5px] num">
-                {fmtDate(`${report.range.from}T12:00:00Z`)} → {fmtDate(`${report.range.to}T12:00:00Z`)}
-              </span>
-            )}
+            <button className={`btn btn-sm ${filtersOpen || activeFilters ? "btn-primary" : ""}`} onClick={() => setFiltersOpen((v) => !v)}>
+              Filtres{activeFilters ? ` (${activeFilters})` : ""}
+            </button>
             {loading && <span className="spinner" />}
           </div>
         }
       />
+      {report && (
+        <div className="dim text-[11.5px] num -mt-4 mb-4">
+          Période : {fmtDate(`${report.range.from}T12:00:00Z`)} → {fmtDate(`${report.range.to}T12:00:00Z`)} · leads comptés à leur date d&apos;arrivée, leurs calls et ventes suivent.
+        </div>
+      )}
       {error && <div className="mb-3"><ErrorNote>{error}</ErrorNote></div>}
+
+      {filtersOpen && (
+        <Card className="mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Sel label="Source" value={filters.source} onChange={(v) => set({ source: v, funnel: "", campaignId: "", adsetId: "", adId: "" })}>
+              <option value="">Toutes</option>
+              {(o?.sources ?? []).map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label} ({s.n})
+                </option>
+              ))}
+            </Sel>
+            <Sel label="Funnel" value={filters.funnel} onChange={(v) => set({ funnel: v })}>
+              <option value="">Tous</option>
+              {(o?.funnels ?? []).filter((f) => !filters.source || f.channel === filters.source).map((f) => (
+                <option key={f.key} value={f.key}>
+                  {f.label} ({f.n})
+                </option>
+              ))}
+            </Sel>
+            <Sel label="Campaign" value={filters.campaignId} onChange={(v) => set({ campaignId: v, adsetId: "", adId: "" })} disabled={Boolean(filters.source) && filters.source !== "META_ADS"}>
+              <option value="">Toutes</option>
+              {(o?.campaigns ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Sel>
+            <Sel label="Ad set" value={filters.adsetId} onChange={(v) => set({ adsetId: v, adId: "" })} disabled={Boolean(filters.source) && filters.source !== "META_ADS"}>
+              <option value="">Tous</option>
+              {adsets.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </Sel>
+            <Sel label="Creative" value={filters.adId} onChange={(v) => set({ adId: v })} disabled={Boolean(filters.source) && filters.source !== "META_ADS"}>
+              <option value="">Toutes</option>
+              {ads.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </Sel>
+            <Sel label="Statut CRM" value={filters.crmStage} onChange={(v) => set({ crmStage: v })}>
+              <option value="">Tous</option>
+              {(o?.crmStages ?? []).map((s) => (
+                <option key={s} value={s}>
+                  {crmLabel(s)}
+                </option>
+              ))}
+            </Sel>
+            <Sel label="Booking" value={filters.bookingStatus} onChange={(v) => set({ bookingStatus: v })}>
+              <option value="">Tous</option>
+              {Object.entries(BOOKING_STATUS_LABEL).map(([k, l]) => (
+                <option key={k} value={k}>
+                  {l}
+                </option>
+              ))}
+            </Sel>
+            <Sel label="Vente" value={filters.saleStatus} onChange={(v) => set({ saleStatus: v })}>
+              <option value="">Tous</option>
+              {Object.entries(SALE_STATUS_LABEL).map(([k, l]) => (
+                <option key={k} value={k}>
+                  {l}
+                </option>
+              ))}
+            </Sel>
+            <div className="flex items-end">
+              <button className="btn btn-sm" onClick={() => setFilters(NO_FILTERS)} disabled={!activeFilters}>
+                Réinitialiser
+              </button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {ops && ops.followUps.overdue > 0 && (
         <Link href="/sales/relances" className="block mb-4">
           <div className="rounded-lg px-3.5 py-2.5 text-[12.5px] flex items-center gap-2" style={{ background: "color-mix(in srgb, var(--warning) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--warning) 35%, transparent)" }}>
@@ -211,225 +318,154 @@ export default function SalesDashboardPage() {
         </Link>
       )}
       {ops?.attention && <AttentionCard block={ops.attention} />}
-      {ops?.goal && (
-        <div className="mb-4">
-          <GoalCard goal={ops.goal} currency={ops.currency} onSaved={() => void loadOps()} />
-        </div>
-      )}
-      {report?.hasMock && (
-        <div className="mb-3">
-          <InfoNote>
-            Les chiffres incluent les leads de démonstration du compte Meta simulé (jamais écrits dans le CRM). Ils disparaîtront avec le vrai compte. Les bookings viennent des rendez-vous, les ventes des récaps de call : une seule entité Lead.
-          </InfoNote>
-        </div>
-      )}
-
-      {/* Filtres en cascade */}
-      <Card padded={false} className="mb-4">
-        <div className="flex flex-wrap items-end gap-3 px-4 py-3">
-          <Sel label="Source" value={filters.source} onChange={(v) => set({ source: v, funnel: "", campaignId: "", adsetId: "", adId: "" })}>
-            <option value="">Tous</option>
-            {(o?.sources ?? []).map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label} ({s.n})
-              </option>
-            ))}
-          </Sel>
-          <Sel label="Funnel" value={filters.funnel} onChange={(v) => set({ funnel: v })}>
-            <option value="">Tous</option>
-            {(o?.funnels ?? []).filter((f) => !filters.source || f.channel === filters.source).map((f) => (
-              <option key={f.key} value={f.key}>
-                {f.label} ({f.n})
-              </option>
-            ))}
-          </Sel>
-          <Sel label="Campaign" value={filters.campaignId} onChange={(v) => set({ campaignId: v, adsetId: "", adId: "" })} disabled={Boolean(filters.source) && filters.source !== "META_ADS"}>
-            <option value="">Toutes</option>
-            {(o?.campaigns ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Sel>
-          <Sel label="Ad set" value={filters.adsetId} onChange={(v) => set({ adsetId: v, adId: "" })} disabled={Boolean(filters.source) && filters.source !== "META_ADS"}>
-            <option value="">Tous</option>
-            {adsets.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </Sel>
-          <Sel label="Creative" value={filters.adId} onChange={(v) => set({ adId: v })} disabled={Boolean(filters.source) && filters.source !== "META_ADS"}>
-            <option value="">Toutes</option>
-            {ads.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </Sel>
-          <Sel label="CRM status" value={filters.crmStage} onChange={(v) => set({ crmStage: v })}>
-            <option value="">Tous</option>
-            {(o?.crmStages ?? []).map((s) => (
-              <option key={s} value={s}>
-                {crmLabel(s)}
-              </option>
-            ))}
-          </Sel>
-          <Sel label="Booking status" value={filters.bookingStatus} onChange={(v) => set({ bookingStatus: v })}>
-            <option value="">Tous</option>
-            {Object.entries(BOOKING_STATUS_LABEL).map(([k, l]) => (
-              <option key={k} value={k}>
-                {l}
-              </option>
-            ))}
-          </Sel>
-          <Sel label="Sale status" value={filters.saleStatus} onChange={(v) => set({ saleStatus: v })}>
-            <option value="">Tous</option>
-            {Object.entries(SALE_STATUS_LABEL).map(([k, l]) => (
-              <option key={k} value={k}>
-                {l}
-              </option>
-            ))}
-          </Sel>
-          {activeFilters > 0 && (
-            <button className="btn btn-sm" onClick={() => setFilters(NO_FILTERS)}>
-              ✕ Réinitialiser ({activeFilters})
-            </button>
-          )}
-        </div>
-      </Card>
 
       {!report && loading && <Spinner label="Calcul du dashboard…" />}
-      {report && (
+      {report && t && cf && (
         <>
-          {/* KPI */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
-            {KPIS.map((k) => {
-              const v = report.totals[k.key];
-              const na = k.ads && (!paidView || v === null);
-              return (
-                <div key={k.key} className="card px-3 py-2.5 min-w-0" style={k.ads ? { background: "var(--surface-2)" } : undefined}>
-                  <div className="label-xs truncate" title={k.ads ? "Métrique payante : calculée sur la dépense Meta" : undefined}>
-                    {k.label}
-                  </div>
-                  <div className="text-[19px] sm:text-[21px] font-semibold num leading-none mt-1.5" style={{ letterSpacing: "-0.03em", color: na ? "var(--text-3)" : undefined }}>
-                    {na ? "—" : fmt(v as number | null, k.fmt, currency)}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {!paidView && <div className="dim text-[11.5px] -mt-2 mb-4">Source sans dépense publicitaire : Spend, CAC et ROAS ne sont pas inventés. Les métriques commerciales restent calculées.</div>}
+          <Section title="Calls" hint="sur la période">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+              <Tile label="Leads" value={fmt(t.leads, "int", currency)} sub={`${fmt(t.qualifiedLeads, "int", currency)} qualifiés`} />
+              <Tile label="Rendez-vous" value={fmt(t.bookings, "int", currency)} sub={`Booking rate ${fmt(t.bookingRate, "pct", currency)}`} />
+              <Tile label="Shows" value={fmt(t.shows, "int", currency)} color={t.shows ? GOOD : undefined} sub="venus au call" />
+              <Tile label="No-shows" value={fmt(t.noShows, "int", currency)} color={t.noShows ? BAD : undefined} sub="pas venus" />
+              <Tile label="Show rate" value={fmt(t.showRate, "pct", currency)} color={t.showRate === null ? undefined : t.showRate >= 70 ? GOOD : t.showRate >= 50 ? WARN : BAD} sub="shows / calls passés" big />
+              <Tile label="À venir" value={fmt(t.upcomingCalls, "int", currency)} sub="calls planifiés" />
+            </div>
+          </Section>
 
-          {/* Table groupée / pipeline */}
-          <Card
-            padded={false}
-            title={
-              <span className="flex items-center gap-3 flex-wrap">
-                <Tabs value={view} onChange={setView} options={[{ value: "table", label: "Par source" }, { value: "pipeline", label: "Pipeline" }]} />
-              </span>
-            }
-            actions={
-              view === "table" ? (
-                <div className="flex items-center gap-1.5">
-                  <span className="label-xs">Group by</span>
-                  {GROUPS.map((g) => (
-                    <button key={g.key} className={`btn btn-sm ${groupBy === g.key ? "btn-primary" : ""}`} onClick={() => setGroupBy(g.key)}>
-                      {g.label}
-                    </button>
-                  ))}
-                  <button className="btn btn-sm btn-ghost" onClick={() => void openDetail(null)} title="Tous les leads de la sélection">
-                    Leads ↗
-                  </button>
-                </div>
-              ) : undefined
+          <Section title="Ventes" hint="sur la période">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+              <Tile label="Closés" value={fmt(t.sales, "int", currency)} color={t.sales ? GOOD : undefined} sub={`Close rate ${fmt(t.closeRate, "pct", currency)}`} big />
+              <Tile label="CA (contrats)" value={fmt(t.revenue, "money", currency)} sub="valeur des contrats signés" />
+              <Tile label="Cash encaissé" value={fmt(t.cashCollected, "money", currency)} color={t.cashCollected ? GOOD : undefined} sub="sur ces ventes" />
+              <Tile label="Cash ce mois" value={fmt(cf.cashMonth, "money", currency)} sub="encaissé depuis le 1er" />
+              <Tile label="Reste à encaisser" value={fmt(cf.remainingTotal, "money", currency)} color={cf.remainingTotal ? WARN : undefined} sub="toutes ventes actives" />
+              <Tile label="Paiement en attente" value={fmt(cf.pendingSales, "int", currency)} color={cf.pendingSales ? WARN : undefined} sub={cf.overdueTotal ? `dont ${fmtMoney(cf.overdueTotal, currency)} en retard` : "ventes pas soldées"} />
+            </div>
+          </Section>
+
+          <Section title="Échéances" hint="d'après les échéanciers saisis sur les ventes">
+            <div className="grid lg:grid-cols-2 gap-3">
+              <Card
+                padded={false}
+                title={
+                  <span className="flex items-center gap-2 !text-[14px]">
+                    <span className="w-[8px] h-[8px] rounded-full" style={{ background: BAD }} />
+                    En retard
+                    <span className="badge !text-[10.5px] !py-0 num">{cf.overdue.length}</span>
+                  </span>
+                }
+                subtitle={cf.overdue.length ? `${fmtMoney(cf.overdueTotal, currency)} attendus, date dépassée` : "Aucune échéance en retard"}
+              >
+                {cf.overdue.length ? <Due rows={cf.overdue} tone={BAD} /> : <div className="dim text-[12.5px] px-3.5 py-4">Rien en retard ✓</div>}
+              </Card>
+              <Card
+                padded={false}
+                title={
+                  <span className="flex items-center gap-2 !text-[14px]">
+                    <span className="w-[8px] h-[8px] rounded-full" style={{ background: "var(--accent)" }} />
+                    À venir · 30 jours
+                    <span className="badge !text-[10.5px] !py-0 num">{cf.upcoming.length}</span>
+                  </span>
+                }
+                subtitle={cf.upcoming.length ? `${fmtMoney(cf.upcomingTotal, currency)} à encaisser` : "Aucune échéance dans les 30 jours"}
+              >
+                {cf.upcoming.length ? <Due rows={cf.upcoming} tone="var(--accent)" /> : <div className="dim text-[12.5px] px-3.5 py-4">Les paiements en plusieurs fois apparaissent ici avec leur date.</div>}
+              </Card>
+            </div>
+          </Section>
+
+          {paidView && t.spend !== null && (
+            <Section title="Acquisition payante" hint="Meta Ads">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                <Tile label="Spend" value={fmt(t.spend, "money", currency)} />
+                <Tile label="CPL" value={fmt(t.cpl, "money", currency)} />
+                <Tile label="Coût / RDV" value={fmt(t.costPerBooking, "money", currency)} />
+                <Tile label="Coût / show" value={fmt(t.costPerShow, "money", currency)} />
+                <Tile label="CAC" value={fmt(t.cac, "money", currency)} />
+                <Tile label="ROAS" value={fmt(t.roas, "x", currency)} color={t.roas !== null && t.roas >= 3 ? GOOD : undefined} />
+              </div>
+            </Section>
+          )}
+
+          <Section
+            title="Par source"
+            hint="d'où viennent les calls et les ventes"
+            right={
+              <div className="flex items-center gap-1.5">
+                <Tabs value={view} onChange={setView} options={[{ value: "table", label: "Répartition" }, { value: "pipeline", label: "Pipeline" }]} />
+              </div>
             }
           >
-            {view === "pipeline" ? (
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 p-3">
-                {report.pipeline.map((p, i) => (
-                  <div key={p.key} className="card-flat px-3 py-2.5" style={{ borderTop: `3px solid ${p.key === "CLOSED_WON" ? "var(--good)" : p.key === "CLOSED_LOST" ? "var(--critical)" : "var(--accent)"}`, opacity: 0.6 + (i / report.pipeline.length) * 0.4 }}>
-                    <div className="label-xs">{p.label}</div>
-                    <div className="text-[22px] font-semibold num">{p.n}</div>
-                  </div>
-                ))}
-                <div className="col-span-full dim text-[11.5px] px-1">Même leads que le CRM, lus par étape : aucune duplication de contact.</div>
-              </div>
-            ) : report.rows.length === 0 ? (
-              <Empty>Aucun lead sur cette période avec ces filtres.</Empty>
-            ) : (
-              <div className="scroll-x">
-                <table className="table" style={{ minWidth: 1100 }}>
-                  <thead>
-                    <tr>
-                      <th>{GROUPS.find((g) => g.key === groupBy)?.label}</th>
-                      {TABLE_COLS.map((c) => (
-                        <th key={c.key} className="!text-right whitespace-nowrap">
-                          {c.label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.rows.map((r) => (
-                      <tr key={r.key} className="cursor-pointer" onClick={() => void openDetail(r)} title="Voir les leads">
-                        <td className="min-w-[200px] max-w-[320px]">
-                          <div className="flex items-center gap-2 min-w-0">
-                            {groupBy === "source" ? <SourceChip channel={r.sourceChannel || "UNKNOWN"} /> : <span className="text-[13px] font-medium truncate">{r.label}</span>}
-                            {groupBy !== "source" && r.sourceChannel && <SourceChip channel={r.sourceChannel} />}
-                          </div>
-                        </td>
-                        {TABLE_COLS.map((c) => {
-                          const v = r.metrics[c.key];
-                          const strong = c.key === "sales" || c.key === "shows" || c.key === "bookings";
-                          return (
-                            <td key={c.key} className={`text-right num whitespace-nowrap ${strong ? "font-semibold" : ""}`} style={v === null ? { color: "var(--text-3)" } : undefined}>
-                              {fmt(v as number | null, c.fmt, currency)}
-                            </td>
-                          );
-                        })}
-                      </tr>
+            <Card padded={false}>
+              {view === "pipeline" ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 p-3">
+                  {report.pipeline.map((p) => (
+                    <div key={p.key} className="card-flat px-3 py-2.5" style={{ borderTop: `3px solid ${p.key === "CLOSED_WON" ? GOOD : p.key === "CLOSED_LOST" ? BAD : "var(--accent)"}` }}>
+                      <div className="label-xs">{p.label}</div>
+                      <div className="text-[22px] font-semibold num">{p.n}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center gap-1.5 px-3.5 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <span className="label-xs mr-1">Grouper par</span>
+                    {GROUPS.map((g) => (
+                      <button key={g.key} className={`btn btn-sm !h-[26px] ${groupBy === g.key ? "btn-primary" : ""}`} onClick={() => setGroupBy(g.key)}>
+                        {g.label}
+                      </button>
                     ))}
-                    <tr style={{ background: "var(--surface-2)" }}>
-                      <td className="font-semibold">Total</td>
-                      {TABLE_COLS.map((c) => (
-                        <td key={c.key} className="text-right num font-semibold whitespace-nowrap">
-                          {fmt(report.totals[c.key] as number | null, c.fmt, currency)}
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <div className="px-4 py-2 dim text-[11px] flex flex-wrap gap-x-4 gap-y-1">
-              <span>Priorité : vente &gt; show &gt; booking &gt; lead qualifié &gt; lead. Un CPL bas ne fait pas une bonne créative.</span>
-              <span>Cohorte par date d&apos;acquisition (first touch) ; les bookings et ventes suivent leurs leads.</span>
-              {!report.metaConnected && (
-                <Link href="/mediabuying/connections" className="link">
-                  Connecter Meta pour la dépense →
-                </Link>
+                    <button className="btn btn-sm btn-ghost !h-[26px] ml-auto" onClick={() => void openDetail(null)}>
+                      Voir les leads ↗
+                    </button>
+                  </div>
+                  {report.rows.length === 0 ? (
+                    <Empty>Aucun lead sur cette période.</Empty>
+                  ) : (
+                    <div className="scroll-x">
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>{GROUPS.find((g) => g.key === groupBy)?.label}</th>
+                            {TABLE_COLS.filter((c) => !c.paid || paidView).map((c) => (
+                              <th key={c.key} className="!text-right whitespace-nowrap">
+                                {c.label}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {report.rows.map((r) => (
+                            <tr key={r.key} className="cursor-pointer" onClick={() => void openDetail(r)} title="Voir les leads">
+                              <td className="min-w-[160px] max-w-[300px]">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {groupBy === "source" ? <SourceChip channel={r.sourceChannel || "UNKNOWN"} /> : <span className="text-[13px] font-medium truncate">{r.label}</span>}
+                                </div>
+                              </td>
+                              {TABLE_COLS.filter((c) => !c.paid || paidView).map((c) => {
+                                const v = r.metrics[c.key];
+                                return (
+                                  <td key={c.key} className={`text-right num whitespace-nowrap ${c.key === "sales" || c.key === "shows" ? "font-semibold" : ""}`} style={v === null ? { color: "var(--text-3)" } : undefined}>
+                                    {fmt(v as number | null, c.fmt, currency)}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
               )}
-            </div>
-          </Card>
+            </Card>
+          </Section>
+          {report.hasMock && <div className="dim text-[11px]">Les chiffres incluent les leads de démonstration du compte Meta simulé ; ils disparaîtront avec le vrai compte.</div>}
         </>
       )}
 
-      {/* Detail : les leads derriere une ligne */}
-      <Modal open={detail !== null} onClose={() => setDetail(null)} title={detail?.row ? `${detail.row.label} · détail` : "Leads de la sélection"} wide>
-        {detail?.row && (
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
-            {(["spend", "leads", "bookings", "shows", "sales", "revenue"] as (keyof BusinessMetrics)[]).map((k) => {
-              const def = TABLE_COLS.find((c) => c.key === k)!;
-              return (
-                <div key={k} className="card-flat px-3 py-2">
-                  <div className="label-xs">{def.label}</div>
-                  <div className="text-[16px] font-semibold num">{fmt(detail.row!.metrics[k] as number | null, def.fmt, currency)}</div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      <Modal open={detail !== null} onClose={() => setDetail(null)} title={detail?.row ? `${detail.row.label} · leads` : "Leads de la sélection"} wide>
         {!detail?.leads ? (
           <Spinner label="Chargement des leads…" />
         ) : detail.leads.length === 0 ? (
@@ -440,13 +476,11 @@ export default function SalesDashboardPage() {
               <thead>
                 <tr>
                   <th>Lead</th>
-                  <th>Acquisition</th>
+                  <th>Arrivé</th>
                   <th>Source</th>
-                  <th>Créative</th>
-                  <th>Booking</th>
                   <th>Call</th>
                   <th>Vente</th>
-                  <th className="!text-right">Revenue</th>
+                  <th className="!text-right">CA</th>
                   <th className="!text-right">Cash</th>
                 </tr>
               </thead>
@@ -466,15 +500,10 @@ export default function SalesDashboardPage() {
                       <div className="dim text-[11px]">{funnelLabel(l.funnelSource)}</div>
                     </td>
                     <td className="text-[12px]">
-                      {l.adName || "—"}
-                      {l.campaignName && <div className="dim text-[10.5px] truncate max-w-[180px]">{l.campaignName}</div>}
-                    </td>
-                    <td className="text-[12px]">
                       {l.bookingStatus ? BOOKING_STATUS_LABEL[l.bookingStatus] : "—"}
                       {l.appointmentAt && <div className="dim text-[10.5px] num">{fmtDateTime(l.appointmentAt)}</div>}
                     </td>
-                    <td className="text-[12px]">{l.showStatus === "SHOWED" ? "Showed" : l.showStatus === "NO_SHOW" ? "No-show" : l.showStatus === "PENDING" ? "À venir" : "—"}</td>
-                    <td className="text-[12px]" style={{ color: l.saleStatus === "WON" ? "var(--good)" : l.saleStatus === "LOST" ? "var(--critical)" : undefined }}>
+                    <td className="text-[12px]" style={{ color: l.saleStatus === "WON" ? GOOD : l.saleStatus === "LOST" ? BAD : undefined }}>
                       {SALE_STATUS_LABEL[l.saleStatus]}
                     </td>
                     <td className="text-right num">{l.revenue ? fmtMoney(l.revenue, l.currency) : "—"}</td>
@@ -485,9 +514,6 @@ export default function SalesDashboardPage() {
             </table>
           </div>
         )}
-        <div className="dim text-[11px] mt-3">
-          Source affichée = first touch. {SOURCE_CHANNEL_LABEL.INSTAGRAM} après une pub Meta reste une interaction, pas la source.
-        </div>
       </Modal>
     </div>
   );

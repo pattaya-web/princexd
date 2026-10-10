@@ -1,8 +1,8 @@
-import { execFile } from "node:child_process";
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import { promisify } from "node:util";
+import { execFile } from "child_process";
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
+import { promisify } from "util";
 import { MAX_UPLOAD_BYTES } from "./openai";
 
 const run = promisify(execFile);

@@ -15,7 +15,7 @@ import { dayIn } from "../mediabuying/metrics";
 import type { DateRange, MetaSnapshot } from "../mediabuying/types";
 import { mockBusinessData } from "./mock-leads";
 import { backfillAttribution, ensureFunnelsV2, FUNNELS, funnelLabel, SOURCE_CHANNEL_LABEL } from "./attribution";
-import { PIPELINE_STAGES, type BookingStatus, type LeadBusiness, type PipelineStage, type SaleStatusView, type ShowStatus } from "./business-types";
+import { PIPELINE_STAGES, type BookingStatus, type Cashflow, type DueInstallment, type LeadBusiness, type PipelineStage, type SaleStatusView, type ShowStatus } from "./business-types";
 
 export * from "./business-types";
 import { writeDB } from "../db";
@@ -188,6 +188,9 @@ export interface BusinessMetrics {
   bookings: number;
   bookingRate: number | null;
   shows: number;
+  noShows: number;
+  /** Calls encore a venir (planifies, pas encore passes). */
+  upcomingCalls: number;
   showRate: number | null;
   sales: number;
   closeRate: number | null;
@@ -225,6 +228,7 @@ export interface BusinessOptions {
 
 export interface BusinessReport {
   range: DateRange;
+  cashflow: Cashflow;
   currency: string;
   totals: BusinessMetrics;
   rows: BusinessGroupRow[];
@@ -241,6 +245,8 @@ function metricsOf(rows: LeadBusiness[], spend: number | null): BusinessMetrics 
   let qualifiedLeads = 0;
   let bookings = 0;
   let shows = 0;
+  let noShows = 0;
+  let upcomingCalls = 0;
   let sales = 0;
   let revenue = 0;
   let cashCollected = 0;
@@ -249,6 +255,8 @@ function metricsOf(rows: LeadBusiness[], spend: number | null): BusinessMetrics 
     if (r.qualifiedLead) qualifiedLeads++;
     if (r.bookingStatus && r.bookingStatus !== "CANCELLED") bookings++;
     if (r.bookingStatus === "SHOWED") shows++;
+    if (r.bookingStatus === "NO_SHOW") noShows++;
+    if (r.bookingStatus === "SCHEDULED") upcomingCalls++;
     if (r.saleStatus === "WON") {
       sales++;
       revenue += r.revenue;
@@ -263,7 +271,9 @@ function metricsOf(rows: LeadBusiness[], spend: number | null): BusinessMetrics 
     bookings,
     bookingRate: leads > 0 ? (bookings / leads) * 100 : null,
     shows,
-    showRate: bookings > 0 ? (shows / bookings) * 100 : null,
+    noShows,
+    upcomingCalls,
+    showRate: shows + noShows > 0 ? (shows / (shows + noShows)) * 100 : null,
     sales,
     closeRate: shows > 0 ? (sales / shows) * 100 : null,
     revenue,
@@ -322,6 +332,54 @@ function matches(r: LeadBusiness, f: BusinessFilters): boolean {
 }
 
 const isPaid = (channel: SourceChannel | "", funnel: string) => channel === "META_ADS" || FUNNELS.find((f) => f.key === funnel)?.channel === "META_ADS";
+
+/**
+ * Tresorerie des ventes REELLES (jamais les ventes de demonstration) : cash
+ * encaisse, reste du, echeances en retard et a venir, d'apres les
+ * echeanciers et encaissements saisis sur chaque vente.
+ */
+export function cashflowOf(db: DB, range: DateRange, tz = "Europe/Paris"): Cashflow {
+  const today = dayIn(tz);
+  const monthStart = `${today.slice(0, 7)}-01`;
+  const in30 = (() => {
+    const d = new Date(`${today}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 30);
+    return d.toISOString().slice(0, 10);
+  })();
+  const leadName = new Map(db.leads.map((l) => [l.id, l.name]));
+  const out: Cashflow = { cashInRange: 0, cashMonth: 0, remainingTotal: 0, pendingSales: 0, overdue: [], upcoming: [], upcomingTotal: 0, overdueTotal: 0 };
+  for (const s of db.sales) {
+    if (s.status === "cancelled") continue;
+    const refund = s.refundAmount || 0;
+    const cash = Math.max(0, (s.cashCollected || 0) - refund);
+    const remaining = Math.max(0, s.contractValue - refund - cash);
+    out.remainingTotal += remaining;
+    if (remaining > 0) out.pendingSales++;
+    /*
+     * Cash date : les encaissements enregistres font foi ; a defaut, le cash
+     * de la vente est date du jour de la vente (comptant ou acompte).
+     */
+    const dated: { at: string; amount: number }[] = (s.collections ?? []).map((c) => ({ at: c.at.slice(0, 10), amount: c.amount }));
+    const datedSum = dated.reduce((n, c) => n + c.amount, 0);
+    if (cash - datedSum > 0.005) dated.push({ at: s.soldAt.slice(0, 10), amount: cash - datedSum });
+    for (const c of dated) {
+      if (c.at >= range.from && c.at <= range.to) out.cashInRange += c.amount;
+      if (c.at >= monthStart && c.at <= today) out.cashMonth += c.amount;
+    }
+    const plan = s.schedule ?? [];
+    for (const i of plan) {
+      if (i.paidAt || i.amount <= 0) continue;
+      const row: DueInstallment = { saleId: s.id, appointmentId: s.appointmentId, leadId: s.leadId, leadName: leadName.get(s.leadId) ?? "Lead", dueAt: i.dueAt, amount: i.amount, n: i.n, of: plan.length, overdue: i.dueAt < today };
+      if (row.overdue) out.overdue.push(row);
+      else if (i.dueAt <= in30) out.upcoming.push(row);
+    }
+  }
+  out.overdue.sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+  out.upcoming.sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+  out.overdueTotal = out.overdue.reduce((n, r) => n + r.amount, 0);
+  out.upcomingTotal = out.upcoming.reduce((n, r) => n + r.amount, 0);
+  return out;
+}
 
 export function aggregateBusiness(db: DB, opts: { range: DateRange; filters: BusinessFilters; groupBy: GroupBy }): BusinessReport {
   const ds = businessDataset(db);
@@ -419,6 +477,7 @@ export function aggregateBusiness(db: DB, opts: { range: DateRange; filters: Bus
 
   return {
     range,
+    cashflow: cashflowOf(db, range, ds.tz),
     currency: ds.currency,
     totals,
     rows: groupRows,
