@@ -122,6 +122,7 @@ export default function LeadsPage() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [funnels, setFunnels] = useState<SalesFunnel[]>(DEFAULT_FUNNELS);
+  const [reoptinFunnel, setReoptinFunnel] = useState<string | null>(null);
   const [funnelsOpen, setFunnelsOpen] = useState(false);
   const [scriptFor, setScriptFor] = useState<{ funnel: SalesFunnel; lead: CallLeadRow } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -140,7 +141,13 @@ export default function LeadsPage() {
     ownerMemberId: string;
   }>(`/api/sales/leads?v=${version}`, { every: 15_000 });
 
-  const loadFunnels = () => api<{ rows: SalesFunnel[] }>("/api/sales/funnels").then((r) => setFunnels(r.rows)).catch(() => undefined);
+  const loadFunnels = () =>
+    api<{ rows: SalesFunnel[]; reoptinFunnel?: string | null }>("/api/sales/funnels")
+      .then((r) => {
+        setFunnels(r.rows);
+        setReoptinFunnel(r.reoptinFunnel ?? null);
+      })
+      .catch(() => undefined);
   useEffect(() => {
     void loadFunnels();
   }, []);
@@ -554,6 +561,7 @@ export default function LeadsPage() {
       {funnelsOpen && (
         <FunnelsModal
           funnels={funnels}
+          reoptinFunnel={reoptinFunnel}
           onClose={() => setFunnelsOpen(false)}
           onSaved={() => {
             void loadFunnels();
@@ -602,16 +610,18 @@ function ScriptModal({ funnel, lead, onClose }: { funnel: SalesFunnel; lead: Cal
 
 /* ------------------------------ Funnels (admin) ------------------------- */
 
-function FunnelsModal({ funnels, onClose, onSaved }: { funnels: SalesFunnel[]; onClose: () => void; onSaved: () => void }) {
+function FunnelsModal({ funnels, reoptinFunnel, onClose, onSaved }: { funnels: SalesFunnel[]; reoptinFunnel: string | null; onClose: () => void; onSaved: () => void }) {
   const toast = useToast();
   const [rows, setRows] = useState<SalesFunnel[]>(funnels.map((f) => ({ ...f })));
   const [busy, setBusy] = useState(false);
   const [reattribute, setReattribute] = useState(true);
+  // null = « le premier funnel Meta Ads » (défaut), "" = ne rien changer, sinon la clé d'un funnel.
+  const [reoptin, setReoptin] = useState<string | null>(reoptinFunnel);
   const set = (i: number, patch: Partial<SalesFunnel>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const save = async () => {
     setBusy(true);
     try {
-      const r = await api<{ rows: SalesFunnel[]; reattributed: number }>("/api/sales/funnels", { method: "PUT", body: JSON.stringify({ rows, reattribute }) });
+      const r = await api<{ rows: SalesFunnel[]; reattributed: number }>("/api/sales/funnels", { method: "PUT", body: JSON.stringify({ rows, reattribute, reoptinFunnel: reoptin }) });
       toast(`Funnels enregistrés${r.reattributed ? ` · ${r.reattributed} lead(s) réattribué(s)` : ""}.`);
       onSaved();
       onClose();
@@ -669,6 +679,20 @@ function FunnelsModal({ funnels, onClose, onSaved }: { funnels: SalesFunnel[]; o
         <button className="btn btn-sm self-start" onClick={() => setRows((r) => [...r, { key: "", label: "", channel: "ORGANIC", match: "", script: "" }])}>
           + Funnel
         </button>
+      </div>
+      <div className="card-flat p-3 mt-4">
+        <Field label="Réinscription dont Systeme.io ne dit pas la page → funnel">
+          <select className="select !h-[34px]" value={reoptin === null ? "__ads__" : reoptin} onChange={(e) => setReoptin(e.target.value === "__ads__" ? null : e.target.value)}>
+            <option value="__ads__">Le premier funnel Meta Ads (défaut)</option>
+            <option value="">Ne rien changer (garder le funnel historique)</option>
+            {rows.filter((f) => f.key).map((f) => (
+              <option key={f.key} value={f.key}>{f.label || f.key}</option>
+            ))}
+          </select>
+        </Field>
+        <p className="dim text-[12px] mt-2">
+          Un contact déjà inscrit chez Systeme.io qui se réinscrit (par exemple via la pub) arrive par le webhook avec l&apos;URL de sa première inscription, pas celle du jour. Pour avoir la page exacte, ajoute dans le funnel Systeme.io une règle d&apos;automatisation « formulaire d&apos;étape soumis → envoyer un webhook » vers <span className="mono">/api/webhooks/systemeio</span> : ce réglage ne sert alors plus.
+        </p>
       </div>
     </Modal>
   );

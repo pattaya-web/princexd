@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const before = db.settings.salesFunnelsV2At;
     ensureFunnelsV2(db);
     if (before !== db.settings.salesFunnelsV2At) writeDB(db);
-    return { rows: funnelsOf(db), custom: Boolean(db.settings.salesFunnels) };
+    return { rows: funnelsOf(db), custom: Boolean(db.settings.salesFunnels), reoptinFunnel: db.settings.systemeioReoptinFunnel ?? null };
   });
 }
 
@@ -36,7 +36,7 @@ const slug = (s: string) =>
 export async function PUT(req: NextRequest) {
   return handle(async () => {
     const session = requireAdmin(readSession(req));
-    const b = (await req.json()) as { rows?: Partial<SalesFunnel>[]; reattribute?: boolean };
+    const b = (await req.json()) as { rows?: Partial<SalesFunnel>[]; reattribute?: boolean; reoptinFunnel?: string | null };
     const rows: SalesFunnel[] = [];
     for (const r of b.rows ?? []) {
       const label = String(r.label ?? "").trim().slice(0, 60);
@@ -54,6 +54,9 @@ export async function PUT(req: NextRequest) {
     if (!rows.length) throw new Error("Garde au moins un funnel.");
     const db = readDB();
     db.settings.salesFunnels = rows;
+    // Reinscription sans page connue : null = le premier funnel Meta Ads, "" = ne rien changer, sinon une cle.
+    if (b.reoptinFunnel === null || b.reoptinFunnel === undefined) delete db.settings.systemeioReoptinFunnel;
+    else db.settings.systemeioReoptinFunnel = rows.some((r) => r.key === b.reoptinFunnel) ? b.reoptinFunnel : "";
     let reattributed = 0;
     if (b.reattribute) reattributed = reattributeFromFunnels(db, rows);
     db.activityLogs.unshift({

@@ -201,6 +201,13 @@ export interface Settings {
   systemeioWebhookSecret?: string;
   /** Filtre optionnel : morceaux d'URL de page ou noms de tag, separes par des virgules. Vide = tous les contacts. */
   systemeioSourceFilter?: string;
+  /**
+   * Reinscription dont Systeme.io ne dit pas la page (webhook API) : cle du
+   * funnel a lui donner. Absent = le premier funnel Meta Ads ; "" = ne rien
+   * changer. Le webhook d'automatisation Systeme.io (regle « formulaire
+   * soumis → envoyer un webhook ») donne la page exacte et rend ce repli inutile.
+   */
+  systemeioReoptinFunnel?: string;
   /** Contacts Systeme.io supprimes a la main depuis « A appeler » : la synchro ne les recree pas. */
   systemeioIgnoredIds?: string[];
   /** Date du nettoyage unique des pseudos Instagram fabriques par l'import iClosed. */
@@ -399,6 +406,18 @@ export interface Lead {
   callbackAt?: string;
   /** Declare par un setter (« j'ai envoye le lien du calendrier ») : date de la declaration. */
   declaredAt?: string;
+  /* --- Reinscriptions (webhook Systeme.io CONTACT_OPT_IN). ---
+     Un contact deja connu de Systeme.io qui se reinscrit (par exemple via la
+     page Ads) : `optInAt` passe a la date du jour, la premiere inscription
+     reste dans `firstOptInAt`. */
+  firstOptInAt?: string;
+  /** Date du dernier opt-in recu par webhook. */
+  lastOptInAt?: string;
+  /** Page du dernier opt-in quand Systeme.io l'a dite ; vide quand on l'ignore (reinscription par le webhook API). */
+  lastOptInUrl?: string;
+  /** Faux quand la page du dernier opt-in est inconnue : le funnel est alors celui du repli des reglages. */
+  lastOptInPageKnown?: boolean;
+  optInCount?: number;
   /* --- Attribution d'acquisition (src/lib/sales/attribution.ts). ---
      `sourceChannel`, `funnelSource`, `campaignId`, `adsetId`, `adId` sont
      l'attribution EFFECTIVE : un miroir du first touch, jamais ecrase par

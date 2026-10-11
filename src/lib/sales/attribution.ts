@@ -266,6 +266,12 @@ export function applyTouch(lead: Lead, touch: TouchInput, at: string = new Date(
     }
     return false;
   }
+  setFirstTouch(lead, touch, r, at);
+  return true;
+}
+
+/** Ecrit le first touch (et son miroir « attribution effective ») a partir d'une resolution. */
+function setFirstTouch(lead: Lead, touch: TouchInput, r: ResolvedSource, at: string) {
   lead.firstTouchSourceChannel = r.sourceChannel;
   lead.firstTouchFunnelSource = r.funnelSource;
   lead.firstTouchCampaignId = clean(touch.campaignId);
@@ -284,6 +290,35 @@ export function applyTouch(lead: Lead, touch: TouchInput, at: string = new Date(
   if (clean(touch.adsetName)) lead.adsetName = clean(touch.adsetName);
   if (clean(touch.adName)) lead.adName = clean(touch.adName);
   mirrorFirstTouch(lead);
+}
+
+/** Attribution payante identifiee (utm payant, fbclid, IDs Meta) : on ne la remplace jamais automatiquement. */
+export const hasPaidEvidence = (lead: Lead) =>
+  Boolean(lead.firstTouchReliable && lead.firstTouchSourceChannel === "META_ADS" && (lead.firstTouchFbclid || lead.firstTouchUtmSource || lead.firstTouchAdId || lead.firstTouchCampaignId));
+
+/**
+ * Un OPT-IN (webhook Systeme.io) fixe le funnel du lead : la page sur
+ * laquelle il vient de s'inscrire prime sur l'URL historique du contact.
+ * Cas type : un inscrit de la LP organique d'il y a six mois qui revient
+ * par la publicite doit remonter en lead Ads, pas en organique.
+ * Ne touche ni une correction manuelle, ni une attribution payante
+ * identifiee (sauf si la nouvelle l'est aussi). Renvoie vrai si le funnel
+ * effectif a change.
+ */
+export function applyOptInAttribution(lead: Lead, touch: TouchInput, at: string, funnels: SalesFunnel[] = []): boolean {
+  const r = resolveAcquisitionSource(touch, funnels);
+  lead.lastTouchSourceChannel = r.sourceChannel;
+  lead.lastTouchFunnelSource = r.funnelSource;
+  lead.lastTouchAt = at;
+  if (r.sourceChannel === "UNKNOWN" || lead.attributionLocked) return false;
+  // Un lead Meta identifie (utm, fbclid, IDs) reste Meta : seule une autre preuve payante le complete.
+  if (hasPaidEvidence(lead) && !(r.sourceChannel === "META_ADS" && r.reliable)) return false;
+  const same = lead.firstTouchSourceChannel === r.sourceChannel && lead.firstTouchFunnelSource === r.funnelSource;
+  if (same && (lead.firstTouchReliable || !r.reliable)) {
+    // Meme funnel : on complete juste les IDs Meta arrives avec cette page.
+    return applyTouch(lead, touch, at, funnels);
+  }
+  setFirstTouch(lead, touch, r, at);
   return true;
 }
 
@@ -314,6 +349,10 @@ export function touchFromUtm(utm: Record<string, string> | undefined, extra: Tou
     }
     return "";
   };
+  // Parametres Meta par defaut ({{campaign.id}} dans utm_id / utm_campaign,
+  // {{adset.id}} dans utm_term, {{ad.id}} dans utm_content) : des identifiants
+  // numeriques longs, qui rattachent le lead a l'annonce du media buying.
+  const metaId = (v: string) => (/^\d{12,}$/.test(v.trim()) ? v.trim() : "");
   return {
     ...extra,
     utmSource: extra.utmSource || get("utm_source", "utmSource"),
@@ -321,13 +360,28 @@ export function touchFromUtm(utm: Record<string, string> | undefined, extra: Tou
     utmCampaign: extra.utmCampaign || get("utm_campaign", "utmCampaign"),
     utmContent: extra.utmContent || get("utm_content", "utmContent"),
     utmTerm: extra.utmTerm || get("utm_term", "utmTerm"),
-    campaignId: extra.campaignId || get("campaign_id", "campaignId", "utm_campaign_id"),
-    adsetId: extra.adsetId || get("adset_id", "adsetId", "utm_adset_id"),
-    adId: extra.adId || get("ad_id", "adId", "utm_ad_id"),
+    campaignId: extra.campaignId || get("campaign_id", "campaignId", "utm_campaign_id") || metaId(get("utm_id")) || metaId(get("utm_campaign")),
+    adsetId: extra.adsetId || get("adset_id", "adsetId", "utm_adset_id") || metaId(get("utm_term")),
+    adId: extra.adId || get("ad_id", "adId", "utm_ad_id") || metaId(get("utm_content")),
     placement: extra.placement || get("placement", "utm_placement"),
     fbclid: extra.fbclid || get("fbclid"),
     funnelSource: extra.funnelSource || get("funnel_source", "funnelSource", "funnel"),
   };
+}
+
+/**
+ * Une URL d'opt-in (page + query string) vers un touch : la page dit le
+ * funnel, les utm / fbclid / IDs Meta de la query string rendent
+ * l'attribution Ads fiable et nominative par annonce.
+ */
+export function touchFromUrl(url: string, extra: TouchInput = {}): TouchInput {
+  const landingUrl = clean(url);
+  const params: Record<string, string> = {};
+  const q = landingUrl.indexOf("?");
+  if (q >= 0) {
+    for (const [k, v] of new URLSearchParams(landingUrl.slice(q + 1).replace(/#.*$/, ""))) if (v) params[k] = v;
+  }
+  return touchFromUtm(params, { ...extra, landingUrl });
 }
 
 /* -------------------------------- Backfill ---------------------------- */
@@ -371,10 +425,15 @@ export function backfillAttribution(db: DB): number {
 export function reattributeFromFunnels(db: DB, funnels: SalesFunnel[]): number {
   let n = 0;
   for (const lead of db.leads) {
-    if (lead.attributionLocked || !lead.sourceUrl) continue;
+    if (lead.attributionLocked) continue;
+    // Reinscrit sans page connue : son funnel vient du repli des reglages, pas d'une URL. On ne le recalcule pas.
+    if (lead.lastOptInAt && lead.lastOptInPageKnown === false) continue;
+    // La page du dernier opt-in prime sur l'URL historique du contact.
+    const url = (lead.lastOptInAt && lead.lastOptInUrl) || lead.sourceUrl;
+    if (!url) continue;
     // Une attribution payante identifiee (utm, fbclid, IDs Meta) ne bouge pas ; une attribution d'opt-in, si.
-    if (lead.firstTouchReliable && (lead.firstTouchFbclid || lead.firstTouchUtmSource || lead.firstTouchAdId || lead.firstTouchCampaignId)) continue;
-    const hit = funnelForUrl(lead.sourceUrl, funnels);
+    if (hasPaidEvidence(lead)) continue;
+    const hit = funnelForUrl(url, funnels);
     if (!hit || (lead.firstTouchFunnelSource === hit.key && lead.firstTouchSourceChannel === hit.channel)) continue;
     lead.firstTouchSourceChannel = hit.channel;
     lead.firstTouchFunnelSource = hit.key;

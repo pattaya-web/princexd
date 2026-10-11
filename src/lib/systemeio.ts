@@ -1,9 +1,11 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import fs from "fs";
+import path from "path";
 import { getSettings, newId, readDB, writeDB } from "@/lib/db";
 import { salesMembers } from "@/lib/sales/repo";
 import { memberRoles } from "@/lib/sales/roles";
-import type { DB, Lead, TeamMember } from "@/lib/types";
-import { applyTouch, ensureFunnelsV2, funnelsOf } from "./sales/attribution";
+import { leadIsOut, type DB, type Lead, type SalesFunnel, type TeamMember } from "@/lib/types";
+import { applyOptInAttribution, applyTouch, ensureFunnelsV2, funnelForUrl, funnelsOf, touchFromUrl, type TouchInput } from "./sales/attribution";
 
 /**
  * Systeme.io : les prospects de la landing page arrivent dans le CRM.
@@ -309,8 +311,8 @@ export function importContacts(db: DB, contacts: SioContact[], actorName = "Syst
       callAttempts: 0,
       lastCallAt: "",
     };
-    // La page d'opt-in dit le funnel ; les utm arriveront avec le lien iClosed.
-    applyTouch(lead, { landingUrl: lead.sourceUrl, hint: "systemeio" }, lead.optInAt || lead.createdAt, funnelsOf(db));
+    // La page d'opt-in dit le funnel ; ses utm / fbclid / IDs Meta (query string) rendent l'attribution Ads fiable.
+    applyTouch(lead, touchFromUrl(lead.sourceUrl ?? "", { hint: "systemeio" }), lead.optInAt || lead.createdAt, funnelsOf(db));
     // Historique : un inscrit d'il y a des mois est un lead froid, pas un lead a appeler.
     if (opts.coldBefore && lead.optInAt && lead.optInAt < opts.coldBefore) {
       lead.callStatus = "cold";
@@ -401,4 +403,254 @@ export async function syncSystemeio(opts: { force?: boolean } = {}): Promise<Imp
     }
   })();
   return syncing;
+}
+
+/* ------------------------------ Opt-in (webhook) ------------------------- */
+
+/** Au-dela, un CONTACT_OPT_IN sur un contact deja inscrit est une reinscription. */
+const REOPTIN_AFTER_MS = 60 * 60_000;
+/** Deux webhooks pour le meme opt-in (CONTACT_CREATED + CONTACT_OPT_IN, API + automatisation) arrivent dans cette fenetre. */
+const SAME_OPTIN_WINDOW_MS = 15 * 60_000;
+
+export interface SioFunnelStep {
+  id: number;
+  name?: string;
+  type?: string;
+  url?: string;
+}
+
+const stepsCache = new Map<string, { at: number; steps: SioFunnelStep[] }>();
+
+/** Les etapes d'un funnel Systeme.io (avec l'URL de chaque page), en cache une heure. */
+export async function listFunnelSteps(funnelId: string | number): Promise<SioFunnelStep[]> {
+  const key = String(funnelId);
+  const hit = stepsCache.get(key);
+  if (hit && Date.now() - hit.at < 3600_000) return hit.steps;
+  const page = await sio<{ items: SioFunnelStep[] }>(`/funnels/${encodeURIComponent(key)}/steps?limit=100`);
+  const steps = page.items ?? [];
+  stepsCache.set(key, { at: Date.now(), steps });
+  return steps;
+}
+
+/** L'URL de la page d'une etape de funnel, "" si on ne la retrouve pas. */
+export async function funnelStepUrl(funnelId: string | number | undefined, stepId: string | number | undefined): Promise<string> {
+  if (funnelId === undefined || stepId === undefined) return "";
+  try {
+    const steps = await listFunnelSteps(funnelId);
+    return steps.find((s) => String(s.id) === String(stepId))?.url ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** Ce que le webhook sait de l'opt-in, en plus du contact. */
+export interface OptInEvent {
+  /** Date de l'opt-in (ISO). */
+  at: string;
+  /** Page sur laquelle le contact vient de s'inscrire, quand Systeme.io la dit (webhook d'automatisation). */
+  pageUrl?: string;
+  /** Noms du funnel et de l'etape (webhook d'automatisation), pour reconnaitre un funnel par son nom. */
+  funnelName?: string;
+  stepName?: string;
+}
+
+export interface OptInReport extends ImportReport {
+  lead: Lead | null;
+  /** Le contact etait deja inscrit chez Systeme.io avant cet opt-in. */
+  reoptin: boolean;
+  /** La page de l'opt-in est connue (message, premier opt-in ou tag) ; sinon c'est le repli des reglages. */
+  pageKnown: boolean;
+  funnelKey: string;
+  /** Lead deja en base remis « a appeler ». */
+  revived: boolean;
+}
+
+const needlesOf = (f: SalesFunnel) => f.match.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+
+/** Le funnel qu'un tag du contact ou le nom du funnel / de l'etape Systeme.io designe. */
+function funnelForNames(names: string[], funnels: SalesFunnel[]): SalesFunnel | null {
+  const hay = names.map((n) => n.trim().toLowerCase()).filter(Boolean);
+  if (!hay.length) return null;
+  let best: { f: SalesFunnel; len: number } | null = null;
+  for (const f of funnels) {
+    for (const n of needlesOf(f)) {
+      if (hay.some((h) => h === n || h.includes(n)) && (!best || n.length > best.len)) best = { f, len: n.length };
+    }
+  }
+  return best?.f ?? null;
+}
+
+/** Le funnel de repli pour une reinscription sans page connue (reglage, sinon le premier funnel Meta Ads). */
+export function reoptinFallbackFunnel(db: DB): SalesFunnel | null {
+  const funnels = funnelsOf(db);
+  const key = db.settings.systemeioReoptinFunnel;
+  if (key === "") return null;
+  if (key) return funnels.find((f) => f.key === key) ?? null;
+  return funnels.find((f) => f.channel === "META_ADS") ?? null;
+}
+
+function findLead(db: DB, c: SioContact): Lead | undefined {
+  const sioId = String(c.id ?? "");
+  const email = (c.email ?? "").trim().toLowerCase();
+  const phone = normalizePhone(fieldOf(c, "phone_number"));
+  return (
+    (sioId ? db.leads.find((l) => l.systemeioId === sioId) : undefined) ??
+    (email ? db.leads.find((l) => (l.email ?? "").toLowerCase() === email) : undefined) ??
+    (phone ? db.leads.find((l) => l.phone && digits(l.phone) === digits(phone)) : undefined)
+  );
+}
+
+/**
+ * Un OPT-IN recu par webhook. Regle demandee : un contact qui s'inscrit
+ * depuis la page Ads remonte en lead Ads, meme s'il etait deja chez
+ * Systeme.io depuis des mois via une autre page. L'API de Systeme.io ne
+ * renvoie que l'URL de la PREMIERE inscription (`sourceURL`), donc :
+ *  - la page du message (webhook d'automatisation « formulaire soumis »)
+ *    fait foi quand elle est la ;
+ *  - premier opt-in (contact cree a l'instant) : `sourceURL` est la bonne page ;
+ *  - reinscription sans page : un tag du contact qui designe un funnel,
+ *    sinon le funnel de repli des reglages (Meta Ads par defaut), note comme
+ *    « page inconnue » pour qu'on sache que c'est une deduction.
+ * Un lead deja en base est remis a appeler (statut sorti efface, perdu ->
+ * nouveau), jamais un client signe.
+ */
+export function importOptIn(db: DB, contact: SioContact, ev: OptInEvent, actorName = "Webhook Systeme.io"): OptInReport {
+  ensureFunnelsV2(db);
+  const funnels = funnelsOf(db);
+  const at = ev.at || new Date().toISOString();
+  const atMs = Date.parse(at) || Date.now();
+  const registeredMs = contact.registeredAt ? Date.parse(contact.registeredAt) : NaN;
+  const reoptin = Number.isFinite(registeredMs) && atMs - registeredMs > REOPTIN_AFTER_MS;
+
+  // 1. La page (ou le funnel) de cet opt-in.
+  let pageUrl = (ev.pageUrl ?? "").trim();
+  let touch: TouchInput | null = null;
+  let pageKnown = false;
+  let via = "";
+  if (pageUrl) {
+    touch = touchFromUrl(pageUrl, { hint: "systemeio" });
+    pageKnown = true;
+    via = "page du message";
+  } else if (!reoptin && (contact.sourceURL ?? "").trim()) {
+    pageUrl = (contact.sourceURL ?? "").trim();
+    touch = touchFromUrl(pageUrl, { hint: "systemeio" });
+    pageKnown = true;
+    via = "premiere inscription";
+  } else {
+    const named = funnelForNames([...(contact.tags ?? []).map((t) => t.name ?? ""), ev.funnelName ?? "", ev.stepName ?? ""], funnels);
+    if (named) {
+      touch = { funnelSource: named.key, hint: "systemeio" };
+      pageKnown = true;
+      via = "tag / nom du funnel";
+    } else {
+      const fallback = reoptinFallbackFunnel(db);
+      if (fallback) {
+        touch = { funnelSource: fallback.key, hint: "systemeio" };
+        via = "page inconnue, funnel de repli";
+      }
+    }
+  }
+  const funnelKey = touch ? touch.funnelSource || funnelForUrl(pageUrl, funnels)?.key || "" : "";
+  const funnelLabel = funnels.find((f) => f.key === funnelKey)?.label ?? funnelKey;
+
+  // 2. Le lead : deja en base, ou cree a partir d'un contact dont l'URL source est la page du jour.
+  let lead = findLead(db, contact);
+  let report: ImportReport;
+  let created = false;
+  if (!lead) {
+    const copy: SioContact = {
+      ...contact,
+      sourceURL: pageKnown && pageUrl ? pageUrl : contact.sourceURL,
+      registeredAt: reoptin ? at : contact.registeredAt,
+    };
+    report = importContacts(db, [copy], actorName);
+    lead = report.leads[0];
+    created = Boolean(lead);
+    if (lead) {
+      if (reoptin) lead.firstOptInAt = contact.registeredAt ?? "";
+      if (touch && !(pageKnown && pageUrl)) applyOptInAttribution(lead, touch, at, funnels);
+    }
+  } else {
+    report = importContacts(db, [contact], actorName);
+  }
+  if (!lead) return { ...report, lead: null, reoptin, pageKnown, funnelKey, revived: false };
+
+  // 3. Un seul opt-in par fenetre : les doublons de webhook ne comptent pas deux fois.
+  const lastMs = Date.parse(lead.lastOptInAt || lead.optInAt || lead.createdAt) || 0;
+  const duplicate = !created && Math.abs(atMs - lastMs) < SAME_OPTIN_WINDOW_MS;
+  if (duplicate) {
+    if (touch && pageKnown && !lead.lastOptInPageKnown) {
+      // Le second message apporte la page exacte : elle corrige la deduction du premier.
+      lead.lastOptInUrl = pageUrl;
+      lead.lastOptInPageKnown = true;
+      if (pageUrl) lead.sourceUrl = pageUrl;
+      if (applyOptInAttribution(lead, touch, at, funnels)) logLead(db, lead, actorName, `Page d'opt-in precisee : ${lead.name} -> ${funnelLabel}`);
+    }
+    return { ...report, lead, reoptin, pageKnown, funnelKey, revived: false };
+  }
+
+  // 4. Enregistre l'opt-in, l'attribution, et remet le lead a appeler.
+  lead.optInCount = (lead.optInCount ?? 1) + (created ? 0 : 1);
+  lead.lastOptInAt = at;
+  lead.lastOptInUrl = pageKnown ? pageUrl : "";
+  lead.lastOptInPageKnown = pageKnown;
+  let revived = false;
+  if (!created) {
+    lead.firstOptInAt = lead.firstOptInAt || lead.optInAt || "";
+    lead.optInAt = at;
+    if (pageKnown && pageUrl) lead.sourceUrl = pageUrl;
+    if (touch) applyOptInAttribution(lead, touch, at, funnels);
+    if (lead.stage !== "closed-won") {
+      if (leadIsOut(lead.callStatus)) {
+        lead.callStatus = undefined;
+        revived = true;
+      }
+      if (lead.stage === "closed-lost") {
+        lead.stage = "nouveau";
+        revived = true;
+      }
+      if (!lead.nextAction) {
+        lead.nextAction = "Appeler le prospect";
+        lead.nextActionAt = new Date().toISOString().slice(0, 10);
+        revived = true;
+      }
+    }
+    logLead(db, lead, actorName, `Reinscription landing page : ${lead.name} -> ${funnelLabel || "funnel inchange"} (${via})${revived ? " - remis a appeler" : ""}`);
+  } else if (reoptin) {
+    logLead(db, lead, actorName, `Reinscription d'un ancien contact Systeme.io (${(contact.registeredAt ?? "").slice(0, 10)}) : ${lead.name} -> ${funnelLabel} (${via})`);
+  }
+  return { ...report, lead, reoptin, pageKnown, funnelKey, revived };
+}
+
+function logLead(db: DB, lead: Lead, actorName: string, summary: string) {
+  db.activityLogs.unshift({
+    id: newId(),
+    at: new Date().toISOString(),
+    actorId: "",
+    actorName,
+    action: "lead.optin",
+    entity: "lead",
+    entityId: lead.id,
+    summary,
+  });
+}
+
+/* ------------------------------ Journal brut ----------------------------- */
+
+const WEBHOOK_LOG = path.join(process.cwd(), "data", "webhooks", "systemeio.jsonl");
+const WEBHOOK_LOG_MAX = 1_000_000;
+
+/** Garde les derniers messages recus tels quels (diagnostic). Jamais bloquant. */
+export function logWebhook(entry: Record<string, unknown>) {
+  try {
+    fs.mkdirSync(path.dirname(WEBHOOK_LOG), { recursive: true });
+    const line = JSON.stringify({ at: new Date().toISOString(), ...entry }).slice(0, 8000) + "\n";
+    fs.appendFileSync(WEBHOOK_LOG, line);
+    if (fs.statSync(WEBHOOK_LOG).size > WEBHOOK_LOG_MAX) {
+      const lines = fs.readFileSync(WEBHOOK_LOG, "utf8").split("\n");
+      fs.writeFileSync(WEBHOOK_LOG, lines.slice(-200).join("\n"));
+    }
+  } catch {
+    // le journal n'est qu'une aide au diagnostic
+  }
 }
