@@ -760,8 +760,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
         */}
         <main className="relative z-[1] flex-1 w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
           {/* La cle force le rejeu de l'animation a chaque page. */}
-          {/* Leads et Messages travaillent en pleine largeur : deux colonnes de leads et des cartes de messages a lire d'un coup. */}
-          <div key={pathname} className={`rise w-full mx-auto ${pathname.startsWith("/sales/leads") || pathname.startsWith("/sales/messages") ? "max-w-none" : "max-w-[1240px]"}`}>{children}</div>
+          {/* Leads et Messages sont plus larges (deux colonnes de leads), sans aller d'un bord a l'autre d'un ecran ultra-large. */}
+          <div key={pathname} className={`rise w-full mx-auto ${pathname.startsWith("/sales/leads") || pathname.startsWith("/sales/messages") ? "max-w-[1560px]" : "max-w-[1240px]"}`}>{children}</div>
         </main>
       </div>
 

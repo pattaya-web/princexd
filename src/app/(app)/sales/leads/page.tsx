@@ -10,7 +10,7 @@ import { DEFAULT_FUNNELS, SOURCE_CHANNEL_LABEL, SOURCE_CHANNELS } from "@/lib/sa
 import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, useToast } from "@/components/ui";
 import { useSales } from "@/components/sales/context";
 import { LeadSheet } from "@/components/sales/LeadSheet";
-import { CHANNEL_LABEL, renderTemplate, sortedTemplates, waLink } from "@/lib/sales/templates";
+import { renderTemplate, sortedTemplates, waLink } from "@/lib/sales/templates";
 import type { CallBucket, CallLeadRow } from "@/app/api/sales/leads/route";
 import type { PublicMember } from "@/lib/sales/repo";
 import type { LeadCallStatus, MessageTemplate, SalesFunnel, SourceChannel } from "@/lib/types";
@@ -79,25 +79,81 @@ async function copy(text: string): Promise<boolean> {
 }
 
 /** Numero avec bouton copier : on colle dans WhatsApp, pas d'onglet qui s'ouvre. */
-/** Un template a copier en un clic. `active` = le dernier copie, celui que le bouton WhatsApp des leads preremplit. */
-function TemplateCard({ t, active, copied, onCopy }: { t: MessageTemplate; active: boolean; copied: boolean; onCopy: () => void }) {
+/** Un template en widget : son nom (clic = lire / modifier) et Copier. `active` = le dernier copie, celui que WhatsApp preremplit. */
+function TemplateChip({ t, active, copied, onOpen, onCopy }: { t: MessageTemplate; active: boolean; copied: boolean; onOpen: () => void; onCopy: () => void }) {
   return (
-    <div className="card-flat flex flex-col min-h-[220px]" style={active ? { borderColor: "var(--accent)", boxShadow: "0 0 0 3px var(--accent-soft)" } : undefined}>
-      <div className="px-4 pt-3.5 flex items-center gap-2">
-        <span className="label-xs">{t.category}</span>
-        {t.isFavorite && <span className="text-[12px]" title="Favori">⭐</span>}
-        <span className="dim text-[11px] ml-auto">{CHANNEL_LABEL[t.channel]}</span>
-      </div>
-      <div className="px-4 pt-1 text-[14px] font-semibold leading-snug">{t.name}</div>
-      <pre className="px-4 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap flex-1 overflow-auto max-h-[200px]" style={{ fontFamily: "inherit", color: "var(--text-2)" }}>
-        {t.content}
-      </pre>
-      <div className="px-4 pb-4 pt-1">
-        <button className={`btn w-full !h-[36px] ${copied ? "" : "btn-primary"}`} onClick={onCopy} style={copied ? { background: "var(--good)", borderColor: "var(--good)", color: "#fff" } : undefined}>
-          {copied ? "Copié ✓" : "Copier le message"}
-        </button>
-      </div>
-    </div>
+    <span className="inline-flex items-stretch rounded-lg overflow-hidden h-[32px]" style={{ border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`, background: active ? "var(--accent-soft)" : "var(--surface)" }}>
+      <button type="button" className="px-3 text-[12.5px] font-medium hover:underline max-w-[220px] truncate" onClick={onOpen} title={`${t.name} — clic pour lire ou modifier`} style={{ color: active ? "var(--accent)" : "var(--text)" }}>
+        {t.isFavorite ? "⭐ " : ""}
+        {t.name}
+      </button>
+      <button
+        type="button"
+        className="px-2.5 text-[11.5px] font-semibold"
+        onClick={onCopy}
+        title="Copier le message"
+        style={{ borderLeft: `1px solid ${active ? "var(--accent)" : "var(--border)"}`, background: copied ? "var(--good)" : "var(--surface-2)", color: copied ? "#fff" : "var(--text-2)" }}
+      >
+        {copied ? "Copié ✓" : "Copier"}
+      </button>
+    </span>
+  );
+}
+
+/** Lecture et modification d'un template depuis la page Leads : le texte, Copier, Enregistrer (admin). */
+function TemplateEditor({ t, isAdmin, onClose, onSaved, onCopy }: { t: MessageTemplate; isAdmin: boolean; onClose: () => void; onSaved: (t: MessageTemplate) => void; onCopy: (text: string) => Promise<boolean> }) {
+  const toast = useToast();
+  const [text, setText] = useState(t.content);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const dirty = text !== t.content;
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await api<{ template: MessageTemplate }>(`/api/sales/templates/${t.id}`, { method: "PATCH", body: JSON.stringify({ content: text }) });
+      toast("Message enregistré.");
+      onSaved(r.template);
+      onClose();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={t.name}
+      footer={
+        <>
+          <span className="dim text-[11.5px] mr-auto">{t.category}</span>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Fermer
+          </button>
+          <button
+            className="btn"
+            style={done ? { background: "var(--good)", borderColor: "var(--good)", color: "#fff" } : undefined}
+            onClick={async () => {
+              if (await onCopy(text)) {
+                setDone(true);
+                setTimeout(() => setDone(false), 1500);
+              }
+            }}
+          >
+            {done ? "Copié ✓" : "Copier"}
+          </button>
+          {isAdmin && (
+            <button className="btn btn-primary" onClick={() => void save()} disabled={busy || !dirty || !text.trim()}>
+              {busy ? <span className="spinner" /> : "Enregistrer"}
+            </button>
+          )}
+        </>
+      }
+    >
+      <textarea className="textarea w-full !text-[13.5px] leading-relaxed" rows={12} value={text} onChange={(e) => setText(e.target.value)} autoFocus />
+      <p className="dim text-[11.5px] mt-2">{isAdmin ? "Enregistrer modifie le template pour tout le monde. Copier prend le texte tel qu'affiché, même non enregistré." : "Copier prend le texte tel qu'affiché, même modifié."}</p>
+    </Modal>
   );
 }
 
@@ -155,13 +211,12 @@ export default function LeadsPage() {
       .then((r) => setTemplates(r.rows))
       .catch(() => undefined);
   /* Panneau des messages : favoris (ou tous), replie ou non, dernier copie (prerempli dans WhatsApp). */
-  const [panelOpen, setPanelOpen] = useState(true);
   const [showAll, setShowAll] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [activeTemplateId, setActiveTemplateId] = useState("");
   const [copiedId, setCopiedId] = useState("");
   useEffect(() => {
     try {
-      setPanelOpen(localStorage.getItem("leads.messages.open") !== "0");
       setActiveTemplateId(localStorage.getItem("leads.messages.active") ?? "");
     } catch {
       // stockage indisponible : valeurs par defaut
@@ -183,14 +238,6 @@ export default function LeadsPage() {
       // sans importance
     }
     setTimeout(() => setCopiedId((c) => (c === t.id ? "" : c)), 1500);
-  };
-  const togglePanel = (open: boolean) => {
-    setPanelOpen(open);
-    try {
-      localStorage.setItem("leads.messages.open", open ? "1" : "0");
-    } catch {
-      // sans importance
-    }
   };
   const [funnelsOpen, setFunnelsOpen] = useState(false);
   const [scriptFor, setScriptFor] = useState<{ funnel: SalesFunnel; lead: CallLeadRow } | null>(null);
@@ -434,46 +481,26 @@ export default function LeadsPage() {
         )}
       </div>
 
-      {/* Messages : les templates a copier en un clic. Le dernier copie preremplit le bouton WhatsApp de chaque lead. */}
-      <Card
-        className="mb-5"
-        padded={false}
-        title={
-          <span className="flex items-center gap-2">
-            Messages à copier
-            <span className="badge !text-[10.5px] !py-0 num">{panelTemplates.length}</span>
-          </span>
-        }
-        subtitle={activeTemplate ? `Dernier copié : ${activeTemplate.name}. Le bouton WhatsApp de chaque lead l'ouvre prérempli.` : "Un clic sur « Copier », puis colle dans WhatsApp. Le dernier message copié est prérempli par le bouton WhatsApp de chaque lead."}
-        actions={
-          <>
-            {activeTemplates.some((t) => !t.isFavorite) && (
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowAll((v) => !v)}>
-                {showAll ? "Favoris seulement" : `Tous les templates (${activeTemplates.length})`}
-              </button>
-            )}
-            {session.isAdmin && (
-              <Link href="/sales/messages" className="btn btn-sm">
-                Gérer les templates
-              </Link>
-            )}
-            <button className="btn btn-ghost btn-sm" onClick={() => togglePanel(!panelOpen)} title={panelOpen ? "Replier les messages" : "Déplier les messages"}>
-              {panelOpen ? "▴ Replier" : "▾ Déplier"}
+      {/* Messages : de petits widgets, nom + Copier. Un clic sur le nom ouvre le texte, modifiable. Le dernier copie preremplit WhatsApp. */}
+      <div className="card-flat px-4 py-3 mb-4 flex items-center gap-x-3 gap-y-2 flex-wrap">
+        <span className="text-[12.5px] font-semibold shrink-0">Messages</span>
+        {panelTemplates.length === 0 && <span className="dim text-[12px]">Aucun template actif.</span>}
+        {panelTemplates.map((t) => (
+          <TemplateChip key={t.id} t={t} active={t.id === activeTemplateId} copied={copiedId === t.id} onOpen={() => setEditingTemplate(t)} onCopy={() => void copyTemplate(t)} />
+        ))}
+        <span className="flex items-center gap-1 ml-auto">
+          {activeTemplates.some((t) => !t.isFavorite) && (
+            <button className="btn btn-ghost btn-sm !h-[28px] !text-[11.5px]" onClick={() => setShowAll((v) => !v)}>
+              {showAll ? "Favoris" : `Tous (${activeTemplates.length})`}
             </button>
-          </>
-        }
-      >
-        {panelOpen &&
-          (panelTemplates.length === 0 ? (
-            <Empty>Aucun template actif.{session.isAdmin ? " Crée-les dans « Gérer les templates »." : ""}</Empty>
-          ) : (
-            <div className="grid gap-3.5 p-4 sm:p-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {panelTemplates.map((t) => (
-                <TemplateCard key={t.id} t={t} active={t.id === activeTemplateId} copied={copiedId === t.id} onCopy={() => void copyTemplate(t)} />
-              ))}
-            </div>
-          ))}
-      </Card>
+          )}
+          {session.isAdmin && (
+            <Link href="/sales/messages" className="btn btn-ghost btn-sm !h-[28px] !text-[11.5px]" title="Créer, réordonner, favoris, catégories">
+              Gérer
+            </Link>
+          )}
+        </span>
+      </div>
 
       {loading && !data ? (
         <Card>
@@ -668,6 +695,27 @@ export default function LeadsPage() {
       )}
 
       <LeadSheet id={sheetId} onClose={() => setSheetId(null)} onChanged={refresh} />
+
+      {editingTemplate && (
+        <TemplateEditor
+          t={editingTemplate}
+          isAdmin={session.isAdmin}
+          onClose={() => setEditingTemplate(null)}
+          onCopy={async (text) => {
+            const ok = await copy(text);
+            if (ok) {
+              setActiveTemplateId(editingTemplate.id);
+              try {
+                localStorage.setItem("leads.messages.active", editingTemplate.id);
+              } catch {
+                // sans importance
+              }
+            } else toast("Copie impossible ici : sélectionne le texte et copie-le à la main.", "err");
+            return ok;
+          }}
+          onSaved={(t) => setTemplates((list) => list.map((x) => (x.id === t.id ? t : x)))}
+        />
+      )}
 
 
       {callbackFor && (
