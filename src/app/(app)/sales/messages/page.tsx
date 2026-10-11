@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { api } from "@/lib/client";
 import { CHANNEL_LABEL, TEMPLATE_ACTIONS, TEMPLATE_CHANNELS } from "@/lib/sales/templates";
 import { Card, Empty, Field, Modal, PageHeader, Spinner, useToast } from "@/components/ui";
 import { useSales } from "@/components/sales/context";
 import type { MessageTemplate, TemplateChannel } from "@/lib/types";
+
+const ACCENT = { "--accent": "#006dbc", "--accent-hover": "#005a9c", "--accent-soft": "#e6f1fa", "--accent-ring": "#9cc9ea", "--grad-accent": "linear-gradient(135deg, #006dbc 0%, #2a8fd8 100%)" } as CSSProperties;
 
 interface Payload {
   rows: MessageTemplate[];
@@ -25,10 +27,19 @@ type Draft = {
 
 const blank = (category = "AUTRE"): Draft => ({ name: "", category, content: "", channel: "whatsapp", isFavorite: false, isActive: true, defaultFor: [] });
 
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Gestion des templates de messages. Un seul modele, generique : nom,
- * categorie libre, message, canal, favori (en tete du menu « Messages »),
- * actif, ordre, et « par defaut pour » une action de la liste des leads.
+ * categorie libre, message, canal, favori (en tete de la page Leads), actif,
+ * ordre. Les commerciaux non admin voient les messages et peuvent les copier.
  */
 export default function MessagesTemplatesPage() {
   const { session } = useSales();
@@ -37,8 +48,10 @@ export default function MessagesTemplatesPage() {
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<Draft | null>(null);
   const [catsText, setCatsText] = useState("");
+  const [catsOpen, setCatsOpen] = useState(false);
   const [catsBusy, setCatsBusy] = useState(false);
   const [filter, setFilter] = useState("");
+  const [copiedId, setCopiedId] = useState("");
   const admin = session.isAdmin;
 
   const load = () =>
@@ -95,6 +108,7 @@ export default function MessagesTemplatesPage() {
       const r = await api<Payload>("/api/sales/templates", { method: "PUT", body: JSON.stringify({ categories: catsText.split(",").map((s) => s.trim()).filter(Boolean) }) });
       setData(r);
       setCatsText(r.categories.join(", "));
+      setCatsOpen(false);
       toast("Catégories enregistrées.");
     } catch (e) {
       toast((e as Error).message, "err");
@@ -120,45 +134,60 @@ export default function MessagesTemplatesPage() {
     }
   };
 
+  const copy = async (t: MessageTemplate) => {
+    if (!(await copyText(t.content))) {
+      toast("Copie impossible ici : sélectionne le texte et copie-le à la main.", "err");
+      return;
+    }
+    setCopiedId(t.id);
+    setTimeout(() => setCopiedId((c) => (c === t.id ? "" : c)), 1500);
+  };
+
   const rows = (data?.rows ?? []).filter((t) => !filter || t.category === filter);
   const categories = data?.categories ?? [];
 
   return (
-    <>
+    <div style={ACCENT}>
       <PageHeader
-        title="Messages templates"
-        subtitle="Les messages à copier ou à ouvrir dans WhatsApp depuis la liste des leads. Les favoris ⭐ sont en tête du menu « Messages » de chaque lead."
+        title="Messages"
+        subtitle="Les messages à copier depuis la page Leads. Les favoris ⭐ y sont affichés en premier."
         actions={
           admin ? (
-            <button className="btn btn-primary" onClick={() => setEditing(blank(categories[0]))}>
-              + Nouveau template
-            </button>
+            <>
+              <button className="btn" onClick={() => setCatsOpen((v) => !v)}>
+                Catégories
+              </button>
+              <button className="btn btn-primary" onClick={() => setEditing(blank(categories[0]))}>
+                + Nouveau template
+              </button>
+            </>
           ) : undefined
         }
       />
 
-      {error && <Card>{error}</Card>}
+      {error && <Card className="mb-4">{error}</Card>}
 
-      {admin && (
-        <Card title="Catégories" subtitle="Libres, séparées par des virgules. Une catégorie tapée dans un template s'ajoute toute seule.">
+      {admin && catsOpen && (
+        <Card className="mb-4" title="Catégories" subtitle="Libres, séparées par des virgules. Une catégorie tapée dans un template s'ajoute toute seule.">
           <div className="flex gap-2 items-start">
             <input className="input flex-1" value={catsText} onChange={(e) => setCatsText(e.target.value)} />
-            <button className="btn" onClick={() => void saveCategories()} disabled={catsBusy}>
+            <button className="btn btn-primary" onClick={() => void saveCategories()} disabled={catsBusy}>
               {catsBusy ? <span className="spinner" /> : "Enregistrer"}
             </button>
           </div>
         </Card>
       )}
 
-      <div className="flex flex-wrap items-center gap-1.5 my-3">
-        <button type="button" className={`btn btn-sm ${!filter ? "btn-primary" : ""}`} onClick={() => setFilter("")}>
+      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+        <button type="button" className="h-[30px] px-3 rounded-full text-[12.5px] font-medium" style={{ background: !filter ? "var(--accent-soft)" : "var(--surface-2)", border: `1px solid ${!filter ? "var(--accent)" : "var(--border)"}`, color: !filter ? "var(--accent)" : "var(--text-2)" }} onClick={() => setFilter("")}>
           Tous <span className="num opacity-70">{data?.rows.length ?? 0}</span>
         </button>
         {categories.map((c) => {
           const n = data?.rows.filter((t) => t.category === c).length ?? 0;
           if (!n) return null;
+          const active = filter === c;
           return (
-            <button key={c} type="button" className={`btn btn-sm ${filter === c ? "btn-primary" : ""}`} onClick={() => setFilter(filter === c ? "" : c)}>
+            <button key={c} type="button" className="h-[30px] px-3 rounded-full text-[12.5px] font-medium" style={{ background: active ? "var(--accent-soft)" : "var(--surface-2)", border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`, color: active ? "var(--accent)" : "var(--text-2)" }} onClick={() => setFilter(active ? "" : c)}>
               {c} <span className="num opacity-70">{n}</span>
             </button>
           );
@@ -174,66 +203,73 @@ export default function MessagesTemplatesPage() {
           <Empty>Aucun template{filter ? " dans cette catégorie" : ""}.</Empty>
         </Card>
       ) : (
-        <Card padded={false}>
-          <ul>
-            {rows.map((t, i) => (
-              <li key={t.id} className="px-3.5 py-3 flex items-start gap-3" style={{ borderBottom: i < rows.length - 1 ? "1px solid var(--border)" : "none", opacity: t.isActive ? 1 : 0.55 }}>
+        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          {rows.map((t, i) => (
+            <section key={t.id} className="card flex flex-col" style={{ opacity: t.isActive ? 1 : 0.6 }}>
+              <div className="px-5 pt-4 flex items-start gap-2.5">
                 <button
                   type="button"
                   className="text-[18px] leading-none mt-0.5 shrink-0"
                   title={t.isFavorite ? "Retirer des favoris" : "Mettre en favori"}
                   disabled={!admin}
                   onClick={() => void patch(t.id, { isFavorite: !t.isFavorite })}
-                  style={{ opacity: t.isFavorite ? 1 : 0.3 }}
+                  style={{ opacity: t.isFavorite ? 1 : 0.25 }}
                 >
                   ⭐
                 </button>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[13.5px] font-semibold">{t.name}</span>
-                    <span className="badge !text-[10px] !py-0">{t.category}</span>
+                  <div className="text-[15px] font-semibold leading-snug">{t.name}</div>
+                  <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                    <span className="badge !text-[10.5px] !py-0">{t.category}</span>
                     <span className="dim text-[11.5px]">{CHANNEL_LABEL[t.channel]}</span>
-                    {!t.isActive && <span className="badge badge-warn !text-[10px] !py-0">inactif</span>}
+                    {!t.isActive && <span className="badge badge-warn !text-[10.5px] !py-0">inactif</span>}
                     {t.defaultFor?.map((a) => (
-                      <span key={a} className="badge badge-accent !text-[10px] !py-0">
+                      <span key={a} className="badge badge-accent !text-[10.5px] !py-0">
                         par défaut : {TEMPLATE_ACTIONS.find((x) => x.key === a)?.label ?? a}
                       </span>
                     ))}
                   </div>
-                  <p className="dim text-[12.5px] mt-1 whitespace-pre-wrap line-clamp-3">{t.content}</p>
-                  {admin && (
-                    <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                      <button className="btn btn-sm !h-[28px]" onClick={() => setEditing({ id: t.id, name: t.name, category: t.category, content: t.content, channel: t.channel, isFavorite: t.isFavorite, isActive: t.isActive, defaultFor: t.defaultFor ?? [] })}>
-                        Modifier
+                </div>
+              </div>
+              <pre className="px-5 py-3.5 text-[13.5px] leading-relaxed whitespace-pre-wrap flex-1" style={{ fontFamily: "inherit", color: "var(--text-2)" }}>
+                {t.content}
+              </pre>
+              <div className="px-5 pb-4 flex items-center gap-2 flex-wrap" style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+                <button className={`btn btn-sm !h-[32px] ${copiedId === t.id ? "" : "btn-primary"}`} onClick={() => void copy(t)} style={copiedId === t.id ? { background: "var(--good)", borderColor: "var(--good)", color: "#fff" } : undefined}>
+                  {copiedId === t.id ? "Copié ✓" : "Copier"}
+                </button>
+                {admin && (
+                  <>
+                    <button className="btn btn-sm !h-[32px]" onClick={() => setEditing({ id: t.id, name: t.name, category: t.category, content: t.content, channel: t.channel, isFavorite: t.isFavorite, isActive: t.isActive, defaultFor: t.defaultFor ?? [] })}>
+                      Modifier
+                    </button>
+                    <button className="btn btn-sm !h-[32px]" onClick={() => void patch(t.id, { action: "duplicate" }, "Template dupliqué.")}>
+                      Dupliquer
+                    </button>
+                    <button className="btn btn-sm !h-[32px]" onClick={() => void patch(t.id, { isActive: !t.isActive })}>
+                      {t.isActive ? "Désactiver" : "Activer"}
+                    </button>
+                    <span className="inline-flex ml-auto">
+                      <button className="btn btn-ghost btn-sm !h-[32px] !px-2" title="Monter" disabled={!!filter || i === 0} onClick={() => void move(t, -1)}>
+                        ↑
                       </button>
-                      <button className="btn btn-sm !h-[28px]" onClick={() => void patch(t.id, { action: "duplicate" }, "Template dupliqué.")}>
-                        Dupliquer
+                      <button className="btn btn-ghost btn-sm !h-[32px] !px-2" title="Descendre" disabled={!!filter || i === rows.length - 1} onClick={() => void move(t, 1)}>
+                        ↓
                       </button>
-                      <button className="btn btn-sm !h-[28px]" onClick={() => void patch(t.id, { isActive: !t.isActive })}>
-                        {t.isActive ? "Désactiver" : "Activer"}
-                      </button>
-                      <span className="inline-flex">
-                        <button className="btn btn-ghost btn-sm !h-[28px] !px-2" title="Monter" disabled={!!filter || i === 0} onClick={() => void move(t, -1)}>
-                          ↑
-                        </button>
-                        <button className="btn btn-ghost btn-sm !h-[28px] !px-2" title="Descendre" disabled={!!filter || i === rows.length - 1} onClick={() => void move(t, 1)}>
-                          ↓
-                        </button>
-                      </span>
-                      <button className="btn btn-ghost btn-sm !h-[28px] ml-auto" style={{ color: "var(--critical)" }} onClick={() => void remove(t)}>
+                      <button className="btn btn-ghost btn-sm !h-[32px]" style={{ color: "var(--critical)" }} onClick={() => void remove(t)}>
                         Supprimer
                       </button>
-                    </div>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
+                    </span>
+                  </>
+                )}
+              </div>
+            </section>
+          ))}
+        </div>
       )}
 
       {editing && <EditorModal draft={editing} categories={categories} onClose={() => setEditing(null)} onSave={save} />}
-    </>
+    </div>
   );
 }
 
@@ -292,14 +328,14 @@ function EditorModal({ draft, categories, onClose, onSave }: { draft: Draft; cat
         </Field>
         <div className="sm:col-span-3 flex items-center gap-5 flex-wrap text-[12.5px]">
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={d.isFavorite} onChange={(e) => set({ isFavorite: e.target.checked })} /> ⭐ Favori (en tête du menu)
+            <input type="checkbox" checked={d.isFavorite} onChange={(e) => set({ isFavorite: e.target.checked })} /> ⭐ Favori (affiché en premier sur la page Leads)
           </label>
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={d.isActive} onChange={(e) => set({ isActive: e.target.checked })} /> Actif
           </label>
           {TEMPLATE_ACTIONS.map((a) => (
             <label key={a.key} className="flex items-center gap-2">
-              <input type="checkbox" checked={d.defaultFor.includes(a.key)} onChange={(e) => set({ defaultFor: e.target.checked ? [...d.defaultFor, a.key] : d.defaultFor.filter((x) => x !== a.key) })} /> S&apos;ouvre par défaut : {a.label}
+              <input type="checkbox" checked={d.defaultFor.includes(a.key)} onChange={(e) => set({ defaultFor: e.target.checked ? [...d.defaultFor, a.key] : d.defaultFor.filter((x) => x !== a.key) })} /> Par défaut : {a.label}
             </label>
           ))}
         </div>

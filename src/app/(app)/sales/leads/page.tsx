@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { api } from "@/lib/client";
 import { fmtDateTime, fmtTime, isoToParisInput, parisDay, parisToIso, parisWeekday, relative } from "@/lib/format";
 import { useSalesData } from "@/lib/sales/client";
@@ -10,8 +10,7 @@ import { DEFAULT_FUNNELS, SOURCE_CHANNEL_LABEL, SOURCE_CHANNELS } from "@/lib/sa
 import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, useToast } from "@/components/ui";
 import { useSales } from "@/components/sales/context";
 import { LeadSheet } from "@/components/sales/LeadSheet";
-import { MessagesModal } from "@/components/sales/MessagesModal";
-import { defaultTemplateFor } from "@/lib/sales/templates";
+import { CHANNEL_LABEL, renderTemplate, sortedTemplates, waLink } from "@/lib/sales/templates";
 import type { CallBucket, CallLeadRow } from "@/app/api/sales/leads/route";
 import type { PublicMember } from "@/lib/sales/repo";
 import type { LeadCallStatus, MessageTemplate, SalesFunnel, SourceChannel } from "@/lib/types";
@@ -27,6 +26,9 @@ const COLOR = {
   red: "#ef4444",
   whatsapp: "#25d366",
 } as const;
+
+/** Couleur d'accent de la page : la meme que le CRM et le Sales Dashboard. */
+const ACCENT = { "--accent": "#006dbc", "--accent-hover": "#005a9c", "--accent-soft": "#e6f1fa", "--accent-ring": "#9cc9ea", "--grad-accent": "linear-gradient(135deg, #006dbc 0%, #2a8fd8 100%)" } as CSSProperties;
 
 const TONE: Record<CallBucket, string> = { new: COLOR.new, retry: COLOR.yellow, due: COLOR.blue, later: COLOR.blue, talking: COLOR.violet, booked: COLOR.green, lost: COLOR.red };
 
@@ -77,12 +79,34 @@ async function copy(text: string): Promise<boolean> {
 }
 
 /** Numero avec bouton copier : on colle dans WhatsApp, pas d'onglet qui s'ouvre. */
+/** Un template a copier en un clic. `active` = le dernier copie, celui que le bouton WhatsApp des leads preremplit. */
+function TemplateCard({ t, active, copied, onCopy }: { t: MessageTemplate; active: boolean; copied: boolean; onCopy: () => void }) {
+  return (
+    <div className="card-flat flex flex-col min-h-[220px]" style={active ? { borderColor: "var(--accent)", boxShadow: "0 0 0 3px var(--accent-soft)" } : undefined}>
+      <div className="px-4 pt-3.5 flex items-center gap-2">
+        <span className="label-xs">{t.category}</span>
+        {t.isFavorite && <span className="text-[12px]" title="Favori">⭐</span>}
+        <span className="dim text-[11px] ml-auto">{CHANNEL_LABEL[t.channel]}</span>
+      </div>
+      <div className="px-4 pt-1 text-[14px] font-semibold leading-snug">{t.name}</div>
+      <pre className="px-4 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap flex-1 overflow-auto max-h-[200px]" style={{ fontFamily: "inherit", color: "var(--text-2)" }}>
+        {t.content}
+      </pre>
+      <div className="px-4 pb-4 pt-1">
+        <button className={`btn w-full !h-[36px] ${copied ? "" : "btn-primary"}`} onClick={onCopy} style={copied ? { background: "var(--good)", borderColor: "var(--good)", color: "#fff" } : undefined}>
+          {copied ? "Copié ✓" : "Copier le message"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PhoneCopy({ phone }: { phone: string }) {
   const [done, setDone] = useState(false);
   if (!phone) return <span className="badge badge-warn !text-[10px] !py-0">Pas de numéro</span>;
   return (
-    <span className="inline-flex items-center gap-1">
-      <a href={`tel:${phone}`} className="num text-[13px] font-semibold sm:pointer-events-none sm:text-[color:var(--text)]" title="Appeler (téléphone)">
+    <span className="inline-flex items-center gap-1.5">
+      <a href={`tel:${phone}`} className="num text-[14.5px] font-semibold sm:pointer-events-none sm:text-[color:var(--text)]" title="Appeler (téléphone)">
         {phone}
       </a>
       <button
@@ -126,12 +150,48 @@ export default function LeadsPage() {
   const [funnels, setFunnels] = useState<SalesFunnel[]>(DEFAULT_FUNNELS);
   const [reoptinFunnel, setReoptinFunnel] = useState<string | null>(null);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
-  /** Fenetre « Messages » d'un lead ; `templateId` = template ouvert d'office (appel sans reponse). */
-  const [messagesFor, setMessagesFor] = useState<{ lead: CallLeadRow; templateId?: string; title?: string } | null>(null);
   const loadTemplates = () =>
     api<{ rows: MessageTemplate[] }>("/api/sales/templates")
       .then((r) => setTemplates(r.rows))
       .catch(() => undefined);
+  /* Panneau des messages : favoris (ou tous), replie ou non, dernier copie (prerempli dans WhatsApp). */
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [showAll, setShowAll] = useState(false);
+  const [activeTemplateId, setActiveTemplateId] = useState("");
+  const [copiedId, setCopiedId] = useState("");
+  useEffect(() => {
+    try {
+      setPanelOpen(localStorage.getItem("leads.messages.open") !== "0");
+      setActiveTemplateId(localStorage.getItem("leads.messages.active") ?? "");
+    } catch {
+      // stockage indisponible : valeurs par defaut
+    }
+  }, []);
+  const activeTemplates = useMemo(() => sortedTemplates(templates).filter((t) => t.isActive), [templates]);
+  const panelTemplates = showAll ? activeTemplates : activeTemplates.filter((t) => t.isFavorite);
+  const activeTemplate = activeTemplates.find((t) => t.id === activeTemplateId) ?? null;
+  const copyTemplate = async (t: MessageTemplate) => {
+    if (!(await copy(t.content))) {
+      toast("Copie impossible ici : sélectionne le texte et copie-le à la main.", "err");
+      return;
+    }
+    setCopiedId(t.id);
+    setActiveTemplateId(t.id);
+    try {
+      localStorage.setItem("leads.messages.active", t.id);
+    } catch {
+      // sans importance
+    }
+    setTimeout(() => setCopiedId((c) => (c === t.id ? "" : c)), 1500);
+  };
+  const togglePanel = (open: boolean) => {
+    setPanelOpen(open);
+    try {
+      localStorage.setItem("leads.messages.open", open ? "1" : "0");
+    } catch {
+      // sans importance
+    }
+  };
   const [funnelsOpen, setFunnelsOpen] = useState(false);
   const [scriptFor, setScriptFor] = useState<{ funnel: SalesFunnel; lead: CallLeadRow } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -255,7 +315,6 @@ export default function LeadsPage() {
   const choose = (l: CallLeadRow, v: string) => {
     const booked = l.bucket === "booked";
     if (v === "booked") return setBooking(l);
-    if (v === "no-answer") return void noAnswer(l, booked);
     let cancel = false;
     if (booked) {
       if (!window.confirm(`${l.name} a un rendez-vous. Changer son statut annule ce rendez-vous. Continuer ?`)) return;
@@ -276,15 +335,25 @@ export default function LeadsPage() {
   };
 
   /**
-   * Appel sans reponse, en un clic : statut « pas de reponse », puis le
-   * template par defaut s'ouvre (copier / WhatsApp / marquer comme envoye →
-   * prochaine relance). Le process : call → pas de reponse → template →
-   * relance programmee → lead suivant.
+   * « WA envoye » : le setter a envoye le message lui-meme (copie ou
+   * WhatsApp). On le note dans l'historique du lead avec le dernier template
+   * copie, et le lead passe « message envoye ». Rien n'est envoye par l'outil.
    */
-  const noAnswer = async (l: CallLeadRow, booked: boolean) => {
-    if (booked && !window.confirm(`${l.name} a un rendez-vous. Changer son statut annule ce rendez-vous. Continuer ?`)) return;
-    await setStatus(l, "no-answer", undefined, undefined, booked);
-    setMessagesFor({ lead: l, templateId: defaultTemplateFor(templates, "no-answer")?.id, title: "Appel sans réponse" });
+  const markSent = async (l: CallLeadRow) => {
+    setBusy(l.id);
+    try {
+      await api(`/api/sales/leads/${l.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ action: "message", templateId: activeTemplate?.id, templateName: activeTemplate?.name, channel: activeTemplate?.channel ?? "whatsapp", next: "none" }),
+      });
+      toast(`${l.name} : message WhatsApp noté comme envoyé.`);
+      refresh();
+    } catch (e) {
+      toast((e as Error).message, "err");
+      void reload(true);
+    } finally {
+      setBusy("");
+    }
   };
 
   const rows = data?.rows ?? [];
@@ -302,17 +371,12 @@ export default function LeadsPage() {
   const selectedRows = shown.filter((r) => selected.has(r.id));
 
   return (
-    <>
+    <div style={ACCENT}>
       <PageHeader
         title="Leads"
         subtitle={data?.lastSyncAt ? `Inscrits Systeme.io synchronisés ${relative(data.lastSyncAt)}. Appelle d'abord ; pas de réponse → message WhatsApp avec le script du funnel. Un RDV pris part dans l'Agenda.` : "Les prospects qui viennent de laisser leurs coordonnées."}
         actions={
           <>
-            {session.isAdmin && (
-              <Link href="/sales/messages" className="btn" title="Templates de messages : créer, modifier, favoris">
-                💬 Templates
-              </Link>
-            )}
             {session.isAdmin && (
               <button className="btn" onClick={() => setFunnelsOpen(true)} title="Déclarer les funnels : URL d'opt-in, canal, script">
                 ⚙ Funnels
@@ -369,6 +433,47 @@ export default function LeadsPage() {
           </span>
         )}
       </div>
+
+      {/* Messages : les templates a copier en un clic. Le dernier copie preremplit le bouton WhatsApp de chaque lead. */}
+      <Card
+        className="mb-5"
+        padded={false}
+        title={
+          <span className="flex items-center gap-2">
+            Messages à copier
+            <span className="badge !text-[10.5px] !py-0 num">{panelTemplates.length}</span>
+          </span>
+        }
+        subtitle={activeTemplate ? `Dernier copié : ${activeTemplate.name}. Le bouton WhatsApp de chaque lead l'ouvre prérempli.` : "Un clic sur « Copier », puis colle dans WhatsApp. Le dernier message copié est prérempli par le bouton WhatsApp de chaque lead."}
+        actions={
+          <>
+            {activeTemplates.some((t) => !t.isFavorite) && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowAll((v) => !v)}>
+                {showAll ? "Favoris seulement" : `Tous les templates (${activeTemplates.length})`}
+              </button>
+            )}
+            {session.isAdmin && (
+              <Link href="/sales/messages" className="btn btn-sm">
+                Gérer les templates
+              </Link>
+            )}
+            <button className="btn btn-ghost btn-sm" onClick={() => togglePanel(!panelOpen)} title={panelOpen ? "Replier les messages" : "Déplier les messages"}>
+              {panelOpen ? "▴ Replier" : "▾ Déplier"}
+            </button>
+          </>
+        }
+      >
+        {panelOpen &&
+          (panelTemplates.length === 0 ? (
+            <Empty>Aucun template actif.{session.isAdmin ? " Crée-les dans « Gérer les templates »." : ""}</Empty>
+          ) : (
+            <div className="grid gap-3.5 p-4 sm:p-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {panelTemplates.map((t) => (
+                <TemplateCard key={t.id} t={t} active={t.id === activeTemplateId} copied={copiedId === t.id} onCopy={() => void copyTemplate(t)} />
+              ))}
+            </div>
+          ))}
+      </Card>
 
       {loading && !data ? (
         <Card>
@@ -447,78 +552,89 @@ export default function LeadsPage() {
                       const local = localHint(l.country);
                       const isBusy = busy === l.id;
                       const since = l.optInAt || l.createdAt;
+                      const statusText = l.callStatus ? STATUS_LABEL[l.callStatus] : "Jamais appelé";
+                      const waText = activeTemplate ? renderTemplate(activeTemplate.content, { name: l.name }) : "";
                       return (
-                        <li key={l.id} className="px-3.5 py-2.5" style={{ borderBottom: "1px solid var(--border)", borderLeft: `4px solid ${tone}`, opacity: lost ? 0.75 : 1, background: selected.has(l.id) ? "var(--accent-soft)" : undefined }}>
-                          <div className="flex items-start gap-2.5">
+                        <li key={l.id} className="px-5 py-4" style={{ borderBottom: "1px solid var(--border)", opacity: lost ? 0.7 : 1, background: selected.has(l.id) ? "var(--accent-soft)" : undefined }}>
+                          <div className="flex items-start gap-3.5">
                             {session.isAdmin && (
-                              <input type="checkbox" className="mt-1" checked={selected.has(l.id)} onChange={() => setSelected((p) => { const n = new Set(p); if (n.has(l.id)) n.delete(l.id); else n.add(l.id); return n; })} />
+                              <input type="checkbox" className="mt-[7px]" checked={selected.has(l.id)} onChange={() => setSelected((p) => { const n = new Set(p); if (n.has(l.id)) n.delete(l.id); else n.add(l.id); return n; })} />
                             )}
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <button type="button" className="text-[13.5px] font-semibold hover:underline text-left" onClick={() => setSheetId(l.id)} title="Ouvrir la fiche (notes, historique)">
+                              {/* Ligne 1 : qui, et ou il en est. */}
+                              <div className="flex items-center gap-2.5 flex-wrap">
+                                <button type="button" className="text-[15px] font-semibold hover:underline text-left leading-tight" onClick={() => setSheetId(l.id)} title="Ouvrir la fiche (notes, historique)">
                                   {l.name}
                                 </button>
-                                <Dot color={tone} />
-                                <span className="dim text-[11.5px]">
-                                  {l.callStatus ? STATUS_LABEL[l.callStatus] : "jamais appelé"}
+                                <span className="inline-flex items-center gap-1.5 h-[22px] px-2 rounded-full text-[11.5px] font-medium whitespace-nowrap" style={{ background: `color-mix(in srgb, ${tone} 14%, transparent)`, color: tone }}>
+                                  <Dot color={tone} />
+                                  {statusText}
                                   {l.callStatus === "callback" && l.callbackAt ? ` · ${fmtDateTime(l.callbackAt)}` : ""}
                                   {l.callStatus === "no-answer" && (l.callAttempts ?? 0) > 1 ? ` (${l.callAttempts}×)` : ""}
                                   {l.followUpAt && (l.callStatus === "no-answer" || l.callStatus === "message-sent") ? ` · relance ${fmtDateTime(l.followUpAt)}` : ""}
                                 </span>
-                              </div>
-                              <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mt-1 text-[12px]">
-                                <PhoneCopy phone={l.phone ?? ""} />
-                                <span className="dim num" title="Heure d'inscription (France)">
-                                  Inscrit {fmtDateTime(since)} <span className="opacity-70">({relative(since)})</span>
+                                <span className="badge !text-[10.5px] !py-0" title={f?.match ? `Reconnu par : ${f.match}` : "Funnel"}>
+                                  {funnelLabelOf(l)}
                                 </span>
                                 {l.country && l.country !== "FR" && (
-                                  <span className="dim">
+                                  <span className="dim text-[12px]">
                                     {COUNTRY[l.country] ?? l.country}
                                     {local ? ` · ${local} chez lui` : ""}
                                   </span>
                                 )}
-                                <span className="badge !text-[10px] !py-0" title={f?.match ? `Reconnu par : ${f.match}` : "Funnel"}>
-                                  {funnelLabelOf(l)}
-                                </span>
-                                {l.email && <span className="dim truncate max-w-[180px]" title={l.email}>{l.email}</span>}
                               </div>
-                              {l.notes && <div className="dim text-[11.5px] mt-1 truncate" title={l.notes}>✎ {l.notes.split("\n")[0]}</div>}
 
-                              {/* Actions : la sequence d'appel en un clic. */}
-                              <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                              {/* Ligne 2 : le numero pret a copier, et le contexte. */}
+                              <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap mt-2 text-[12.5px]">
+                                <PhoneCopy phone={l.phone ?? ""} />
+                                <span className="dim num" title="Heure d'inscription (France)">
+                                  Inscrit {fmtDateTime(since)} <span className="opacity-70">({relative(since)})</span>
+                                </span>
+                                {l.email && <span className="dim truncate max-w-[240px]" title={l.email}>{l.email}</span>}
+                              </div>
+                              {l.notes && <div className="dim text-[12px] mt-1.5 truncate" title={l.notes}>✎ {l.notes.split("\n")[0]}</div>}
+
+                              {/* Ligne 3 : la sequence d'appel en un clic. */}
+                              <div className="flex items-center gap-2 flex-wrap mt-3">
                                 {lost ? (
-                                  <button className="btn btn-sm !h-[28px]" disabled={isBusy} onClick={() => choose(l, "reopen")}>
+                                  <button className="btn btn-sm !h-[32px]" disabled={isBusy} onClick={() => choose(l, "reopen")}>
                                     Remettre dans la liste
                                   </button>
                                 ) : (
                                   <>
-                                    <button className="btn btn-sm !h-[28px]" disabled={isBusy} onClick={() => choose(l, "no-answer")} title="Appelé, pas de réponse">
+                                    <button className="btn btn-sm !h-[32px]" disabled={isBusy} onClick={() => choose(l, "no-answer")} title="Appelé, pas de réponse">
                                       ☏ Pas de réponse
                                     </button>
-                                    <button
-                                      className="btn btn-sm !h-[28px] font-semibold"
-                                      style={{ background: COLOR.whatsapp, borderColor: COLOR.whatsapp, color: "#fff" }}
-                                      disabled={isBusy}
-                                      onClick={() => setMessagesFor({ lead: l })}
-                                      title="Templates de messages : copier, ouvrir WhatsApp, marquer comme envoyé"
-                                    >
-                                      💬 Messages
+                                    {l.phone && (
+                                      <a
+                                        className="btn btn-sm !h-[32px] font-semibold"
+                                        style={{ background: COLOR.whatsapp, borderColor: COLOR.whatsapp, color: "#fff" }}
+                                        href={waLink(l.phone, waText)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        title={activeTemplate ? `Ouvre WhatsApp avec « ${activeTemplate.name} » prérempli. Rien n'est envoyé.` : "Ouvre la conversation WhatsApp (copie d'abord un message pour le préremplir)"}
+                                      >
+                                        WhatsApp ↗
+                                      </a>
+                                    )}
+                                    <button className="btn btn-sm !h-[32px]" disabled={isBusy} onClick={() => void markSent(l)} title={activeTemplate ? `Note « ${activeTemplate.name} » envoyé dans l'historique` : "Note le message envoyé dans l'historique"}>
+                                      ✓ WA envoyé
                                     </button>
                                     {f?.script && (
-                                      <button className="btn btn-sm !h-[28px]" onClick={() => setScriptFor({ funnel: f, lead: l })} title="Script du funnel à copier">
+                                      <button className="btn btn-sm !h-[32px]" onClick={() => setScriptFor({ funnel: f, lead: l })} title="Script du funnel à copier">
                                         📋 Script
                                       </button>
                                     )}
-                                    <button className="btn btn-sm !h-[28px]" disabled={isBusy} onClick={() => choose(l, "callback")}>
+                                    <button className="btn btn-sm !h-[32px]" disabled={isBusy} onClick={() => choose(l, "callback")}>
                                       ⏰ À rappeler
                                     </button>
-                                    <button className="btn btn-sm !h-[28px]" disabled={isBusy} onClick={() => choose(l, "reached")} style={{ borderColor: COLOR.violet, color: COLOR.violet }}>
+                                    <button className="btn btn-sm !h-[32px]" disabled={isBusy} onClick={() => choose(l, "reached")} style={{ borderColor: COLOR.violet, color: COLOR.violet }}>
                                       Joint
                                     </button>
-                                    <button className="btn btn-sm btn-primary !h-[28px]" disabled={isBusy} onClick={() => choose(l, "booked")} title="Rendez-vous pris : le call part dans l'Agenda">
+                                    <button className="btn btn-sm btn-primary !h-[32px]" disabled={isBusy} onClick={() => choose(l, "booked")} title="Rendez-vous pris : le call part dans l'Agenda">
                                       ✓ RDV pris
                                     </button>
-                                    <select className="select select-xs !w-auto" value="" disabled={isBusy} onChange={(e) => choose(l, e.target.value)} title="Autres statuts">
+                                    <select className="select select-sm !h-[32px] !w-auto" value="" disabled={isBusy} onChange={(e) => choose(l, e.target.value)} title="Autres statuts">
                                       <option value="">…</option>
                                       <option value="not-interested">Pas intéressé</option>
                                       <option value="wrong-number">Faux numéro</option>
@@ -529,14 +645,14 @@ export default function LeadsPage() {
                                   </>
                                 )}
                                 {session.isAdmin && setters.length > 0 && (
-                                  <select className="select select-xs !w-auto ml-auto" value={l.setterId ?? ""} onChange={(e) => void assign(l, e.target.value)} title="Setter">
+                                  <select className="select select-sm !h-[32px] !w-auto ml-auto" value={l.setterId ?? ""} onChange={(e) => void assign(l, e.target.value)} title="Setter">
                                     <option value="">Tout le monde</option>
                                     {setters.map((m) => (
                                       <option key={m.id} value={m.id}>{m.name}</option>
                                     ))}
                                   </select>
                                 )}
-                                {!session.isAdmin && l.setterName && <span className="dim text-[11px] ml-auto">{l.setterName}</span>}
+                                {!session.isAdmin && l.setterName && <span className="dim text-[11.5px] ml-auto">{l.setterName}</span>}
                               </div>
                             </div>
                           </div>
@@ -553,18 +669,6 @@ export default function LeadsPage() {
 
       <LeadSheet id={sheetId} onClose={() => setSheetId(null)} onChanged={refresh} />
 
-      {messagesFor && (
-        <MessagesModal
-          lead={{ id: messagesFor.lead.id, name: messagesFor.lead.name, phone: messagesFor.lead.phone, sourceChannel: messagesFor.lead.sourceChannel, funnelLabel: funnelLabelOf(messagesFor.lead) }}
-          templates={templates}
-          initialTemplateId={messagesFor.templateId}
-          title={messagesFor.title}
-          isAdmin={session.isAdmin}
-          onClose={() => setMessagesFor(null)}
-          onSent={refresh}
-          onTemplatesChanged={() => void loadTemplates()}
-        />
-      )}
 
       {callbackFor && (
         <CallbackModal
@@ -611,7 +715,7 @@ export default function LeadsPage() {
           }}
         />
       )}
-    </>
+    </div>
   );
 }
 
