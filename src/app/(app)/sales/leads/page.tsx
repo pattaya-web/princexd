@@ -30,14 +30,19 @@ const COLOR = {
 /** Couleur d'accent de la page : la meme que le CRM et le Sales Dashboard. */
 const ACCENT = { "--accent": "#006dbc", "--accent-hover": "#005a9c", "--accent-soft": "#e6f1fa", "--accent-ring": "#9cc9ea", "--grad-accent": "linear-gradient(135deg, #006dbc 0%, #2a8fd8 100%)" } as CSSProperties;
 
-const TONE: Record<CallBucket, string> = { new: COLOR.new, retry: COLOR.yellow, due: COLOR.blue, later: COLOR.blue, talking: COLOR.violet, booked: COLOR.green, lost: COLOR.red };
+const TONE: Record<CallBucket, string> = { new: COLOR.new, retry: COLOR.blue, due: COLOR.blue, later: COLOR.yellow, talking: COLOR.violet, booked: COLOR.green, lost: COLOR.red };
 
-type FilterKey = "all" | "new" | "retry" | "callback" | "talking" | "lost";
+/*
+ * Une seule idee : un lead sans reponse se relance. « A relancer » = a faire
+ * maintenant (rappel ou relance arrivee a echeance, ou rien de programme) ;
+ * « En attente » = message envoye ou relance programmee, pas encore due.
+ */
+type FilterKey = "all" | "new" | "due" | "waiting" | "talking" | "lost";
 const FILTERS: { key: FilterKey; label: string; color?: string; buckets: CallBucket[] }[] = [
   { key: "all", label: "Tous", buckets: ["due", "new", "retry", "later", "talking", "lost"] },
   { key: "new", label: "Nouveaux", color: COLOR.new, buckets: ["new"] },
-  { key: "retry", label: "Pas de réponse · message envoyé", color: COLOR.yellow, buckets: ["retry"] },
-  { key: "callback", label: "À rappeler · relances", color: COLOR.blue, buckets: ["due", "later"] },
+  { key: "due", label: "À relancer", color: COLOR.blue, buckets: ["due", "retry"] },
+  { key: "waiting", label: "En attente", color: COLOR.yellow, buckets: ["later"] },
   { key: "talking", label: "Joints, RDV à fixer", color: COLOR.violet, buckets: ["talking"] },
   { key: "lost", label: "Perdus · leads froids", color: COLOR.red, buckets: ["lost"] },
 ];
@@ -391,9 +396,9 @@ export default function LeadsPage() {
     try {
       await api(`/api/sales/leads/${l.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ action: "message", templateId: activeTemplate?.id, templateName: activeTemplate?.name, channel: activeTemplate?.channel ?? "whatsapp", next: "none" }),
+        body: JSON.stringify({ action: "message", templateId: activeTemplate?.id, templateName: activeTemplate?.name, channel: activeTemplate?.channel ?? "whatsapp", next: "tomorrow" }),
       });
-      toast(`${l.name} : message WhatsApp noté comme envoyé.`);
+      toast(`${l.name} : WhatsApp envoyé, relance demain matin.`);
       refresh();
     } catch (e) {
       toast((e as Error).message, "err");
@@ -421,7 +426,7 @@ export default function LeadsPage() {
     <div style={ACCENT}>
       <PageHeader
         title="Leads"
-        subtitle={data?.lastSyncAt ? `Inscrits Systeme.io synchronisés ${relative(data.lastSyncAt)}. Appelle d'abord ; pas de réponse → message WhatsApp avec le script du funnel. Un RDV pris part dans l'Agenda.` : "Les prospects qui viennent de laisser leurs coordonnées."}
+        subtitle={data?.lastSyncAt ? `Inscrits Systeme.io synchronisés ${relative(data.lastSyncAt)}. Cadence : appel → pas de réponse → WhatsApp → relance J+1 → J+3 → lead froid. Traite « À relancer » de haut en bas.` : "Les prospects qui viennent de laisser leurs coordonnées."}
         actions={
           <>
             {session.isAdmin && (

@@ -1031,3 +1031,111 @@ export function enrollStudentFromSale(
 export function studentForSale(db: DB, saleId: string) {
   return db.students.find((s) => s.saleId === saleId);
 }
+
+/* ------------------------- Issue depuis la fiche ------------------------- */
+
+export type QuickOutcomeStatus = "completed" | "follow-up" | "closed-won" | "no-show" | "closed-lost";
+
+export interface QuickOutcomeInput {
+  status: QuickOutcomeStatus;
+  sale?: OutcomeInput["sale"];
+  lostReason?: LostReason | "";
+  /** Relance (« en attente ») : date ISO ; vide = dans deux jours. */
+  followUpAt?: string;
+  /** Closer a qui rattacher le call (admin) ; un closer est rattache a lui-meme. */
+  closerId?: string;
+  note?: string;
+}
+
+/**
+ * Issue d'un lead posee directement depuis sa fiche, sans derouler la prise
+ * de rendez-vous : « pitche », « en attente », « close », « no-show »,
+ * « perdu ». Cas type : R1 au telephone, R2 place, vente conclue.
+ *
+ * On s'appuie sur le dernier rendez-vous du lead ; s'il n'en a aucun, un
+ * rendez-vous date de maintenant est cree, pour que la vente, l'attribution
+ * setter / closer, les commissions et le Sales Dashboard restent exacts (une
+ * vente = un rendez-vous). Le resultat passe ensuite par `recordOutcome`,
+ * comme un call normal.
+ */
+export function quickOutcome(session: Session, leadId: string, input: QuickOutcomeInput) {
+  const db = readDB();
+  const lead = db.leads.find((l) => l.id === leadId);
+  if (!lead) throw new Forbidden("Lead introuvable.");
+  if (!session.isAdmin && !sessionHas(session, "closer")) throw new Forbidden("Seul un closer (ou l'admin) pose l'issue d'un call.");
+
+  const closerId = (sessionHas(session, "closer") && !session.isAdmin ? session.memberId : "") || input.closerId || lead.closerId || "";
+  const now = new Date().toISOString();
+
+  let appt = db.appointments.filter((a) => a.leadId === lead.id && a.status !== "cancelled").sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))[0];
+  let created = false;
+  if (!appt) {
+    const setterId = lead.setterId || (sessionHas(session, "setter") ? session.memberId : "") || db.settings.salesDefaultSetterId || salesMembers(db).find((m) => m.status !== "inactif" && memberRoles(m).includes("setter"))?.id || "";
+    if (!setterId) throw new Error("Aucun setter à rattacher : attribue d'abord ce lead à un setter (Comptes).");
+    const KNOWN: AppointmentSource[] = ["instagram-dm", "instagram-story", "instagram-reel", "inbound", "outbound", "referral"];
+    const source: AppointmentSource = lead.source === "lp" ? "inbound" : KNOWN.includes(lead.source as AppointmentSource) ? (lead.source as AppointmentSource) : "other";
+    appt = {
+      id: newId(),
+      leadId: lead.id,
+      setterId,
+      closerId,
+      scheduledAt: now,
+      timezone: lead.timezone || "Europe/Paris",
+      source,
+      status: "booked",
+      qualified: true,
+      setterNotes: "",
+      closerNotes: "",
+      lostReason: "",
+      iclosedUrl: "",
+      iclosedEventId: "",
+      rescheduledFromId: "",
+      completedAt: "",
+      history: [{ at: now, actorId: session.memberId, actorName: session.memberName || "Moi", from: "", to: "booked", note: "Call enregistré depuis la fiche du lead" }],
+      createdBy: session.memberId,
+      createdAt: now,
+      updatedAt: now,
+    };
+    db.appointments.unshift(appt);
+    if (!lead.setterId) lead.setterId = setterId;
+    if (closerId) lead.closerId = closerId;
+    log(db, session, {
+      action: "appointment.created",
+      entity: "appointment",
+      entityId: appt.id,
+      summary: `${session.memberName || "Moi"} a enregistré un call pour ${lead.name} depuis sa fiche`,
+    });
+    created = true;
+  } else if (closerId && !appt.closerId) {
+    appt.closerId = closerId;
+    lead.closerId = closerId;
+  }
+  // recordOutcome relit la base : on fige d'abord ce qui vient d'etre pose.
+  writeDB(db);
+
+  const prev = appt.recap;
+  const out: OutcomeInput = {
+    status: input.status,
+    closerNotes: input.note?.trim() ? input.note.trim() : undefined,
+    lostReason: input.status === "closed-lost" ? input.lostReason || "other" : "",
+    sale: input.status === "closed-won" ? input.sale : undefined,
+    followUp: input.status === "follow-up" ? { dueAt: input.followUpAt || new Date(Date.now() + 2 * 86_400_000).toISOString(), notes: input.note?.trim() ?? "", closerId } : undefined,
+  };
+  // Le recap garde ce qui a deja ete note ; « pitche » est acquis des qu'on a parle au lead.
+  if (input.status !== "no-show") {
+    out.recap = {
+      closed: input.status === "closed-won",
+      notClosedReason: input.status === "closed-lost" ? input.lostReason || "other" : (prev?.notClosedReason ?? ""),
+      notClosedDetail: prev?.notClosedDetail ?? "",
+      pitched: true,
+      notPitchedReason: "",
+      leadInfo: prev?.leadInfo ?? "",
+      objective: prev?.objective ?? "",
+      objectiveOther: prev?.objectiveOther ?? "",
+      nextAction: input.status === "follow-up" ? "call" : (prev?.nextAction ?? ""),
+      nextActionAt: input.status === "follow-up" ? (out.followUp?.dueAt ?? "") : (prev?.nextActionAt ?? ""),
+    };
+  }
+  const result = recordOutcome(session, appt.id, out);
+  return { ...result, created };
+}

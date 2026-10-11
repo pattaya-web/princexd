@@ -4,7 +4,7 @@ import { canSee, Forbidden, readSession, requireSales } from "@/lib/sales/access
 import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
 import { CHANNEL_LABEL } from "@/lib/sales/templates";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, parisDay, parisToIso } from "@/lib/format";
 import { leadIsOut, type LeadCallStatus, type TemplateChannel } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -39,9 +39,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (!unassigned && !canSee(session, { setterId: lead.setterId })) throw new Forbidden();
     if (unassigned && !session.isAdmin && !sessionHas(session, "setter")) throw new Forbidden();
     const names = new Map(db.team.map((m) => [m.id, m.name]));
+    // La vente en cours du lead (la plus recente non annulee), pour la fiche.
+    const sale = db.sales.filter((s) => s.leadId === lead.id && s.status !== "cancelled").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
     return {
       lead,
       setterName: lead.setterId ? (names.get(lead.setterId) ?? "—") : "",
+      sale: sale ? { id: sale.id, offer: sale.offer, contractValue: sale.contractValue, cashCollected: sale.cashCollected, currency: sale.currency, soldAt: sale.soldAt, closerName: names.get(sale.closerId) ?? "" } : null,
       appointments: db.appointments
         .filter((a) => a.leadId === lead.id)
         .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))
@@ -102,6 +105,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
     const tomorrow = new Date(now.getTime() + 24 * 3600_000).toISOString().slice(0, 10);
+    /** Relance a J+n, le matin (heure de Paris) : le lead ressort en tete de liste ce jour-la. */
+    const relanceAt = (days: number) => parisToIso(`${parisDay(days)}T08:00`);
     const who = session.memberName || "Moi";
     let summary = "";
 
@@ -125,16 +130,30 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       // Un nouveau statut ouvre un nouveau cycle : la relance programmee d'avant ne vaut plus.
       lead.followUpAt = "";
       switch (status) {
-        case "no-answer":
+        case "no-answer": {
+          /*
+           * Cadence sans reponse : J0 appel + WhatsApp, relance J+1, relance
+           * J+3, puis lead froid au troisieme essai sans reponse. Le setter n'a
+           * rien a programmer : le lead ressort tout seul a la bonne date.
+           */
           lead.callAttempts = (lead.callAttempts ?? 0) + 1;
           if (lead.stage === "nouveau") lead.stage = "contacte";
-          lead.nextAction = "Rappeler le prospect";
-          lead.nextActionAt = tomorrow;
+          if (lead.callAttempts >= 3) {
+            lead.callStatus = "cold";
+            lead.nextAction = "";
+            lead.nextActionAt = "";
+            break;
+          }
+          lead.followUpAt = relanceAt(lead.callAttempts === 1 ? 1 : 2);
+          lead.nextAction = "Relancer le prospect";
+          lead.nextActionAt = lead.followUpAt.slice(0, 10);
           break;
+        }
         case "message-sent":
           if (lead.stage === "nouveau") lead.stage = "contacte";
-          lead.nextAction = "Attendre sa réponse, relancer";
-          lead.nextActionAt = tomorrow;
+          lead.followUpAt = relanceAt(1);
+          lead.nextAction = "Relancer le prospect";
+          lead.nextActionAt = lead.followUpAt.slice(0, 10);
           break;
         case "callback":
           lead.stage = "conversation";
@@ -198,7 +217,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         summary =
           status === "callback"
             ? `${who} : ${lead.name} demande à être rappelé le ${callbackAt.slice(0, 16).replace("T", " à ")}`
-            : `${who} : ${lead.name} — ${STATUS_LABEL[status]}${status === "no-answer" ? ` (essai ${lead.callAttempts})` : ""}`;
+            : `${who} : ${lead.name} — ${STATUS_LABEL[lead.callStatus ?? status]}${status === "no-answer" ? ` (essai ${lead.callAttempts})` : ""}${lead.followUpAt ? ` · relance le ${fmtDateTime(lead.followUpAt)}` : ""}${lead.callStatus === "cold" && status !== "cold" ? " · lead froid après 3 essais" : ""}`;
         break;
       }
       case "reopen":
@@ -252,10 +271,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         const templateName = (t?.name ?? body.templateName ?? "").trim();
         if (!lead.callStatus || lead.callStatus === "no-answer" || lead.callStatus === "message-sent" || leadIsOut(lead.callStatus)) setStatus("message-sent");
         else lead.lastCallAt = now.toISOString();
-        const next = (body.next ?? "").trim();
+        // Sans choix explicite : relance demain matin, c'est la cadence par defaut.
+        const next = (body.next ?? "tomorrow").trim() || "tomorrow";
         let followUpAt = "";
-        if (next === "tomorrow") followUpAt = new Date(now.getTime() + 24 * 3600_000).toISOString();
-        else if (next === "3d") followUpAt = new Date(now.getTime() + 3 * 24 * 3600_000).toISOString();
+        if (next === "tomorrow") followUpAt = relanceAt(1);
+        else if (next === "3d") followUpAt = relanceAt(3);
         else if (next && next !== "none") {
           const d = new Date(next);
           if (Number.isNaN(d.getTime())) throw new Error("Date de relance illisible.");
