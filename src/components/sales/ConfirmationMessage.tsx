@@ -48,12 +48,15 @@ export function ConfirmationMessage({ appt, lead, onChanged }: { appt: Appointme
     return conf.length ? conf : active;
   }, [templates]);
 
+  // Call dans moins de 36 h : c'est le rappel de confirmation ; sinon le message « call réservé ».
+  const soon = new Date(appt.scheduledAt).getTime() - Date.now() < 36 * 3600_000;
   useEffect(() => {
-    if (!selId && candidates[0]) {
-      setSelId(candidates[0].id);
-      setText(renderTemplate(candidates[0].content, { name: lead?.name }, ctx));
-    }
-  }, [candidates, selId, lead?.name, ctx]);
+    if (selId || !candidates.length) return;
+    const isRappel = (t: MessageTemplate) => /rappel|veille|confirm/i.test(t.name) && !/réservé|reserve/i.test(t.name);
+    const first = (soon ? candidates.find(isRappel) : candidates.find((t) => !isRappel(t))) ?? candidates[0];
+    setSelId(first.id);
+    setText(renderTemplate(first.content, { name: lead?.name }, ctx));
+  }, [candidates, selId, lead?.name, ctx, soon]);
 
   const pick = (id: string) => {
     const t = candidates.find((x) => x.id === id);

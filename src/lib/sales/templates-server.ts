@@ -79,26 +79,49 @@ export function ensureMessageTemplates(db: DB): boolean {
   return true;
 }
 
-/** Message de confirmation du call (Agenda) : pose une fois, meme sur une base deja seedee. */
-const CONFIRMATION: Seed = {
-  name: "Confirmation du call",
-  category: "CONFIRMATION",
-  channel: "whatsapp",
-  isFavorite: false,
-  content:
-    "Salut, c’est Mady. Je te confirme notre call {{date}} à {{heure}}.\n\nVoici le lien pour nous rejoindre :\n{{lien}}\n\nSi t’as un empêchement, dis-le moi ici et on recale. À tout à l’heure !",
-};
+/**
+ * Messages autour du call (Agenda), poses une fois, meme sur une base deja
+ * seedee :
+ *  - « Call réservé » : envoye des que le prospect a reserve, sans lui
+ *    demander de confirmer ; il sait qu'un message de confirmation viendra
+ *    la veille ;
+ *  - « Rappel de confirmation » : la veille (et une heure avant si besoin),
+ *    celui-la demande la confirmation.
+ */
+const FIRST_CONFIRMATION_CONTENT =
+  "Salut, c’est Mady. Je te confirme notre call {{date}} à {{heure}}.\n\nVoici le lien pour nous rejoindre :\n{{lien}}\n\nSi t’as un empêchement, dis-le moi ici et on recale. À tout à l’heure !";
+
+const CALL_MESSAGES: Seed[] = [
+  {
+    name: "Call réservé (juste après la prise de RDV)",
+    category: "CONFIRMATION",
+    channel: "whatsapp",
+    isFavorite: false,
+    content:
+      "Salut, c’est Mady. C’est bon, ton call est bien réservé {{date}} à {{heure}}.\n\nVoici le lien pour nous rejoindre :\n{{lien}}\n\nSi t’as le moindre empêchement, dis-le moi ici pour qu’on recale. Je te renvoie un message la veille pour confirmer. À très vite !",
+  },
+  {
+    name: "Rappel de confirmation (la veille)",
+    category: "CONFIRMATION",
+    channel: "whatsapp",
+    isFavorite: false,
+    content: "Salut, c’est Mady. Petit rappel : notre call est {{date}} à {{heure}}.\n\nLe lien pour nous rejoindre :\n{{lien}}\n\nTu me confirmes que c’est toujours bon pour toi ?",
+  },
+];
 
 export function ensureConfirmationTemplate(db: DB): boolean {
-  if (db.settings.messageTemplatesConfirmAt) return false;
+  if (db.settings.messageTemplatesConfirmAt === "v2") return false;
   db.messageTemplates ??= [];
-  if (!db.messageTemplates.some((t) => t.category === "CONFIRMATION")) {
-    const now = new Date().toISOString();
-    db.messageTemplates.push({ id: newId(), ...CONFIRMATION, isActive: true, sortOrder: db.messageTemplates.reduce((m, x) => Math.max(m, x.sortOrder), -1) + 1, createdAt: now, updatedAt: now });
+  const now = new Date().toISOString();
+  // Le premier message de confirmation, s'il n'a pas ete retouche, laisse la place aux deux nouveaux.
+  db.messageTemplates = db.messageTemplates.filter((t) => !(t.name === "Confirmation du call" && t.content === FIRST_CONFIRMATION_CONTENT));
+  for (const seed of CALL_MESSAGES) {
+    if (db.messageTemplates.some((t) => t.name === seed.name)) continue;
+    db.messageTemplates.push({ id: newId(), ...seed, isActive: true, sortOrder: db.messageTemplates.reduce((m, x) => Math.max(m, x.sortOrder), -1) + 1, createdAt: now, updatedAt: now });
   }
   const cats = db.settings.messageTemplateCategories ?? [...DEFAULT_TEMPLATE_CATEGORIES];
   if (!cats.includes("CONFIRMATION")) db.settings.messageTemplateCategories = [...cats, "CONFIRMATION"];
-  db.settings.messageTemplatesConfirmAt = new Date().toISOString();
+  db.settings.messageTemplatesConfirmAt = "v2";
   return true;
 }
 

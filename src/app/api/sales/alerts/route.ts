@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export interface AlertItem {
   id: string;
-  kind: "follow-up-overdue" | "follow-up-today" | "call-today" | "call-unconfirmed" | "callback";
+  kind: "follow-up-overdue" | "follow-up-today" | "call-today" | "call-unconfirmed" | "call-tomorrow" | "call-soon" | "callback";
   /** Rendez-vous a ouvrir (fiche), ou lead. */
   appointmentId: string;
   leadId: string;
@@ -59,13 +59,47 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    const tomorrow = parisDay(1);
+    const nowMs = Date.now();
     for (const a of db.appointments) {
       if (!mine(a.setterId, a.closerId)) continue;
       if (a.status !== "booked" && a.status !== "confirmed" && a.status !== "rescheduled") continue;
       const day = isoToParisInput(a.scheduledAt).slice(0, 10);
-      if (day !== today) continue;
       const lead = leads.get(a.leadId);
       const unconfirmed = a.confirmation !== "confirmed";
+      /*
+       * Cadence de confirmation : la veille, « relance-le pour confirmer » ;
+       * une heure avant, si toujours pas confirme, une derniere relance. Le
+       * clic ouvre la fiche du rendez-vous, ou le message est pret a copier.
+       */
+      if (day === tomorrow && unconfirmed) {
+        items.push({
+          id: `tmrw-${a.id}`,
+          kind: "call-tomorrow",
+          appointmentId: a.id,
+          leadId: a.leadId,
+          leadName: lead?.name ?? "Lead",
+          at: a.scheduledAt,
+          title: `Call demain · relance ${lead?.name ?? "le prospect"} pour confirmer`,
+          detail: `Envoie-lui le rappel de confirmation (${a.confirmation === "awaiting" ? "message déjà envoyé, pas de réponse" : "rien envoyé"})`,
+        });
+        continue;
+      }
+      if (day !== today) continue;
+      const inMs = Date.parse(a.scheduledAt) - nowMs;
+      if (unconfirmed && inMs > 0 && inMs <= 60 * 60_000) {
+        items.push({
+          id: `soon-${a.id}`,
+          kind: "call-soon",
+          appointmentId: a.id,
+          leadId: a.leadId,
+          leadName: lead?.name ?? "Lead",
+          at: a.scheduledAt,
+          title: `Call dans ${Math.max(1, Math.round(inMs / 60_000))} min · ${lead?.name ?? "Lead"} n'a pas confirmé`,
+          detail: "Relance-le tout de suite pour confirmer",
+        });
+        continue;
+      }
       items.push({
         id: `call-${a.id}`,
         kind: unconfirmed ? "call-unconfirmed" : "call-today",

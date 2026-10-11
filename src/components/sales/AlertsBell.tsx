@@ -11,6 +11,8 @@ const KIND_COLOR: Record<AlertItem["kind"], string> = {
   "follow-up-overdue": "var(--critical)",
   "follow-up-today": "var(--warning)",
   "call-unconfirmed": "var(--warning)",
+  "call-tomorrow": "var(--warning)",
+  "call-soon": "var(--critical)",
   "call-today": "var(--accent)",
   callback: "var(--accent)",
 };
