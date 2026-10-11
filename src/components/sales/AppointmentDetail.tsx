@@ -10,6 +10,7 @@ import { buildSchedule } from "@/lib/sales/installments";
 import { Field, Modal, Spinner, useToast } from "@/components/ui";
 import { ConfirmationSelect, IgHandle, SlotPicker, StatusBadge } from "./bits";
 import { FollowUpPanel } from "./FollowUpPanel";
+import { ConfirmationMessage } from "./ConfirmationMessage";
 import type { PublicMember } from "@/lib/sales/repo";
 import type {
   ActivityLog,
@@ -975,6 +976,18 @@ export function AppointmentDetail({
               )}
             </div>
           </div>
+
+          {/* Confirmation du call : le message a copier-coller, le lien du call sous la main. */}
+          {canConfirm(appt.status) && (
+            <ConfirmationMessage
+              appt={appt}
+              lead={detail.lead}
+              onChanged={() => {
+                void load(appt.id);
+                onChanged();
+              }}
+            />
+          )}
 
           {/* Contexte laisse par le setter : la raison d'etre de la fiche */}
           {appt.setterNotes && (

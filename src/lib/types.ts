@@ -212,6 +212,8 @@ export interface Settings {
   messageTemplateCategories?: string[];
   /** Les templates d'exemple ont ete poses (une seule fois). */
   messageTemplatesSeededAt?: string;
+  /** Le template « Confirmation du call » a ete pose (une seule fois, aussi sur une base deja seedee). */
+  messageTemplatesConfirmAt?: string;
   /** Contacts Systeme.io supprimes a la main depuis « A appeler » : la synchro ne les recree pas. */
   systemeioIgnoredIds?: string[];
   /** Date du nettoyage unique des pseudos Instagram fabriques par l'import iClosed. */

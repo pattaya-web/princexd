@@ -46,10 +46,15 @@ export function defaultTemplateFor(list: MessageTemplate[], action: string): Mes
 }
 
 /** « {{prenom}} » / « {{nom}} » dans un texte : remplaces par ceux du lead (les exemples n'en ont pas). */
-export function renderTemplate(content: string, lead: { name?: string }): string {
+export function renderTemplate(content: string, lead: { name?: string }, ctx: { date?: string; heure?: string; lien?: string } = {}): string {
   const name = (lead.name ?? "").trim();
   const first = name.split(/\s+/)[0] ?? "";
-  return content.replace(/\{\{\s*pr[eé]nom\s*\}\}|\{pr[eé]nom\}/gi, first).replace(/\{\{\s*nom\s*\}\}|\{nom\}/gi, name);
+  return content
+    .replace(/\{\{\s*pr[eé]nom\s*\}\}|\{pr[eé]nom\}/gi, first)
+    .replace(/\{\{\s*nom\s*\}\}|\{nom\}/gi, name)
+    .replace(/\{\{\s*date\s*\}\}|\{date\}/gi, ctx.date ?? "")
+    .replace(/\{\{\s*heure\s*\}\}|\{heure\}/gi, ctx.heure ?? "")
+    .replace(/\{\{\s*lien\s*\}\}|\{lien\}/gi, ctx.lien ?? "");
 }
 
 /** Numero au format international sans « + » (wa.me) : 06… devient 336…, +33 6… devient 336… */

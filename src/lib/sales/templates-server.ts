@@ -75,6 +75,30 @@ export function ensureMessageTemplates(db: DB): boolean {
   }
   db.settings.messageTemplateCategories ??= [...DEFAULT_TEMPLATE_CATEGORIES];
   db.settings.messageTemplatesSeededAt = new Date().toISOString();
+  ensureConfirmationTemplate(db);
+  return true;
+}
+
+/** Message de confirmation du call (Agenda) : pose une fois, meme sur une base deja seedee. */
+const CONFIRMATION: Seed = {
+  name: "Confirmation du call",
+  category: "CONFIRMATION",
+  channel: "whatsapp",
+  isFavorite: false,
+  content:
+    "Salut, c’est Mady. Je te confirme notre call {{date}} à {{heure}}.\n\nVoici le lien pour nous rejoindre :\n{{lien}}\n\nSi t’as un empêchement, dis-le moi ici et on recale. À tout à l’heure !",
+};
+
+export function ensureConfirmationTemplate(db: DB): boolean {
+  if (db.settings.messageTemplatesConfirmAt) return false;
+  db.messageTemplates ??= [];
+  if (!db.messageTemplates.some((t) => t.category === "CONFIRMATION")) {
+    const now = new Date().toISOString();
+    db.messageTemplates.push({ id: newId(), ...CONFIRMATION, isActive: true, sortOrder: db.messageTemplates.reduce((m, x) => Math.max(m, x.sortOrder), -1) + 1, createdAt: now, updatedAt: now });
+  }
+  const cats = db.settings.messageTemplateCategories ?? [...DEFAULT_TEMPLATE_CATEGORIES];
+  if (!cats.includes("CONFIRMATION")) db.settings.messageTemplateCategories = [...cats, "CONFIRMATION"];
+  db.settings.messageTemplatesConfirmAt = new Date().toISOString();
   return true;
 }
 

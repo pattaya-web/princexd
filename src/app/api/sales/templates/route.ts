@@ -3,7 +3,7 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { readSession, requireAdmin, requireSales } from "@/lib/sales/access";
 import { handle, required } from "@/lib/sales/http";
 import { asActions, asChannel, sortedTemplates, TEMPLATE_ACTIONS, TEMPLATE_CHANNELS, templateCategories } from "@/lib/sales/templates";
-import { ensureMessageTemplates } from "@/lib/sales/templates-server";
+import { ensureConfirmationTemplate, ensureMessageTemplates } from "@/lib/sales/templates-server";
 import type { MessageTemplate } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
   return handle(() => {
     requireSales(readSession(req));
     const db = readDB();
-    if (ensureMessageTemplates(db)) writeDB(db);
+    const seeded = ensureMessageTemplates(db);
+    if (ensureConfirmationTemplate(db) || seeded) writeDB(db);
     return { rows: sortedTemplates(db.messageTemplates), categories: templateCategories(db), channels: TEMPLATE_CHANNELS, actions: TEMPLATE_ACTIONS };
   });
 }

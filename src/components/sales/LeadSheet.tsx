@@ -200,9 +200,26 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
                       <StatusBadge status={a.status} />
                       {a.closerName && <span className="dim">avec {a.closerName}</span>}
                       {a.iclosedUrl && (
-                        <a href={a.iclosedUrl} target="_blank" rel="noreferrer" className="link">
-                          visio ↗
-                        </a>
+                        <>
+                          <a href={a.iclosedUrl} target="_blank" rel="noreferrer" className="link">
+                            visio ↗
+                          </a>
+                          <button
+                            type="button"
+                            className="btn btn-sm !h-[22px] !px-1.5 !text-[11px]"
+                            title="Copier le lien du call"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(a.iclosedUrl);
+                                toast("Lien du call copié.");
+                              } catch {
+                                toast("Copie impossible : ouvre le lien et copie l'adresse.", "err");
+                              }
+                            }}
+                          >
+                            Copier le lien
+                          </button>
+                        </>
                       )}
                     </li>
                   ))}
