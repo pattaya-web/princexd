@@ -86,7 +86,15 @@ const needles = (match: string) => match.split(",").map((x) => x.trim().toLowerC
 export function funnelForUrl(url: string, funnels: SalesFunnel[]): SalesFunnel | null {
   const u = url.toLowerCase();
   if (!u) return null;
-  return funnels.find((f) => needles(f.match).some((n) => u.includes(n))) ?? null;
+  // Plusieurs funnels peuvent reconnaitre l'URL : le morceau le plus long (le
+  // plus precis) l'emporte, ce qui permet une ancienne page et sa remplacante.
+  let best: { f: SalesFunnel; len: number } | null = null;
+  for (const f of funnels) {
+    for (const n of needles(f.match)) {
+      if (u.includes(n) && (!best || n.length > best.len)) best = { f, len: n.length };
+    }
+  }
+  return best?.f ?? null;
 }
 
 /**

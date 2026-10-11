@@ -235,7 +235,7 @@ export interface ImportReport {
 }
 
 /** Integre des contacts dans la base (sans ecrire : l'appelant fait le writeDB). */
-export function importContacts(db: DB, contacts: SioContact[], actorName = "Systeme.io"): ImportReport {
+export function importContacts(db: DB, contacts: SioContact[], actorName = "Systeme.io", opts: { coldBefore?: string } = {}): ImportReport {
   const report: ImportReport = { examined: contacts.length, created: 0, updated: 0, known: 0, skipped: 0, leads: [] };
   ensureFunnelsV2(db);
   const filter = db.settings.systemeioSourceFilter ?? "";
@@ -311,6 +311,13 @@ export function importContacts(db: DB, contacts: SioContact[], actorName = "Syst
     };
     // La page d'opt-in dit le funnel ; les utm arriveront avec le lien iClosed.
     applyTouch(lead, { landingUrl: lead.sourceUrl, hint: "systemeio" }, lead.optInAt || lead.createdAt, funnelsOf(db));
+    // Historique : un inscrit d'il y a des mois est un lead froid, pas un lead a appeler.
+    if (opts.coldBefore && lead.optInAt && lead.optInAt < opts.coldBefore) {
+      lead.callStatus = "cold";
+      lead.lastCallAt = lead.optInAt;
+      lead.nextAction = "";
+      lead.nextActionAt = "";
+    }
     db.leads.unshift(lead);
     db.activityLogs.unshift({
       id: newId(),
@@ -325,6 +332,34 @@ export function importContacts(db: DB, contacts: SioContact[], actorName = "Syst
     report.created++;
     report.leads.push(lead);
   }
+  return report;
+}
+
+/**
+ * Import de TOUT l'historique Systeme.io (toutes les pages de l'API), pour
+ * que chaque contact des funnels declares existe dans le CRM. Les inscrits
+ * de plus de `coldDays` jours arrivent en « lead froid » : ils comptent dans
+ * les chiffres et se retrouvent dans le CRM, sans encombrer la liste a
+ * appeler. Les contacts deja en base sont completes, jamais dupliques.
+ */
+export async function backfillSystemeio(coldDays = 30, actorName = "Import complet Systeme.io"): Promise<ImportReport> {
+  if (!getSystemeioKey()) throw new SystemeioError("Aucune clé API Systeme.io.");
+  const contacts = await listRecentContacts(20_000);
+  const db = readDB();
+  const coldBefore = new Date(Date.now() - coldDays * 86_400_000).toISOString();
+  const report = importContacts(db, contacts, actorName, { coldBefore });
+  db.settings.systemeioLastSyncAt = new Date().toISOString();
+  db.activityLogs.unshift({
+    id: newId(),
+    at: new Date().toISOString(),
+    actorId: "",
+    actorName,
+    action: "lead.import",
+    entity: "lead",
+    entityId: "",
+    summary: `Import complet Systeme.io : ${contacts.length} contacts lus, ${report.created} créés (${report.created ? "anciens inscrits en lead froid" : "rien de nouveau"}), ${report.updated} complétés, ${report.skipped} hors funnels`,
+  });
+  writeDB(db);
   return report;
 }
 

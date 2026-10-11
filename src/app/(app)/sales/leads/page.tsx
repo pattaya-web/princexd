@@ -205,6 +205,22 @@ export default function LeadsPage() {
     }
   };
 
+  const [backfilling, setBackfilling] = useState(false);
+  /** Import de tout l'historique Systeme.io : les anciens inscrits arrivent en leads froids. */
+  const backfill = async () => {
+    if (!window.confirm("Importer TOUT l'historique Systeme.io des funnels déclarés ? Les inscrits de plus de 30 jours arriveront en « lead froid » (comptés, consultables, pas dans la liste à appeler). Rien n'est dupliqué.")) return;
+    setBackfilling(true);
+    try {
+      const r = await api<{ examined: number; created: number; updated: number; skipped: number }>("/api/sales/systemeio/backfill", { method: "POST", timeoutMs: 180_000 });
+      toast(`${r.examined} contacts lus · ${r.created} nouveau${r.created > 1 ? "x" : ""} lead${r.created > 1 ? "s" : ""} · ${r.updated} complété${r.updated > 1 ? "s" : ""} · ${r.skipped} hors funnels.`);
+      refresh();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   const sync = async () => {
     setSyncing(true);
     try {
@@ -265,6 +281,11 @@ export default function LeadsPage() {
             {session.isAdmin && (
               <button className="btn" onClick={() => setFunnelsOpen(true)} title="Déclarer les funnels : URL d'opt-in, canal, script">
                 ⚙ Funnels
+              </button>
+            )}
+            {session.isAdmin && (
+              <button className="btn" onClick={() => void backfill()} disabled={backfilling} title="Relire tous les contacts Systeme.io depuis le début">
+                {backfilling ? <span className="spinner" /> : "Importer tout l'historique"}
               </button>
             )}
             <button className="btn" onClick={() => void sync()} disabled={syncing} title="Relire Systeme.io tout de suite">
