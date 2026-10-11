@@ -3,21 +3,52 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { fmtDateTime, isoToParisInput, label, parisToIso, relative } from "@/lib/format";
+// `label` sert aux statuts de rendez-vous du bloc booking.
 import { Empty, Field, Modal, Spinner, useToast } from "@/components/ui";
 import { StatusBadge } from "./bits";
 import { AttributionBlock } from "./AttributionBlock";
 import { useSales } from "./context";
 import type { ActivityLog, Lead } from "@/lib/types";
 import type { AppointmentStatus } from "@/lib/types";
+import type { LeadMeta } from "@/app/api/sales/leads/[id]/route";
+import type { TimelineItem, TimelineKind } from "@/lib/sales/timeline";
 
 interface Payload {
   lead: Lead;
   setterName: string;
-  appointments: { id: string; scheduledAt: string; status: AppointmentStatus; closerName: string; iclosedUrl: string }[];
+  appointments: {
+    id: string;
+    scheduledAt: string;
+    status: AppointmentStatus;
+    closerName: string;
+    iclosedUrl: string;
+    iclosedEventId: string;
+    calendar: string;
+    timezone: string;
+    confirmation: string;
+    createdAt: string;
+    source: string;
+  }[];
   /** Vente en cours du lead, s'il y en a une. */
   sale: { id: string; offer: string; contractValue: number; cashCollected: number; currency: string; soldAt: string; closerName: string } | null;
+  /** Noms et creative Meta d'apres l'instantane du media buying. */
+  meta: LeadMeta | null;
+  timeline: TimelineItem[];
   logs: ActivityLog[];
 }
+
+const KIND_COLOR: Record<TimelineKind, string> = {
+  lead: "#94a3b8",
+  message: "#25d366",
+  status: "#eab308",
+  booking: "#006dbc",
+  show: "#a855f7",
+  "no-show": "#ef4444",
+  sale: "#22c55e",
+  lost: "#ef4444",
+  "follow-up": "#3b82f6",
+  info: "#cbd5e1",
+};
 
 const STATUS: Record<string, string> = {
   "no-answer": "Ne répond pas",
@@ -180,6 +211,8 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
             {/* D'ou vient ce lead : first touch, jamais ecrase par un DM ulterieur. */}
             <AttributionBlock
               lead={l}
+              meta={data?.meta ?? null}
+              booking={data?.appointments[0] ? { provider: data.appointments[0].iclosedEventId ? "iClosed" : "CRM", createdAt: data.appointments[0].createdAt, scheduledAt: data.appointments[0].scheduledAt, status: data.appointments[0].status, calendar: data.appointments[0].calendar } : null}
               isAdmin
               onChanged={(lead) => {
                 setData((d) => (d ? { ...d, lead } : d));
@@ -199,6 +232,10 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
                       <span className="num">{fmtDateTime(a.scheduledAt)}</span>
                       <StatusBadge status={a.status} />
                       {a.closerName && <span className="dim">avec {a.closerName}</span>}
+                      <span className="dim text-[11px]" title={a.iclosedEventId ? `Booking iClosed #${a.iclosedEventId}${a.calendar ? ` · ${a.calendar}` : ""}` : "Rendez-vous posé dans le CRM"}>
+                        {a.iclosedEventId ? "iClosed" : "manuel"} · réservé le {fmtDateTime(a.createdAt)}
+                        {a.confirmation === "confirmed" ? " · confirmé" : a.confirmation === "awaiting" ? " · en attente" : a.confirmation === "no-answer" ? " · sans réponse" : ""}
+                      </span>
                       {a.iclosedUrl && (
                         <>
                           <a href={a.iclosedUrl} target="_blank" rel="noreferrer" className="link">
@@ -256,20 +293,22 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
               />
             </Field>
 
+            {/* Timeline : lead cree, messages, call booke, show / no-show, sale… assemblee depuis le journal. */}
             <div>
-              <div className="label-xs mb-1.5">Historique</div>
-              {!data?.logs.length ? (
+              <div className="label-xs mb-1.5">Timeline</div>
+              {!data?.timeline?.length ? (
                 <Empty>Rien pour l&apos;instant : les statuts posés apparaîtront ici.</Empty>
               ) : (
                 <ul className="flex flex-col">
-                  {data.logs.map((g, i) => (
-                    <li
-                      key={g.id}
-                      className="py-1.5 flex items-baseline gap-3 text-[12.5px]"
-                      style={{ borderTop: i ? "1px solid var(--border)" : "none" }}
-                    >
-                      <span className="dim num text-[11px] shrink-0 w-[92px]">{fmtDateTime(g.at)}</span>
-                      <span className="min-w-0">{g.summary || label(g.action)}</span>
+                  {data.timeline.map((t, i) => (
+                    <li key={t.id} className="py-2 flex items-start gap-2.5 text-[12.5px]" style={{ borderTop: i ? "1px solid var(--border)" : "none" }}>
+                      <span className="dim num text-[11px] shrink-0 w-[96px] pt-[2px]">{fmtDateTime(t.at)}</span>
+                      <span className="w-[8px] h-[8px] rounded-full shrink-0 mt-[6px]" style={{ background: KIND_COLOR[t.kind] ?? KIND_COLOR.info }} />
+                      <span className="min-w-0 flex-1">
+                        <span className="font-semibold">{t.title}</span>
+                        {t.by && <span className="dim text-[11px]"> · {t.by}</span>}
+                        {t.detail && <span className="dim block text-[12px] leading-snug">{t.detail}</span>}
+                      </span>
                     </li>
                   ))}
                 </ul>

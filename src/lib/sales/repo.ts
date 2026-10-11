@@ -175,6 +175,8 @@ export interface AppointmentInput {
   utm?: Record<string, string>;
   iclosedUrl?: string;
   iclosedEventId?: string;
+  /** Calendrier iClosed (callType) sur lequel le prospect a reserve. */
+  calendar?: string;
   setterNotes?: string;
   qualified?: boolean;
 }
@@ -218,6 +220,7 @@ export function createAppointment(session: Session, input: AppointmentInput): Cr
     lostReason: "",
     iclosedUrl: input.iclosedUrl?.trim() || "",
     iclosedEventId: input.iclosedEventId?.trim() || "",
+    ...(input.calendar?.trim() ? { calendar: input.calendar.trim() } : {}),
     rescheduledFromId: "",
     completedAt: "",
     history: [

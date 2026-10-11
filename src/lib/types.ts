@@ -219,6 +219,10 @@ export interface Settings {
   /** Date du nettoyage unique des pseudos Instagram fabriques par l'import iClosed. */
   igHandlesCleanedAt?: string;
   systemeioLastSyncAt?: string;
+  /** Derniere synchro automatique des issues iClosed (calls passes). */
+  salesLastOutcomeSyncAt?: string;
+  /** Rejeu des utm / IDs Meta sur les leads deja en base (une seule fois). */
+  metaIdsBackfilledAt?: string;
   /**
    * Attribution des leads LP. « pool » (le choix par defaut) : personne, les
    * leads sont a tous les setters et le premier qui appelle le prend.
@@ -451,6 +455,9 @@ export interface Lead {
   firstTouchUtmTerm?: string;
   firstTouchPlacement?: string;
   firstTouchFbclid?: string;
+  /** Cookies Meta (_fbc / _fbp) transmis par la page ou iClosed. */
+  firstTouchFbc?: string;
+  firstTouchFbp?: string;
   firstTouchAt?: string;
   /** Vrai quand le first touch est juge fiable (IDs Meta, fbclid, utm payant) : plus rien ne l'ecrase automatiquement. */
   firstTouchReliable?: boolean;
@@ -1403,6 +1410,8 @@ export interface Appointment {
   iclosedUrl: string;
   /** Identifiant iClosed, pour rapprocher plus tard via l'API ou le webhook. */
   iclosedEventId: string;
+  /** Calendrier / type d'evenement iClosed (callType) sur lequel le prospect a reserve. */
+  calendar?: string;
   /** Rendez-vous d'origine, si celui-ci est une reprogrammation. */
   rescheduledFromId: ID | "";
   completedAt: string;

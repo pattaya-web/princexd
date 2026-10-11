@@ -11,7 +11,7 @@
 
 import { readDB, writeDB } from "./db";
 import { getIclosedKey } from "./iclosed";
-import { syncIclosedUpcoming } from "./sales/iclosed-sync";
+import { syncIclosedOutcomes, syncIclosedUpcoming } from "./sales/iclosed-sync";
 import { getSystemeioKey, syncSystemeio } from "./systemeio";
 
 const SIO_EVERY_MS = 2 * 60_000;
@@ -52,6 +52,8 @@ async function tickIclosed() {
   if (readDB().settings.salesAutoImportOff) return;
   try {
     await syncIclosedUpcoming({ force: true });
+    // Les issues des calls passes (show, no-show, vente…) : au plus toutes les 15 min.
+    await syncIclosedOutcomes();
     state.lastIclosed = new Date().toISOString();
     state.lastIclosedError = "";
   } catch (e) {

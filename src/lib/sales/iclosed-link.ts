@@ -181,6 +181,7 @@ export function fromIclosedCall(
     utm: utmRecord(call),
     iclosedUrl: call.locationLinkInvitee || call.locationLink || "",
     iclosedEventId: call.id !== undefined ? String(call.id) : "",
+    calendar: call.callType ?? "",
     setterNotes: q?.lines.length ? `— Questionnaire iClosed —\n${q.lines.join("\n")}` : "",
     qualified: false,
   };

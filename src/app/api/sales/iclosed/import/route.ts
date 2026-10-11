@@ -3,15 +3,9 @@ import { readDB } from "@/lib/db";
 import { fetchCalls, IclosedError, type IclosedCall } from "@/lib/iclosed";
 import { readSession, requireAdmin } from "@/lib/sales/access";
 import { handle, required } from "@/lib/sales/http";
-import {
-  dealAmount,
-  findByIclosedId,
-  fromIclosedCall,
-  mapLostReason,
-  mapOutcome,
-  resolveCloser,
-} from "@/lib/sales/iclosed-link";
-import { createAppointment, patchAppointment, recordOutcome } from "@/lib/sales/repo";
+import { findByIclosedId, fromIclosedCall, resolveCloser } from "@/lib/sales/iclosed-link";
+import { applyIclosedOutcome } from "@/lib/sales/iclosed-sync";
+import { createAppointment, patchAppointment } from "@/lib/sales/repo";
 import { FINAL_STATUSES } from "@/lib/sales/constants";
 import type { AppointmentSource, Session } from "@/lib/types";
 
@@ -137,61 +131,5 @@ export async function POST(req: NextRequest) {
     }
 
     return report;
-  });
-}
-
-/** Reporte l'issue iClosed sur le rendez-vous, quand il y en a une. */
-function applyIclosedOutcome(
-  session: Session,
-  appointmentId: string,
-  call: IclosedCall,
-  report: { salesCreated: number; salesWithoutAmount: string[] },
-) {
-  const status = mapOutcome(call);
-  // Le cas le plus frequent : aucune issue saisie dans iClosed. On laisse le
-  // rendez-vous tel quel plutot que d'inventer un resultat.
-  if (!status || status === "cancelled" || status === "rescheduled") return;
-
-  const notes = (call.task ?? []).map((t) => t.notes).filter(Boolean).join("\n");
-  const amount = dealAmount(call);
-
-  if (status === "closed-won") {
-    if (amount <= 0) {
-      // iClosed annonce une vente sans montant : on refuse d'inventer un
-      // chiffre qui se propagerait jusqu'aux commissions.
-      report.salesWithoutAmount.push(call.inviteeName || String(call.id));
-      recordOutcome(session, appointmentId, {
-        status: "completed",
-        closerNotes: [notes, "Vente signalée par iClosed sans montant — à compléter à la main."]
-          .filter(Boolean)
-          .join("\n"),
-      });
-      return;
-    }
-    recordOutcome(session, appointmentId, {
-      status: "closed-won",
-      closerNotes: notes,
-      sale: {
-        offer: call.callType?.replace(/_/g, " ").toLowerCase() || "Vente iClosed",
-        contractValue: amount,
-        // iClosed ne distingue pas contrat et cash encaisse : on prend le
-        // montant du deal comme cash, quitte a le corriger dans la fiche.
-        cashCollected: amount,
-        currency: readDB().settings.salesCurrency || "EUR",
-        paymentType: "paid-in-full",
-        installments: 0,
-        paymentMethod: "",
-        soldAt: new Date(call.dateTimeUTC).toISOString(),
-        notes: "Importé depuis iClosed",
-      },
-    });
-    report.salesCreated += 1;
-    return;
-  }
-
-  recordOutcome(session, appointmentId, {
-    status,
-    closerNotes: notes,
-    ...(status === "closed-lost" ? { lostReason: mapLostReason(call) } : {}),
   });
 }

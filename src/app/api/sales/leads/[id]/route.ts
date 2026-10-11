@@ -5,9 +5,40 @@ import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
 import { CHANNEL_LABEL } from "@/lib/sales/templates";
 import { fmtDateTime, parisDay, parisToIso } from "@/lib/format";
-import { leadIsOut, type LeadCallStatus, type TemplateChannel } from "@/lib/types";
+import { leadIsOut, type DB, type Lead, type LeadCallStatus, type TemplateChannel } from "@/lib/types";
+import { leadTimeline } from "@/lib/sales/timeline";
 
 export const dynamic = "force-dynamic";
+
+export interface LeadMeta {
+  campaignName: string;
+  adsetName: string;
+  adName: string;
+  creative: { id: string; name: string; kind: string; thumbnailUrl: string; imageUrl: string } | null;
+  /** Date de l'instantane Meta qui a servi. */
+  syncedAt: string;
+}
+
+/** Noms de campagne / ad set / ad et creative, d'apres l'instantane Meta Ads (par IDs). */
+function resolveMeta(db: DB, lead: Lead): LeadMeta | null {
+  if (!lead.campaignId && !lead.adsetId && !lead.adId) return null;
+  const snaps = [...db.mbSnapshots].sort((a, b) => b.syncedAt.localeCompare(a.syncedAt));
+  const out: LeadMeta = { campaignName: lead.campaignName ?? "", adsetName: lead.adsetName ?? "", adName: lead.adName ?? "", creative: null, syncedAt: "" };
+  for (const s of snaps) {
+    const campaign = lead.campaignId ? s.campaigns.find((c) => c.id === lead.campaignId) : undefined;
+    const adset = lead.adsetId ? s.adsets.find((a) => a.id === lead.adsetId) : undefined;
+    const ad = lead.adId ? s.ads.find((a) => a.id === lead.adId) : undefined;
+    if (!campaign && !adset && !ad) continue;
+    out.campaignName = campaign?.name ?? out.campaignName;
+    out.adsetName = adset?.name ?? out.adsetName;
+    out.adName = ad?.name ?? out.adName;
+    const creative = ad ? s.creatives.find((c) => c.id === ad.creativeId) : undefined;
+    if (creative) out.creative = { id: creative.id, name: creative.name, kind: creative.kind, thumbnailUrl: creative.thumbnailUrl, imageUrl: creative.imageUrl };
+    out.syncedAt = s.syncedAt;
+    break;
+  }
+  return out;
+}
 
 type Action = "status" | "reopen" | "attempt" | "reached" | "lost" | "note" | "assign" | "contact" | "message";
 
@@ -41,6 +72,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const names = new Map(db.team.map((m) => [m.id, m.name]));
     // La vente en cours du lead (la plus recente non annulee), pour la fiche.
     const sale = db.sales.filter((s) => s.leadId === lead.id && s.status !== "cancelled").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    /*
+     * Noms et creative Meta, resolus depuis le dernier instantane du media
+     * buying (aucun appel a l'API ici) : les IDs restent la reference, les
+     * noms ne servent qu'a lire.
+     */
+    const meta = resolveMeta(db, lead);
     return {
       lead,
       setterName: lead.setterId ? (names.get(lead.setterId) ?? "—") : "",
@@ -48,7 +85,21 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       appointments: db.appointments
         .filter((a) => a.leadId === lead.id)
         .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))
-        .map((a) => ({ id: a.id, scheduledAt: a.scheduledAt, status: a.status, closerName: a.closerId ? (names.get(a.closerId) ?? "—") : "", iclosedUrl: a.iclosedUrl })),
+        .map((a) => ({
+          id: a.id,
+          scheduledAt: a.scheduledAt,
+          status: a.status,
+          closerName: a.closerId ? (names.get(a.closerId) ?? "—") : "",
+          iclosedUrl: a.iclosedUrl,
+          iclosedEventId: a.iclosedEventId,
+          calendar: a.calendar ?? "",
+          timezone: a.timezone,
+          confirmation: a.confirmation ?? "",
+          createdAt: a.createdAt,
+          source: a.source,
+        })),
+      meta,
+      timeline: leadTimeline(db, lead, names, meta?.adName),
       logs: db.activityLogs.filter((l) => l.entity === "lead" && l.entityId === lead.id).slice(0, 40),
     };
   });

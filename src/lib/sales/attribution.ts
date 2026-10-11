@@ -127,6 +127,9 @@ export interface TouchInput {
   utmTerm?: string;
   placement?: string;
   fbclid?: string;
+  /** Cookies Meta (_fbc / _fbp) quand la page ou iClosed les transmettent. */
+  fbc?: string;
+  fbp?: string;
   landingUrl?: string;
   /** Source saisie a la main (CRM) : reel, story, dm, bio-link, referral, ads, lp… */
   manualSource?: string;
@@ -152,17 +155,19 @@ export function resolveAcquisitionSource(t: TouchInput, funnels: SalesFunnel[] =
   const hasMetaIds = Boolean(clean(t.campaignId) || clean(t.adsetId) || clean(t.adId));
   const utmSource = lower(t.utmSource);
   const utmMedium = lower(t.utmMedium);
-  const paidUtm = PAID_UTM_SOURCES.has(utmSource) || (utmSource === "ig" && (PAID_UTM_MEDIUMS.has(utmMedium) || hasMetaIds || Boolean(clean(t.fbclid))));
+  // Un clic Meta identifie : fbclid dans l'URL, ou le cookie _fbc qui en derive.
+  const click = clean(t.fbclid) || clean(t.fbc);
+  const paidUtm = PAID_UTM_SOURCES.has(utmSource) || (utmSource === "ig" && (PAID_UTM_MEDIUMS.has(utmMedium) || hasMetaIds || Boolean(click)));
 
   // 2. funnel_source explicite
   const funnel = lower(t.funnelSource);
   const custom = funnel ? funnels.find((f) => f.key.toLowerCase() === funnel) : undefined;
   if (custom) {
-    return { sourceChannel: custom.channel, funnelSource: custom.key, reliable: custom.channel !== "META_ADS" || hasMetaIds || paidUtm || Boolean(clean(t.fbclid)), via: "funnel_source" };
+    return { sourceChannel: custom.channel, funnelSource: custom.key, reliable: custom.channel !== "META_ADS" || hasMetaIds || paidUtm || Boolean(click), via: "funnel_source" };
   }
   if (funnel && FUNNEL_BY_KEY.has(funnel)) {
     const f = FUNNEL_BY_KEY.get(funnel)!;
-    return { sourceChannel: f.channel, funnelSource: f.key, reliable: f.channel === "META_ADS" && (hasMetaIds || paidUtm || Boolean(clean(t.fbclid))) ? true : f.channel !== "META_ADS", via: "funnel_source" };
+    return { sourceChannel: f.channel, funnelSource: f.key, reliable: f.channel === "META_ADS" && (hasMetaIds || paidUtm || Boolean(click)) ? true : f.channel !== "META_ADS", via: "funnel_source" };
   }
   // 3. IDs Meta
   if (hasMetaIds) return { sourceChannel: "META_ADS", funnelSource: funnel || "lp1_ads", reliable: true, via: "meta_ids" };
@@ -170,8 +175,8 @@ export function resolveAcquisitionSource(t: TouchInput, funnels: SalesFunnel[] =
   if (paidUtm) return { sourceChannel: "META_ADS", funnelSource: funnel || "lp1_ads", reliable: true, via: "utm_source" };
   if (utmSource === "ig" || utmSource === "instagram") return { sourceChannel: "INSTAGRAM", funnelSource: funnel || "instagram_bio", reliable: true, via: "utm_source" };
   if (utmSource === "youtube" || utmSource === "yt") return { sourceChannel: "ORGANIC", funnelSource: funnel || "youtube", reliable: true, via: "utm_source" };
-  // 5. fbclid
-  if (clean(t.fbclid)) return { sourceChannel: "META_ADS", funnelSource: funnel || "lp1_ads", reliable: true, via: "fbclid" };
+  // 5. fbclid / _fbc
+  if (click) return { sourceChannel: "META_ADS", funnelSource: funnel || "lp1_ads", reliable: true, via: "fbclid" };
   // 6. landing page connue
   const url = clean(t.landingUrl);
   if (url) {
@@ -284,6 +289,8 @@ function setFirstTouch(lead: Lead, touch: TouchInput, r: ResolvedSource, at: str
   lead.firstTouchUtmTerm = clean(touch.utmTerm);
   lead.firstTouchPlacement = clean(touch.placement);
   lead.firstTouchFbclid = clean(touch.fbclid);
+  lead.firstTouchFbc = clean(touch.fbc);
+  lead.firstTouchFbp = clean(touch.fbp);
   lead.firstTouchAt = lead.firstTouchAt || at;
   lead.firstTouchReliable = r.reliable;
   if (clean(touch.campaignName)) lead.campaignName = clean(touch.campaignName);
@@ -294,7 +301,7 @@ function setFirstTouch(lead: Lead, touch: TouchInput, r: ResolvedSource, at: str
 
 /** Attribution payante identifiee (utm payant, fbclid, IDs Meta) : on ne la remplace jamais automatiquement. */
 export const hasPaidEvidence = (lead: Lead) =>
-  Boolean(lead.firstTouchReliable && lead.firstTouchSourceChannel === "META_ADS" && (lead.firstTouchFbclid || lead.firstTouchUtmSource || lead.firstTouchAdId || lead.firstTouchCampaignId));
+  Boolean(lead.firstTouchReliable && lead.firstTouchSourceChannel === "META_ADS" && (lead.firstTouchFbclid || lead.firstTouchFbc || lead.firstTouchUtmSource || lead.firstTouchAdId || lead.firstTouchCampaignId));
 
 /**
  * Un OPT-IN (webhook Systeme.io) fixe le funnel du lead : la page sur
@@ -353,18 +360,22 @@ export function touchFromUtm(utm: Record<string, string> | undefined, extra: Tou
   // {{adset.id}} dans utm_term, {{ad.id}} dans utm_content) : des identifiants
   // numeriques longs, qui rattachent le lead a l'annonce du media buying.
   const metaId = (v: string) => (/^\d{12,}$/.test(v.trim()) ? v.trim() : "");
+  // Deux formes de cles : les parametres d'URL (utm_source…) et l'info
+  // normalisee d'un rendez-vous iClosed (source, medium, campaignId…).
   return {
     ...extra,
-    utmSource: extra.utmSource || get("utm_source", "utmSource"),
-    utmMedium: extra.utmMedium || get("utm_medium", "utmMedium"),
-    utmCampaign: extra.utmCampaign || get("utm_campaign", "utmCampaign"),
-    utmContent: extra.utmContent || get("utm_content", "utmContent"),
-    utmTerm: extra.utmTerm || get("utm_term", "utmTerm"),
-    campaignId: extra.campaignId || get("campaign_id", "campaignId", "utm_campaign_id") || metaId(get("utm_id")) || metaId(get("utm_campaign")),
-    adsetId: extra.adsetId || get("adset_id", "adsetId", "utm_adset_id") || metaId(get("utm_term")),
-    adId: extra.adId || get("ad_id", "adId", "utm_ad_id") || metaId(get("utm_content")),
+    utmSource: extra.utmSource || get("utm_source", "utmSource", "source"),
+    utmMedium: extra.utmMedium || get("utm_medium", "utmMedium", "medium"),
+    utmCampaign: extra.utmCampaign || get("utm_campaign", "utmCampaign", "campaign"),
+    utmContent: extra.utmContent || get("utm_content", "utmContent", "content"),
+    utmTerm: extra.utmTerm || get("utm_term", "utmTerm", "term"),
+    campaignId: extra.campaignId || get("campaign_id", "campaignId", "utm_campaign_id") || metaId(get("utm_id")) || metaId(get("utm_campaign", "campaign")),
+    adsetId: extra.adsetId || get("adset_id", "adsetId", "utm_adset_id") || metaId(get("utm_term", "term")),
+    adId: extra.adId || get("ad_id", "adId", "utm_ad_id") || metaId(get("utm_content", "content")),
     placement: extra.placement || get("placement", "utm_placement"),
     fbclid: extra.fbclid || get("fbclid"),
+    fbc: extra.fbc || get("fbc", "_fbc"),
+    fbp: extra.fbp || get("fbp", "_fbp"),
     funnelSource: extra.funnelSource || get("funnel_source", "funnelSource", "funnel"),
   };
 }
@@ -414,6 +425,31 @@ export function backfillAttribution(db: DB): number {
       mirrorFirstTouch(lead);
     }
   }
+  return n;
+}
+
+/**
+ * Une seule fois : les leads deja en base dont l'URL d'opt-in ou le lien de
+ * reservation iClosed porte des utm / fbclid / IDs Meta, mais importes avant
+ * que ces parametres soient lus. On rejoue le touch : une attribution Ads
+ * non fiable devient fiable et nominative par annonce, rien n'est ecrase
+ * quand la fiche est verrouillee ou deja identifiee.
+ */
+export function backfillMetaIds(db: DB): number {
+  if (db.settings.metaIdsBackfilledAt) return 0;
+  let n = 0;
+  const apptsByLead = new Map<string, { utm?: Record<string, string>; createdAt: string }[]>();
+  for (const a of db.appointments) if (a.utm) apptsByLead.set(a.leadId, [...(apptsByLead.get(a.leadId) ?? []), a]);
+  const funnels = funnelsOf(db);
+  for (const lead of db.leads) {
+    if (lead.attributionLocked || (lead.firstTouchAdId && lead.firstTouchCampaignId)) continue;
+    const before = `${lead.sourceChannel}|${lead.adId}|${lead.campaignId}|${lead.firstTouchReliable}`;
+    const url = lead.lastOptInUrl || lead.sourceUrl || "";
+    if (/[?&](utm_|fbclid|_fbc|campaign_id|ad_id)/i.test(url)) applyTouch(lead, touchFromUrl(url, { hint: "systemeio" }), lead.firstTouchAt || lead.optInAt || lead.createdAt, funnels);
+    for (const a of apptsByLead.get(lead.id) ?? []) applyTouch(lead, touchFromUtm(a.utm, { hint: "iclosed", manualSource: "bio-link" }), a.createdAt, funnels);
+    if (`${lead.sourceChannel}|${lead.adId}|${lead.campaignId}|${lead.firstTouchReliable}` !== before) n++;
+  }
+  db.settings.metaIdsBackfilledAt = new Date().toISOString();
   return n;
 }
 

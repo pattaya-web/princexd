@@ -1,8 +1,10 @@
 import { getSettings, newId, readDB, saveSettings, writeDB } from "@/lib/db";
-import { fetchUpcoming, getIclosedKey, type IclosedCall } from "@/lib/iclosed";
-import { findByIclosedId, fromIclosedCall, resolveCloser, utmRecord } from "./iclosed-link";
+import { fetchCalls, fetchUpcoming, getIclosedKey, type IclosedCall } from "@/lib/iclosed";
+import { dealAmount, findByIclosedId, fromIclosedCall, mapLostReason, mapOutcome, resolveCloser, utmRecord } from "./iclosed-link";
+import { FINAL_STATUSES } from "./constants";
 import { memberRoles } from "./roles";
-import { createAppointment, upsertLead, type AppointmentInput } from "./repo";
+import { createAppointment, recordOutcome, upsertLead, type AppointmentInput } from "./repo";
+import { touchFromUtm, applyTouch } from "./attribution";
 import type { Appointment, DB, Session, TeamMember } from "@/lib/types";
 
 /**
@@ -27,7 +29,8 @@ import type { Appointment, DB, Session, TeamMember } from "@/lib/types";
 // iClosed limite a 200 requetes par heure ; une verification en coute une.
 // Deux minutes entre deux verifications = 30 requetes par heure au pire.
 const COOLDOWN_MS = 2 * 60_000;
-const SYSTEM: Session = { role: "owner", roles: [], memberId: "", memberName: "iClosed", isAdmin: true };
+export const ICLOSED_SESSION: Session = { role: "owner", roles: [], memberId: "", memberName: "iClosed", isAdmin: true };
+const SYSTEM = ICLOSED_SESSION;
 
 export interface IclosedSyncReport {
   skipped: "no-key" | "off" | "cooldown" | null;
@@ -138,6 +141,7 @@ function createUnassigned(db: DB, input: AppointmentInput, closerId: string) {
     lostReason: "",
     iclosedUrl: input.iclosedUrl ?? "",
     iclosedEventId: input.iclosedEventId ?? "",
+    ...(input.calendar ? { calendar: input.calendar } : {}),
     rescheduledFromId: "",
     completedAt: "",
     history: [{ at: now, actorId: "", actorName: "iClosed", from: "", to: "booked", note: "Synchro iClosed, setter à attribuer" }],
@@ -198,10 +202,30 @@ export async function syncIclosedUpcoming(opts: { force?: boolean } = {}): Promi
             touched = true;
           }
           // Source du lien : connue des la creation, mais les rendez-vous
-          // importes avant cette evolution ne l'ont pas encore.
+          // importes avant cette evolution ne l'ont pas encore (ou sans les IDs Meta).
           const utm = utmRecord(call);
-          if (utm && !existing.utm) {
-            existing.utm = utm;
+          if (utm && (!existing.utm || Object.keys(utm).some((k) => !(k in existing.utm!)))) {
+            existing.utm = { ...(existing.utm ?? {}), ...utm };
+            touched = true;
+            // Les IDs Meta du lien completent la fiche du lead sans ecraser une attribution deja fiable.
+            const lead = db.leads.find((l) => l.id === existing.leadId);
+            if (lead) applyTouch(lead, touchFromUtm(utm, { hint: "iclosed", manualSource: "bio-link" }), existing.createdAt);
+          }
+          if (call.callType && !existing.calendar) {
+            existing.calendar = call.callType;
+            touched = true;
+          }
+          // Reprogramme cote iClosed : la nouvelle heure, avec trace.
+          const when = call.dateTimeUTC ? new Date(call.dateTimeUTC).toISOString() : "";
+          if (when && when !== existing.scheduledAt && !FINAL_STATUSES.includes(existing.status)) {
+            const from = existing.scheduledAt;
+            existing.history = [...(existing.history ?? []), { at: new Date().toISOString(), actorId: "", actorName: "iClosed", from: existing.status, to: "rescheduled", note: `Reprogrammé par iClosed : ${from} → ${when}` }];
+            existing.status = "rescheduled";
+            existing.scheduledAt = when;
+            existing.confirmation = "";
+            const lead = db.leads.find((l) => l.id === existing.leadId);
+            if (lead) lead.callAt = when;
+            db.activityLogs.unshift({ id: newId(), at: new Date().toISOString(), actorId: "", actorName: "iClosed", action: "appointment.rescheduled", entity: "appointment", entityId: existing.id, summary: `Rendez-vous reprogrammé par iClosed` });
             touched = true;
           }
           if (closerId) {
@@ -255,4 +279,124 @@ export async function syncIclosedUpcoming(opts: { force?: boolean } = {}): Promi
     }
   })();
   return inflight;
+}
+
+/* ------------------------------ Les issues ------------------------------- */
+
+/**
+ * Reporte l'issue iClosed (task.outcome, deals, annulation) sur le rendez-
+ * vous : SALE → close avec le montant du deal, NO_SALE → perdu avec le motif,
+ * NO_SHOW, FOLLOW_UP, autre issue → honore. Une vente sans montant n'invente
+ * pas de chiffre : le call est marque honore et signale a completer.
+ */
+export function applyIclosedOutcome(
+  session: Session,
+  appointmentId: string,
+  call: IclosedCall,
+  report: { salesCreated: number; salesWithoutAmount: string[] },
+) {
+  const status = mapOutcome(call);
+  // Le cas le plus frequent : aucune issue saisie dans iClosed. On laisse le
+  // rendez-vous tel quel plutot que d'inventer un resultat.
+  if (!status || status === "rescheduled") return;
+  if (status === "cancelled") {
+    recordOutcome(session, appointmentId, { status: "cancelled", closerNotes: call.cancelReason ? `Annulé côté iClosed : ${call.cancelReason}` : undefined });
+    return;
+  }
+
+  const notes = (call.task ?? []).map((t) => t.notes).filter(Boolean).join("\n");
+  const amount = dealAmount(call);
+
+  if (status === "closed-won") {
+    if (amount <= 0) {
+      report.salesWithoutAmount.push(call.inviteeName || String(call.id));
+      recordOutcome(session, appointmentId, {
+        status: "completed",
+        closerNotes: [notes, "Vente signalée par iClosed sans montant — à compléter à la main."].filter(Boolean).join("\n"),
+      });
+      return;
+    }
+    recordOutcome(session, appointmentId, {
+      status: "closed-won",
+      closerNotes: notes,
+      sale: {
+        offer: call.callType?.replace(/_/g, " ").toLowerCase() || "Vente iClosed",
+        contractValue: amount,
+        // iClosed ne distingue pas contrat et cash encaisse : on prend le
+        // montant du deal comme cash, quitte a le corriger dans la fiche.
+        cashCollected: amount,
+        currency: readDB().settings.salesCurrency || "EUR",
+        paymentType: "paid-in-full",
+        installments: 0,
+        paymentMethod: "",
+        soldAt: new Date(call.dateTimeUTC).toISOString(),
+        notes: "Importé depuis iClosed",
+      },
+    });
+    report.salesCreated += 1;
+    return;
+  }
+
+  recordOutcome(session, appointmentId, {
+    status,
+    closerNotes: notes,
+    ...(status === "closed-lost" ? { lostReason: mapLostReason(call) } : {}),
+  });
+}
+
+const OUTCOME_COOLDOWN_MS = 15 * 60_000;
+const OUTCOME_WINDOW_MS = 14 * 86_400_000;
+
+export interface IclosedOutcomeReport {
+  skipped: "no-key" | "off" | "cooldown" | null;
+  examined: number;
+  applied: number;
+  salesCreated: number;
+  salesWithoutAmount: string[];
+}
+
+let outcomesInflight: Promise<IclosedOutcomeReport> | null = null;
+
+/**
+ * Synchro automatique des ISSUES : les calls passes des deux dernieres
+ * semaines sont relus (deux pages iClosed, deux requetes), et chaque
+ * rendez-vous dont le CRM n'a pas encore tranche recoit l'issue saisie dans
+ * iClosed (show, no-show, vente, perdu, follow-up, annulation). Une issue
+ * posee a la main dans le CRM (statut final) n'est jamais ecrasee.
+ */
+export async function syncIclosedOutcomes(opts: { force?: boolean } = {}): Promise<IclosedOutcomeReport> {
+  const none = (skipped: IclosedOutcomeReport["skipped"]): IclosedOutcomeReport => ({ skipped, examined: 0, applied: 0, salesCreated: 0, salesWithoutAmount: [] });
+  if (outcomesInflight) {
+    const r = await outcomesInflight.catch(() => null);
+    if (!opts.force && r) return r;
+  }
+  outcomesInflight = (async () => {
+    try {
+      if (!getIclosedKey()) return none("no-key");
+      const settings = getSettings();
+      if (settings.salesAutoImportOff) return none("off");
+      const last = settings.salesLastOutcomeSyncAt ? Date.parse(settings.salesLastOutcomeSyncAt) : 0;
+      if (!opts.force && Date.now() - last < OUTCOME_COOLDOWN_MS) return none("cooldown");
+
+      const calls = await fetchCalls("PAST", 2, 50);
+      const report = none(null);
+      const since = Date.now() - OUTCOME_WINDOW_MS;
+      for (const call of calls) {
+        if (!call.dateTimeUTC || Date.parse(call.dateTimeUTC) < since) continue;
+        report.examined += 1;
+        const db = readDB();
+        const appt = findByIclosedId(db, String(call.id));
+        if (!appt || FINAL_STATUSES.includes(appt.status)) continue;
+        const status = mapOutcome(call);
+        if (!status || status === "rescheduled" || status === appt.status) continue;
+        applyIclosedOutcome(SYSTEM, appt.id, call, report);
+        report.applied += 1;
+      }
+      saveSettings({ salesLastOutcomeSyncAt: new Date().toISOString() });
+      return report;
+    } finally {
+      outcomesInflight = null;
+    }
+  })();
+  return outcomesInflight;
 }

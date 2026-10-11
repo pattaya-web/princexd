@@ -21,7 +21,39 @@ export interface UtmInfo {
   referrer?: string;
   /** Un identifiant de clic Meta etait present (fbclid / _fbc). */
   meta?: "1";
+  /*
+   * Identifiants Meta, prioritaires sur les noms (qui changent) : ce sont
+   * eux qui rattachent le lead a la campagne, l'ad set et la publicite pour
+   * la rentabilite par creative. Gardes tels quels (pas de minuscules).
+   */
+  campaignId?: string;
+  adsetId?: string;
+  adId?: string;
+  placement?: string;
+  fbclid?: string;
+  fbc?: string;
+  fbp?: string;
 }
+
+/** Cles d'identifiants Meta telles qu'on les voit dans les liens (Meta, Systeme.io, iClosed). */
+const ID_KEYS: Record<string, "campaignId" | "adsetId" | "adId" | "placement" | "fbclid" | "fbc" | "fbp"> = {
+  campaign_id: "campaignId",
+  campaignid: "campaignId",
+  utm_campaign_id: "campaignId",
+  adset_id: "adsetId",
+  adsetid: "adsetId",
+  utm_adset_id: "adsetId",
+  ad_id: "adId",
+  adid: "adId",
+  utm_ad_id: "adId",
+  placement: "placement",
+  utm_placement: "placement",
+  fbclid: "fbclid",
+  _fbc: "fbc",
+  fbc: "fbc",
+  _fbp: "fbp",
+  fbp: "fbp",
+};
 
 const UTM_KEYS: Record<string, "source" | "medium" | "campaign" | "content" | "term"> = {
   utm_source: "source",
@@ -56,7 +88,15 @@ function absorb(info: UtmInfo, key: string, value: string) {
     if (host && !info.referrer) info.referrer = host;
     return;
   }
-  if (k === "fbclid" || k === "_fbc") info.meta = "1";
+  const idKey = ID_KEYS[k.toLowerCase()];
+  if (idKey) {
+    const v = value.trim().slice(0, 200);
+    if (v && !info[idKey]) info[idKey] = v;
+    if (idKey === "fbclid" || idKey === "fbc") info.meta = "1";
+    return;
+  }
+  // Parametres Meta par defaut : {{campaign.id}} dans utm_id, parfois utm_campaign / utm_term / utm_content.
+  if (k.toLowerCase() === "utm_id" && /^\d{12,}$/.test(value.trim()) && !info.campaignId) info.campaignId = value.trim();
 }
 
 /** UTM d'un appel iClosed (`utm[] = { utmKey, utmValue }`). */

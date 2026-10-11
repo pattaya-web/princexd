@@ -5,7 +5,7 @@ import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
 import { getSystemeioKey, syncSystemeio } from "@/lib/systemeio";
 import { leadIsOut, type Lead } from "@/lib/types";
-import { applyTouch } from "@/lib/sales/attribution";
+import { applyTouch, backfillMetaIds } from "@/lib/sales/attribution";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +91,11 @@ export async function GET(req: NextRequest) {
     }
 
     const db = readDB();
+    // Une seule fois : les IDs Meta des URL d'opt-in et des liens iClosed deja en base.
+    if (!db.settings.metaIdsBackfilledAt) {
+      backfillMetaIds(db);
+      writeDB(db);
+    }
     const names = new Map(db.team.map((m) => [m.id, m.name]));
     const now = new Date().toISOString();
     const isSetter = session.isAdmin || sessionHas(session, "setter");

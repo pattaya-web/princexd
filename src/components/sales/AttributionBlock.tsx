@@ -38,7 +38,58 @@ interface MetaOption {
  * compte), last touch, booking. Modifiable uniquement a la main, avec
  * confirmation ; la modification est journalisee.
  */
-export function AttributionBlock({ lead, isAdmin, onChanged }: { lead: Lead; isAdmin: boolean; onChanged: (lead: Lead) => void }) {
+/** Identifiant Meta avec son nom (quand l'instantane le connait) et un bouton Copier : l'ID reste la reference. */
+function IdLine({ name, id }: { name: string; id: string }) {
+  const [done, setDone] = useState(false);
+  if (!id && !name) return <span>—</span>;
+  return (
+    <span className="flex items-center gap-1.5 min-w-0">
+      <span className="truncate" title={name || id}>
+        {name || <span className="mono text-[11.5px]">{id}</span>}
+      </span>
+      {id && (
+        <>
+          {name && <span className="mono dim text-[10.5px] shrink-0">{id}</span>}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm !h-[20px] !px-1.5 !text-[10.5px] shrink-0"
+            style={done ? { color: "var(--good)" } : undefined}
+            title={`Copier ${id}`}
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(id);
+                setDone(true);
+                setTimeout(() => setDone(false), 1400);
+              } catch {
+                setDone(false);
+              }
+            }}
+          >
+            {done ? "✓" : "copier"}
+          </button>
+        </>
+      )}
+    </span>
+  );
+}
+
+export interface AttributionMeta {
+  campaignName: string;
+  adsetName: string;
+  adName: string;
+  creative: { id: string; name: string; kind: string; thumbnailUrl: string; imageUrl: string } | null;
+  syncedAt: string;
+}
+
+export interface AttributionBooking {
+  provider: "iClosed" | "CRM";
+  createdAt: string;
+  scheduledAt: string;
+  status: string;
+  calendar?: string;
+}
+
+export function AttributionBlock({ lead, meta, booking, isAdmin, onChanged }: { lead: Lead; meta?: AttributionMeta | null; booking?: AttributionBooking | null; isAdmin: boolean; onChanged: (lead: Lead) => void }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [channel, setChannel] = useState<SourceChannel>(lead.sourceChannel ?? "UNKNOWN");
@@ -100,24 +151,43 @@ export function AttributionBlock({ lead, isAdmin, onChanged }: { lead: Lead; isA
         </dd>
         <dt className="dim">Funnel</dt>
         <dd>{lead.funnelSource ? funnelLabel(lead.funnelSource) : "—"}</dd>
-        {lead.sourceChannel === "META_ADS" && (
+        {(lead.sourceChannel === "META_ADS" || lead.campaignId || lead.adId) && (
           <>
             <dt className="dim">Campagne</dt>
-            <dd className="truncate" title={lead.campaignId}>{lead.campaignName || lead.campaignId || "—"}</dd>
+            <dd className="min-w-0"><IdLine name={meta?.campaignName || lead.campaignName || ""} id={lead.campaignId ?? ""} /></dd>
             <dt className="dim">Ad set</dt>
-            <dd className="truncate" title={lead.adsetId}>{lead.adsetName || lead.adsetId || "—"}</dd>
+            <dd className="min-w-0"><IdLine name={meta?.adsetName || lead.adsetName || ""} id={lead.adsetId ?? ""} /></dd>
             <dt className="dim">Créative</dt>
-            <dd className="truncate" title={lead.adId}>{lead.adName || lead.adId || "—"}</dd>
-            {(lead.firstTouchUtmSource || lead.firstTouchPlacement || lead.firstTouchFbclid) && (
+            <dd className="min-w-0">
+              <IdLine name={meta?.adName || lead.adName || ""} id={lead.adId ?? ""} />
+              {meta?.creative && (meta.creative.thumbnailUrl || meta.creative.imageUrl) && (
+                <a href={meta.creative.imageUrl || meta.creative.thumbnailUrl} target="_blank" rel="noreferrer" className="block mt-1.5" title={`${meta.creative.name || "Créative"} (${meta.creative.kind})`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={meta.creative.thumbnailUrl || meta.creative.imageUrl} alt={meta.creative.name || "Créative"} className="rounded-md max-h-[90px] w-auto" style={{ border: "1px solid var(--border)" }} />
+                </a>
+              )}
+            </dd>
+            {(lead.firstTouchPlacement || lead.firstTouchUtmSource || lead.firstTouchFbclid || lead.firstTouchFbc) && (
               <>
-                <dt className="dim">UTM</dt>
-                <dd className="mono text-[11px] truncate" title={[lead.firstTouchUtmSource, lead.firstTouchUtmMedium, lead.firstTouchUtmCampaign, lead.firstTouchUtmContent, lead.firstTouchUtmTerm].filter(Boolean).join(" / ")}>
-                  {[lead.firstTouchUtmSource, lead.firstTouchUtmMedium, lead.firstTouchUtmContent].filter(Boolean).join(" / ") || "—"}
-                  {lead.firstTouchPlacement ? ` · ${lead.firstTouchPlacement}` : ""}
-                  {lead.firstTouchFbclid ? " · fbclid" : ""}
+                <dt className="dim">Placement</dt>
+                <dd className="text-[12px] truncate" title={[lead.firstTouchUtmSource, lead.firstTouchUtmMedium, lead.firstTouchUtmCampaign, lead.firstTouchUtmContent, lead.firstTouchUtmTerm].filter(Boolean).join(" / ")}>
+                  {lead.firstTouchPlacement || "—"}
+                  <span className="dim mono text-[10.5px]">
+                    {[lead.firstTouchUtmSource, lead.firstTouchUtmMedium].filter(Boolean).length ? ` · ${[lead.firstTouchUtmSource, lead.firstTouchUtmMedium].filter(Boolean).join(" / ")}` : ""}
+                    {lead.firstTouchFbclid || lead.firstTouchFbc ? " · clic Meta" : ""}
+                  </span>
                 </dd>
               </>
             )}
+          </>
+        )}
+        {booking && (
+          <>
+            <dt className="dim">Booking</dt>
+            <dd className="text-[12px]">
+              {booking.provider} · réservé le {fmtDateTime(booking.createdAt)}
+              <span className="dim"> · call {fmtDateTime(booking.scheduledAt)}{booking.calendar ? ` · ${booking.calendar.replace(/_/g, " ").toLowerCase()}` : ""}</span>
+            </dd>
           </>
         )}
         <dt className="dim">First touch</dt>
