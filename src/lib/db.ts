@@ -112,6 +112,7 @@ const EMPTY_DB: DB = {
   mbAdData: [],
   mbAuditLogs: [],
   mbDrafts: [],
+  messageTemplates: [],
 };
 
 function ensureFile() {

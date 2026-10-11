@@ -208,6 +208,10 @@ export interface Settings {
    * soumis → envoyer un webhook ») donne la page exacte et rend ce repli inutile.
    */
   systemeioReoptinFunnel?: string;
+  /** Categories des templates de messages (libres, modifiables). Absent = liste par defaut. */
+  messageTemplateCategories?: string[];
+  /** Les templates d'exemple ont ete poses (une seule fois). */
+  messageTemplatesSeededAt?: string;
   /** Contacts Systeme.io supprimes a la main depuis « A appeler » : la synchro ne les recree pas. */
   systemeioIgnoredIds?: string[];
   /** Date du nettoyage unique des pseudos Instagram fabriques par l'import iClosed. */
@@ -404,6 +408,8 @@ export interface Lead {
   callStatus?: LeadCallStatus;
   /** Rappel demande par le prospect : date et heure (ISO). */
   callbackAt?: string;
+  /** Relance prevue par le setter apres un message (ISO) : le lead revient dans la liste a cette date. */
+  followUpAt?: string;
   /** Declare par un setter (« j'ai envoye le lien du calendrier ») : date de la declaration. */
   declaredAt?: string;
   /* --- Reinscriptions (webhook Systeme.io CONTACT_OPT_IN). ---
@@ -488,6 +494,33 @@ export type LeadCallStatus = "no-answer" | "message-sent" | "callback" | "reache
 /** « cold » : lead froid, sans reponse apres la sequence de relances (J+1, J+3) ; garde pour le tri, plus relance. */
 export const LEAD_OUT_STATUSES: readonly LeadCallStatus[] = ["not-interested", "wrong-number", "no-whatsapp", "cold"];
 export const leadIsOut = (s?: LeadCallStatus) => Boolean(s) && LEAD_OUT_STATUSES.includes(s as LeadCallStatus);
+
+/* ------------------------- Templates de messages ------------------------ */
+
+export type TemplateChannel = "whatsapp" | "sms" | "instagram" | "email" | "other";
+
+/**
+ * Message pret a copier ou a ouvrir dans WhatsApp depuis la liste des leads.
+ * Generique : categorie libre (la liste vit dans les reglages), favoris en
+ * tete du menu, et un template peut s'ouvrir tout seul pour une action
+ * (« appel sans reponse »). Jamais d'envoi automatique : le setter copie ou
+ * ouvre WhatsApp, puis « marque comme envoye » pour la timeline du lead.
+ */
+export interface MessageTemplate {
+  id: ID;
+  name: string;
+  /** Categorie libre : LEAD ADS, RELANCE, R2, CONTRAT… */
+  category: string;
+  content: string;
+  channel: TemplateChannel;
+  isFavorite: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  /** Actions pour lesquelles ce template s'ouvre par defaut : "no-answer" (appel sans reponse). */
+  defaultFor?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface Student {
   id: ID;
@@ -1003,6 +1036,8 @@ export interface DB {
   mbAuditLogs: MediaBuyingAuditLog[];
   /** Campagnes preparees dans le builder, publiees ou non. */
   mbDrafts: CampaignDraft[];
+  /** Templates de messages (liste des leads, CRM). */
+  messageTemplates: MessageTemplate[];
 }
 
 /* ===================================================================== *

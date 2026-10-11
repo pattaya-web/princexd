@@ -3,11 +3,13 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { canSee, Forbidden, readSession, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
-import { leadIsOut, type LeadCallStatus } from "@/lib/types";
+import { CHANNEL_LABEL } from "@/lib/sales/templates";
+import { fmtDateTime } from "@/lib/format";
+import { leadIsOut, type LeadCallStatus, type TemplateChannel } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-type Action = "status" | "reopen" | "attempt" | "reached" | "lost" | "note" | "assign" | "contact";
+type Action = "status" | "reopen" | "attempt" | "reached" | "lost" | "note" | "assign" | "contact" | "message";
 
 const STATUSES: LeadCallStatus[] = ["no-answer", "message-sent", "callback", "reached", "not-interested", "wrong-number", "no-whatsapp", "cold"];
 
@@ -77,6 +79,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       igUsername?: string;
       /** Avec `status` : annule le rendez-vous a venir du lead (RDV pris puis annule). */
       cancelAppointment?: boolean;
+      /** Action « message » (marque comme envoye) : template utilise, canal, et prochaine relance. */
+      templateId?: string;
+      templateName?: string;
+      channel?: TemplateChannel;
+      /** "tomorrow" | "3d" | "none" | date-heure ISO. */
+      next?: string;
     };
 
     const db = readDB();
@@ -114,6 +122,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       lead.callStatus = status;
       lead.lastCallAt = now.toISOString();
       lead.callbackAt = status === "callback" ? callbackAt : "";
+      // Un nouveau statut ouvre un nouveau cycle : la relance programmee d'avant ne vaut plus.
+      lead.followUpAt = "";
       switch (status) {
         case "no-answer":
           lead.callAttempts = (lead.callAttempts ?? 0) + 1;
@@ -196,6 +206,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         claim();
         lead.callStatus = undefined;
         lead.callbackAt = "";
+        lead.followUpAt = "";
         lead.stage = "contacte";
         lead.nextAction = "Rappeler le prospect";
         lead.nextActionAt = today;
@@ -225,6 +236,37 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         lead.igUsername = clean;
         lead.handle = clean ? `@${clean}` : "";
         summary = clean ? `Pseudo Instagram de ${lead.name} : @${clean}` : `Pseudo Instagram de ${lead.name} effacé`;
+        break;
+      }
+      case "message": {
+        /*
+         * « Marquer comme envoye » depuis les templates : rien n'est envoye
+         * par l'outil, le setter l'a fait lui-meme (copier / WhatsApp). On
+         * note le message dans la timeline, le lead passe « message envoye »
+         * (sans retrograder un lead joint ou a rappeler), et la relance
+         * choisie le fait revenir dans la liste a la date dite.
+         */
+        claim();
+        const t = body.templateId ? db.messageTemplates.find((x) => x.id === body.templateId) : undefined;
+        const channel = CHANNEL_LABEL[body.channel ?? t?.channel ?? "whatsapp"] ?? "Message";
+        const templateName = (t?.name ?? body.templateName ?? "").trim();
+        if (!lead.callStatus || lead.callStatus === "no-answer" || lead.callStatus === "message-sent" || leadIsOut(lead.callStatus)) setStatus("message-sent");
+        else lead.lastCallAt = now.toISOString();
+        const next = (body.next ?? "").trim();
+        let followUpAt = "";
+        if (next === "tomorrow") followUpAt = new Date(now.getTime() + 24 * 3600_000).toISOString();
+        else if (next === "3d") followUpAt = new Date(now.getTime() + 3 * 24 * 3600_000).toISOString();
+        else if (next && next !== "none") {
+          const d = new Date(next);
+          if (Number.isNaN(d.getTime())) throw new Error("Date de relance illisible.");
+          followUpAt = d.toISOString();
+        }
+        lead.followUpAt = followUpAt;
+        if (followUpAt) {
+          lead.nextAction = "Relancer le prospect";
+          lead.nextActionAt = followUpAt.slice(0, 10);
+        }
+        summary = `${channel} envoyé${templateName ? ` · Template : ${templateName}` : ""} · Par : ${who}${followUpAt ? ` · Relance le ${fmtDateTime(followUpAt)}` : ""}`;
         break;
       }
       case "assign":

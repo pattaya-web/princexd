@@ -29,6 +29,7 @@ const TABS: Tab[] = [
   { href: "/sales", label: "Dashboard", member: true },
   { href: "/sales/dashboard", label: "Sales Dashboard", admin: true },
   { href: "/sales/leads", label: "Leads" },
+  { href: "/sales/messages", label: "Messages" },
   { href: "/sales/rendez-vous", label: "CRM" },
   { href: "/sales/agenda", label: "Agenda", admin: true },
   { href: "/sales/pointage", label: "Shifts équipe", admin: true },

@@ -144,6 +144,8 @@ export async function GET(req: NextRequest) {
           return "talking";
         case "no-answer":
         case "message-sent":
+          // Relance programmee apres un message : le lead revient a l'heure dite.
+          if (l.followUpAt) return l.followUpAt <= now ? "due" : "later";
           return "retry";
         default:
           // Fiches d'avant les statuts : on deduit du stade et des essais.
@@ -207,7 +209,7 @@ export async function GET(req: NextRequest) {
       switch (a.bucket) {
         case "due":
         case "later":
-          return (a.callbackAt ?? "").localeCompare(b.callbackAt ?? "");
+          return (a.callbackAt || a.followUpAt || "").localeCompare(b.callbackAt || b.followUpAt || "");
         case "retry":
           return (a.lastCallAt ?? "").localeCompare(b.lastCallAt ?? "");
         case "booked":

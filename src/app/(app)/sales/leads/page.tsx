@@ -10,9 +10,11 @@ import { DEFAULT_FUNNELS, SOURCE_CHANNEL_LABEL, SOURCE_CHANNELS } from "@/lib/sa
 import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, useToast } from "@/components/ui";
 import { useSales } from "@/components/sales/context";
 import { LeadSheet } from "@/components/sales/LeadSheet";
+import { MessagesModal } from "@/components/sales/MessagesModal";
+import { defaultTemplateFor } from "@/lib/sales/templates";
 import type { CallBucket, CallLeadRow } from "@/app/api/sales/leads/route";
 import type { PublicMember } from "@/lib/sales/repo";
-import type { LeadCallStatus, SalesFunnel, SourceChannel } from "@/lib/types";
+import type { LeadCallStatus, MessageTemplate, SalesFunnel, SourceChannel } from "@/lib/types";
 
 /* ------------------------------- Couleurs ------------------------------ */
 
@@ -33,7 +35,7 @@ const FILTERS: { key: FilterKey; label: string; color?: string; buckets: CallBuc
   { key: "all", label: "Tous", buckets: ["due", "new", "retry", "later", "talking", "lost"] },
   { key: "new", label: "Nouveaux", color: COLOR.new, buckets: ["new"] },
   { key: "retry", label: "Pas de réponse · message envoyé", color: COLOR.yellow, buckets: ["retry"] },
-  { key: "callback", label: "À rappeler", color: COLOR.blue, buckets: ["due", "later"] },
+  { key: "callback", label: "À rappeler · relances", color: COLOR.blue, buckets: ["due", "later"] },
   { key: "talking", label: "Joints, RDV à fixer", color: COLOR.violet, buckets: ["talking"] },
   { key: "lost", label: "Perdus · leads froids", color: COLOR.red, buckets: ["lost"] },
 ];
@@ -123,6 +125,13 @@ export default function LeadsPage() {
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [funnels, setFunnels] = useState<SalesFunnel[]>(DEFAULT_FUNNELS);
   const [reoptinFunnel, setReoptinFunnel] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  /** Fenetre « Messages » d'un lead ; `templateId` = template ouvert d'office (appel sans reponse). */
+  const [messagesFor, setMessagesFor] = useState<{ lead: CallLeadRow; templateId?: string; title?: string } | null>(null);
+  const loadTemplates = () =>
+    api<{ rows: MessageTemplate[] }>("/api/sales/templates")
+      .then((r) => setTemplates(r.rows))
+      .catch(() => undefined);
   const [funnelsOpen, setFunnelsOpen] = useState(false);
   const [scriptFor, setScriptFor] = useState<{ funnel: SalesFunnel; lead: CallLeadRow } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -150,6 +159,7 @@ export default function LeadsPage() {
       .catch(() => undefined);
   useEffect(() => {
     void loadFunnels();
+    void loadTemplates();
   }, []);
 
   const refresh = () => {
@@ -245,6 +255,7 @@ export default function LeadsPage() {
   const choose = (l: CallLeadRow, v: string) => {
     const booked = l.bucket === "booked";
     if (v === "booked") return setBooking(l);
+    if (v === "no-answer") return void noAnswer(l, booked);
     let cancel = false;
     if (booked) {
       if (!window.confirm(`${l.name} a un rendez-vous. Changer son statut annule ce rendez-vous. Continuer ?`)) return;
@@ -262,6 +273,18 @@ export default function LeadsPage() {
     if (v === "delete") return void remove([l]);
     if (v === "reopen") return void reopen(l);
     void setStatus(l, v as LeadCallStatus, undefined, undefined, cancel);
+  };
+
+  /**
+   * Appel sans reponse, en un clic : statut « pas de reponse », puis le
+   * template par defaut s'ouvre (copier / WhatsApp / marquer comme envoye →
+   * prochaine relance). Le process : call → pas de reponse → template →
+   * relance programmee → lead suivant.
+   */
+  const noAnswer = async (l: CallLeadRow, booked: boolean) => {
+    if (booked && !window.confirm(`${l.name} a un rendez-vous. Changer son statut annule ce rendez-vous. Continuer ?`)) return;
+    await setStatus(l, "no-answer", undefined, undefined, booked);
+    setMessagesFor({ lead: l, templateId: defaultTemplateFor(templates, "no-answer")?.id, title: "Appel sans réponse" });
   };
 
   const rows = data?.rows ?? [];
@@ -285,6 +308,11 @@ export default function LeadsPage() {
         subtitle={data?.lastSyncAt ? `Inscrits Systeme.io synchronisés ${relative(data.lastSyncAt)}. Appelle d'abord ; pas de réponse → message WhatsApp avec le script du funnel. Un RDV pris part dans l'Agenda.` : "Les prospects qui viennent de laisser leurs coordonnées."}
         actions={
           <>
+            {session.isAdmin && (
+              <Link href="/sales/messages" className="btn" title="Templates de messages : créer, modifier, favoris">
+                💬 Templates
+              </Link>
+            )}
             {session.isAdmin && (
               <button className="btn" onClick={() => setFunnelsOpen(true)} title="Déclarer les funnels : URL d'opt-in, canal, script">
                 ⚙ Funnels
@@ -435,6 +463,7 @@ export default function LeadsPage() {
                                   {l.callStatus ? STATUS_LABEL[l.callStatus] : "jamais appelé"}
                                   {l.callStatus === "callback" && l.callbackAt ? ` · ${fmtDateTime(l.callbackAt)}` : ""}
                                   {l.callStatus === "no-answer" && (l.callAttempts ?? 0) > 1 ? ` (${l.callAttempts}×)` : ""}
+                                  {l.followUpAt && (l.callStatus === "no-answer" || l.callStatus === "message-sent") ? ` · relance ${fmtDateTime(l.followUpAt)}` : ""}
                                 </span>
                               </div>
                               <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mt-1 text-[12px]">
@@ -470,10 +499,10 @@ export default function LeadsPage() {
                                       className="btn btn-sm !h-[28px] font-semibold"
                                       style={{ background: COLOR.whatsapp, borderColor: COLOR.whatsapp, color: "#fff" }}
                                       disabled={isBusy}
-                                      onClick={() => choose(l, "message-sent")}
-                                      title="Message WhatsApp envoyé"
+                                      onClick={() => setMessagesFor({ lead: l })}
+                                      title="Templates de messages : copier, ouvrir WhatsApp, marquer comme envoyé"
                                     >
-                                      WA envoyé
+                                      💬 Messages
                                     </button>
                                     {f?.script && (
                                       <button className="btn btn-sm !h-[28px]" onClick={() => setScriptFor({ funnel: f, lead: l })} title="Script du funnel à copier">
@@ -523,6 +552,19 @@ export default function LeadsPage() {
       )}
 
       <LeadSheet id={sheetId} onClose={() => setSheetId(null)} onChanged={refresh} />
+
+      {messagesFor && (
+        <MessagesModal
+          lead={{ id: messagesFor.lead.id, name: messagesFor.lead.name, phone: messagesFor.lead.phone, sourceChannel: messagesFor.lead.sourceChannel, funnelLabel: funnelLabelOf(messagesFor.lead) }}
+          templates={templates}
+          initialTemplateId={messagesFor.templateId}
+          title={messagesFor.title}
+          isAdmin={session.isAdmin}
+          onClose={() => setMessagesFor(null)}
+          onSent={refresh}
+          onTemplatesChanged={() => void loadTemplates()}
+        />
+      )}
 
       {callbackFor && (
         <CallbackModal
