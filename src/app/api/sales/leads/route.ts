@@ -20,7 +20,42 @@ export const dynamic = "force-dynamic";
  *  - lost     : pas interesses des 30 derniers jours, en rouge en bas de
  *               liste, pour garder une trace et pouvoir les remettre.
  */
-export type CallBucket = "due" | "new" | "retry" | "later" | "talking" | "booked" | "lost";
+export type CallBucket = "due" | "new" | "retry" | "later" | "talking" | "booked" | "lost" | "done";
+
+/** Texte comparable : minuscules, sans accents ; un numero devient ses chiffres. */
+const fold = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+const digitsOf = (s: string) => s.replace(/\D/g, "");
+
+/**
+ * Recherche libre : chaque mot tape doit se retrouver dans le nom, le
+ * telephone (chiffres, avec ou sans +33 / 0), l'email, le pseudo Instagram
+ * ou les notes. On colle un numero ou un mail, on retrouve le lead.
+ */
+function leadMatches(l: Lead, q: string): boolean {
+  const phone = digitsOf(l.phone ?? "");
+  const phoneAlt = phone.startsWith("33") ? `0${phone.slice(2)}` : phone;
+  // Un numero colle tel quel (« +33 6 22 92 89 80 », « 06 22 92 89 80 ») : on compare les chiffres.
+  const compact = q.replace(/[\s+.()-]/g, "");
+  if (/^\d{4,}$/.test(compact)) {
+    const alt = compact.startsWith("33") ? `0${compact.slice(2)}` : compact;
+    return phone.includes(compact) || phoneAlt.includes(alt) || phone.includes(alt);
+  }
+  const words = fold(q).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = fold([l.name, l.email ?? "", l.igUsername ?? "", l.handle ?? "", l.notes ?? "", l.country ?? ""].join(" "));
+  return words.every((w) => {
+    const d = digitsOf(w);
+    if (d.length >= 4 && d === w.replace(/[\s+.-]/g, "")) {
+      const dd = d.startsWith("33") ? `0${d.slice(2)}` : d.startsWith("0") ? d : d;
+      return phone.includes(d) || phoneAlt.includes(dd) || phone.includes(dd);
+    }
+    return hay.includes(w);
+  });
+}
 
 export interface CallLeadRow extends Lead {
   setterName: string;
@@ -154,7 +189,7 @@ export async function GET(req: NextRequest) {
       }
     };
 
-    const ORDER: Record<CallBucket, number> = { due: 0, new: 1, retry: 2, later: 3, talking: 4, booked: 5, lost: 6 };
+    const ORDER: Record<CallBucket, number> = { due: 0, new: 1, retry: 2, later: 3, talking: 4, booked: 5, lost: 6, done: 7 };
 
     // ?declared=1 : les prospects envoyes vers le calendrier (Instagram), avec
     // leur rendez-vous quand il est arrive. Rien a voir avec les leads froids.
@@ -183,11 +218,15 @@ export async function GET(req: NextRequest) {
       return { declared: mine };
     }
 
+    // Recherche : tous les leads visibles qui correspondent, meme hors liste (RDV pris, closes, call fait).
+    const q = (req.nextUrl.searchParams.get("q") ?? "").trim().slice(0, 80);
+
     const rows: CallLeadRow[] = [];
     for (const l of db.leads) {
-      if (!cold(l) || !visible(l)) continue;
-      const bucket = bucketOf(l);
-      if (!bucket || bucket === "booked") continue;
+      if (!visible(l)) continue;
+      if (q ? !leadMatches(l, q) : !cold(l)) continue;
+      const bucket = bucketOf(l) ?? (q ? "done" : null);
+      if (!bucket || (bucket === "booked" && !q)) continue;
       const appt = nextAppt.get(l.id);
       rows.push({
         ...l,

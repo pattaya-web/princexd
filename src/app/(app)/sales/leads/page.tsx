@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { api } from "@/lib/client";
-import { fmtDateTime, fmtTime, isoToParisInput, parisDay, parisToIso, parisWeekday, relative } from "@/lib/format";
+import { fmtDateTime, fmtTime, isoToParisInput, label, parisDay, parisToIso, parisWeekday, relative } from "@/lib/format";
 import { useSalesData } from "@/lib/sales/client";
 import { hasRole } from "@/lib/sales/roles";
 import { DEFAULT_FUNNELS, SOURCE_CHANNEL_LABEL, SOURCE_CHANNELS } from "@/lib/sales/attribution";
@@ -30,7 +30,7 @@ const COLOR = {
 /** Couleur d'accent de la page : la meme que le CRM et le Sales Dashboard. */
 const ACCENT = { "--accent": "#006dbc", "--accent-hover": "#005a9c", "--accent-soft": "#e6f1fa", "--accent-ring": "#9cc9ea", "--grad-accent": "linear-gradient(135deg, #006dbc 0%, #2a8fd8 100%)" } as CSSProperties;
 
-const TONE: Record<CallBucket, string> = { new: COLOR.new, retry: COLOR.blue, due: COLOR.blue, later: COLOR.yellow, talking: COLOR.violet, booked: COLOR.green, lost: COLOR.red };
+const TONE: Record<CallBucket, string> = { new: COLOR.new, retry: COLOR.blue, due: COLOR.blue, later: COLOR.yellow, talking: COLOR.violet, booked: COLOR.green, lost: COLOR.red, done: COLOR.green };
 
 /*
  * Une seule idee : un lead sans reponse se relance. « A relancer » = a faire
@@ -207,6 +207,13 @@ export default function LeadsPage() {
   const [syncing, setSyncing] = useState(false);
   const [busy, setBusy] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
+  /* Recherche : nom, telephone, email, Instagram, notes ; envoyee au serveur apres une courte pause de frappe. */
+  const [query, setQuery] = useState("");
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setQ(query.trim()), 250);
+    return () => clearTimeout(t);
+  }, [query]);
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [funnels, setFunnels] = useState<SalesFunnel[]>(DEFAULT_FUNNELS);
   const [reoptinFunnel, setReoptinFunnel] = useState<string | null>(null);
@@ -260,7 +267,7 @@ export default function LeadsPage() {
     pool: boolean;
     defaultCloserId: string;
     ownerMemberId: string;
-  }>(`/api/sales/leads?v=${version}`, { every: 15_000 });
+  }>(`/api/sales/leads?v=${version}${q ? `&q=${encodeURIComponent(q)}` : ""}`, { every: 15_000 });
 
   const loadFunnels = () =>
     api<{ rows: SalesFunnel[]; reoptinFunnel?: string | null }>("/api/sales/funnels")
@@ -412,7 +419,8 @@ export default function LeadsPage() {
   const c = data?.counts;
   const funnelOf = (l: CallLeadRow) => funnels.find((f) => f.key === (l.funnelSource ?? "")) ?? null;
   const funnelLabelOf = (l: CallLeadRow) => funnelOf(l)?.label ?? l.funnelSource ?? "—";
-  const shown = rows.filter((r) => FILTERS.find((f) => f.key === filter)?.buckets.includes(r.bucket));
+  // En recherche, tout ce qui correspond s'affiche, meme hors liste (RDV pris, closes, call fait).
+  const shown = q ? rows : rows.filter((r) => FILTERS.find((f) => f.key === filter)?.buckets.includes(r.bucket));
   const isAds = (l: CallLeadRow) => (l.sourceChannel ?? "UNKNOWN") === "META_ADS";
 
   const columns: { key: "ads" | "organic"; title: string; hint: string; rows: CallLeadRow[] }[] = [
@@ -453,6 +461,29 @@ export default function LeadsPage() {
       )}
 
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        {/* Recherche : colle un nom, un numero ou un mail. Retrouve aussi les leads hors liste. */}
+        <span className="relative inline-flex items-center mr-1">
+          <input
+            className="input !h-[32px] !text-[12.5px] !pl-8 !pr-7 w-[260px]"
+            placeholder="Rechercher : nom, téléphone, email…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setQuery("");
+            }}
+          />
+          <span className="absolute left-2.5 dim text-[13px] pointer-events-none">⌕</span>
+          {query && (
+            <button type="button" className="absolute right-1.5 dim text-[12px] px-1" onClick={() => setQuery("")} title="Effacer">
+              ✕
+            </button>
+          )}
+        </span>
+        {q && (
+          <span className="text-[12.5px] dim mr-1">
+            {rows.length} résultat{rows.length > 1 ? "s" : ""}
+          </span>
+        )}
         {FILTERS.map((f) => {
           const n = f.buckets.reduce((acc, k) => acc + (c?.[k] ?? 0), 0);
           const active = filter === f.key;
@@ -584,7 +615,7 @@ export default function LeadsPage() {
                       const local = localHint(l.country);
                       const isBusy = busy === l.id;
                       const since = l.optInAt || l.createdAt;
-                      const statusText = l.callStatus ? STATUS_LABEL[l.callStatus] : "Jamais appelé";
+                      const statusText = l.bucket === "booked" ? "RDV pris" : l.bucket === "done" ? label(l.stage) : l.callStatus ? STATUS_LABEL[l.callStatus] : "Jamais appelé";
                       const waText = activeTemplate ? renderTemplate(activeTemplate.content, { name: l.name }) : "";
                       return (
                         <li key={l.id} className="px-5 py-4" style={{ borderBottom: "1px solid var(--border)", opacity: lost ? 0.7 : 1, background: selected.has(l.id) ? "var(--accent-soft)" : undefined }}>
@@ -628,7 +659,11 @@ export default function LeadsPage() {
 
                               {/* Ligne 3 : la sequence d'appel en un clic. */}
                               <div className="flex items-center gap-2 flex-wrap mt-3">
-                                {lost ? (
+                                {l.bucket === "done" || l.bucket === "booked" ? (
+                                  <button className="btn btn-sm !h-[32px]" onClick={() => setSheetId(l.id)} title="Hors de la liste à appeler : l'issue se pose depuis la fiche">
+                                    Ouvrir la fiche
+                                  </button>
+                                ) : lost ? (
                                   <button className="btn btn-sm !h-[32px]" disabled={isBusy} onClick={() => choose(l, "reopen")}>
                                     Remettre dans la liste
                                   </button>
