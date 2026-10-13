@@ -17,7 +17,7 @@ export function InstallmentAlerts({ onOpen, horizon = 3 }: { onOpen?: (appointme
   const { data } = useSalesData<{ today: string; items: InstallmentAlert[] }>(`/api/sales/installments?horizon=${horizon}`);
   const items = data?.items ?? [];
   if (!items.length) return null;
-  const due = items.filter((i) => i.state !== "soon").length;
+  const due = items.filter((i) => i.state === "today" || i.state === "overdue").length;
   const overdue = items.filter((i) => i.state === "overdue").length;
 
   return (
@@ -32,23 +32,25 @@ export function InstallmentAlerts({ onOpen, horizon = 3 }: { onOpen?: (appointme
           )}
         </span>
       }
-      subtitle="Paiements en plusieurs fois arrivés à date. Ouvre la fiche pour marquer l'échéance encaissée."
+      subtitle="Échéances arrivées à date, paiements attendus après envoi du contrat, ventes iClosed à préciser. Une échéance à venir n'apparaît pas : elle est à jour."
       padded={false}
     >
       <ul>
         {items.map((i, idx) => {
-          const color = i.state === "overdue" ? "var(--critical)" : i.state === "today" ? "var(--warning)" : "var(--text-2)";
+          const color = i.state === "overdue" ? "var(--critical)" : i.state === "today" || i.state === "unspecified" ? "var(--warning)" : "var(--text-2)";
           const when =
-            i.state === "overdue"
-              ? `en retard de ${i.daysLate} jour${i.daysLate > 1 ? "s" : ""}`
-              : i.state === "today"
-                ? "aujourd'hui"
-                : `dans ${-i.daysLate} jour${-i.daysLate > 1 ? "s" : ""}`;
+            i.state === "unspecified"
+              ? "paiement à préciser"
+              : i.state === "overdue"
+                ? `${i.awaitingFirst ? "non reçu · " : ""}retard de ${i.daysLate} jour${i.daysLate > 1 ? "s" : ""}`
+                : i.state === "today"
+                  ? "aujourd'hui"
+                  : `dans ${-i.daysLate} jour${-i.daysLate > 1 ? "s" : ""} · à jour`;
           const body = (
             <>
               <span className="w-[8px] h-[8px] rounded-full shrink-0" style={{ background: color }} />
               <span className="text-[13px] font-medium truncate">{i.leadName}</span>
-              <span className="dim text-[12px] shrink-0">échéance {i.n}/{i.total}</span>
+              <span className="dim text-[12px] shrink-0">{i.state === "unspecified" ? "vente iClosed" : i.awaitingFirst ? "1er paiement" : `échéance ${i.n}/${i.total}`}</span>
               <span className="num text-[13px] font-semibold shrink-0">{fmtMoney(i.amount, i.currency)}</span>
               <span className="text-[12px] font-semibold shrink-0" style={{ color }}>{when}</span>
               <span className="dim text-[11.5px] num shrink-0">· {i.dueAt}</span>

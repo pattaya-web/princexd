@@ -59,7 +59,7 @@ const VA_APIS = ["/api/outreach/", "/api/sales/session", "/api/version"];
  * ses modules.
  */
 const STUDENT_PAGES = ["/formation"];
-const STUDENT_ADMIN_PAGES = ["/formation/modules", "/formation/eleves"];
+const STUDENT_ADMIN_PAGES = ["/formation/modules", "/formation/eleves", "/formation/ressources"];
 const STUDENT_APIS = ["/api/formation/", "/api/sales/session", "/api/version"];
 
 /* --- Equipe commerciale --- */
@@ -177,7 +177,7 @@ export const config = {
   // Les routes qui recoivent un fichier sont exclues : le middleware Node
   // consommait le debut du corps de la requete (fichiers amputes). Elles
   // verifient leur session elles-memes (refuseUnless dans lib/sales/access).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/upload|api/kie/upload|api/ai/image-edit|api/ai/transcribe-file).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/upload|api/kie/upload|api/ai/image-edit|api/ai/transcribe-file|api/formation/resources).*)"],
   // Runtime Node : les variables d'environnement du serveur (OWNER_PASSWORD)
   // sont lues a l'execution, pas figees au build.
   runtime: "nodejs",

@@ -4,11 +4,12 @@ import { readSession, requireSales } from "@/lib/sales/access";
 import { handle, num } from "@/lib/sales/http";
 import { LOST_REASONS } from "@/lib/sales/constants";
 import { quickOutcome, type QuickOutcomeInput, type QuickOutcomeStatus } from "@/lib/sales/repo";
+import { addDays, DEFAULT_EXPECTED_DAYS, parisToday } from "@/lib/sales/installments";
 import type { LostReason, PaymentType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const STATUSES: QuickOutcomeStatus[] = ["completed", "follow-up", "closed-won", "no-show", "closed-lost"];
+const STATUSES: QuickOutcomeStatus[] = ["completed", "follow-up", "closed-won", "no-show", "closed-lost", "rescheduled"];
 
 /**
  * Issue d'un lead posee depuis sa fiche : pitche, en attente, close,
@@ -39,6 +40,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       input.followUpAt = at && !Number.isNaN(at.getTime()) ? at.toISOString() : "";
     }
 
+    if (status === "rescheduled") {
+      const at = typeof body.rescheduledAt === "string" ? new Date(body.rescheduledAt) : null;
+      if (!at || Number.isNaN(at.getTime())) throw new Error("Indique la nouvelle date du call.");
+      input.rescheduledAt = at.toISOString();
+    }
+
     if (status === "closed-won") {
       const s = getSettings();
       const sale = (body.sale ?? {}) as Record<string, unknown>;
@@ -58,6 +65,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         paymentMethod: typeof sale.paymentMethod === "string" ? sale.paymentMethod.slice(0, 60) : "",
         soldAt: new Date().toISOString(),
         notes: input.note ?? "",
+        // Contrat envoye, rien encaisse : quand le paiement est attendu (J+3 par defaut).
+        paymentExpectedAt: cashCollected > 0 ? "" : typeof sale.paymentExpectedAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sale.paymentExpectedAt) ? sale.paymentExpectedAt : addDays(parisToday(), DEFAULT_EXPECTED_DAYS),
       };
     }
 

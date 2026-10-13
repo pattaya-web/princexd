@@ -310,7 +310,7 @@ export default function SalesDashboardPage() {
       )}
 
       {ops && ops.followUps.overdue > 0 && (
-        <Link href="/sales/relances" className="block mb-4">
+        <Link href="/sales/rendez-vous?view=followup" className="block mb-4">
           <div className="rounded-lg px-3.5 py-2.5 text-[12.5px] flex items-center gap-2" style={{ background: "color-mix(in srgb, var(--warning) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--warning) 35%, transparent)" }}>
             <strong className="num">{ops.followUps.overdue}</strong>
             relance{ops.followUps.overdue > 1 ? "s" : ""} en retard — à traiter avant que le lead refroidisse.
@@ -340,7 +340,7 @@ export default function SalesDashboardPage() {
               <Tile label="Cash encaissé" value={fmt(t.cashCollected, "money", currency)} color={t.cashCollected ? GOOD : undefined} sub="sur ces ventes" />
               <Tile label="Cash ce mois" value={fmt(cf.cashMonth, "money", currency)} sub="encaissé depuis le 1er" />
               <Tile label="Reste à encaisser" value={fmt(cf.remainingTotal, "money", currency)} color={cf.remainingTotal ? WARN : undefined} sub="toutes ventes actives" />
-              <Tile label="Paiement en attente" value={fmt(cf.pendingSales, "int", currency)} color={cf.pendingSales ? WARN : undefined} sub={cf.overdueTotal ? `dont ${fmtMoney(cf.overdueTotal, currency)} en retard` : "ventes pas soldées"} />
+              <Tile label="Ventes pas soldées" value={fmt(cf.pendingSales, "int", currency)} color={cf.overdueTotal ? WARN : undefined} sub={cf.overdueTotal ? `dont ${fmtMoney(cf.overdueTotal, currency)} en retard` : "échéances à venir, à jour"} />
             </div>
           </Section>
 

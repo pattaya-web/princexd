@@ -23,25 +23,36 @@ interface Tab {
   member?: boolean;
   /** Onglet ouvert aux membres qui exercent ce metier (et a l'admin). */
   role?: "setter" | "closer";
+  /** Range dans le menu « Plus » : utile, mais pas tous les jours. */
+  more?: boolean;
 }
 
+/**
+ * Quatre onglets pour le quotidien, le reste dans « Plus ».
+ *
+ * Avant, quinze onglets dont trois disaient la meme chose (CRM, Suivi,
+ * Relances) : on ne savait plus ou aller statuer un call. Les relances et
+ * le suivi des paiements sont des vues du CRM ; les reglages et les ecrans
+ * d'equipe restent accessibles, mais ne prennent plus la place.
+ */
 const TABS: Tab[] = [
-  { href: "/sales", label: "Dashboard", member: true },
-  { href: "/sales/dashboard", label: "Sales Dashboard", admin: true },
-  { href: "/sales/leads", label: "Leads" },
-  { href: "/sales/messages", label: "Messages" },
+  { href: "/sales", label: "Mon espace", member: true },
+  { href: "/sales/dashboard", label: "Pilotage", admin: true },
+  { href: "/sales/leads", label: "Leads à appeler" },
   { href: "/sales/rendez-vous", label: "CRM" },
   { href: "/sales/agenda", label: "Agenda", admin: true },
-  { href: "/sales/pointage", label: "Shifts équipe", admin: true },
-  { href: "/sales/suivi", label: "Suivi" },
-  { href: "/sales/sources", label: "Sources" },
-  { href: "/sales/relances", label: "Relances" },
-  { href: "/sales/setters", label: "Setters", role: "setter" },
-  { href: "/sales/closers", label: "Closers", role: "closer" },
-  { href: "/sales/commissions", label: "Commissions" },
-  { href: "/sales/equipe", label: "Comptes", admin: true },
-  { href: "/sales/guide", label: "Guide" },
+  { href: "/sales/equipe", label: "Équipe", admin: true, more: true },
+  { href: "/sales/pointage", label: "Shifts", admin: true, more: true },
+  { href: "/sales/commissions", label: "Commissions", more: true },
+  { href: "/sales/setters", label: "Mes stats setter", role: "setter", more: true },
+  { href: "/sales/closers", label: "Mes stats closer", role: "closer", more: true },
+  { href: "/sales/messages", label: "Messages types", more: true },
+  { href: "/sales/sources", label: "Sources", more: true },
+  { href: "/sales/guide", label: "Guide", more: true },
 ];
+
+/** Anciennes adresses, toujours tapables : elles menent au CRM. */
+const FOLDED = ["/sales/relances", "/sales/suivi"];
 
 /** L'onglet est-il ouvert a cette session ? */
 function allowed(t: Tab, session: Session): boolean {
@@ -59,35 +70,64 @@ function allowed(t: Tab, session: Session): boolean {
  * inertes croit a un bug — autant lui dire franchement.
  */
 function isBlockedRoute(pathname: string, session: Session): boolean {
+  if (FOLDED.some((f) => pathname.startsWith(f))) return false;
   return TABS.some((t) => !t.member && !allowed(t, session) && (pathname === t.href || pathname.startsWith(`${t.href}/`)));
 }
 
 function SubNav({ session }: { session: Session }) {
   const pathname = usePathname();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
   const visible = TABS.filter((t) => allowed(t, session));
+  const main = visible.filter((t) => !t.more);
+  const more = visible.filter((t) => t.more);
+  const moreActive = more.some((t) => pathname === t.href || pathname.startsWith(`${t.href}/`));
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [moreOpen]);
+  useEffect(() => setMoreOpen(false), [pathname]);
+
+  const tabStyle = (active: boolean) => ({
+    background: active ? "var(--surface)" : "transparent",
+    color: active ? "var(--text)" : "var(--text-2)",
+    boxShadow: active ? "var(--shadow)" : "none",
+  });
 
   return (
-    <nav
-      className="flex gap-1 p-1 rounded-[10px] mb-4 overflow-x-auto"
-      style={{ background: "var(--surface-3)" }}
-    >
-      {visible.map((t) => {
-        const active = pathname === t.href;
+    <nav className="flex gap-1 p-1 rounded-[10px] mb-4 overflow-x-auto items-center" style={{ background: "var(--surface-3)" }}>
+      {main.map((t) => {
+        const active = pathname === t.href || (t.href !== "/sales" && pathname.startsWith(`${t.href}/`)) || (t.href === "/sales/rendez-vous" && FOLDED.some((f) => pathname.startsWith(f)));
         return (
-          <Link
-            key={t.href}
-            href={t.href}
-            className="px-3 h-[28px] rounded-[7px] text-[12.5px] font-medium whitespace-nowrap flex items-center transition-colors"
-            style={{
-              background: active ? "var(--surface)" : "transparent",
-              color: active ? "var(--text)" : "var(--text-2)",
-              boxShadow: active ? "var(--shadow)" : "none",
-            }}
-          >
+          <Link key={t.href} href={t.href} className="px-3 h-[28px] rounded-[7px] text-[12.5px] font-medium whitespace-nowrap flex items-center transition-colors" style={tabStyle(active)}>
             {t.label}
           </Link>
         );
       })}
+      {more.length > 0 && (
+        <div className="relative ml-auto" ref={moreRef}>
+          <button type="button" className="px-3 h-[28px] rounded-[7px] text-[12.5px] font-medium whitespace-nowrap flex items-center gap-1 transition-colors" style={tabStyle(moreActive)} onClick={() => setMoreOpen((v) => !v)} aria-haspopup="menu" aria-expanded={moreOpen}>
+            {moreActive ? more.find((t) => pathname === t.href || pathname.startsWith(`${t.href}/`))?.label : "Plus"} <span className="text-[10px]">▾</span>
+          </button>
+          {moreOpen && (
+            <div className="card absolute right-0 top-full mt-1.5 min-w-[200px] py-1 z-40" style={{ boxShadow: "var(--shadow-lg)" }} role="menu">
+              {more.map((t) => {
+                const active = pathname === t.href || pathname.startsWith(`${t.href}/`);
+                return (
+                  <Link key={t.href} href={t.href} role="menuitem" className="block px-3 py-1.5 text-[12.5px] hover:bg-[var(--surface-2)]" style={{ color: active ? "var(--text)" : "var(--text-2)", fontWeight: active ? 600 : 500 }}>
+                    {t.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </nav>
   );
 }

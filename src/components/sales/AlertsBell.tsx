@@ -15,6 +15,9 @@ const KIND_COLOR: Record<AlertItem["kind"], string> = {
   "call-soon": "var(--critical)",
   "call-today": "var(--accent)",
   callback: "var(--accent)",
+  "payment-overdue": "var(--critical)",
+  "payment-due": "var(--warning)",
+  "payment-unspecified": "var(--warning)",
 };
 
 /** Reports rapides depuis la cloche, sans ouvrir la fiche. */
@@ -189,8 +192,8 @@ export function AlertsBell() {
             ))}
           </ul>
           <div className="px-3.5 py-2 flex justify-between items-center" style={{ background: "var(--surface-2)" }}>
-            <Link href="/sales/relances" className="link text-[12px]" onClick={() => setOpen(false)}>
-              Toutes les relances →
+            <Link href="/sales/rendez-vous?view=todo" className="link text-[12px]" onClick={() => setOpen(false)}>
+              Tout ce qu’il y a à traiter →
             </Link>
             <button className="btn btn-ghost btn-sm !h-[24px] !text-[11.5px]" onClick={() => void load()}>
               ↻

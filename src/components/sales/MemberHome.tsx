@@ -77,13 +77,10 @@ export function MemberHome() {
 
   /*
    * Etiquette Instagram : celle du compte (Comptes → Modifier), sinon un
-   * defaut par prenom convenu avec l'admin : Salim marque « Commandé », Noa
-   * marque « Prospect ».
+   * defaut par prenom convenu avec l'admin : Noa marque « Prospect ».
    */
   const first = session.memberName.split(" ")[0].toLowerCase();
-  const igLabel =
-    members.find((m) => m.id === session.memberId)?.igLabel ||
-    (first === "salim" ? "Commandé" : first === "noa" ? "Prospect" : "");
+  const igLabel = members.find((m) => m.id === session.memberId)?.igLabel || (first === "noa" ? "Prospect" : "");
 
   const { data, loading, error } = useSalesData<MemberPayload>(
     `/api/sales/dashboard?${periodQuery(period.period, period.from, period.to, { v: String(version), ...scope })}`,
@@ -480,8 +477,8 @@ export function MemberHome() {
             title="Ce qui demande une action"
             padded={false}
             actions={
-              <Link href="/sales/relances" className="btn btn-sm">
-                Relances
+              <Link href="/sales/rendez-vous?view=todo" className="btn btn-sm">
+                Ouvrir le CRM
               </Link>
             }
           >
@@ -490,13 +487,13 @@ export function MemberHome() {
                 done={(data?.followUps.overdue ?? 0) === 0}
                 label="Relances en retard"
                 count={data?.followUps.overdue ?? 0}
-                href="/sales/relances"
+                href="/sales/rendez-vous?view=followup"
               />
               <Todo
                 done={(data?.followUps.pending ?? 0) === 0}
                 label="Relances en attente"
                 count={data?.followUps.pending ?? 0}
-                href="/sales/relances"
+                href="/sales/rendez-vous?view=followup"
               />
               <Todo
                 done={proposed.length === 0}

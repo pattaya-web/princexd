@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import type { CollectionName, DB, Settings } from "./types";
+import { applySoloCloser } from "./sales/closers";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
@@ -105,6 +106,7 @@ const EMPTY_DB: DB = {
   broll: [],
   adBoards: [],
   courseModules: [],
+  courseResources: [],
   metaConnections: [],
   mbSnapshots: [],
   mbSettings: [],
@@ -233,6 +235,30 @@ export function readDB(): DB {
       }
     }
     settings.salesDedupedAt = now;
+    writeDB(cache.db);
+  }
+  /*
+   * Closer unique (2026-10-13).
+   *
+   * Salim quitte l'equipe et, tant qu'aucun closer n'est recrute, le
+   * proprietaire close lui-meme : son compte devient le seul closer et le
+   * closer par defaut, tout ce qui est encore ouvert passe sous son nom.
+   * Voir lib/sales/closers.ts ; la date sert de verrou.
+   */
+  if (!settings.salesSoloCloserAt) {
+    const now = new Date().toISOString();
+    const lines = applySoloCloser(cache.db, newId, now);
+    cache.db.activityLogs.unshift({
+      id: newId(),
+      at: now,
+      actorId: "",
+      actorName: "Système",
+      action: "team.solo-closer",
+      entity: "member",
+      entityId: cache.db.settings.salesOwnerMemberId ?? "",
+      summary: `Équipe réorganisée : ${lines.join(" · ")}`,
+    });
+    settings.salesSoloCloserAt = now;
     writeDB(cache.db);
   }
   return cache.db;

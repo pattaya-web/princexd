@@ -7,6 +7,7 @@ import { CHANNEL_LABEL } from "@/lib/sales/templates";
 import { fmtDateTime, parisDay, parisToIso } from "@/lib/format";
 import { leadIsOut, type DB, type Lead, type LeadCallStatus, type TemplateChannel } from "@/lib/types";
 import { leadTimeline } from "@/lib/sales/timeline";
+import { paymentView } from "@/lib/sales/installments";
 
 export const dynamic = "force-dynamic";
 
@@ -67,11 +68,16 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const lead = db.leads.find((l) => l.id === id);
     if (!lead) throw new Error("Lead introuvable.");
     const unassigned = !lead.setterId;
-    if (!unassigned && !canSee(session, { setterId: lead.setterId })) throw new Forbidden();
-    if (unassigned && !session.isAdmin && !sessionHas(session, "setter")) throw new Forbidden();
+    // Le closer d'un de ses calls voit la fiche aussi : c'est lui qui la statue apres le call.
+    const myCall = db.appointments.some((a) => a.leadId === lead.id && canSee(session, a));
+    if (!myCall) {
+      if (!unassigned && !canSee(session, { setterId: lead.setterId })) throw new Forbidden();
+      if (unassigned && !session.isAdmin && !sessionHas(session, "setter")) throw new Forbidden();
+    }
     const names = new Map(db.team.map((m) => [m.id, m.name]));
     // La vente en cours du lead (la plus recente non annulee), pour la fiche.
     const sale = db.sales.filter((s) => s.leadId === lead.id && s.status !== "cancelled").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    const cancelledSale = sale ? undefined : db.sales.filter((s) => s.leadId === lead.id && s.status === "cancelled").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
     /*
      * Noms et creative Meta, resolus depuis le dernier instantane du media
      * buying (aucun appel a l'API ici) : les IDs restent la reference, les
@@ -81,7 +87,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     return {
       lead,
       setterName: lead.setterId ? (names.get(lead.setterId) ?? "—") : "",
-      sale: sale ? { id: sale.id, offer: sale.offer, contractValue: sale.contractValue, cashCollected: sale.cashCollected, currency: sale.currency, soldAt: sale.soldAt, closerName: names.get(sale.closerId) ?? "" } : null,
+      sale: sale ? { ...sale, closerName: names.get(sale.closerId) ?? "", payment: paymentView(sale) } : null,
+      cancelledSale: cancelledSale ? { id: cancelledSale.id, contractValue: cancelledSale.contractValue, currency: cancelledSale.currency, updatedAt: cancelledSale.updatedAt, notes: cancelledSale.notes } : null,
+      canOutcome: session.isAdmin || sessionHas(session, "closer"),
+      today: parisDay(),
       appointments: db.appointments
         .filter((a) => a.leadId === lead.id)
         .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))

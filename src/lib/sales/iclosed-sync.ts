@@ -3,6 +3,7 @@ import { fetchCalls, fetchUpcoming, getIclosedKey, type IclosedCall } from "@/li
 import { dealAmount, findByIclosedId, fromIclosedCall, mapLostReason, mapOutcome, resolveCloser, utmRecord } from "./iclosed-link";
 import { FINAL_STATUSES } from "./constants";
 import { memberRoles } from "./roles";
+import { defaultCloserId } from "./closers";
 import { createAppointment, recordOutcome, upsertLead, type AppointmentInput } from "./repo";
 import { touchFromUtm, applyTouch } from "./attribution";
 import type { Appointment, DB, Session, TeamMember } from "@/lib/types";
@@ -112,13 +113,7 @@ function pickSetter(db: DB): string {
 function pickCloser(db: DB, call: IclosedCall): string {
   const mapped = resolveCloser(db, call);
   if (mapped && active(mapped)) return mapped.id;
-  const s = db.settings;
-  const def = db.team.find((m) => m.id === s.salesDefaultCloserId);
-  if (def && active(def)) return def.id;
-  const me = db.team.find((m) => m.id === s.salesOwnerMemberId);
-  if (me && active(me) && memberRoles(me).includes("closer")) return me.id;
-  const closers = db.team.filter((m) => active(m) && memberRoles(m).includes("closer"));
-  return closers[0]?.id ?? "";
+  return defaultCloserId(db);
 }
 
 /** Cree un rendez-vous sans setter : createAppointment l'exige, ici on l'accepte. */
@@ -322,15 +317,17 @@ export function applyIclosedOutcome(
       sale: {
         offer: call.callType?.replace(/_/g, " ").toLowerCase() || "Vente iClosed",
         contractValue: amount,
-        // iClosed ne distingue pas contrat et cash encaisse : on prend le
-        // montant du deal comme cash, quitte a le corriger dans la fiche.
-        cashCollected: amount,
+        // iClosed ne distingue pas contrat et cash encaisse, ni une fois de
+        // plusieurs fois : le contrat compte tout de suite dans le chiffre
+        // d'affaires, le cash attend que le closer precise (un clic sur le CRM).
+        cashCollected: 0,
         currency: readDB().settings.salesCurrency || "EUR",
-        paymentType: "paid-in-full",
+        paymentType: "other",
         installments: 0,
         paymentMethod: "",
         soldAt: new Date(call.dateTimeUTC).toISOString(),
-        notes: "Importé depuis iClosed",
+        notes: "Importé depuis iClosed — paiement à préciser",
+        paymentUnspecified: true,
       },
     });
     report.salesCreated += 1;

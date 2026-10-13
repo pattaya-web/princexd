@@ -99,7 +99,7 @@ export default function SalesDashboardPage() {
 
       {/* Relances en retard : la seule alerte qui merite d'etre en haut. */}
       {data && data.followUps.overdue > 0 && (
-        <Link href="/sales/relances" className="block mb-4">
+        <Link href="/sales/rendez-vous?view=followup" className="block mb-4">
           <div
             className="rounded-lg px-3.5 py-2.5 text-[12.5px] flex items-center gap-2"
             style={{

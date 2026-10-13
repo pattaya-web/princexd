@@ -1,7 +1,7 @@
 "use client";
 
 import { hasRole, sessionHas } from "@/lib/sales/roles";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { api } from "@/lib/client";
 import { label, relative } from "@/lib/format";
 import { APPOINTMENT_SOURCES } from "@/lib/sales/constants";
@@ -114,7 +114,7 @@ export default function AppointmentsPage() {
     <>
       <PageHeader
         title="CRM"
-        subtitle="Recherche un lead, ou ouvre une vue : « À traiter » te montre ce qui demande une action maintenant."
+        subtitle="Tous les leads, leur statut, et « Statuer » pour poser l'issue de chaque call : show, en attente, no-show, closé, perdu, paiement."
         actions={
           <>
             <button className="btn" onClick={() => setTable((v) => !v)} title="Liste détaillée des rendez-vous par période">
@@ -134,7 +134,9 @@ export default function AppointmentsPage() {
         }
       />
 
-      <CrmBoard session={session} members={members} refreshKey={version} onChanged={bump} />
+      <Suspense fallback={null}>
+        <CrmBoard session={session} members={members} refreshKey={version} onChanged={bump} />
+      </Suspense>
 
       {table && (
         <div className="mt-6">

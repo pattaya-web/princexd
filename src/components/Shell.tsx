@@ -473,7 +473,6 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/sales/leads", label: "Leads", icon: "☏" },
       { href: "/sales/messages", label: "Messages", icon: "✉" },
       { href: "/sales/rendez-vous", label: "CRM", icon: "▤" },
-      { href: "/sales/relances", label: "Relances", icon: "↻" },
       { href: "/sales/commissions", label: "Commissions", icon: "▦" },
       { href: "/va/outreach", label: "Outreach VA", icon: "✉" },
       { href: "/sales/guide", label: "Guide d'utilisation", icon: "?" },
@@ -485,6 +484,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/formation", label: "Plateforme élèves", icon: "▶" },
       { href: "/formation/modules", label: "Modules vidéo", icon: "▤" },
       { href: "/formation/eleves", label: "Accès élèves", icon: "⚿" },
+      { href: "/formation/ressources", label: "Ressources formation", icon: "▣" },
     ],
   },
   {

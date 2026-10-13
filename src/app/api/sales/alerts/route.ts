@@ -4,12 +4,13 @@ import { readSession, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
 import { isoToParisInput, parisDay } from "@/lib/format";
+import { installmentAlerts } from "@/lib/sales/installments";
 
 export const dynamic = "force-dynamic";
 
 export interface AlertItem {
   id: string;
-  kind: "follow-up-overdue" | "follow-up-today" | "call-today" | "call-unconfirmed" | "call-tomorrow" | "call-soon" | "callback";
+  kind: "follow-up-overdue" | "follow-up-today" | "call-today" | "call-unconfirmed" | "call-tomorrow" | "call-soon" | "callback" | "payment-overdue" | "payment-due" | "payment-unspecified";
   /** Rendez-vous a ouvrir (fiche), ou lead. */
   appointmentId: string;
   leadId: string;
@@ -119,12 +120,42 @@ export async function GET(req: NextRequest) {
       items.push({ id: `cb-${l.id}`, kind: "callback", appointmentId: "", leadId: l.id, leadName: l.name, at: l.callbackAt, title: `Rappeler · ${l.name}`, detail: l.phone || "Rappel demandé par le prospect" });
     }
 
+    /*
+     * L'argent : echeance du jour ou en retard, paiement attendu non recu,
+     * vente iClosed a preciser. Une echeance a venir n'alerte pas : elle est
+     * a jour. Le clic ouvre la fiche du call, ou l'echeance se marque encaissee.
+     */
+    for (const i of installmentAlerts(db, session, 0)) {
+      const money = `${Math.round(i.amount).toLocaleString("fr-FR")} ${i.currency === "EUR" ? "€" : i.currency}`;
+      const kind: AlertItem["kind"] = i.state === "unspecified" ? "payment-unspecified" : i.state === "overdue" ? "payment-overdue" : "payment-due";
+      items.push({
+        id: `pay-${i.saleId}-${i.n}`,
+        kind,
+        appointmentId: i.appointmentId,
+        leadId: i.leadId,
+        leadName: i.leadName,
+        at: `${i.dueAt}T09:00:00.000Z`,
+        title:
+          kind === "payment-unspecified"
+            ? `Vente iClosed · ${i.leadName} : précise le paiement`
+            : kind === "payment-overdue"
+              ? `${i.awaitingFirst ? "Paiement non reçu" : `Échéance ${i.n}/${i.total} en retard`} · ${i.leadName}`
+              : `${i.awaitingFirst ? "Paiement attendu aujourd'hui" : `Échéance ${i.n}/${i.total} aujourd'hui`} · ${i.leadName}`,
+        detail:
+          kind === "payment-unspecified"
+            ? `${money} remontés par iClosed : payé en une fois, en plusieurs fois, ou contrat envoyé ?`
+            : kind === "payment-overdue"
+              ? `${money} attendus le ${i.dueAt.split("-").reverse().slice(0, 2).join("/")} · retard de ${i.daysLate} j${i.awaitingFirst ? " · relance, ou annule la vente s'il ne paie pas" : ""}`
+              : `${money} à encaisser aujourd'hui`,
+      });
+    }
+
     items.sort((a, b) => a.at.localeCompare(b.at));
     return {
       items,
       counts: {
-        overdue: items.filter((i) => i.kind === "follow-up-overdue").length,
-        today: items.filter((i) => i.kind !== "follow-up-overdue").length,
+        overdue: items.filter((i) => i.kind === "follow-up-overdue" || i.kind === "payment-overdue").length,
+        today: items.filter((i) => i.kind !== "follow-up-overdue" && i.kind !== "payment-overdue").length,
       },
     };
   });

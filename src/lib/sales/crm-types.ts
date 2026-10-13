@@ -4,24 +4,20 @@
  */
 
 import type { AppointmentConfirmation, AppointmentStatus, Lead, LeadCallStatus, SourceChannel } from "../types";
+import type { PaymentState } from "./installments";
 
-export type QuickView = "all" | "todo" | "followup" | "payment" | "closed" | "show" | "noshow" | "reschedule" | "qualified" | "lost";
+export type QuickView = "todo" | "upcoming" | "followup" | "payment" | "closed" | "noshow" | "lost" | "all";
 
 export const QUICK_VIEWS: { key: QuickView; label: string; hint: string }[] = [
-  { key: "all", label: "Tous", hint: "Tous les leads du CRM" },
   { key: "todo", label: "À traiter", hint: "Ce qui demande une action maintenant, par priorité" },
+  { key: "upcoming", label: "Calls à venir", hint: "Rendez-vous pas encore passés : à confirmer, puis à statuer après le call" },
   { key: "followup", label: "À relancer", hint: "Relances en retard, aujourd'hui, demain, plus tard" },
-  { key: "payment", label: "Paiement en attente", hint: "Closés dont le cash encaissé est inférieur au contrat" },
+  { key: "payment", label: "Paiements", hint: "Ventes pas soldées : en retard, à encaisser, contrat envoyé, en plusieurs fois" },
   { key: "closed", label: "Closés", hint: "Toutes les ventes" },
-  { key: "show", label: "Shows", hint: "Venus au call" },
-  { key: "noshow", label: "No-shows", hint: "Pas venus au call" },
-  { key: "reschedule", label: "À reprogrammer", hint: "No-show sans relance ni nouveau rendez-vous" },
-  { key: "qualified", label: "Qualifiés", hint: "Marqués qualifiés" },
-  { key: "lost", label: "Perdus", hint: "Perdus, pas intéressés, leads froids" },
+  { key: "noshow", label: "No-shows", hint: "Pas venus au call, à relancer ou reprogrammer" },
+  { key: "lost", label: "Perdus", hint: "Perdus, pas intéressés, leads froids, ventes annulées" },
+  { key: "all", label: "Tous", hint: "Tous les leads du CRM" },
 ];
-
-export type PaymentStatus = "paid" | "partial" | "pending";
-export const PAYMENT_LABEL: Record<PaymentStatus, string> = { paid: "Soldé", partial: "Paiement partiel", pending: "Paiement en attente" };
 
 export type FollowUpBucket = "overdue" | "today" | "tomorrow" | "later";
 export const FOLLOWUP_BUCKET_LABEL: Record<FollowUpBucket, string> = { overdue: "En retard", today: "Aujourd'hui", tomorrow: "Demain", later: "Plus tard" };
@@ -33,15 +29,23 @@ export interface CrmSale {
   contractValue: number;
   cashCollected: number;
   remaining: number;
-  paymentStatus: PaymentStatus;
+  /** Etat du paiement, calcule par installments.ts : la meme regle partout. */
+  paymentState: PaymentState;
+  /** Phrase prete a afficher (« 2e échéance 1 500 € le 05/11 (dans 24 j) »). */
+  paymentSummary: string;
+  times: number;
+  paidCount: number;
   /** Prochaine echeance impayee (AAAA-MM-JJ) et son montant. */
   nextDueAt: string;
   nextDueAmount: number;
+  nextDueN: number;
+  daysToNext: number | null;
   /** Echeances passees non encaissees. */
   overdueAmount: number;
   soldAt: string;
   /** Dernier encaissement. */
   lastPaidAt: string;
+  status: "active" | "partially-refunded" | "refunded" | "cancelled";
 }
 
 export interface CrmFollowUp {
@@ -54,19 +58,23 @@ export interface CrmFollowUp {
   bucket: FollowUpBucket;
 }
 
+export type TodoKind = "payment-overdue" | "followup-overdue" | "outcome" | "payment-due" | "payment-unspecified" | "noshow" | "unconfirmed";
+
 export interface CrmTodo {
+  kind: TodoKind;
   /** 1 = le plus urgent. */
-  rank: 1 | 2 | 3 | 4 | 5 | 6;
+  rank: number;
   reason: string;
 }
 
-export const TODO_LABEL: Record<CrmTodo["rank"], string> = {
-  1: "Paiement en retard",
-  2: "Relance en retard",
-  3: "Résultat de call à saisir",
-  4: "À reprogrammer",
-  5: "No-show à relancer",
-  6: "Lead récent sans action",
+export const TODO_LABEL: Record<TodoKind, string> = {
+  "payment-overdue": "Paiement en retard",
+  "followup-overdue": "Relance en retard",
+  outcome: "Call passé · à statuer",
+  "payment-due": "Échéance à encaisser",
+  "payment-unspecified": "Paiement à préciser",
+  noshow: "No-show · à relancer",
+  unconfirmed: "Call demain · à confirmer",
 };
 
 /** Une ligne du CRM : un lead, avec tout ce qui en derive. Rien n'est recopie en base. */
@@ -107,6 +115,9 @@ export interface CrmRow {
   lastActionSummary: string;
   createdAt: string;
   todo: CrmTodo | null;
+  /** Statut lisible, en un mot, et sa tonalite : ce que la ligne affiche en premier. */
+  headline: string;
+  tone: "good" | "warn" | "bad" | "info" | "muted" | "accent";
   views: QuickView[];
 }
 
@@ -125,4 +136,5 @@ export interface CrmPayload {
   counts: Record<QuickView, number>;
   options: CrmOptions;
   currency: string;
+  today: string;
 }

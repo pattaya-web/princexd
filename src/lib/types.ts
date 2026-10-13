@@ -224,6 +224,11 @@ export interface Settings {
   /** Rejeu des utm / IDs Meta sur les leads deja en base (une seule fois). */
   metaIdsBackfilledAt?: string;
   /**
+   * Closer unique (2026-10-13) : Salim retire de l'equipe, le proprietaire
+   * devient le seul closer et le closer par defaut. Applique une seule fois.
+   */
+  salesSoloCloserAt?: string;
+  /**
    * Attribution des leads LP. « pool » (le choix par defaut) : personne, les
    * leads sont a tous les setters et le premier qui appelle le prend.
    * « default » : le setter par defaut. « round-robin » : tour de role.
@@ -586,6 +591,24 @@ export interface CourseObjection {
   id: ID;
   question: string;
   answer: string;
+}
+
+/**
+ * Annexe PDF de la formation (Formation → Ressources formation).
+ *
+ * Le fichier vit sur le disque (`data/formation/<stored>`), jamais dans la
+ * base ; `fileName` est le nom d'origine, restitue au telechargement.
+ */
+export interface CourseResource {
+  id: ID;
+  /** Titre affiche, modifiable ; par defaut le nom du fichier sans extension. */
+  title: string;
+  fileName: string;
+  /** Nom de stockage genere (identifiant + .pdf). */
+  stored: string;
+  size: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -1028,6 +1051,8 @@ export interface DB {
   broll: BrollItem[];
   /** Modules video de la plateforme de formation des eleves. */
   courseModules: CourseModule[];
+  /** Annexes PDF de la formation, a piocher pour les envoyer aux eleves. */
+  courseResources: CourseResource[];
   /** Tableaux de strategie creative (facon Miro) de la section Ads. */
   adBoards: AdBoard[];
   /* --- Media buying Meta Ads (src/lib/mediabuying) --- */
@@ -1470,6 +1495,20 @@ export interface Sale {
    * premiere echeance (cash du jour) n'y figure pas.
    */
   schedule?: SaleInstallment[];
+  /**
+   * Contrat envoye, rien encaisse : date (AAAA-MM-JJ) a laquelle le premier
+   * paiement est attendu. Passee sans encaissement, la vente remonte en
+   * « paiement non reçu » : relancer, ou annuler la vente si le client ne
+   * paie pas (le chiffre d'affaires redescend alors d'autant).
+   */
+  paymentExpectedAt?: string;
+  /**
+   * Vente remontee par iClosed (deal « win ») : le montant est connu, pas la
+   * facon de payer (une fois, en plusieurs fois, contrat envoye). Le contrat
+   * compte dans le chiffre d'affaires tout de suite ; le cash attend que le
+   * closer precise. Repasse a faux des que le paiement est renseigne.
+   */
+  paymentUnspecified?: boolean;
 }
 
 /** Une echeance de paiement. `paidAt` vide tant qu'elle n'est pas encaissee. */

@@ -1,8 +1,8 @@
 /**
  * Lignes du CRM : un lead = une ligne, derivee a la lecture des rendez-vous,
  * ventes, relances et journal deja en base. Les vues rapides (a traiter, a
- * relancer, paiement en attente…) sont des filtres sur ces lignes, calcules
- * ici une fois pour que la page et les compteurs disent la meme chose.
+ * relancer, paiements…) sont des filtres sur ces lignes, calcules ici une
+ * fois pour que la page et les compteurs disent la meme chose.
  */
 
 import type { Appointment, DB, FollowUp, Lead, Sale, Session } from "../types";
@@ -10,35 +10,49 @@ import { canSee } from "./access";
 import { sessionHas } from "./roles";
 import { funnelLabel, SOURCE_CHANNEL_LABEL } from "./attribution";
 import { activeSale, leadBusiness } from "./business";
-import { isoToParisInput, parisDay } from "../format";
-import type { CrmFollowUp, CrmOptions, CrmPayload, CrmRow, CrmSale, CrmTodo, FollowUpBucket, PaymentStatus, QuickView } from "./crm-types";
+import { PAYMENT_STATE_LABEL, PAYMENT_STATE_TONE, paymentView } from "./installments";
+import { isoToParisInput, label as statusLabel, parisDay } from "../format";
+import type { CrmFollowUp, CrmOptions, CrmPayload, CrmRow, CrmSale, CrmTodo, FollowUpBucket, QuickView } from "./crm-types";
 
-const ATTENDED: Appointment["status"][] = ["completed", "follow-up", "closed-won", "closed-lost"];
 const PENDING_APPT: Appointment["status"][] = ["booked", "confirmed", "rescheduled"];
 
 function saleView(s: Sale, today: string): CrmSale {
-  const refund = s.refundAmount || 0;
-  const contract = Math.max(0, s.contractValue - refund);
-  const cash = Math.max(0, (s.cashCollected || 0) - refund);
-  const remaining = Math.max(0, contract - cash);
-  const paymentStatus: PaymentStatus = remaining <= 0.005 ? "paid" : cash > 0 ? "partial" : "pending";
-  const unpaid = (s.schedule ?? []).filter((i) => !i.paidAt).sort((a, b) => a.dueAt.localeCompare(b.dueAt));
-  const next = unpaid[0];
-  const overdueAmount = unpaid.filter((i) => i.dueAt < today).reduce((n, i) => n + i.amount, 0);
-  const lastPaidAt = [...(s.collections ?? []).map((c) => c.at), ...(s.schedule ?? []).filter((i) => i.paidAt).map((i) => i.paidAt)].sort().pop() ?? (cash > 0 ? s.soldAt : "");
-  return { id: s.id, appointmentId: s.appointmentId, offer: s.offer, contractValue: contract, cashCollected: cash, remaining, paymentStatus, nextDueAt: next?.dueAt ?? "", nextDueAmount: next?.amount ?? 0, overdueAmount, soldAt: s.soldAt, lastPaidAt };
+  const v = paymentView(s, today);
+  return {
+    id: s.id,
+    appointmentId: s.appointmentId,
+    offer: s.offer,
+    contractValue: v.contractValue,
+    cashCollected: v.cashCollected,
+    remaining: v.remaining,
+    paymentState: v.state,
+    paymentSummary: v.summary,
+    times: v.times,
+    paidCount: v.paidCount,
+    nextDueAt: v.nextDueAt,
+    nextDueAmount: v.nextDueAmount,
+    nextDueN: v.nextDueN,
+    daysToNext: v.daysToNext,
+    overdueAmount: v.overdueAmount,
+    soldAt: s.soldAt,
+    lastPaidAt: v.lastPaidAt,
+    status: s.status,
+  };
 }
 
 function followUpView(f: FollowUp, today: string): CrmFollowUp {
   const day = isoToParisInput(f.dueAt).slice(0, 10);
-  const tomorrow = isoToParisInput(new Date(Date.now() + 86_400_000)).slice(0, 10);
+  const tomorrow = parisDay(1);
   const bucket: FollowUpBucket = day < today ? "overdue" : day === today ? "today" : day === tomorrow ? "tomorrow" : "later";
   const lastMsg = [...(f.log ?? [])].reverse().find((e) => e.kind === "contact" || e.kind === "note");
   return { id: f.id, dueAt: f.dueAt, notes: f.notes, step: f.step, lastContactAt: f.lastContactAt ?? "", lastMessage: lastMsg?.note ?? "", bucket };
 }
 
+const money = (n: number, currency: string) => `${Math.round(n).toLocaleString("fr-FR")} ${currency === "EUR" ? "€" : currency}`;
+
 export function buildCrm(db: DB, session: Session): CrmPayload {
   const today = parisDay();
+  const tomorrow = parisDay(1);
   const nowIso = new Date().toISOString();
   const names = new Map(db.team.map((m) => [m.id, m.name]));
   const currency = db.settings.salesCurrency || "EUR";
@@ -46,7 +60,7 @@ export function buildCrm(db: DB, session: Session): CrmPayload {
   const apptsByLead = new Map<string, Appointment[]>();
   for (const a of db.appointments) apptsByLead.set(a.leadId, [...(apptsByLead.get(a.leadId) ?? []), a]);
   const salesByLead = new Map<string, Sale[]>();
-  for (const s of db.sales) if (s.status !== "cancelled") salesByLead.set(s.leadId, [...(salesByLead.get(s.leadId) ?? []), s]);
+  for (const s of db.sales) salesByLead.set(s.leadId, [...(salesByLead.get(s.leadId) ?? []), s]);
   const fusByLead = new Map<string, FollowUp[]>();
   for (const f of db.followUps) fusByLead.set(f.leadId, [...(fusByLead.get(f.leadId) ?? []), f]);
 
@@ -73,13 +87,15 @@ export function buildCrm(db: DB, session: Session): CrmPayload {
   for (const lead of db.leads) {
     const appts = apptsByLead.get(lead.id) ?? [];
     if (!visible(lead, appts)) continue;
-    const sales = salesByLead.get(lead.id) ?? [];
+    const allSales = salesByLead.get(lead.id) ?? [];
+    const sales = allSales.filter((s) => s.status !== "cancelled");
+    const cancelledSale = !sales.length && allSales.some((s) => s.status === "cancelled");
     const fus = fusByLead.get(lead.id) ?? [];
     const biz = leadBusiness(lead, appts, sales, currency);
 
     const live = appts.filter((a) => a.status !== "cancelled").sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt));
     // Le rendez-vous principal : celui de la vente s'il y en a une, sinon le plus recent.
-    const withSale = live.find((a) => sales.some((s) => s.appointmentId === a.id && s.status !== "cancelled"));
+    const withSale = live.find((a) => sales.some((s) => s.appointmentId === a.id));
     const appt = withSale ?? live[0] ?? null;
     // Meme vente que la fiche detaillee : une seule source de verite.
     const sale = activeSale(sales, appt);
@@ -90,36 +106,83 @@ export function buildCrm(db: DB, session: Session): CrmPayload {
     const fuV = pendingFu ? followUpView(pendingFu, today) : null;
 
     // Derniere action : la plus recente parmi le lead, ses rendez-vous, sa vente, ses relances.
-    const candidates = [lead.id, ...appts.map((a) => a.id), ...sales.map((s) => s.id), ...fus.map((f) => f.id)].map((id) => lastLog.get(id)).filter(Boolean) as { at: string; summary: string }[];
-    for (const a of appts) for (const h of a.history ?? []) candidates.push({ at: h.at, summary: `${h.actorName} → ${h.to}${h.note ? ` — ${h.note}` : ""}` });
+    const candidates = [lead.id, ...appts.map((a) => a.id), ...allSales.map((s) => s.id), ...fus.map((f) => f.id)].map((id) => lastLog.get(id)).filter(Boolean) as { at: string; summary: string }[];
+    for (const a of appts) for (const h of a.history ?? []) candidates.push({ at: h.at, summary: `${h.actorName} → ${statusLabel(h.to)}${h.note ? ` — ${h.note}` : ""}` });
     for (const f of fus) if (f.lastContactAt) candidates.push({ at: f.lastContactAt, summary: "Prospect relancé" });
     candidates.sort((a, b) => b.at.localeCompare(a.at));
     const last = candidates[0];
 
     const apptPast = appt ? appt.scheduledAt < nowIso : false;
     const apptPending = appt ? PENDING_APPT.includes(appt.status) : false;
+    const apptDay = appt ? isoToParisInput(appt.scheduledAt).slice(0, 10) : "";
     const hasLater = appt ? live.some((a) => a.scheduledAt > appt.scheduledAt) : false;
+    const isLost = biz.saleStatus === "LOST" || lead.callStatus === "cold" || lead.callStatus === "not-interested" || (cancelledSale && !saleV);
 
     // ---- À traiter : une seule raison, la plus urgente.
     let todo: CrmTodo | null = null;
-    const paymentOverdue = saleV && saleV.remaining > 0 && (saleV.overdueAmount > 0 || (!saleV.nextDueAt && Date.parse(saleV.soldAt) < Date.now() - 7 * 86_400_000));
-    if (paymentOverdue) todo = { rank: 1, reason: saleV!.overdueAmount > 0 ? `Échéance en retard : ${Math.round(saleV!.overdueAmount)} ${currency}` : `Reste ${Math.round(saleV!.remaining)} ${currency} à encaisser, sans échéancier` };
-    else if (fuV?.bucket === "overdue") todo = { rank: 2, reason: `Relance en retard${fuV.notes ? ` : ${fuV.notes}` : ""}` };
-    else if (appt && apptPending && apptPast && !pendingFu) todo = { rank: 3, reason: "Call passé, résultat à saisir (show, no-show, closé…)" };
-    else if (appt && appt.status === "no-show" && !pendingFu && !hasLater) todo = { rank: 4, reason: "No-show sans nouveau rendez-vous" };
-    else if (appt && appt.status === "no-show" && !pendingFu) todo = { rank: 5, reason: "No-show à relancer" };
-    else if (!appt && !lead.callStatus && Date.parse(lead.createdAt) > Date.now() - 48 * 3_600_000) todo = { rank: 6, reason: "Nouveau lead, aucune action" };
+    if (saleV && saleV.paymentState === "overdue") {
+      todo = { kind: "payment-overdue", rank: 1, reason: saleV.paymentSummary };
+    } else if (fuV?.bucket === "overdue") {
+      todo = { kind: "followup-overdue", rank: 2, reason: `Relance prévue le ${isoToParisInput(fuV.dueAt).slice(0, 10).split("-").reverse().slice(0, 2).join("/")}${fuV.notes ? ` : ${fuV.notes}` : ""}` };
+    } else if (appt && apptPending && apptPast && !pendingFu) {
+      todo = { kind: "outcome", rank: 3, reason: "Le call est passé : show, no-show, closé, en attente, perdu ?" };
+    } else if (saleV && saleV.paymentState === "due") {
+      todo = { kind: "payment-due", rank: 4, reason: saleV.paymentSummary };
+    } else if (saleV && saleV.paymentState === "unspecified") {
+      todo = { kind: "payment-unspecified", rank: 5, reason: saleV.paymentSummary };
+    } else if (appt && appt.status === "no-show" && !pendingFu && !hasLater) {
+      todo = { kind: "noshow", rank: 6, reason: "No-show sans relance ni nouveau rendez-vous" };
+    } else if (appt && apptPending && !apptPast && apptDay <= tomorrow && appt.confirmation !== "confirmed") {
+      todo = { kind: "unconfirmed", rank: 7, reason: apptDay === today ? "Call aujourd'hui, présence pas confirmée" : "Call demain, présence pas confirmée" };
+    }
+    // Les nouveaux leads sans action vivent dans « Leads à appeler » : ici, seuls les calls et l'argent.
+
+    // ---- Statut lisible : ce que la ligne dit en premier.
+    let headline = "";
+    let tone: CrmRow["tone"] = "muted";
+    if (saleV) {
+      headline = saleV.paymentState === "paid" ? `Closé · ${money(saleV.contractValue, currency)} soldé` : `Closé · ${PAYMENT_STATE_LABEL[saleV.paymentState].toLowerCase()}`;
+      tone = PAYMENT_STATE_TONE[saleV.paymentState];
+    } else if (cancelledSale) {
+      headline = "Vente annulée · non payée";
+      tone = "bad";
+    } else if (biz.saleStatus === "LOST") {
+      headline = "Perdu";
+      tone = "muted";
+    } else if (fuV) {
+      headline = `En attente · relance ${FOLLOWUP_LABEL[fuV.bucket]}`;
+      tone = fuV.bucket === "overdue" ? "bad" : fuV.bucket === "today" ? "warn" : "info";
+    } else if (appt && appt.status === "no-show") {
+      headline = "No-show";
+      tone = "bad";
+    } else if (appt && apptPending && !apptPast) {
+      headline = `Call ${apptDay === today ? "aujourd'hui" : apptDay === tomorrow ? "demain" : `le ${apptDay.split("-").reverse().slice(0, 2).join("/")}`}${appt.confirmation === "confirmed" ? " · confirmé" : " · à confirmer"}`;
+      tone = appt.confirmation === "confirmed" ? "accent" : "warn";
+    } else if (appt && apptPending && apptPast) {
+      headline = "Call passé · à statuer";
+      tone = "warn";
+    } else if (appt && (appt.status === "completed" || appt.status === "follow-up")) {
+      headline = appt.status === "completed" ? "Pitché · pas de décision" : "En attente";
+      tone = "info";
+    } else if (lead.callStatus === "cold") {
+      headline = "Lead froid";
+      tone = "muted";
+    } else if (lead.callStatus) {
+      headline = CALL_STATUS_LABEL[lead.callStatus] ?? lead.callStatus;
+      tone = lead.callStatus === "callback" || lead.callStatus === "reached" ? "accent" : "muted";
+    } else {
+      headline = "Nouveau lead";
+      tone = "muted";
+    }
 
     const views: QuickView[] = ["all"];
     if (todo) views.push("todo");
+    if (appt && apptPending && !apptPast) views.push("upcoming");
     if (fuV) views.push("followup");
-    if (saleV && saleV.remaining > 0) views.push("payment");
+    if (saleV && saleV.paymentState !== "paid") views.push("payment");
     if (saleV) views.push("closed");
-    if (biz.showStatus === "SHOWED") views.push("show");
-    if (biz.showStatus === "NO_SHOW") views.push("noshow");
-    if (appt && appt.status === "no-show" && !pendingFu && !hasLater) views.push("reschedule");
-    if (appts.some((a) => a.qualified)) views.push("qualified");
-    if (biz.saleStatus === "LOST" || lead.callStatus === "cold" || lead.callStatus === "not-interested") views.push("lost");
+    if (biz.showStatus === "NO_SHOW" && !saleV) views.push("noshow");
+    if (isLost) views.push("lost");
 
     rows.push({
       leadId: lead.id,
@@ -156,6 +219,8 @@ export function buildCrm(db: DB, session: Session): CrmPayload {
       lastActionSummary: last?.summary ?? "Lead créé",
       createdAt: lead.firstTouchAt || lead.optInAt || lead.createdAt,
       todo,
+      headline,
+      tone,
       views,
     });
   }
@@ -167,7 +232,8 @@ export function buildCrm(db: DB, session: Session): CrmPayload {
     return b.lastActionAt.localeCompare(a.lastActionAt);
   });
 
-  const counts = Object.fromEntries((["all", "todo", "followup", "payment", "closed", "show", "noshow", "reschedule", "qualified", "lost"] as QuickView[]).map((v) => [v, rows.filter((r) => r.views.includes(v)).length])) as Record<QuickView, number>;
+  const ALL: QuickView[] = ["todo", "upcoming", "followup", "payment", "closed", "noshow", "lost", "all"];
+  const counts = Object.fromEntries(ALL.map((v) => [v, rows.filter((r) => r.views.includes(v)).length])) as Record<QuickView, number>;
 
   const uniq = <T extends { id: string }>(list: T[]) => [...new Map(list.map((x) => [x.id, x])).values()];
   const options: CrmOptions = {
@@ -179,6 +245,18 @@ export function buildCrm(db: DB, session: Session): CrmPayload {
     closers: uniq(rows.filter((r) => r.closerId).map((r) => ({ id: r.closerId, name: r.closerName }))),
     setters: uniq(rows.filter((r) => r.setterId).map((r) => ({ id: r.setterId, name: r.setterName }))),
   };
-  void ATTENDED;
-  return { rows, counts, options, currency };
+  return { rows, counts, options, currency, today };
 }
+
+const FOLLOWUP_LABEL: Record<FollowUpBucket, string> = { overdue: "en retard", today: "aujourd'hui", tomorrow: "demain", later: "à venir" };
+
+const CALL_STATUS_LABEL: Record<string, string> = {
+  "no-answer": "Ne répond pas",
+  "message-sent": "Message envoyé",
+  callback: "À rappeler",
+  reached: "Joint · call à poser",
+  "not-interested": "Pas intéressé",
+  "wrong-number": "Faux numéro",
+  "no-whatsapp": "Pas de WhatsApp",
+  cold: "Lead froid",
+};

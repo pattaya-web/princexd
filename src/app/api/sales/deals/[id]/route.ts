@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { newId, readDB, writeDB } from "@/lib/db";
 import { Forbidden, readSession, requireSales } from "@/lib/sales/access";
 import { handle, num } from "@/lib/sales/http";
-import { patchSale } from "@/lib/sales/repo";
+import { cancelUnpaidSale, patchSale } from "@/lib/sales/repo";
 import type { PaymentType, SaleInstallment, SaleStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -21,8 +21,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const { id } = await ctx.params;
     const body = (await req.json()) as Record<string, unknown>;
 
+    /*
+     * « Il n'a pas payé » : la vente est annulee, le call repasse en perdu,
+     * le chiffre d'affaires redescend. Pour une vente sans rien d'encaisse.
+     */
+    if (body.action === "unpaid") return cancelUnpaidSale(session, id, typeof body.note === "string" ? body.note.trim().slice(0, 500) : "");
+
     const patch: Parameters<typeof patchSale>[2] = {};
     if (body.offer !== undefined) patch.offer = String(body.offer);
+    if (typeof body.paymentExpectedAt === "string") patch.paymentExpectedAt = /^\d{4}-\d{2}-\d{2}$/.test(body.paymentExpectedAt) ? body.paymentExpectedAt : "";
     if (body.notes !== undefined) patch.notes = String(body.notes);
     if (body.paymentMethod !== undefined) patch.paymentMethod = String(body.paymentMethod);
     if (body.contractValue !== undefined) patch.contractValue = Math.max(0, num(body.contractValue));
@@ -82,6 +89,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       { id: newId(), amount, at, method: String(body.method ?? "").trim(), note: String(body.note ?? "").trim(), by: session.memberId, createdAt: now },
     ];
     sale.cashCollected = Math.round((sale.cashCollected + amount) * 100) / 100;
+    sale.paymentUnspecified = false;
+    sale.paymentExpectedAt = "";
     sale.updatedAt = now;
 
     /*

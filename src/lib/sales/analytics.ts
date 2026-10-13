@@ -61,7 +61,7 @@ export function computeKpis(
   const live = all.filter((a) => !isDead(a.status));
   const attended = live.filter((a) => isAttended(a.status));
   const noShows = live.filter((a) => a.status === "no-show");
-  const periodSales = sales.filter((s) => inRange(s.soldAt, range));
+  const periodSales = sales.filter((s) => s.status !== "cancelled" && inRange(s.soldAt, range));
 
   const contractValue = money(periodSales.reduce((a, s) => a + netContract(s), 0));
   const cashCollected = money(periodSales.reduce((a, s) => a + netCash(s), 0));
@@ -113,7 +113,7 @@ export function computeFunnel(
   const live = all.filter((a) => !isDead(a.status));
   const confirmed = live.filter((a) => a.status !== "booked");
   const attended = live.filter((a) => isAttended(a.status));
-  const periodSales = sales.filter((s) => inRange(s.soldAt, range));
+  const periodSales = sales.filter((s) => s.status !== "cancelled" && inRange(s.soldAt, range));
 
   const raw: { key: string; label: string; value: number }[] = [
     { key: "leads", label: "Leads Instagram", value: leadCount },
@@ -172,7 +172,7 @@ export function setterLeaderboard(
   range: Range,
 ): SetterRow[] {
   const live = appointmentsInRange(appointments, range).filter((a) => !isDead(a.status));
-  const periodSales = sales.filter((s) => inRange(s.soldAt, range));
+  const periodSales = sales.filter((s) => s.status !== "cancelled" && inRange(s.soldAt, range));
 
   return members
     .filter((m) => hasRole(m, "setter"))
@@ -205,7 +205,7 @@ export function closerLeaderboard(
   range: Range,
 ): CloserRow[] {
   const live = appointmentsInRange(appointments, range).filter((a) => !isDead(a.status));
-  const periodSales = sales.filter((s) => inRange(s.soldAt, range));
+  const periodSales = sales.filter((s) => s.status !== "cancelled" && inRange(s.soldAt, range));
 
   return members
     .filter((m) => hasRole(m, "closer"))
@@ -267,7 +267,7 @@ export function dailySeries(
   }
 
   for (const s of sales) {
-    if (!inRange(s.soldAt, range)) continue;
+    if (s.status === "cancelled" || !inRange(s.soldAt, range)) continue;
     const point = touch(s.soldAt.slice(0, 10));
     point.sales += 1;
     point.cash += netCash(s);

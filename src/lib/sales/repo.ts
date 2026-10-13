@@ -36,6 +36,7 @@ import type {
 import { canSee, Forbidden } from "./access";
 import { isDead } from "./constants";
 import { isCommercial, memberRoles, sessionHas, type CommercialRole } from "./roles";
+import { defaultCloserId } from "./closers";
 import { applyTouch, touchFromUtm, type TouchHint } from "./attribution";
 
 /* -------------------------------- Audit --------------------------------- */
@@ -208,7 +209,8 @@ export function createAppointment(session: Session, input: AppointmentInput): Cr
     id: newId(),
     leadId: lead.id,
     setterId,
-    closerId: input.closerId || "",
+    // Sans closer designe, le closer par defaut (moi tant qu'aucun closer n'est recrute).
+    closerId: input.closerId || defaultCloserId(db),
     scheduledAt: input.scheduledAt,
     timezone: input.timezone || "Europe/Paris",
     source: input.source,
@@ -298,6 +300,10 @@ export interface OutcomeInput {
     paymentMethod: string;
     soldAt: string;
     notes: string;
+    /** Rien encaisse : date (AAAA-MM-JJ) a laquelle le premier paiement est attendu. */
+    paymentExpectedAt?: string;
+    /** Vente iClosed : montant connu, facon de payer a preciser (pas d'echeancier invente). */
+    paymentUnspecified?: boolean;
   };
   /** Renseigne pour un follow-up ou une reprogrammation. */
   followUp?: { dueAt: string; notes: string; closerId?: string };
@@ -341,7 +347,8 @@ export function recordOutcome(session: Session, id: string, input: OutcomeInput)
 
   /* --- Vente --- */
   if (input.status === "closed-won" && input.sale) {
-    const closerId = appt.closerId || session.memberId;
+    // L'admin (sans compte dans l'equipe) qui close : la vente va au closer par defaut.
+    const closerId = appt.closerId || (sessionHas(session, "closer") ? session.memberId : "") || defaultCloserId(db);
     /*
      * Un rendez-vous = une vente. Re-enregistrer « closé » sur le meme call
      * (pour corriger un montant, par exemple) met a jour la vente existante :
@@ -359,8 +366,10 @@ export function recordOutcome(session: Session, id: string, input: OutcomeInput)
       paymentMethod: input.sale.paymentMethod || "",
       soldAt: input.sale.soldAt || now,
       notes: input.sale.notes || "",
+      paymentExpectedAt: input.sale.cashCollected > 0 ? "" : (input.sale.paymentExpectedAt ?? ""),
+      paymentUnspecified: Boolean(input.sale.paymentUnspecified),
     };
-    const schedule = buildSchedule(values.contractValue, values.cashCollected, values.installments, values.soldAt);
+    const schedule = values.paymentUnspecified ? [] : buildSchedule(values.contractValue, values.cashCollected, values.installments, values.soldAt, values.paymentExpectedAt);
     if (existing) {
       const before = `${existing.contractValue} ${existing.currency} (${existing.cashCollected} encaissés)`;
       Object.assign(existing, values, { closerId, updatedAt: now, schedule: mergePaid(schedule, existing.schedule) });
@@ -606,7 +615,7 @@ export function patchAppointment(
 export function patchSale(
   session: Session,
   id: string,
-  patch: Partial<Pick<Sale, "cashCollected" | "contractValue" | "status" | "refundAmount" | "notes" | "offer" | "paymentType" | "installments" | "paymentMethod" | "schedule" | "soldAt">>,
+  patch: Partial<Pick<Sale, "cashCollected" | "contractValue" | "status" | "refundAmount" | "notes" | "offer" | "paymentType" | "installments" | "paymentMethod" | "schedule" | "soldAt" | "paymentExpectedAt">>,
 ) {
   const db = readDB();
   const sale = db.sales.find((s) => s.id === id);
@@ -625,8 +634,11 @@ export function patchSale(
   // Corriger la date de vente est une correction d'admin : elle deplace la vente d'un mois a l'autre.
   if (patch.soldAt !== undefined && !session.isAdmin) throw new Forbidden("Seul l'administrateur peut changer la date de vente.");
 
-  const moneyChanged = ["contractValue", "cashCollected", "installments", "soldAt"].some((k) => patch[k as keyof typeof patch] !== undefined);
+  const moneyChanged = ["contractValue", "cashCollected", "installments", "soldAt", "paymentExpectedAt"].some((k) => patch[k as keyof typeof patch] !== undefined);
   Object.assign(sale, patch);
+  // Preciser le paiement (montant encaisse, nombre de fois, date attendue) leve le « à préciser » d'une vente iClosed.
+  if (moneyChanged || patch.schedule !== undefined) sale.paymentUnspecified = false;
+  if (sale.cashCollected > 0) sale.paymentExpectedAt = "";
   /*
    * Montants ou nombre d'echeances corriges sans plan explicite : le plan
    * de paiement est recalcule, en gardant les echeances deja encaissees.
@@ -634,7 +646,7 @@ export function patchSale(
    * 1 500 a venir qui ne correspond plus a rien.
    */
   if (moneyChanged && patch.schedule === undefined) {
-    sale.schedule = mergePaid(buildSchedule(sale.contractValue, sale.cashCollected, sale.installments, sale.soldAt), sale.schedule);
+    sale.schedule = mergePaid(buildSchedule(sale.contractValue, sale.cashCollected, sale.installments, sale.soldAt, sale.paymentExpectedAt), sale.schedule);
   }
   if (patch.refundAmount !== undefined && patch.refundAmount > 0) {
     sale.refundedAt = new Date().toISOString();
@@ -653,6 +665,45 @@ export function patchSale(
 
   writeDB(db);
   return sale;
+}
+
+/**
+ * Le client ne paie pas : la vente est annulee, le call repasse en perdu.
+ *
+ * Reservee aux ventes sans un centime encaisse (sinon c'est un remboursement,
+ * affaire d'admin). L'admin ou le closer de la vente. Le contrat sort du
+ * chiffre d'affaires, les commissions assises dessus tombent, la vente reste
+ * en base (annulee) pour l'historique.
+ */
+export function cancelUnpaidSale(session: Session, saleId: string, note = "") {
+  const db = readDB();
+  const sale = db.sales.find((s) => s.id === saleId);
+  if (!sale) throw new Forbidden("Vente introuvable.");
+  if (!session.isAdmin && sale.closerId !== session.memberId) throw new Forbidden("Seul le closer de cette vente ou l'administrateur peut l'annuler.");
+  if (sale.status === "cancelled") throw new Error("Cette vente est déjà annulée.");
+  if ((sale.cashCollected || 0) - (sale.refundAmount || 0) > 0.005) {
+    throw new Error("De l'argent a été encaissé sur cette vente : passe par un remboursement (fiche du call), pas par une annulation pour non-paiement.");
+  }
+  const now = new Date().toISOString();
+  sale.status = "cancelled";
+  sale.paymentUnspecified = false;
+  sale.notes = [sale.notes, `Annulée le ${now.slice(0, 10)} : contrat non payé${note ? ` — ${note}` : ""}`].filter(Boolean).join("\n");
+  sale.updatedAt = now;
+  const lead = db.leads.find((l) => l.id === sale.leadId);
+  log(db, session, {
+    action: "sale.cancelled",
+    entity: "sale",
+    entityId: sale.id,
+    summary: `Vente de ${sale.contractValue} ${sale.currency} annulée (${lead?.name ?? "client"} n'a pas payé)${note ? ` — ${note}` : ""}`,
+  });
+  writeDB(db);
+
+  // Le call redevient perdu, motif « pas de budget », avec la trace.
+  const appt = db.appointments.find((a) => a.id === sale.appointmentId);
+  if (appt && appt.status !== "cancelled") {
+    recordOutcome(session, appt.id, { status: "closed-lost", lostReason: "no-money", closerNotes: [appt.closerNotes, `Contrat non payé, vente annulée${note ? ` : ${note}` : ""}`].filter(Boolean).join("\n") });
+  }
+  return readDB().sales.find((s) => s.id === saleId)!;
 }
 
 /* ------------------------------- Relances -------------------------------- */
@@ -1037,7 +1088,7 @@ export function studentForSale(db: DB, saleId: string) {
 
 /* ------------------------- Issue depuis la fiche ------------------------- */
 
-export type QuickOutcomeStatus = "completed" | "follow-up" | "closed-won" | "no-show" | "closed-lost";
+export type QuickOutcomeStatus = "completed" | "follow-up" | "closed-won" | "no-show" | "closed-lost" | "rescheduled";
 
 export interface QuickOutcomeInput {
   status: QuickOutcomeStatus;
@@ -1045,6 +1096,8 @@ export interface QuickOutcomeInput {
   lostReason?: LostReason | "";
   /** Relance (« en attente ») : date ISO ; vide = dans deux jours. */
   followUpAt?: string;
+  /** Reprogrammation : nouvelle date ISO du call. */
+  rescheduledAt?: string;
   /** Closer a qui rattacher le call (admin) ; un closer est rattache a lui-meme. */
   closerId?: string;
   note?: string;
@@ -1067,7 +1120,7 @@ export function quickOutcome(session: Session, leadId: string, input: QuickOutco
   if (!lead) throw new Forbidden("Lead introuvable.");
   if (!session.isAdmin && !sessionHas(session, "closer")) throw new Forbidden("Seul un closer (ou l'admin) pose l'issue d'un call.");
 
-  const closerId = (sessionHas(session, "closer") && !session.isAdmin ? session.memberId : "") || input.closerId || lead.closerId || "";
+  const closerId = (sessionHas(session, "closer") && !session.isAdmin ? session.memberId : "") || input.closerId || lead.closerId || defaultCloserId(db);
   const now = new Date().toISOString();
 
   let appt = db.appointments.filter((a) => a.leadId === lead.id && a.status !== "cancelled").sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))[0];
@@ -1123,9 +1176,10 @@ export function quickOutcome(session: Session, leadId: string, input: QuickOutco
     lostReason: input.status === "closed-lost" ? input.lostReason || "other" : "",
     sale: input.status === "closed-won" ? input.sale : undefined,
     followUp: input.status === "follow-up" ? { dueAt: input.followUpAt || new Date(Date.now() + 2 * 86_400_000).toISOString(), notes: input.note?.trim() ?? "", closerId } : undefined,
+    rescheduledAt: input.status === "rescheduled" ? input.rescheduledAt : undefined,
   };
   // Le recap garde ce qui a deja ete note ; « pitche » est acquis des qu'on a parle au lead.
-  if (input.status !== "no-show") {
+  if (input.status !== "no-show" && input.status !== "rescheduled") {
     out.recap = {
       closed: input.status === "closed-won",
       notClosedReason: input.status === "closed-lost" ? input.lostReason || "other" : (prev?.notClosedReason ?? ""),

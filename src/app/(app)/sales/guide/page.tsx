@@ -142,7 +142,7 @@ export default function GuidePage() {
                   { label: "Le setter discute", sub: "en DM" },
                   { label: "Il envoie SON lien", sub: "calendrier signé à son nom" },
                   { label: "Le prospect réserve", sub: "sur iClosed" },
-                  { label: "Agenda", sub: "arrive tout seul, « par Salim »", color: COLOR.green },
+                  { label: "Agenda", sub: "arrive tout seul, « par Noa »", color: COLOR.green },
                   { label: "Le closer prend le call" },
                 ]}
               />
@@ -254,7 +254,7 @@ export default function GuidePage() {
                 chiffres se calculent seuls.
               </Step>
               <Arrow />
-              <Step n={6} title="Je fais mes relances" where="Onglet « Relances »" href="/sales/relances">
+              <Step n={6} title="Je fais mes relances" where="CRM → vue « À relancer »" href="/sales/rendez-vous?view=followup">
                 Les prospects à rappeler, dans l&apos;ordre des dates. En retard = en haut.
               </Step>
               <Arrow />
