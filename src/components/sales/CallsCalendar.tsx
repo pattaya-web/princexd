@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { fmtDateTime, fmtTime, isoToParisInput, label as statusLabel, parisDay, SECOND_TZ } from "@/lib/format";
 import { Card } from "@/components/ui";
 import { canConfirm, CONFIRMATION_LABEL } from "@/lib/sales/constants";
@@ -28,6 +28,50 @@ function isPast(r: AppointmentRow, now: number): boolean {
 
 /** Jusqu'ou on peut remonter : trois mois, ce que l'agenda charge. */
 const MIN_WEEK = -13;
+
+/** « dans 12 min », « dans 1 h 05 », « dans 2 j ». */
+function inDelay(ms: number): string {
+  const min = Math.max(0, Math.round(ms / 60_000));
+  if (min < 1) return "maintenant";
+  if (min < 60) return `dans ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `dans ${h} h${min % 60 ? ` ${String(min % 60).padStart(2, "0")}` : ""}`;
+  return `dans ${Math.round(h / 24)} j`;
+}
+
+/** Position de la ligne « maintenant » dans la liste du jour : avant le premier call pas encore passe. */
+function nowIndex(items: AppointmentRow[], now: number): number {
+  const i = items.findIndex((r) => Date.parse(r.scheduledAt) >= now);
+  return i === -1 ? items.length : i;
+}
+
+/**
+ * La ligne rouge « maintenant ».
+ *
+ * L'agenda n'est pas une grille horaire : les calls sont empiles. La ligne se
+ * glisse donc entre les calls passes et ceux a venir, avance d'elle-meme
+ * (l'heure se met a jour toutes les 30 s) et dit tout de suite ou on en est :
+ * l'heure locale, l'heure de Paris si elle differe, et le prochain call.
+ */
+function NowLine({ now, next, compact }: { now: number; next: AppointmentRow | null; compact?: boolean }) {
+  const d = new Date(now);
+  const local = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const paris = fmtTime(d.toISOString());
+  const nextText = next ? `${next.leadName} ${inDelay(Date.parse(next.scheduledAt) - now)}` : "plus aucun call";
+  return (
+    <div className={compact ? "px-3.5 py-1.5" : "py-1"} aria-label={`Maintenant ${local}`} style={{ color: "#ef4444" }} title={`Heure locale ${local} · Paris ${paris} · prochain : ${nextText}`}>
+      <div className="flex items-center gap-1.5">
+        <span className="w-[8px] h-[8px] rounded-full shrink-0" style={{ background: "#ef4444", boxShadow: "0 0 0 3px color-mix(in srgb, #ef4444 25%, transparent)" }} />
+        <span className="flex-1 h-[2px] rounded-full" style={{ background: "#ef4444" }} />
+        <span className="num text-[11px] font-semibold whitespace-nowrap">
+          {local}
+          {paris !== local && <span className="font-normal opacity-80"> · {paris} FR</span>}
+        </span>
+      </div>
+      <div className="text-[10.5px] leading-snug mt-0.5 pl-[14px] opacity-85 truncate">{next ? `→ ${nextText}` : nextText}</div>
+    </div>
+  );
+}
 
 /**
  * Semaine de calls, sept colonnes, heure de Paris.
@@ -61,7 +105,17 @@ export function CallsCalendar({
   const [week, setWeek] = useState(0);
   const [busy, setBusy] = useState("");
   const days = Array.from({ length: 7 }, (_, i) => parisDay(week * 7 + i));
-  const now = Date.now();
+  // L'heure avance toute seule : la ligne « maintenant » suit sans recharger.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  // Prochain call a venir, toutes semaines confondues : ce que la ligne annonce.
+  const next =
+    rows
+      .filter((r) => r.status !== "cancelled" && Date.parse(r.scheduledAt) >= now)
+      .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))[0] ?? null;
   const byDay = new Map<string, AppointmentRow[]>();
   for (const r of rows) {
     // Seul un call annule disparait : un no-show ou un call perdu reste une trace utile.
@@ -100,8 +154,10 @@ export function CallsCalendar({
         {total === 0 && <li className="dim text-[12.5px] px-3.5 py-4">Aucun call sur ces 7 jours.</li>}
         {days.map((d, i) => {
           const items = (byDay.get(d) ?? []).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
-          if (!items.length) return null;
           const isToday = i === 0 && week === 0;
+          // Aujourd'hui reste affiche meme sans call : la ligne « maintenant » y vit.
+          if (!items.length && !isToday) return null;
+          const nowAt = nowIndex(items, now);
           return (
             <li key={d} style={{ borderBottom: "1px solid var(--border)" }}>
               <div
@@ -116,12 +172,13 @@ export function CallsCalendar({
                   </button>
                 )}
               </div>
-              {items.map((r) => {
+              {isToday && nowAt === 0 && <NowLine now={now} next={next} compact />}
+              {items.map((r, idx) => {
                 const tone = toneOf(r);
                 const past = isPast(r, now);
                 return (
+                  <Fragment key={r.id}>
                   <div
-                    key={r.id}
                     onClick={() => onOpen(r.id)}
                     className="px-3.5 py-2.5 flex items-center gap-3 cursor-pointer"
                     style={{ borderLeft: `4px solid ${tone}`, borderTop: "1px solid var(--border)", opacity: past ? 0.7 : 1 }}
@@ -150,6 +207,8 @@ export function CallsCalendar({
                       </a>
                     )}
                   </div>
+                  {isToday && nowAt === idx + 1 && <NowLine now={now} next={next} compact />}
+                  </Fragment>
                 );
               })}
             </li>
@@ -162,6 +221,7 @@ export function CallsCalendar({
         {days.map((d, i) => {
           const items = (byDay.get(d) ?? []).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
           const isToday = i === 0 && week === 0;
+          const nowAt = nowIndex(items, now);
           return (
             <div
               key={d}
@@ -188,16 +248,17 @@ export function CallsCalendar({
                   )}
                 </span>
               </div>
+              {isToday && nowAt === 0 && <NowLine now={now} next={next} />}
               {items.length === 0 ? (
                 <div className="dim text-[11px]">—</div>
               ) : (
                 <ul className="flex flex-col gap-1">
-                  {items.map((r) => {
+                  {items.map((r, idx) => {
                     const tone = toneOf(r);
                     const past = isPast(r, now);
                     return (
+                      <Fragment key={r.id}>
                       <li
-                        key={r.id}
                         onClick={() => onOpen(r.id)}
                         className="rounded-[7px] px-2 py-1.5 cursor-pointer"
                         style={{ background: `color-mix(in srgb, ${tone} 14%, var(--surface))`, borderLeft: `3px solid ${tone}`, opacity: past ? 0.72 : 1 }}
@@ -259,6 +320,8 @@ export function CallsCalendar({
                           </a>
                         )}
                       </li>
+                      {isToday && nowAt === idx + 1 && <NowLine now={now} next={next} />}
+                      </Fragment>
                     );
                   })}
                 </ul>
