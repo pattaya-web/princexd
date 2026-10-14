@@ -140,6 +140,10 @@ export function VideoCreate({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: (
   const tooLongForDuration = duration > 0 && scriptSeconds > duration + 2;
 
   const ready = Boolean(start) && !startBusy && !productBusy && Boolean(script.trim());
+  // Sans photos produit, Seedance 2.5 part de l'image de départ (first frame)
+  // et n'accepte que le format de cette image : les ratios fixes sont refusés.
+  const firstFrame = products.length === 0;
+  const effectiveAspect = firstFrame ? "adaptive" : aspect;
 
   const submit = async () => {
     if (!start) return;
@@ -155,7 +159,7 @@ export function VideoCreate({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: (
       scenePrompt: scene,
       durationSec: duration,
       resolution,
-      aspectRatio: aspect,
+      aspectRatio: effectiveAspect,
       variants,
     };
     try {
@@ -275,8 +279,19 @@ export function VideoCreate({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: (
         <div className="flex flex-col gap-1">
           <span className="label-xs">Format</span>
           <div className="flex gap-1.5">
-            {([["9:16", "9:16 vertical"], ["16:9", "16:9"], ["1:1", "1:1"], ["adaptive", "Comme l'image"]] as const).map(([v, l]) => <Chip key={v} active={aspect === v} onClick={() => setAspect(v)} disabled={busy}>{l}</Chip>)}
+            {([["9:16", "9:16 vertical"], ["16:9", "16:9"], ["1:1", "1:1"], ["adaptive", "Comme l'image"]] as const).map(([v, l]) => (
+              <Chip
+                key={v}
+                active={effectiveAspect === v}
+                onClick={() => setAspect(v)}
+                disabled={busy || (firstFrame && v !== "adaptive")}
+                title={firstFrame && v !== "adaptive" ? "Sans photos produit, la vidéo suit le format de l'image de départ" : undefined}
+              >
+                {l}
+              </Chip>
+            ))}
           </div>
+          {firstFrame && <span className="dim text-[11px] leading-snug">Format imposé par l'image : avec des photos produit, le format redevient libre.</span>}
         </div>
         <div className="flex flex-col gap-1">
           <span className="label-xs">Variantes</span>

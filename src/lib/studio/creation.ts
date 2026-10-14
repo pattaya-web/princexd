@@ -55,6 +55,14 @@ export function createCreationJobs(req: CreateRequest): StudioJob[] {
   const variants = Math.min(4, Math.max(1, Math.round(Number(req.variants) || 1)));
   const productImages = (Array.isArray(req.productImages) ? req.productImages : []).filter(validSource).slice(0, 4);
   const mode: StudioJob["createMode"] = productImages.length ? "references" : "first-frame";
+  /*
+   * En mode « first frame » (pas de photos produit), Seedance 2.5 n'accepte
+   * plus qu'« adaptive » : la vidéo suit le format de l'image de départ. Un
+   * ratio fixe est refusé avant génération (« first-frame and
+   * first-last-frame tasks only support adaptive aspect ratio »). Le mode
+   * références garde le format choisi.
+   */
+  const effectiveAspect = mode === "first-frame" ? "adaptive" : aspect;
   const seconds = estimatedSeconds(script, duration);
   const credits = Math.round(CREATION.creditsPerSec[resolution] * seconds);
 
@@ -102,7 +110,7 @@ export function createCreationJobs(req: CreateRequest): StudioJob[] {
       createDurationSec: duration,
       createMode: mode,
       createLanguage: language,
-      aspectRatio: aspect === "adaptive" ? "original" : aspect,
+      aspectRatio: effectiveAspect === "adaptive" ? "original" : effectiveAspect,
       status: "queued",
       progress: 0,
       providerJobId: "",
@@ -168,7 +176,8 @@ export function buildCreationPayload(job: StudioJob, urls: { start: string; prod
     prompt: prompt.slice(0, 30000),
     generate_audio: true,
     resolution: job.createResolution ?? "720p",
-    aspect_ratio: job.aspectRatio === "original" ? "adaptive" : job.aspectRatio,
+    // First frame : « adaptive » obligatoire côté KIE (voir createCreationJobs).
+    aspect_ratio: job.createMode === "references" && job.aspectRatio !== "original" ? job.aspectRatio : "adaptive",
     duration: job.createDurationSec ?? -1,
     return_last_frame: false,
   };
