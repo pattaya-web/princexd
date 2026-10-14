@@ -177,7 +177,7 @@ export function BrollLibrary({ role }: { role: "owner" | "editor" }) {
         <div>
           <DropZone
             label="Glisse tes B-roll ici, ou clique pour choisir"
-            hint="Plans de coupe, lifestyle, captures d'écran… Vidéos et images, plusieurs à la fois, jusqu'à 2 Go chacun."
+            hint="Plans de coupe, lifestyle, captures d'écran… Vidéos et images, plusieurs à la fois, jusqu'à 32 Go chacun."
             accept={ACCEPT}
             disabled={Boolean(progress)}
             onFiles={(files) => void addFiles(files)}

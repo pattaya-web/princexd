@@ -133,7 +133,7 @@ export default function TestimonialsPage() {
       <div className="mb-4">
         <DropZone
           label="Glisse tes témoignages ici, ou clique pour choisir"
-          hint="Images, vidéos, vocaux, PDF. Plusieurs à la fois, jusqu'à 2 Go chacun. Ctrl+V colle une capture."
+          hint="Images, vidéos, vocaux, PDF. Plusieurs à la fois, jusqu'à 32 Go chacun. Ctrl+V colle une capture."
           accept={ACCEPT}
           disabled={Boolean(progress)}
           onFiles={(files) => void addFiles(files)}

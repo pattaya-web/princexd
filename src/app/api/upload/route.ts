@@ -13,7 +13,12 @@ export const maxDuration = 600;
 const MEDIA_DIR = path.join(process.cwd(), "data", "media");
 /** Morceaux en cours d'assemblage (envoi par morceaux, voir plus bas). */
 const PARTS_DIR = path.join(MEDIA_DIR, ".parts");
-const MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2 Go
+/*
+ * 32 Go : les rushs de vlog DJI font 10 a 15 Go piece (2026-10-14). Le
+ * volume du VPS fait 96 Go, a surveiller dans Coolify quand les dossiers de
+ * montage s'accumulent.
+ */
+const MAX_BYTES = 32 * 1024 * 1024 * 1024; // 32 Go
 /** Un envoi par morceaux abandonne depuis plus longtemps que ca est jete. */
 const PARTS_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -150,11 +155,11 @@ async function receiveChunk(req: NextRequest, name: string, stored: string): Pro
     return NextResponse.json({ error: `Envoi par morceaux invalide : ${why}.` }, { status: 400 });
   };
   if (!/^[a-z0-9]{8,40}$/.test(id)) return bad("identifiant");
-  if (!Number.isInteger(part) || !Number.isInteger(parts) || part < 1 || parts < 1 || part > parts || parts > 1000) return bad("numéro de morceau");
+  if (!Number.isInteger(part) || !Number.isInteger(parts) || part < 1 || parts < 1 || part > parts || parts > 8000) return bad("numéro de morceau");
   if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(total) || total <= 0) return bad("position");
   if (total > MAX_BYTES) {
     await drain(req);
-    return NextResponse.json({ error: "Fichier trop lourd (2 Go max)." }, { status: 413 });
+    return NextResponse.json({ error: "Fichier trop lourd (32 Go max)." }, { status: 413 });
   }
 
   await fs.mkdir(PARTS_DIR, { recursive: true });
@@ -247,7 +252,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Aucun fichier reçu" }, { status: 400 });
     }
     if (file.size > MAX_BYTES) {
-      return NextResponse.json({ error: "Fichier trop lourd (2 Go max)." }, { status: 413 });
+      return NextResponse.json({ error: "Fichier trop lourd (32 Go max)." }, { status: 413 });
     }
     const { stored, error } = storedName(file.name);
     if (error) return error;
@@ -274,7 +279,7 @@ export async function POST(req: NextRequest) {
 
   const declared = Number(req.headers.get("content-length") ?? 0);
   if (declared > MAX_BYTES) {
-    return NextResponse.json({ error: "Fichier trop lourd (2 Go max)." }, { status: 413 });
+    return NextResponse.json({ error: "Fichier trop lourd (32 Go max)." }, { status: 413 });
   }
 
   const target = path.join(MEDIA_DIR, stored);
@@ -291,7 +296,7 @@ export async function POST(req: NextRequest) {
     await pipeline(Readable.fromWeb(req.body as never), meter, createWriteStream(target));
   } catch (e) {
     await fs.rm(target, { force: true });
-    if (e instanceof TooBig) return NextResponse.json({ error: "Fichier trop lourd (2 Go max)." }, { status: 413 });
+    if (e instanceof TooBig) return NextResponse.json({ error: "Fichier trop lourd (32 Go max)." }, { status: 413 });
     return NextResponse.json({ error: "Envoi interrompu." }, { status: 400 });
   }
 

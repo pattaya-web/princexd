@@ -501,7 +501,7 @@ function NewFolder({
             )}
             <DropZone
               label={rushes.length ? "Ajouter d'autres rushs" : "Glisse tes vidéos ici"}
-              hint="Depuis ton téléphone ou ton PC. Plusieurs fichiers à la fois, jusqu'à 2 Go chacun."
+              hint="Depuis ton téléphone ou ton PC. Plusieurs fichiers à la fois, jusqu'à 32 Go chacun."
               accept="video/*,image/*,.mkv,.m4v,.mov"
               disabled={busy}
               onFiles={(f) => setRushes((r) => [...r, ...f])}
