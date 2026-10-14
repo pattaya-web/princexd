@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSettings, saveSettings } from "@/lib/db";
 import { hashPassword } from "@/lib/sales/access";
+import { telegramGetMe } from "@/lib/telegram";
 import type { Settings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,8 @@ function publicView(s: Settings) {
   const hfSingle = process.env.HIGGSFIELD_API_KEY?.trim();
   const hfEnv = Boolean(hfSingle || (process.env.HIGGSFIELD_API_KEY_ID?.trim() && process.env.HIGGSFIELD_API_KEY_SECRET?.trim()));
   const hfSecret = hfSingle || (hfEnv ? process.env.HIGGSFIELD_API_KEY_SECRET!.trim() : (s.higgsfieldKeySecret ?? ""));
+  const tgEnv = Boolean(process.env.TELEGRAM_BOT_TOKEN?.trim());
+  const tgKey = tgEnv ? process.env.TELEGRAM_BOT_TOKEN!.trim() : (s.telegramBotToken ?? "");
 
   return {
     ...s,
@@ -66,6 +69,10 @@ function publicView(s: Settings) {
     vaPasswordHash: "",
     vaPasswordSet: Boolean(process.env.VA_PASSWORD?.trim() || s.vaPasswordHash),
     vaSource: process.env.VA_USERNAME?.trim() && process.env.VA_PASSWORD?.trim() ? "env" : s.vaPasswordHash ? "reglages" : "absente",
+    // Bot Telegram : le jeton ne sort jamais, seulement son masque et sa provenance.
+    telegramBotToken: "",
+    telegramBotTokenMask: mask(tgKey),
+    telegramBotTokenSource: tgEnv ? "env" : tgKey ? "reglages" : "absente",
   };
 }
 
@@ -84,6 +91,29 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.higgsfieldKeySecret === "string" && !body.higgsfieldKeySecret.trim()) delete body.higgsfieldKeySecret;
   if (typeof body.systemeioApiKey === "string" && !body.systemeioApiKey.trim()) delete body.systemeioApiKey;
   if (typeof body.systemeioWebhookSecret === "string" && !body.systemeioWebhookSecret.trim()) delete body.systemeioWebhookSecret;
+  // Jeton Telegram : vide = on garde ; « CLEAR » = on efface ; sinon on le verifie aupres de Telegram.
+  const rawBody = body as Record<string, unknown>;
+  delete rawBody.telegramBotTokenMask;
+  delete rawBody.telegramBotTokenSource;
+  if (typeof body.telegramBotToken === "string") {
+    const token = body.telegramBotToken.trim();
+    if (token === "CLEAR") {
+      body.telegramBotToken = "";
+      body.telegramBotUsername = "";
+      body.telegramUpdateOffset = 0;
+    } else if (!token) delete body.telegramBotToken;
+    else {
+      try {
+        body.telegramBotUsername = await telegramGetMe(token);
+        body.telegramBotToken = token;
+        body.telegramUpdateOffset = 0;
+        body.telegramLastError = "";
+      } catch (e) {
+        return NextResponse.json({ error: `Jeton Telegram refusé : ${e instanceof Error ? e.message : String(e)}` }, { status: 400 });
+      }
+    }
+  }
+  if (typeof body.salesTakeoverMin === "number" && !(body.salesTakeoverMin >= 0)) delete body.salesTakeoverMin;
   // Nouveau solde Higgsfield saisi : on date la saisie pour ne deduire que les rendus suivants.
   if (typeof body.higgsfieldBalanceUsd === "number") {
     if (body.higgsfieldBalanceUsd !== getSettings().higgsfieldBalanceUsd) body.higgsfieldBalanceAt = new Date().toISOString();

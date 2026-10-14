@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { readDB } from "@/lib/db";
 import { readSession, requireAdmin, requireSales } from "@/lib/sales/access";
 import { handle, num, required } from "@/lib/sales/http";
-import { rangeFromParams } from "@/lib/sales/period";
+import { inRange, rangeFromParams } from "@/lib/sales/period";
 import { buildLedger } from "@/lib/sales/commissions";
 import { setCommissionRule } from "@/lib/sales/repo";
 import { COMMISSION_TYPES } from "@/lib/sales/constants";
@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
       db.commissionPayments,
       range,
       currency,
+      db.commissionAdjustments ?? [],
     );
 
     const payments = db.commissionPayments
@@ -45,9 +46,29 @@ export async function GET(req: NextRequest) {
         memberName: db.team.find((m) => m.id === p.memberId)?.name ?? "—",
       }));
 
+    // Bonus / malus poses par le proprietaire : chacun ne voit que les siens.
+    const adjustments = (db.commissionAdjustments ?? [])
+      .filter((a) => session.isAdmin || a.memberId === session.memberId)
+      .slice(0, 200)
+      .map((a) => ({ ...a, memberName: db.team.find((m) => m.id === a.memberId)?.name ?? "—" }));
+
+    /*
+     * Signal pour juger le setting : conversations reprises par un autre
+     * setter (laissees dormir) et conversations reprises aux autres, sur la
+     * periode affichee.
+     */
+    const takeovers: Record<string, { lost: number; taken: number }> = {};
+    for (const g of db.activityLogs) {
+      if (g.action !== "lead.takeover" || !inRange(g.at, range)) continue;
+      if (g.relatedId) (takeovers[g.relatedId] ??= { lost: 0, taken: 0 }).lost++;
+      if (g.actorId) (takeovers[g.actorId] ??= { lost: 0, taken: 0 }).taken++;
+    }
+
     return {
       rows,
       payments,
+      adjustments,
+      takeovers: session.isAdmin ? takeovers : { [session.memberId]: takeovers[session.memberId] ?? { lost: 0, taken: 0 } },
       range,
       currency,
       isAdmin: session.isAdmin,

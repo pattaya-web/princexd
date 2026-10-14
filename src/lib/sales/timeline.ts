@@ -60,6 +60,8 @@ function describe(g: ActivityLog, lead: Lead, appts: Map<string, Appointment>, s
       const [first, ...rest] = g.summary.split(" · ");
       return { ...base, kind: "message", title: first || "Message envoyé", detail: rest.join(" · ") };
     }
+    case "lead.takeover":
+      return { ...base, kind: "status", title: "Conversation reprise", detail: g.summary.replace(/^.*?:\s*/, "") };
     case "lead.status":
     case "lead.attempt":
     case "lead.reached":

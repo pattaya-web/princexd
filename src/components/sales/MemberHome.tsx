@@ -6,6 +6,7 @@ import { api } from "@/lib/client";
 import { fmtDualDateTime, fmtDay, fmtInt, fmtMoney, fmtTime, relative } from "@/lib/format";
 import { CallsCalendar } from "./CallsCalendar";
 import { OffersCard } from "./OffersCard";
+import { TelegramCard } from "./TelegramCard";
 import { InstallmentAlerts } from "./InstallmentAlerts";
 import { useEffect } from "react";
 import type { WorkSession } from "@/lib/types";
@@ -291,6 +292,9 @@ export function MemberHome() {
             </div>
           )}
         </div>
+
+        {/* ------------------------- Rappels Telegram ------------------------- */}
+        <TelegramCard />
 
         {/* ---------------------- Échéances à encaisser ---------------------- */}
         {!isSetter && <InstallmentAlerts onOpen={(id) => setOpenId(id)} />}

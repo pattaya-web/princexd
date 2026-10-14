@@ -172,7 +172,9 @@ export default function GuidePage() {
                   Ce sont les gens qui viennent de laisser leur numéro sur la landing page. Les plus récents en haut : j&apos;appelle
                   dans les 5 minutes, c&apos;est là que ça décroche. Le numéro est cliquable. La liste est la même pour tous les
                   setters : <strong>le premier qui appelle un contact le garde</strong>, il disparaît de la liste des autres, et c&apos;est
-                  lui qui pose le rendez-vous.
+                  lui qui pose le rendez-vous. <strong>Mais il ne le garde que s&apos;il le travaille</strong> : une conversation sans la
+                  moindre action de ma part pendant 1 heure revient dans la liste des autres setters, dans « À reprendre », et le premier
+                  qui la reprend en devient le setter.
                 </Step>
                 <Arrow />
                 <Step n={4} title="Je statue chaque appel" where="Le menu sur la ligne du contact">
@@ -280,6 +282,22 @@ export default function GuidePage() {
             <li>Toutes les heures du tool sont en heure de Paris, avec l&apos;heure de Dubaï à côté sur les calls.</li>
             <li>Un lead que je n&apos;ai pas encore statué est gris. Mon objectif : zéro gris en fin de journée.</li>
             <li>Je ne vois que mes leads et mes calls. Un lead sans setter est visible de tous : le premier qui l&apos;appelle le garde.</li>
+            <li>
+              <strong>Règle de l&apos;heure.</strong> Si je ne réponds pas à un prospect pendant 1 heure (aucune action notée dans le tool sur
+              sa fiche), n&apos;importe quel autre setter peut reprendre la conversation : il clique « Reprendre », le lead devient le sien,
+              je reçois un message Telegram. Un rappel ou une relance programmés suspendent le compteur. Ce que je ne note pas n&apos;existe
+              pas : après chaque échange, un statut et une note.
+            </li>
+            <li>
+              <strong>Bonus et malus.</strong> Mady lit les conversations. Un setting propre (prospect réellement qualifié, notes claires,
+              rendez-vous bien préparés) donne droit à un bonus sur mes commissions, en euros ou en pourcentage du mois. Un setting bâclé ou
+              des conversations laissées dormir peuvent donner un malus. Tout est visible dans Commissions, avec le motif.
+            </li>
+            <li>
+              <strong>Rappels Telegram.</strong> J&apos;active mes rappels depuis mon accueil (bouton « Activer mes rappels Telegram »). Je reçois
+              un rappel toutes les heures pendant mes horaires, un avertissement quand une de mes conversations dort, et un message si un
+              autre setter reprend un de mes leads.
+            </li>
             <li>Si une page semble vide alors qu&apos;il devrait y avoir quelque chose : Ctrl+F5, ou le bandeau « Recharger » en haut.</li>
             <li>Mon identifiant et mon mot de passe me sont donnés par l&apos;admin. Je me connecte sur mvdyprince.fr/login.</li>
           </ul>

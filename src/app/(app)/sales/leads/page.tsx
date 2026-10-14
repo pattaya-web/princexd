@@ -12,6 +12,7 @@ import { useSales } from "@/components/sales/context";
 import { LeadSheet } from "@/components/sales/LeadSheet";
 import { renderTemplate, sortedTemplates, waLink } from "@/lib/sales/templates";
 import type { CallBucket, CallLeadRow } from "@/app/api/sales/leads/route";
+import { fmtIdle } from "@/lib/sales/takeover";
 import type { PublicMember } from "@/lib/sales/repo";
 import type { LeadCallStatus, MessageTemplate, SalesFunnel, SourceChannel } from "@/lib/types";
 
@@ -25,21 +26,23 @@ const COLOR = {
   green: "#22c55e",
   red: "#ef4444",
   whatsapp: "#25d366",
+  orange: "#f97316",
 } as const;
 
 /** Couleur d'accent de la page : la meme que le CRM et le Sales Dashboard. */
 const ACCENT = { "--accent": "#006dbc", "--accent-hover": "#005a9c", "--accent-soft": "#e6f1fa", "--accent-ring": "#9cc9ea", "--grad-accent": "linear-gradient(135deg, #006dbc 0%, #2a8fd8 100%)" } as CSSProperties;
 
-const TONE: Record<CallBucket, string> = { new: COLOR.new, retry: COLOR.blue, due: COLOR.blue, later: COLOR.yellow, talking: COLOR.violet, booked: COLOR.green, lost: COLOR.red, done: COLOR.green };
+const TONE: Record<CallBucket, string> = { takeover: COLOR.orange, new: COLOR.new, retry: COLOR.blue, due: COLOR.blue, later: COLOR.yellow, talking: COLOR.violet, booked: COLOR.green, lost: COLOR.red, done: COLOR.green };
 
 /*
  * Une seule idee : un lead sans reponse se relance. « A relancer » = a faire
  * maintenant (rappel ou relance arrivee a echeance, ou rien de programme) ;
  * « En attente » = message envoye ou relance programmee, pas encore due.
  */
-type FilterKey = "all" | "new" | "due" | "waiting" | "talking" | "lost";
+type FilterKey = "all" | "takeover" | "new" | "due" | "waiting" | "talking" | "lost";
 const FILTERS: { key: FilterKey; label: string; color?: string; buckets: CallBucket[] }[] = [
-  { key: "all", label: "Tous", buckets: ["due", "new", "retry", "later", "talking", "lost"] },
+  { key: "all", label: "Tous", buckets: ["takeover", "due", "new", "retry", "later", "talking", "lost"] },
+  { key: "takeover", label: "À reprendre", color: COLOR.orange, buckets: ["takeover"] },
   { key: "new", label: "Nouveaux", color: COLOR.new, buckets: ["new"] },
   { key: "due", label: "À relancer", color: COLOR.blue, buckets: ["due", "retry"] },
   { key: "waiting", label: "En attente", color: COLOR.yellow, buckets: ["later"] },
@@ -265,6 +268,7 @@ export default function LeadsPage() {
     lastSyncAt: string;
     syncError: string;
     pool: boolean;
+    takeoverMin: number;
     defaultCloserId: string;
     ownerMemberId: string;
   }>(`/api/sales/leads?v=${version}${q ? `&q=${encodeURIComponent(q)}` : ""}`, { every: 15_000 });
@@ -308,6 +312,21 @@ export default function LeadsPage() {
       void reload();
     } catch (e) {
       toast((e as Error).message, "err");
+    }
+  };
+
+  /** Regle de reprise : la conversation d'un autre setter dort depuis trop longtemps, je la prends. */
+  const takeover = async (lead: CallLeadRow) => {
+    setBusy(lead.id);
+    try {
+      await api(`/api/sales/leads/${lead.id}`, { method: "PATCH", body: JSON.stringify({ action: "takeover" }) });
+      toast(`${lead.name} est à toi : réponds-lui maintenant et note-le ici.`);
+      refresh();
+    } catch (e) {
+      toast((e as Error).message, "err");
+      void reload(true);
+    } finally {
+      setBusy("");
     }
   };
 
@@ -615,7 +634,18 @@ export default function LeadsPage() {
                       const local = localHint(l.country);
                       const isBusy = busy === l.id;
                       const since = l.optInAt || l.createdAt;
-                      const statusText = l.bucket === "booked" ? "RDV pris" : l.bucket === "done" ? label(l.stage) : l.callStatus ? STATUS_LABEL[l.callStatus] : "Jamais appelé";
+                      const statusText =
+                        l.bucket === "takeover"
+                          ? `À reprendre · ${l.takeover?.ownerName ?? "setter"} sans action depuis ${fmtIdle(l.takeover?.idleMin ?? 0)}`
+                          : l.bucket === "booked"
+                            ? "RDV pris"
+                            : l.bucket === "done"
+                              ? label(l.stage)
+                              : l.callStatus
+                                ? STATUS_LABEL[l.callStatus]
+                                : "Jamais appelé";
+                      // Mon lead qui dort : avertissement avant qu'un autre puisse le reprendre.
+                      const atRisk = l.takeoverInMin !== undefined && l.idleMin !== undefined && !session.isAdmin && l.setterId === session.memberId;
                       const waText = activeTemplate ? renderTemplate(activeTemplate.content, { name: l.name }) : "";
                       return (
                         <li key={l.id} className="px-5 py-4" style={{ borderBottom: "1px solid var(--border)", opacity: lost ? 0.7 : 1, background: selected.has(l.id) ? "var(--accent-soft)" : undefined }}>
@@ -656,10 +686,34 @@ export default function LeadsPage() {
                                 {l.email && <span className="dim truncate max-w-[240px]" title={l.email}>{l.email}</span>}
                               </div>
                               {l.notes && <div className="dim text-[12px] mt-1.5 truncate" title={l.notes}>✎ {l.notes.split("\n")[0]}</div>}
+                              {atRisk && (
+                                <div className="text-[12px] mt-1.5 font-medium" style={{ color: COLOR.orange }} title="Règle du setting : une conversation sans action pendant 1 h peut être reprise par un autre setter">
+                                  {l.takeoverInMin! > 0
+                                    ? `⏳ Sans action depuis ${fmtIdle(l.idleMin!)} · un autre setter pourra reprendre dans ${l.takeoverInMin} min`
+                                    : `⚠️ Sans action depuis ${fmtIdle(l.idleMin!)} · un autre setter peut reprendre maintenant`}
+                                </div>
+                              )}
 
                               {/* Ligne 3 : la sequence d'appel en un clic. */}
                               <div className="flex items-center gap-2 flex-wrap mt-3">
-                                {l.bucket === "done" || l.bucket === "booked" ? (
+                                {l.bucket === "takeover" ? (
+                                  <>
+                                    {!session.isAdmin && (
+                                      <button
+                                        className="btn btn-sm !h-[32px] font-semibold"
+                                        style={{ background: COLOR.orange, borderColor: COLOR.orange, color: "#fff" }}
+                                        disabled={isBusy}
+                                        onClick={() => void takeover(l)}
+                                        title={`${l.takeover?.ownerName ?? "Le setter"} n'a rien fait sur cette conversation depuis ${fmtIdle(l.takeover?.idleMin ?? 0)} : tu peux la reprendre, elle devient à toi.`}
+                                      >
+                                        🔁 Reprendre la conversation
+                                      </button>
+                                    )}
+                                    <button className="btn btn-sm !h-[32px]" onClick={() => setSheetId(l.id)} title="Lire les notes et l'historique avant de reprendre">
+                                      Ouvrir la fiche
+                                    </button>
+                                  </>
+                                ) : l.bucket === "done" || l.bucket === "booked" ? (
                                   <button className="btn btn-sm !h-[32px]" onClick={() => setSheetId(l.id)} title="Hors de la liste à appeler : l'issue se pose depuis la fiche">
                                     Ouvrir la fiche
                                   </button>

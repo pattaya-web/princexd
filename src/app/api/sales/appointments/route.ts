@@ -185,7 +185,7 @@ export async function GET(req: NextRequest) {
     for (const memberId of involved) {
       const member = db.team.find((m) => m.id === memberId);
       if (!member) continue;
-      for (const e of entriesFor(member, db.commissionRules, db.appointments, db.sales)) {
+      for (const e of entriesFor(member, db.commissionRules, db.appointments, db.sales, db.commissionAdjustments ?? [])) {
         // Un setter ne voit que sa propre commission, jamais celle du closer.
         if (!session.isAdmin && e.memberId !== session.memberId) continue;
         commissionBySource.set(e.sourceId, (commissionBySource.get(e.sourceId) ?? 0) + e.amount);

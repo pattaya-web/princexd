@@ -6,6 +6,7 @@ import { sessionHas } from "@/lib/sales/roles";
 import { getSystemeioKey, syncSystemeio } from "@/lib/systemeio";
 import { leadIsOut, type Lead } from "@/lib/types";
 import { applyTouch, backfillMetaIds } from "@/lib/sales/attribution";
+import { takeoverDelayMin, takeoverState } from "@/lib/sales/takeover";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export const dynamic = "force-dynamic";
  *  - lost     : pas interesses des 30 derniers jours, en rouge en bas de
  *               liste, pour garder une trace et pouvoir les remettre.
  */
-export type CallBucket = "due" | "new" | "retry" | "later" | "talking" | "booked" | "lost" | "done";
+export type CallBucket = "takeover" | "due" | "new" | "retry" | "later" | "talking" | "booked" | "lost" | "done";
 
 /** Texte comparable : minuscules, sans accents ; un numero devient ses chiffres. */
 const fold = (s: string) =>
@@ -63,6 +64,15 @@ export interface CallLeadRow extends Lead {
   /** Rendez-vous pris : date du call et closer, pour le groupe « booked ». */
   appointmentAt?: string;
   closerName?: string;
+  /**
+   * Regle de reprise. `takeover` : la conversation d'un autre setter dort
+   * depuis trop longtemps, elle est reprenable (groupe « takeover »).
+   * `idleMin` / `takeoverInMin` : sur un lead a moi, le compteur tourne, un
+   * autre setter pourra le reprendre dans `takeoverInMin` minutes.
+   */
+  takeover?: { idleMin: number; ownerName: string };
+  idleMin?: number;
+  takeoverInMin?: number;
 }
 
 /**
@@ -157,7 +167,16 @@ export async function GET(req: NextRequest) {
     if (cleaned) writeDB(db);
 
     const pool = (db.settings.salesLeadAssignment ?? "pool") === "pool";
-    const visible = (l: Lead) => (l.setterId ? canSee(session, { setterId: l.setterId }) : isSetter);
+    const mine = (l: Lead) => (l.setterId ? canSee(session, { setterId: l.setterId }) : isSetter);
+    /*
+     * Regle de reprise : une conversation qu'un setter laisse dormir plus de
+     * `salesTakeoverMin` minutes redevient visible des autres setters, avec
+     * un bouton « Reprendre ». Calculee apres la liste des rendez-vous.
+     */
+    const takeoverDelay = takeoverDelayMin(db.settings);
+    const takeoverOf = (l: Lead) => takeoverState(l, db.settings, nextAppt.has(l.id), Date.now());
+    const takeable = (l: Lead) => isSetter && !mine(l) && Boolean(l.setterId) && takeoverOf(l).eligible;
+    const visible = (l: Lead) => mine(l) || takeable(l);
 
     // Prochain rendez-vous encore a venir (ou du jour) par lead.
     const nextAppt = new Map<string, { at: string; closerId: string }>();
@@ -173,6 +192,8 @@ export async function GET(req: NextRequest) {
     const bucketOf = (l: Lead): CallBucket | null => {
       const appt = nextAppt.get(l.id);
       if (appt) return "booked";
+      // Conversation d'un autre setter qui dort : a reprendre, en tete de liste.
+      if (l.setterId && l.setterId !== session.memberId && takeoverOf(l).eligible) return "takeover";
       // Un lead froid (sequence de relances epuisee) reste visible pour le tri, sans limite de temps.
       if (l.callStatus === "cold") return "lost";
       if (leadIsOut(l.callStatus)) return (l.lastCallAt ?? "") >= monthAgo ? "lost" : null;
@@ -194,7 +215,7 @@ export async function GET(req: NextRequest) {
       }
     };
 
-    const ORDER: Record<CallBucket, number> = { due: 0, new: 1, retry: 2, later: 3, talking: 4, booked: 5, lost: 6, done: 7 };
+    const ORDER: Record<CallBucket, number> = { takeover: 0, due: 1, new: 2, retry: 3, later: 4, talking: 5, booked: 6, lost: 7, done: 8 };
 
     // ?declared=1 : les prospects envoyes vers le calendrier (Instagram), avec
     // leur rendez-vous quand il est arrive. Rien a voir avec les leads froids.
@@ -233,12 +254,16 @@ export async function GET(req: NextRequest) {
       const bucket = bucketOf(l) ?? (q ? "done" : null);
       if (!bucket || (bucket === "booked" && !q)) continue;
       const appt = nextAppt.get(l.id);
+      const t = takeoverDelay && l.setterId ? takeoverOf(l) : null;
       rows.push({
         ...l,
         setterName: l.setterId ? (names.get(l.setterId) ?? "—") : "",
         bucket,
         appointmentAt: appt?.at,
         closerName: appt?.closerId ? (names.get(appt.closerId) ?? "") : "",
+        takeover: bucket === "takeover" && t ? { idleMin: t.idleMin, ownerName: names.get(l.setterId!) ?? "un autre setter" } : undefined,
+        idleMin: t && (t.pending || t.eligible) && bucket !== "takeover" ? t.idleMin : undefined,
+        takeoverInMin: t && (t.pending || t.eligible) && bucket !== "takeover" ? t.inMin : undefined,
       });
     }
 
@@ -251,6 +276,9 @@ export async function GET(req: NextRequest) {
     rows.sort((a, b) => {
       if (ORDER[a.bucket] !== ORDER[b.bucket]) return ORDER[a.bucket] - ORDER[b.bucket];
       switch (a.bucket) {
+        case "takeover":
+          // La plus ancienne inactivite d'abord.
+          return (b.takeover?.idleMin ?? 0) - (a.takeover?.idleMin ?? 0);
         case "due":
         case "later":
           return (a.callbackAt || a.followUpAt || "").localeCompare(b.callbackAt || b.followUpAt || "");
@@ -282,6 +310,7 @@ export async function GET(req: NextRequest) {
     return {
       rows,
       counts: {
+        takeover: count("takeover"),
         due: count("due"),
         new: count("new"),
         retry: count("retry"),
@@ -296,6 +325,8 @@ export async function GET(req: NextRequest) {
       syncError,
       /** Vrai quand les leads frais sont a tous les setters (premier qui appelle). */
       pool,
+      /** Minutes sans action avant qu'une conversation soit reprenable (0 = regle desactivee). */
+      takeoverMin: takeoverDelay,
       /** Closer propose quand un setter pose un rendez-vous (reglages iClosed). */
       defaultCloserId: db.settings.salesDefaultCloserId ?? "",
       /** Compte de l'equipe du proprietaire : propose comme closer quand l'admin pose un rendez-vous. */

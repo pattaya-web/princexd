@@ -236,6 +236,39 @@ export interface Settings {
   salesLeadAssignment?: "pool" | "default" | "round-robin";
   /** Date du passage au pool commun (bascule unique du reglage et des leads jamais appeles). */
   salesPoolAppliedAt?: string;
+  /**
+   * Regle de reprise (2026-10-14) : minutes sans action du setter au bout
+   * desquelles un autre setter peut reprendre la conversation. 0 = desactive.
+   * Absent = 60.
+   */
+  salesTakeoverMin?: number;
+  /* --- Bot Telegram des rappels setters --- */
+  /** Jeton du bot (BotFather). L'environnement TELEGRAM_BOT_TOKEN l'emporte. */
+  telegramBotToken?: string;
+  /** Nom du bot (@…), relu via getMe quand le jeton est enregistre. */
+  telegramBotUsername?: string;
+  /** Dernier update_id Telegram traite (liaison des comptes). */
+  telegramUpdateOffset?: number;
+  /** Reglages des rappels periodiques. */
+  telegramReminders?: TelegramReminderSettings;
+  /** Dernier rappel periodique envoye. */
+  telegramLastReminderAt?: string;
+  /** Derniere erreur du bot (jeton faux, reseau), affichee dans Reglages. */
+  telegramLastError?: string;
+}
+
+/** Rappels Telegram envoyes aux setters pendant leurs heures de travail. */
+export interface TelegramReminderSettings {
+  enabled: boolean;
+  /** Intervalle entre deux rappels, en minutes (60 par defaut). */
+  everyMin: number;
+  /** Plage horaire (heure de Paris), bornes incluses pour le debut, exclue pour la fin. */
+  fromHour: number;
+  toHour: number;
+  /** Jours actifs, 0 = dimanche … 6 = samedi. */
+  days: number[];
+  /** Texte du rappel ; les chiffres du setter sont ajoutes dessous. */
+  text: string;
 }
 
 export type ContentFormat =
@@ -423,6 +456,14 @@ export interface Lead {
   followUpAt?: string;
   /** Declare par un setter (« j'ai envoye le lien du calendrier ») : date de la declaration. */
   declaredAt?: string;
+  /* --- Regle de reprise (2026-10-14) : une conversation sans action d'un setter
+   *     pendant `salesTakeoverMin` minutes peut etre reprise par un autre. --- */
+  /** Moment ou le setter actuel a pris le lead (premier appel, ou reprise). */
+  claimedAt?: string;
+  /** Derniere action du setter proprietaire sur le lead (statut, message, note, contact). */
+  lastSetterActionAt?: string;
+  /** Avertissement Telegram « reprise possible dans 15 min » deja envoye pour ce cycle d'inactivite. */
+  takeoverWarnedAt?: string;
   /* --- Reinscriptions (webhook Systeme.io CONTACT_OPT_IN). ---
      Un contact deja connu de Systeme.io qui se reinscrit (par exemple via la
      page Ads) : `optInAt` passe a la date du jour, la premiere inscription
@@ -747,6 +788,12 @@ export interface TeamMember {
    * Vide tant que le closer n'existe pas dans iClosed.
    */
   iclosedUserId?: number;
+  /* --- Rappels Telegram (2026-10-14) --- */
+  /** Identifiant de la conversation Telegram du membre avec le bot, pose quand il envoie son code. */
+  telegramChatId?: string;
+  /** Code a envoyer au bot (/start CODE) pour relier le compte. */
+  telegramLinkCode?: string;
+  telegramLinkedAt?: string;
 }
 
 /** Un fichier attaché à un job de montage (rush ou livrable). */
@@ -1039,6 +1086,8 @@ export interface DB {
   followUps: FollowUp[];
   commissionRules: CommissionRule[];
   commissionPayments: CommissionPayment[];
+  /** Bonus / malus poses par le proprietaire. */
+  commissionAdjustments: CommissionAdjustment[];
   activityLogs: ActivityLog[];
   shifts: Shift[];
   /** Pointage reel : sessions de travail demarrees et terminees par les membres. */
@@ -1634,6 +1683,30 @@ export interface CommissionPayment {
 }
 
 /**
+ * Bonus ou malus pose a la main par le proprietaire (2026-10-14).
+ *
+ * Il entre dans le gagne du membre comme n'importe quelle commission : un
+ * bonus augmente le reste du, un malus le diminue. En montant fixe, ou en
+ * pourcentage de ce que le membre a gagne sur le mois de la date choisie.
+ * Jamais modifie : on le supprime et on en recree un.
+ */
+export interface CommissionAdjustment {
+  id: ID;
+  memberId: ID;
+  role: "setter" | "closer";
+  kind: "bonus" | "malus";
+  /** « amount » : montant en devise ; « pct » : pourcentage du gagne du mois (hors ajustements). */
+  mode: "amount" | "pct";
+  value: number;
+  reason: string;
+  /** Date d'attribution (ISO) : decide la periode, et le mois de reference en mode pct. */
+  at: string;
+  currency: string;
+  createdBy: ID;
+  createdAt: string;
+}
+
+/**
  * Creneau de travail propose a un membre.
  *
  * L'admin propose, le setter accepte ou decline. Un creneau n'est jamais
@@ -1667,4 +1740,6 @@ export interface ActivityLog {
   entityId: ID;
   /** Phrase lisible affichee telle quelle dans le journal. */
   summary: string;
+  /** Autre entite concernee : pour « lead.takeover », le setter qui a perdu la conversation. */
+  relatedId?: ID;
 }

@@ -98,6 +98,7 @@ const EMPTY_DB: DB = {
   followUps: [],
   commissionRules: [],
   commissionPayments: [],
+  commissionAdjustments: [],
   activityLogs: [],
   shifts: [],
   workSessions: [],

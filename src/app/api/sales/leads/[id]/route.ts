@@ -8,6 +8,8 @@ import { fmtDateTime, parisDay, parisToIso } from "@/lib/format";
 import { leadIsOut, type DB, type Lead, type LeadCallStatus, type TemplateChannel } from "@/lib/types";
 import { leadTimeline } from "@/lib/sales/timeline";
 import { paymentView } from "@/lib/sales/installments";
+import { fmtIdle, takeoverState } from "@/lib/sales/takeover";
+import { notifyTelegram } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +43,7 @@ function resolveMeta(db: DB, lead: Lead): LeadMeta | null {
   return out;
 }
 
-type Action = "status" | "reopen" | "attempt" | "reached" | "lost" | "note" | "assign" | "contact" | "message";
+type Action = "status" | "reopen" | "attempt" | "reached" | "lost" | "note" | "assign" | "contact" | "message" | "takeover";
 
 const STATUSES: LeadCallStatus[] = ["no-answer", "message-sent", "callback", "reached", "not-interested", "wrong-number", "no-whatsapp", "cold"];
 
@@ -71,7 +73,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     // Le closer d'un de ses calls voit la fiche aussi : c'est lui qui la statue apres le call.
     const myCall = db.appointments.some((a) => a.leadId === lead.id && canSee(session, a));
     if (!myCall) {
-      if (!unassigned && !canSee(session, { setterId: lead.setterId })) throw new Forbidden();
+      // Une conversation reprenable (regle de l'heure) se lit avant d'etre reprise.
+      const takeable = sessionHas(session, "setter") && takeoverState(lead, db.settings, false, Date.now()).eligible;
+      if (!unassigned && !canSee(session, { setterId: lead.setterId }) && !takeable) throw new Forbidden();
       if (unassigned && !session.isAdmin && !sessionHas(session, "setter")) throw new Forbidden();
     }
     const names = new Map(db.team.map((m) => [m.id, m.name]));
@@ -154,15 +158,42 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const lead = db.leads.find((l) => l.id === id);
     if (!lead) throw new Error("Lead introuvable : il a été supprimé.");
     const unassigned = !lead.setterId;
+    const now = new Date();
+    /*
+     * Regle de reprise : la conversation d'un autre setter, sans action de sa
+     * part depuis plus de `salesTakeoverMin` minutes, peut etre reprise. Un
+     * setter qui agit dessus (bouton « Reprendre » ou n'importe quel statut)
+     * en devient le setter ; l'ancien est prevenu sur Telegram.
+     */
+    let takenFrom: { id: string; name: string; idleMin: number } | null = null;
     if (!unassigned && !canSee(session, { setterId: lead.setterId })) {
-      // Pool commun : l'autre setter l'a appele en premier pendant que cette
-      // liste n'etait pas a jour. On le dit clairement, la page se recharge.
-      const owner = db.team.find((m) => m.id === lead.setterId)?.name ?? "un autre setter";
-      throw new Forbidden(`${lead.name} a déjà été appelé par ${owner} : ce lead est à ${owner}. Ta liste vient d'être mise à jour.`);
+      const owner = db.team.find((m) => m.id === lead.setterId);
+      const booked = db.appointments.some(
+        (a) => a.leadId === lead.id && (a.status === "booked" || a.status === "confirmed" || a.status === "rescheduled") && a.scheduledAt >= new Date(now.getTime() - 24 * 3600_000).toISOString(),
+      );
+      const t = takeoverState(lead, db.settings, booked, now.getTime());
+      if (t.eligible && sessionHas(session, "setter")) {
+        takenFrom = { id: lead.setterId!, name: owner?.name ?? "un autre setter", idleMin: t.idleMin };
+        lead.setterId = session.memberId;
+        lead.ownerName = session.memberName;
+        lead.ownerRole = "setter";
+        lead.claimedAt = now.toISOString();
+        lead.takeoverWarnedAt = "";
+      } else {
+        // Pool commun : l'autre setter l'a appele en premier pendant que cette
+        // liste n'etait pas a jour. On le dit clairement, la page se recharge.
+        const name = owner?.name ?? "un autre setter";
+        throw new Forbidden(
+          body.action === "takeover"
+            ? `${lead.name} n'est plus à reprendre : ${name} vient d'agir dessus. Ta liste vient d'être mise à jour.`
+            : `${lead.name} a déjà été appelé par ${name} : ce lead est à ${name}. Ta liste vient d'être mise à jour.`,
+        );
+      }
     }
     if (unassigned && !session.isAdmin && !sessionHas(session, "setter")) throw new Forbidden();
-
-    const now = new Date();
+    if (body.action === "takeover" && !takenFrom && !unassigned && !session.isAdmin) {
+      throw new Error(lead.setterId === session.memberId ? "Ce lead est déjà à toi." : "Ce lead n'est pas à reprendre.");
+    }
     const today = now.toISOString().slice(0, 10);
     const tomorrow = new Date(now.getTime() + 24 * 3600_000).toISOString().slice(0, 10);
     /** Relance a J+n, le matin (heure de Paris) : le lead ressort en tete de liste ce jour-la. */
@@ -176,6 +207,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         lead.setterId = session.memberId;
         lead.ownerName = session.memberName;
         lead.ownerRole = "setter";
+        lead.claimedAt = now.toISOString();
       }
     };
 
@@ -349,6 +381,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         summary = `${channel} envoyé${templateName ? ` · Template : ${templateName}` : ""} · Par : ${who}${followUpAt ? ` · Relance le ${fmtDateTime(followUpAt)}` : ""}`;
         break;
       }
+      case "takeover":
+        // La reprise elle-meme est faite plus haut (ou c'est une prise simple du pool).
+        claim();
+        if (!takenFrom) summary = `${who} a pris ${lead.name}`;
+        break;
       case "assign":
         if (!session.isAdmin) throw new Forbidden("Seul l'admin réattribue un lead.");
         if (body.setterId && !db.team.some((m) => m.id === body.setterId)) throw new Error("Setter inconnu.");
@@ -361,6 +398,32 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         throw new Error("Action inconnue.");
     }
 
+    // Toute action du setter proprietaire remet son compteur d'inactivite a zero.
+    if (lead.setterId && lead.setterId === session.memberId) {
+      lead.lastSetterActionAt = now.toISOString();
+      lead.takeoverWarnedAt = "";
+    }
+
+    if (takenFrom) {
+      db.activityLogs.unshift({
+        id: newId(),
+        at: now.toISOString(),
+        actorId: session.memberId,
+        actorName: who,
+        action: "lead.takeover",
+        entity: "lead",
+        entityId: lead.id,
+        relatedId: takenFrom.id,
+        summary: `${who} a repris la conversation avec ${lead.name} : ${takenFrom.name} sans action dessus depuis ${fmtIdle(takenFrom.idleMin)}`,
+      });
+      const prev = db.team.find((m) => m.id === takenFrom!.id);
+      if (prev) {
+        notifyTelegram(
+          prev,
+          `🔁 <b>${who}</b> a repris ta conversation avec <b>${lead.name.replace(/[<>&]/g, "")}</b> : aucune action de ta part dessus depuis ${fmtIdle(takenFrom.idleMin)}. Règle du setting : 1 h sans réponse, la conversation peut être reprise.`,
+        );
+      }
+    }
     if (summary) {
       db.activityLogs.unshift({
         id: newId(),
@@ -374,6 +437,6 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       });
     }
     writeDB(db);
-    return { lead };
+    return { lead, takenFrom: takenFrom?.name ?? "" };
   });
 }

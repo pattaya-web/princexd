@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { Card, CopyButton, ErrorNote, Field, InfoNote, PageHeader, Spinner, Toggle, useToast } from "@/components/ui";
 import { label, WEEKDAYS } from "@/lib/format";
-import type { Settings } from "@/lib/types";
+import type { Settings, TelegramReminderSettings } from "@/lib/types";
+import { TelegramAdminPanel } from "@/components/sales/TelegramAdminPanel";
+
+const REMINDER_DEFAULTS: TelegramReminderSettings = { enabled: true, everyMin: 60, fromHour: 9, toHour: 21, days: [1, 2, 3, 4, 5, 6], text: "" };
 
 type View = Settings & {
   kieApiKeyMask?: string;
@@ -24,6 +27,8 @@ type View = Settings & {
   vaPasswordSet?: boolean;
   vaSource?: string;
   higgsfieldKeySource?: string;
+  telegramBotTokenMask?: string;
+  telegramBotTokenSource?: string;
 };
 
 const STORY_TYPES = [
@@ -51,6 +56,7 @@ export default function ReglagesPage() {
   const [elevenKey, setElevenKey] = useState("");
   const [hfSecret, setHfSecret] = useState("");
   const [sioKey, setSioKey] = useState("");
+  const [tgToken, setTgToken] = useState("");
   const [sioBusy, setSioBusy] = useState(false);
   const [sioMsg, setSioMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -87,6 +93,10 @@ export default function ReglagesPage() {
       else delete payload.higgsfieldKeySecret;
       if (sioKey.trim()) payload.systemeioApiKey = sioKey.trim();
       else delete payload.systemeioApiKey;
+      if (tgToken.trim()) payload.telegramBotToken = tgToken.trim();
+      else delete payload.telegramBotToken;
+      delete (payload as Record<string, unknown>).telegramBotTokenMask;
+      delete (payload as Record<string, unknown>).telegramBotTokenSource;
       delete payload.systemeioWebhookSecret;
       if (vaPassword.trim()) (payload as Record<string, unknown>).vaPassword = vaPassword.trim();
       const next = await api<View>("/api/settings", { method: "PATCH", body: JSON.stringify(payload) });
@@ -97,6 +107,7 @@ export default function ReglagesPage() {
       setElevenKey("");
       setHfSecret("");
       setVaPassword("");
+      setTgToken("");
       toast("Réglages enregistrés.");
     } catch (e) {
       setError((e as Error).message);
@@ -638,6 +649,95 @@ export default function ReglagesPage() {
                 <option value="CAD">CAD — dollar canadien</option>
               </select>
             </Field>
+            <Field
+              label="Règle de l'heure : minutes sans action avant qu'un autre setter puisse reprendre une conversation"
+              hint="0 désactive la règle. Le compteur part de la dernière action du setter sur le lead (statut, message, note). Un rappel ou une relance programmés le suspendent."
+            >
+              <input
+                className="input num !w-[120px]"
+                type="number"
+                min={0}
+                step={5}
+                value={s.salesTakeoverMin ?? 60}
+                onChange={(e) => set("salesTakeoverMin", Math.max(0, Math.round(Number(e.target.value) || 0)))}
+              />
+            </Field>
+          </Card>
+
+          {/* Bot Telegram : rappels aux setters, avertissements avant reprise, bonus / malus. */}
+          <Card
+            title="Rappels Telegram"
+            subtitle="Un bot Telegram envoie aux setters un rappel toutes les heures, un avertissement quand une conversation dort, et prévient quand un lead est repris. Chaque membre active ses rappels depuis son accueil."
+          >
+            <div className="flex flex-col gap-3.5">
+              {s.telegramBotTokenSource === "env" ? (
+                <p className="text-[12.5px] dim">Jeton fourni par l&apos;environnement (TELEGRAM_BOT_TOKEN) : {s.telegramBotTokenMask}.</p>
+              ) : (
+                <Field
+                  label={`Jeton du bot${s.telegramBotTokenMask ? ` · enregistré : ${s.telegramBotTokenMask}` : ""}`}
+                  hint="Sur Telegram : @BotFather → /newbot → colle ici le jeton (123456:ABC…). Le jeton est vérifié à l'enregistrement. Tape CLEAR pour le retirer."
+                >
+                  <input className="input mono" value={tgToken} placeholder={s.telegramBotTokenMask ? "Laisser vide pour garder le jeton actuel" : "123456789:AA…"} onChange={(e) => setTgToken(e.target.value)} />
+                </Field>
+              )}
+              {s.telegramBotUsername && (
+                <p className="text-[12.5px]">
+                  Bot : <span className="mono">@{s.telegramBotUsername}</span> · <a className="link" href={`https://t.me/${s.telegramBotUsername}`} target="_blank" rel="noopener noreferrer">ouvrir ↗</a>
+                </p>
+              )}
+              {s.telegramLastError && <ErrorNote>Dernière erreur du bot : {s.telegramLastError}</ErrorNote>}
+
+              {(() => {
+                const r: TelegramReminderSettings = { ...REMINDER_DEFAULTS, ...(s.telegramReminders ?? {}) };
+                const setR = (patch: Partial<TelegramReminderSettings>) => set("telegramReminders", { ...r, ...patch });
+                const DAYS = ["L", "M", "M", "J", "V", "S", "D"];
+                return (
+                  <>
+                    <Toggle checked={r.enabled} onChange={(v) => setR({ enabled: v })} label="Rappels périodiques activés" />
+                    <div className="flex flex-wrap items-end gap-3">
+                      <Field label="Toutes les (minutes)">
+                        <input className="input num !w-[100px]" type="number" min={15} step={15} value={r.everyMin} onChange={(e) => setR({ everyMin: Math.max(15, Math.round(Number(e.target.value) || 60)) })} />
+                      </Field>
+                      <Field label="De (heure de Paris)">
+                        <input className="input num !w-[80px]" type="number" min={0} max={23} value={r.fromHour} onChange={(e) => setR({ fromHour: Math.min(23, Math.max(0, Math.round(Number(e.target.value) || 0))) })} />
+                      </Field>
+                      <Field label="À (exclu)">
+                        <input className="input num !w-[80px]" type="number" min={1} max={24} value={r.toHour} onChange={(e) => setR({ toHour: Math.min(24, Math.max(1, Math.round(Number(e.target.value) || 0))) })} />
+                      </Field>
+                      <Field label="Jours">
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5, 6, 0].map((d, i) => {
+                            const on = r.days.includes(d);
+                            return (
+                              <button
+                                key={d}
+                                type="button"
+                                className="btn btn-sm !w-[32px] !px-0"
+                                title={WEEKDAYS[d]}
+                                style={on ? { borderColor: "var(--accent)", color: "var(--accent)" } : undefined}
+                                onClick={() => setR({ days: on ? r.days.filter((x) => x !== d) : [...r.days, d] })}
+                              >
+                                {DAYS[i]}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </Field>
+                    </div>
+                    <Field label="Texte du rappel" hint="Les chiffres du setter (leads à relancer, pool, sans note, conversations qui dorment) sont ajoutés dessous automatiquement.">
+                      <textarea
+                        className="input min-h-[80px]"
+                        value={r.text}
+                        placeholder="N'oublie pas : tu appelles, tu relances, et tu notes TOUT dans le tool…"
+                        onChange={(e) => setR({ text: e.target.value })}
+                      />
+                    </Field>
+                  </>
+                );
+              })()}
+
+              <TelegramAdminPanel configured={Boolean(s.telegramBotTokenMask)} />
+            </div>
           </Card>
 
           {/* La VA de prospection Instagram : un seul espace (/va/outreach).

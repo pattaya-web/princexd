@@ -10,11 +10,15 @@ import { Card, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, StatTile, us
 import { PeriodPicker } from "@/components/sales/bits";
 import { useSales } from "@/components/sales/context";
 import type { LedgerRow } from "@/lib/sales/commissions";
-import type { CommissionPayment } from "@/lib/types";
+import type { CommissionAdjustment, CommissionPayment } from "@/lib/types";
 
 interface LedgerPayload {
   rows: LedgerRow[];
   payments: (CommissionPayment & { memberName: string })[];
+  /** Bonus / malus poses par le proprietaire (les siens pour un membre). */
+  adjustments: (CommissionAdjustment & { memberName: string })[];
+  /** Conversations perdues (laissees dormir) et reprises aux autres, par membre, sur la periode. */
+  takeovers: Record<string, { lost: number; taken: number }>;
   currency: string;
   isAdmin: boolean;
 }
@@ -39,6 +43,15 @@ export default function CommissionsPage() {
   const [bonus, setBonus] = useState(false);
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<LedgerRow | null>(null);
+
+  /* --- Bonus / malus (admin) --- */
+  const [adjMember, setAdjMember] = useState("");
+  const [adjKind, setAdjKind] = useState<"bonus" | "malus">("bonus");
+  const [adjMode, setAdjMode] = useState<"amount" | "pct">("amount");
+  const [adjValue, setAdjValue] = useState("");
+  const [adjReason, setAdjReason] = useState("");
+  const [adjAt, setAdjAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [adjSaving, setAdjSaving] = useState(false);
 
   const { data, loading, error, reload } = useSalesData<LedgerPayload>(
     `/api/sales/commissions?${periodQuery(period.period, period.from, period.to, { v: String(version) })}`,
@@ -90,6 +103,44 @@ export default function CommissionsPage() {
       setSaving(false);
     }
   };
+
+  const addAdjustment = async () => {
+    const [memberId, role] = adjMember.split(":");
+    if (!memberId) return toast("Choisis le membre.", "err");
+    const value = Number(adjValue);
+    if (!(value > 0)) return toast("Indique une valeur supérieure à 0.", "err");
+    if (!adjReason.trim()) return toast("Donne le motif : c'est ce que le membre lira.", "err");
+    setAdjSaving(true);
+    try {
+      await api("/api/sales/commissions/adjust", {
+        method: "POST",
+        body: JSON.stringify({ memberId, role, kind: adjKind, mode: adjMode, value, reason: adjReason.trim(), at: `${adjAt}T12:00:00.000Z` }),
+      });
+      toast(adjKind === "bonus" ? "Bonus enregistré, le membre est prévenu." : "Malus enregistré, le membre est prévenu.");
+      setAdjValue("");
+      setAdjReason("");
+      void reload();
+      bump();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setAdjSaving(false);
+    }
+  };
+
+  const removeAdjustment = async (a: CommissionAdjustment & { memberName: string }) => {
+    if (!window.confirm(`Retirer ce ${a.kind} pour ${a.memberName} ?`)) return;
+    try {
+      await api("/api/sales/commissions/adjust", { method: "DELETE", body: JSON.stringify({ id: a.id }) });
+      toast("Ajustement retiré.");
+      void reload();
+      bump();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
+  const adjLabel = (a: CommissionAdjustment) => (a.mode === "pct" ? `${a.kind === "malus" ? "−" : "+"}${a.value} % du mois` : `${a.kind === "malus" ? "−" : "+"}${fmtMoney(a.value, a.currency)}`);
 
   return (
     <>
@@ -196,6 +247,117 @@ export default function CommissionsPage() {
         </Card>
       )}
 
+      {/* Bonus / malus : le proprietaire juge le setting, le membre voit le motif. */}
+      {data && (data.isAdmin || data.adjustments.length > 0) && (
+        <Card
+          title="Bonus / malus"
+          subtitle={
+            data.isAdmin
+              ? "Un setting propre (prospects vraiment qualifiés, notes claires) mérite un bonus ; un setting bâclé ou des conversations laissées dormir, un malus. Le membre est prévenu sur Telegram et voit le motif ici."
+              : "Posés par Mady selon la qualité du setting. Ils entrent dans ton gagné et ton reste dû."
+          }
+          padded={false}
+          className="mb-4"
+        >
+          {data.isAdmin && (
+            <div className="px-4 pt-4 pb-3 flex flex-wrap items-end gap-2.5" style={{ borderBottom: "1px solid var(--border)" }}>
+              <Field label="Membre">
+                <select className="select select-sm" value={adjMember} onChange={(e) => setAdjMember(e.target.value)}>
+                  <option value="">Choisir…</option>
+                  {rows.map((r) => (
+                    <option key={`${r.memberId}:${r.role}`} value={`${r.memberId}:${r.role}`}>
+                      {r.name} · {label(r.role)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Type">
+                <select className="select select-sm" value={adjKind} onChange={(e) => setAdjKind(e.target.value as "bonus" | "malus")}>
+                  <option value="bonus">Bonus</option>
+                  <option value="malus">Malus</option>
+                </select>
+              </Field>
+              <Field label="Calcul">
+                <select className="select select-sm" value={adjMode} onChange={(e) => setAdjMode(e.target.value as "amount" | "pct")}>
+                  <option value="amount">Montant ({currency})</option>
+                  <option value="pct">% du gagné du mois</option>
+                </select>
+              </Field>
+              <Field label={adjMode === "pct" ? "%" : currency}>
+                <input className="input num !w-[90px]" type="number" min={0} value={adjValue} onChange={(e) => setAdjValue(e.target.value)} />
+              </Field>
+              <Field label="Date">
+                <input className="input !w-[150px]" type="date" value={adjAt} onChange={(e) => setAdjAt(e.target.value)} />
+              </Field>
+              <Field label="Motif (lu par le membre)">
+                <input className="input !w-[280px]" value={adjReason} placeholder="Ex. 4 prospects très bien qualifiés cette semaine" onChange={(e) => setAdjReason(e.target.value)} />
+              </Field>
+              <button className="btn btn-primary" disabled={adjSaving} onClick={() => void addAdjustment()}>
+                {adjSaving ? <span className="spinner" /> : adjKind === "bonus" ? "Donner le bonus" : "Poser le malus"}
+              </button>
+            </div>
+          )}
+          {data.isAdmin && Object.keys(data.takeovers).length > 0 && (
+            <div className="px-4 py-2.5 flex flex-wrap gap-x-5 gap-y-1 text-[12px] dim" style={{ borderBottom: "1px solid var(--border)" }} title="Règle de l'heure : conversations reprises par un autre setter sur la période">
+              <span className="font-medium" style={{ color: "var(--text)" }}>Règle de l&apos;heure sur la période :</span>
+              {rows
+                .filter((r) => r.role === "setter" && data.takeovers[r.memberId])
+                .map((r) => (
+                  <span key={r.memberId}>
+                    {r.name} · <span style={{ color: data.takeovers[r.memberId].lost ? "var(--warning)" : undefined }}>{data.takeovers[r.memberId].lost} perdue{data.takeovers[r.memberId].lost > 1 ? "s" : ""}</span> · {data.takeovers[r.memberId].taken} reprise{data.takeovers[r.memberId].taken > 1 ? "s" : ""}
+                  </span>
+                ))}
+            </div>
+          )}
+          {data.adjustments.length === 0 ? (
+            <div className="px-4 py-4">
+              <Empty>Aucun bonus ni malus pour le moment.</Empty>
+            </div>
+          ) : (
+            <div className="scroll-x">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Membre</th>
+                    <th>Type</th>
+                    <th className="text-right">Valeur</th>
+                    <th>Motif</th>
+                    {data.isAdmin && <th />}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.adjustments.map((a) => (
+                    <tr key={a.id}>
+                      <td className="num">{fmtDate(a.at)}</td>
+                      <td className="text-[12.5px]">
+                        {a.memberName} <span className="dim">· {label(a.role)}</span>
+                      </td>
+                      <td>
+                        <span className="badge !text-[10.5px] !py-0" style={{ color: a.kind === "malus" ? "var(--danger, #ef4444)" : "var(--good)" }}>
+                          {a.kind === "malus" ? "Malus" : "Bonus"}
+                        </span>
+                      </td>
+                      <td className="text-right num font-semibold" style={{ color: a.kind === "malus" ? "var(--danger, #ef4444)" : "var(--good)" }}>
+                        {adjLabel(a)}
+                      </td>
+                      <td className="text-[12px] max-w-[320px] truncate" title={a.reason}>{a.reason}</td>
+                      {data.isAdmin && (
+                        <td className="text-right">
+                          <button className="btn btn-sm btn-ghost" onClick={() => void removeAdjustment(a)} title="Retirer">
+                            ✕
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* Historique des versements : jamais efface, jamais ecrase. */}
       {data && data.payments.length > 0 && (
         <Card title="Historique des versements" padded={false}>
@@ -255,11 +417,11 @@ export default function CommissionsPage() {
                     <td className="num">{fmtDate(e.at)}</td>
                     <td>
                       <span className="badge !text-[10.5px] !py-0">
-                        {e.kind === "sale" ? "Vente" : e.kind === "show" ? "Call honoré" : e.kind === "fixed" ? "Fixe" : "Rendez-vous"}
+                        {e.kind === "sale" ? "Vente" : e.kind === "show" ? "Call honoré" : e.kind === "fixed" ? "Fixe" : e.kind === "adjustment" ? (e.amount < 0 ? "Malus" : "Bonus") : "Rendez-vous"}
                       </span>
                     </td>
                     <td className="text-[12px]">{e.detail}</td>
-                    <td className="text-right num font-semibold">{fmtMoney(e.amount, e.currency)}</td>
+                    <td className="text-right num font-semibold" style={{ color: e.amount < 0 ? "var(--danger, #ef4444)" : undefined }}>{fmtMoney(e.amount, e.currency)}</td>
                   </tr>
                 ))}
               </tbody>

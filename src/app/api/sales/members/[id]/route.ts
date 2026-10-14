@@ -52,6 +52,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       db.commissionPayments,
       range,
       currency,
+      db.commissionAdjustments ?? [],
     );
     const ledger = ledgers.find((l) => l.role === viewRole) ?? ledgers[0];
 

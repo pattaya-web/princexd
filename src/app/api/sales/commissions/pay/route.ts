@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       db.commissionPayments,
       resolveRange("all"),
       db.settings.salesCurrency || "EUR",
+      db.commissionAdjustments ?? [],
     );
     if (kind === "commission" && row && amount > row.due + 0.01 && !body.allowOverpay) {
       throw new Error(

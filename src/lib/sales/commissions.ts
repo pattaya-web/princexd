@@ -22,6 +22,7 @@ import type {
   CommissionRule,
   Sale,
   TeamMember,
+  CommissionAdjustment,
 } from "../types";
 import { isAttended, isDead } from "./constants";
 import { inRange, type Range } from "./period";
@@ -31,8 +32,8 @@ import { memberRoles, type CommercialRole } from "./roles";
 export interface CommissionEntry {
   memberId: string;
   role: "setter" | "closer";
-  kind: "appointment" | "show" | "sale" | "fixed";
-  /** Rendez-vous ou vente a l'origine de la ligne ; `fixed-<role>-<AAAA-MM>` pour un fixe mensuel. */
+  kind: "appointment" | "show" | "sale" | "fixed" | "adjustment";
+  /** Rendez-vous ou vente a l'origine de la ligne ; `fixed-<role>-<AAAA-MM>` pour un fixe mensuel ; l'ajustement pour un bonus / malus. */
   sourceId: string;
   /** Date d'attribution : c'est elle qui decide de la periode. */
   at: string;
@@ -114,11 +115,12 @@ export function entriesFor(
   rules: CommissionRule[],
   appointments: Appointment[],
   sales: Sale[],
+  adjustments: CommissionAdjustment[] = [],
 ): CommissionEntry[] {
   // Un membre qui cumule setter et closer gagne sur les deux tableaux : ses
   // rendez-vous poses d'un cote, ses calls closes de l'autre.
   return memberRoles(member)
-    .flatMap((role) => entriesForRole(member, role, rules, appointments, sales))
+    .flatMap((role) => entriesForRole(member, role, rules, appointments, sales, adjustments))
     .sort((a, b) => b.at.localeCompare(a.at));
 }
 
@@ -129,6 +131,7 @@ export function entriesForRole(
   rules: CommissionRule[],
   appointments: Appointment[],
   sales: Sale[],
+  adjustments: CommissionAdjustment[] = [],
 ): CommissionEntry[] {
   const out: CommissionEntry[] = [];
 
@@ -232,6 +235,36 @@ export function entriesForRole(
 
   out.push(...monthlyFixedEntries(member, role, rules));
 
+  /*
+   * Bonus / malus poses par le proprietaire. En pourcentage, la base est ce
+   * que le membre a gagne sur le mois civil de la date de l'ajustement (hors
+   * ajustements, pour qu'ils ne s'empilent pas).
+   */
+  for (const adj of adjustments) {
+    if (adj.memberId !== member.id || adj.role !== role) continue;
+    const sign = adj.kind === "malus" ? -1 : 1;
+    let amount = adj.value;
+    let detail = adj.reason ? `${adj.kind === "malus" ? "Malus" : "Bonus"} : ${adj.reason}` : adj.kind === "malus" ? "Malus" : "Bonus";
+    if (adj.mode === "pct") {
+      const month = adj.at.slice(0, 7);
+      const base = out.filter((e) => e.at.slice(0, 7) === month).reduce((a, e) => a + e.amount, 0);
+      amount = pctOf(base, adj.value);
+      detail += ` · ${adj.value} % de ${Math.round(base)} gagnés en ${MONTH_LABEL.format(new Date(`${month}-15T00:00:00Z`))}`;
+    }
+    if (!amount) continue;
+    out.push({
+      memberId: member.id,
+      role,
+      kind: "adjustment",
+      sourceId: adj.id,
+      at: adj.at,
+      amount: money(sign * Math.abs(amount)),
+      currency: adj.currency,
+      ruleId: "",
+      detail,
+    });
+  }
+
   return out.sort((a, b) => b.at.localeCompare(a.at));
 }
 
@@ -331,6 +364,7 @@ export function buildLedger(
   payments: CommissionPayment[],
   range: Range,
   defaultCurrency: string,
+  adjustments: CommissionAdjustment[] = [],
 ): LedgerRow[] {
   // Une ligne par metier : un membre setter ET closer apparait deux fois, avec
   // des chiffres distincts. Les versements, eux, sont rattaches au membre et
@@ -340,7 +374,7 @@ export function buildLedger(
 
   return pairs
     .map(({ member, role }, idx) => {
-      const allEntries = entriesForRole(member, role, rules, appointments, sales);
+      const allEntries = entriesForRole(member, role, rules, appointments, sales, adjustments);
       const periodEntries = allEntries.filter((e) => inRange(e.at, range));
       const firstRowOfMember = pairs.findIndex((p) => p.member.id === member.id) === idx;
 

@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
      * et le tableau des commissions est une donnee confidentielle.
      */
     const ledger = session.isAdmin
-      ? buildLedger(db.team, db.commissionRules, db.appointments, db.sales, db.commissionPayments, range, currency)
+      ? buildLedger(db.team, db.commissionRules, db.appointments, db.sales, db.commissionPayments, range, currency, db.commissionAdjustments ?? [])
       : buildLedger(
           db.team.filter((m) => m.id === session.memberId),
           db.commissionRules,
@@ -100,6 +100,7 @@ export async function GET(req: NextRequest) {
           db.commissionPayments,
           range,
           currency,
+          db.commissionAdjustments ?? [],
         );
 
     const setterCommissions = ledger
