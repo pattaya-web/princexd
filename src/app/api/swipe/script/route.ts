@@ -1,45 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSettings, readDB, writeDB } from "@/lib/db";
 import { askText, KieError, parseJsonLoose } from "@/lib/kie";
-import { swipeStage, type SwipeScript } from "@/lib/types";
+import type { SwipeScript } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-const SYSTEM = `Tu es un directeur de creation qui transforme une analyse de reel en script court pret a tourner face camera.
-Tu ecris en francais parle, au tutoiement, sans jargon marketing et sans flatterie.
+const SYSTEM = `Tu mets en forme le script d'une video pour qu'il soit facile a lire et a tourner tel quel.
+Tu ne reecris RIEN : pas de reformulation, pas d'adaptation, pas de resume, pas de mot ajoute ni retire (seulement la ponctuation, les hesitations et les repetitions parasites).
 Tu reponds uniquement par un objet JSON valide, sans texte autour et sans bloc markdown.`;
 
 /**
- * Le script court (onglet « Mon script ») : hook mot pour mot, corps en
- * bullets d'une ligne chacune avec le chiffre ou la raison, CTA mot pour
- * mot, textes ecran, duree cible. Pre-rempli depuis l'adaptation deja
- * produite par l'analyse ; le proprietaire corrige ensuite a la main.
+ * Le script a tourner, c'est celui de la video d'origine : le user reprend le
+ * contenu des autres parce que c'est leur hook qui a marche. On ne genere
+ * donc rien, on met en forme : hook mot pour mot, corps ligne par ligne
+ * (une idee par ligne, dans les mots de la video), CTA mot pour mot, et on
+ * dit si une ou deux personnes parlent.
  */
-function buildPrompt(input: { stage: string; hook: string; script: string; cta: string; screen: string[]; format: string; brandContext: string }) {
-  return `Contexte business : ${input.brandContext}
-
-Etape du funnel visee : ${input.stage || "non precisee"} (TOFU = attirer des inconnus, MOFU = prouver la methode, BOFU = pousser vers l'appel).
-Format conseille : ${input.format || "reel face camera"}.
-
-ADAPTATION DEJA ECRITE (ma marque) :
-Hook : ${input.hook || "(vide)"}
-Script :
+function buildPrompt(input: { transcript: string; hook: string; cta: string; screen: string[]; speakers: string; brandContext: string }) {
+  return `SCRIPT DE LA VIDEO (en francais, deja nettoye) :
 """
-${input.script || "(vide)"}
+${input.transcript || "(vide)"}
 """
-CTA : ${input.cta || "(vide)"}
-Textes ecran reperes sur l'original : ${input.screen.length ? input.screen.join(" | ") : "(aucun)"}
+Hook repere par l'analyse : ${input.hook || "(non repere)"}
+CTA repere par l'analyse : ${input.cta || "(non repere)"}
+Textes a l'ecran reperes : ${input.screen.length ? input.screen.join(" | ") : "(aucun)"}
+Nombre de personnes qui parlent d'apres l'analyse : ${input.speakers || "inconnu"}
 
-Transforme ca en script court a tourner, sans rien inventer qui contredise l'adaptation :
+Mets ce script en forme, sans changer les mots :
 {
-  "hook": "1 a 2 phrases, mot pour mot, telles que je les dis face camera",
-  "bullets": ["une ligne par idee du corps, 12 mots max, avec LE chiffre ou LA raison, jamais une phrase redigee"],
-  "cta": "1 phrase mot pour mot",
-  "screenText": ["2 a 5 textes a incruster, 6 mots max chacun"],
-  "durationSec": 30
+  "hook": "les 1 a 2 premieres phrases de la video, mot pour mot",
+  "bullets": ["le reste du corps, dans l'ordre, UNE idee ou UNE phrase par ligne, 15 mots max par ligne, les mots de la video"],
+  "cta": "la derniere phrase d'appel a l'action, mot pour mot ('' si la video n'en a pas)",
+  "screenText": ["les textes a l'ecran, tels quels, 6 max"],
+  "durationSec": 30,
+  "speakers": "solo | dialogue"
 }
-Entre 3 et 7 bullets. durationSec entre 15 et 60, coherent avec la longueur du texte (environ 2,5 mots par seconde).`;
+Regles :
+- hook + bullets + cta = tout le script, rien de plus, rien de moins (le hook et le CTA ne sont pas repetes dans bullets).
+- Si deux personnes se parlent : speakers = "dialogue", et chaque ligne de bullets commence par "A :" ou "B :" (le hook et le CTA aussi si ce sont des repliques).
+- durationSec = duree de lecture a voix haute, environ 2,5 mots par seconde, entre 10 et 90.`;
 }
 
 export async function POST(req: NextRequest) {
@@ -48,15 +48,15 @@ export async function POST(req: NextRequest) {
   const swipe = swipeId ? db.swipes.find((s) => s.id === swipeId) : undefined;
   if (!swipe) return NextResponse.json({ error: "Swipe introuvable." }, { status: 404 });
   const a = swipe.analysis;
-  if (!a) return NextResponse.json({ error: "Décortique d'abord ce contenu : le script court part de l'adaptation." }, { status: 400 });
+  const transcript = (a?.transcriptFr || a?.transcriptOriginal || swipe.transcriptInput || "").trim();
+  if (!transcript) return NextResponse.json({ error: "Il faut la transcription de la vidéo : colle-la (ou transcris-la) dans l'onglet Source, puis décortique." }, { status: 400 });
 
   const prompt = buildPrompt({
-    stage: swipeStage(swipe),
-    hook: a.adaptation?.hook ?? a.hook ?? "",
-    script: a.adaptation?.script ?? a.transcriptFr ?? "",
-    cta: a.adaptation?.cta ?? a.cta ?? "",
-    screen: a.onScreenText ?? [],
-    format: a.formatRecommande ?? "",
+    transcript,
+    hook: a?.hook ?? "",
+    cta: a?.cta ?? "",
+    screen: a?.onScreenText ?? [],
+    speakers: a?.speakers === "dialogue" ? "deux personnes qui se parlent" : a?.speakers === "solo" ? "une seule personne" : "",
     brandContext: getSettings().brandContext,
   });
 
@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
       cta: String(out.cta ?? "").trim(),
       screenText: clean(out.screenText, 6),
       durationSec: Number.isFinite(dur) ? Math.min(90, Math.max(10, Math.round(dur))) : 30,
+      speakers: String(out.speakers ?? a?.speakers ?? "").toLowerCase().includes("dialog") ? "dialogue" : "solo",
       generatedAt: now,
       updatedAt: now,
     };

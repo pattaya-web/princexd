@@ -38,9 +38,11 @@ ${a.screenText?.trim() || "(non fourni)"}
 """
 
 # Ce que je veux
-1. Reconstitue le SCRIPT COMPLET, nettoyé (ponctuation, phrases finies, sans "euh"), dans sa langue d'origine.
-2. Si la langue d'origine n'est pas le français, traduis-le intégralement en français naturel et parlé (pas mot à mot : adapte les expressions).
+1. Reconstitue le SCRIPT COMPLET, nettoyé (ponctuation, phrases finies, sans "euh"), dans sa langue d'origine. Ne change AUCUN mot : nettoyer, pas réécrire.
+   Mets-le en forme pour être lu facilement : une idée par ligne, une ligne vide entre les blocs (hook, corps, CTA), pas de pavé.
+2. Si la langue d'origine n'est pas le français, traduis-le intégralement en français naturel et parlé (pas mot à mot : adapte les expressions), avec la même mise en forme.
    Si c'est déjà du français, recopie le script nettoyé dans transcriptFr.
+   Détecte si UNE personne parle face caméra, ou si DEUX personnes se parlent (interview, sketch, question-réponse). Si deux : préfixe chaque réplique par "A :" et "B :" dans transcriptOriginal et transcriptFr.
 3. Découpe la mécanique : hook, promesse, corps, preuve, CTA.
 4. Donne la timeline seconde par seconde avec, pour chaque beat, LE PLAN à filmer.
 5. Donne la "shot list" : les plans à mettre en avant, pourquoi ils tiennent l'attention.
@@ -102,13 +104,15 @@ Règles de décision :
   "videoPrompts": ["prompt vidéo 1 en anglais", "prompt vidéo 2"],
   "formatRecommande": "le format dans lequel je devrais le tourner (reel face cam, voix off + B-roll, screen record, carrousel...)",
   "scoreViralite": 0,
+  "speakers": "solo | dialogue",
   "etape": "TOFU | MOFU | BOFU",
   "format": "un seul parmi : tier_list, choix_binaire, hot_take, reaction, anecdote_parcours, chiffre_choc, lifestyle_punchline, tuto_ecran, reponse_commentaire, decryptage, erreur_correction, a_ta_place, coulisses, resultat_eleve, objection, pour_qui, comment_ca_se_passe, garantie, urgence",
   "confiance": 0
 }
 
 scoreViralite = note de 0 à 100 du potentiel de ce contenu réadapté à ma niche.
-confiance = de 0 à 100, ta certitude sur l'étape du funnel.`;
+confiance = de 0 à 100, ta certitude sur l'étape du funnel.
+speakers = "solo" si une seule personne parle, "dialogue" si deux personnes se parlent.`;
 }
 
 export const SYSTEM_STORY = `Tu es un ghostwriter de stories Instagram pour un coach e-commerce.

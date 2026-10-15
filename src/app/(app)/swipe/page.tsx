@@ -6,7 +6,7 @@ import { Card, CopyButton, Empty, ErrorNote, Field, InfoNote, PageHeader, Spinne
 import { label, relative } from "@/lib/format";
 import { SWIPE_CONFIDENCE_MIN, SWIPE_PROD_LABEL, SWIPE_STAGES, swipeProdStatus, swipeStage, type Post, type Swipe, type SwipeAnalysis, type SwipeProdStatus, type SwipeScript, type SwipeStage } from "@/lib/types";
 import { WeekBlock } from "@/components/WeekBlock";
-import { MyScriptPanel, ProdStepper, PromptsInline } from "@/components/SwipeProduction";
+import { MyScriptPanel, ProdStepper, PromptsInline, SpeakersBadge } from "@/components/SwipeProduction";
 
 /*
  * Swipe file : les Reels de concurrents qu'on decortique.
@@ -366,6 +366,7 @@ export default function SwipePage() {
               {selected.analysis?.etape && (
                 <div className="px-4 pt-3.5 flex items-center gap-2.5 flex-wrap">
                   <StageBadge s={selected} />
+                  <SpeakersBadge speakers={selected.script?.speakers ?? selected.analysis.speakers} />
                   <span className="dim text-[12px]">
                     IA : {selected.analysis.etape} à {selected.analysis.confiance ?? 0} %{selected.analysis.format ? ` · ${FORMAT_LABEL[selected.analysis.format] ?? selected.analysis.format}` : ""}
                   </span>
@@ -488,7 +489,7 @@ function Block({ title, text, mono }: { title: string; text: string; mono?: bool
         <span className="label-xs">{title}</span>
         <CopyButton text={text} />
       </div>
-      <p className={`prose-sm p-3 rounded-[8px] ${mono ? "mono !text-[12px]" : ""}`} style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+      <p className={`prose-sm p-3.5 rounded-[8px] whitespace-pre-line leading-[1.8] ${mono ? "mono !text-[12px]" : "text-[13.5px]"}`} style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
         {text}
       </p>
     </div>
@@ -501,6 +502,7 @@ function ScriptPanel({ a }: { a: SwipeAnalysis }) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="badge">Langue détectée : {a.language || "?"}</span>
+        <SpeakersBadge speakers={a.speakers} />
         {translated && <span className="badge badge-accent">Traduit automatiquement en français</span>}
         {a.scoreViralite > 0 && <span className={`badge ${a.scoreViralite >= 70 ? "badge-good" : "badge-warn"}`}>Potentiel {a.scoreViralite}/100</span>}
       </div>

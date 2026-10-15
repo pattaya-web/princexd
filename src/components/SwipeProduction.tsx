@@ -74,13 +74,25 @@ export function ProdStepper({ s, onChange }: { s: Swipe; onChange: (status: Swip
 
 /* --------------------------------- Mon script --------------------------------- */
 
-const EMPTY_SCRIPT: SwipeScript = { hook: "", bullets: [], cta: "", screenText: [], durationSec: 30, generatedAt: "", updatedAt: "" };
+const EMPTY_SCRIPT: SwipeScript = { hook: "", bullets: [], cta: "", screenText: [], durationSec: 30, speakers: "solo", generatedAt: "", updatedAt: "" };
+
+/** « 1 personne » / « 2 personnes qui se parlent ». */
+export function SpeakersBadge({ speakers, className = "" }: { speakers?: SwipeScript["speakers"]; className?: string }) {
+  if (!speakers) return null;
+  const two = speakers === "dialogue";
+  return (
+    <span className={`badge !text-[10.5px] !py-0 ${className}`} title={two ? "Deux personnes se parlent : les lignes sont préfixées A : / B :" : "Une seule personne face caméra"}>
+      {two ? "👥 2 personnes qui se parlent" : "👤 1 personne"}
+    </span>
+  );
+}
 
 /**
- * Onglet « Mon script » : trois blocs fixes (hook, corps en bullets, CTA),
- * texte ecran et duree cible. Pre-rempli par l'IA depuis l'adaptation,
- * editable, sauvegarde automatique. Generer le script passe le swipe en
- * « Scripte ». Le dossier de montage se rattache ici (ou se cree).
+ * Onglet « Mon script » : le script de la video d'origine, mis en forme
+ * (hook mot pour mot, corps ligne par ligne, CTA), texte ecran et duree.
+ * Rien n'est reecrit : le user reprend le contenu des autres, c'est leur
+ * hook qui a marche. Editable, sauvegarde automatique. Mettre en forme
+ * passe le swipe en « Scripte ». Le dossier de montage se rattache ici.
  */
 export function MyScriptPanel({
   s,
@@ -189,49 +201,54 @@ export function MyScriptPanel({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2 flex-wrap">
-        <button className="btn btn-sm btn-primary" disabled={generating} onClick={() => void generate()} title="Pré-remplit hook, corps et CTA depuis l'adaptation IA. Passe le swipe en « Scripté ».">
-          {generating ? <span className="spinner" /> : "✦"} {script.generatedAt || script.hook ? "Régénérer depuis l'adaptation" : "Générer mon script"}
+        <button className="btn btn-sm btn-primary" disabled={generating} onClick={() => void generate()} title="Reprend le script de la vidéo mot pour mot et le met en forme : hook, corps ligne par ligne, CTA. Passe le swipe en « Scripté ».">
+          {generating ? <span className="spinner" /> : "✦"} {script.generatedAt || script.hook ? "Remettre en forme le script de la vidéo" : "Mettre en forme le script de la vidéo"}
         </button>
         {copyAll && <CopyButton text={copyAll} label="Copier tout" />}
+        <SpeakersBadge speakers={script.speakers ?? s.analysis?.speakers} />
+        <select className="select select-sm !w-auto !h-[28px]" value={script.speakers ?? s.analysis?.speakers ?? "solo"} onChange={(e) => update({ speakers: e.target.value as SwipeScript["speakers"] })} title="Corriger si la détection s'est trompée">
+          <option value="solo">1 personne</option>
+          <option value="dialogue">2 personnes</option>
+        </select>
         <span className="dim text-[12px] ml-auto">
           {savedAt ? `Enregistré ${fmtDateTime(savedAt).slice(-5)}` : script.generatedAt ? `Généré le ${fmtDateTime(script.generatedAt)}` : "Sauvegarde automatique"}
           {words ? ` · ${words} mots ≈ ${estSec} s` : ""}
         </span>
       </div>
 
-      {!s.analysis && <p className="dim text-[12.5px]">Décortique d&apos;abord le contenu (onglet Source) : le script part de l&apos;adaptation. Tu peux aussi l&apos;écrire à la main ci-dessous.</p>}
+      {!s.analysis && !s.transcriptInput && <p className="dim text-[12.5px]">Colle ou transcris d&apos;abord la vidéo (onglet Source) : le script, c&apos;est le sien, mot pour mot. Tu peux aussi le coller à la main ci-dessous.</p>}
 
       <div>
         <div className="flex items-center justify-between gap-2 mb-1.5">
-          <span className="label-xs">Hook · 1 à 2 phrases, mot pour mot</span>
+          <span className="label-xs">Hook · celui de la vidéo, mot pour mot</span>
           {script.hook && <CopyButton text={script.hook} />}
         </div>
-        <textarea className="textarea w-full text-[14px] font-medium" rows={2} value={script.hook} onChange={(e) => update({ hook: e.target.value })} placeholder="Ce que je dis dans les 3 premières secondes." />
+        <textarea className="textarea w-full text-[14px] font-medium leading-relaxed" rows={2} value={script.hook} onChange={(e) => update({ hook: e.target.value })} placeholder="Les premières phrases de la vidéo, telles quelles." />
       </div>
 
       <div>
         <div className="flex items-center justify-between gap-2 mb-1.5">
-          <span className="label-xs">Corps · une bullet par ligne, chaque ligne avec son chiffre ou sa raison</span>
+          <span className="label-xs">Corps · le texte de la vidéo, une idée par ligne{(script.speakers ?? s.analysis?.speakers) === "dialogue" ? " · A : / B :" : ""}</span>
           {script.bullets.length > 0 && <CopyButton text={script.bullets.map((b) => `• ${b}`).join("\n")} />}
         </div>
         <textarea
-          className="textarea w-full"
+          className="textarea w-full leading-[1.9]"
           rows={Math.max(4, bulletsText.split("\n").length + 1)}
           value={bulletsText}
           onChange={(e) => {
             setBulletsText(e.target.value);
             update({}, { bullets: e.target.value });
           }}
-          placeholder={"3 pubs testées, 1 seule rentable\n47 € de marge par commande\n…"}
+          placeholder={"Une ligne par idée, dans les mots de la vidéo.\nA : … / B : … si deux personnes se parlent."}
         />
       </div>
 
       <div>
         <div className="flex items-center justify-between gap-2 mb-1.5">
-          <span className="label-xs">CTA · 1 phrase, mot pour mot</span>
+          <span className="label-xs">CTA · le sien, mot pour mot</span>
           {script.cta && <CopyButton text={script.cta} />}
         </div>
-        <textarea className="textarea w-full" rows={2} value={script.cta} onChange={(e) => update({ cta: e.target.value })} placeholder="Ce que je demande à la fin." />
+        <textarea className="textarea w-full leading-relaxed" rows={2} value={script.cta} onChange={(e) => update({ cta: e.target.value })} placeholder="La phrase de fin de la vidéo, telle quelle." />
       </div>
 
       <div className="grid sm:grid-cols-[1fr_140px] gap-3">

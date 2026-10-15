@@ -964,7 +964,14 @@ export const SWIPE_PROD_LABEL: Record<SwipeProdStatus, string> = {
   publie: "Publié",
 };
 
-/** Le script court a tourner : hook mot pour mot, corps en bullets, CTA. */
+/** Une personne face camera, ou deux personnes qui se parlent. */
+export type SwipeSpeakers = "solo" | "dialogue";
+
+/**
+ * Le script a tourner : celui de la video d'origine, mis en forme (hook mot
+ * pour mot, corps ligne par ligne, CTA). Rien n'est reecrit : le user
+ * reprend le contenu des autres tel quel, c'est le hook qui a marche.
+ */
 export interface SwipeScript {
   hook: string;
   /** Une ligne par bullet, chacune avec son chiffre ou sa raison. */
@@ -974,6 +981,8 @@ export interface SwipeScript {
   screenText: string[];
   /** Duree cible en secondes. */
   durationSec: number;
+  /** Une personne, ou deux personnes qui se parlent (lignes prefixees A : / B :). */
+  speakers?: SwipeSpeakers;
   /** Genere par l'IA le… (vide si ecrit a la main). */
   generatedAt: string;
   updatedAt: string;
@@ -1014,6 +1023,8 @@ export interface SwipeAnalysis {
   format?: SwipeFormat | "";
   /** Confiance du classement, 0 a 100. */
   confiance?: number;
+  /** Une personne face camera, ou deux personnes qui se parlent. */
+  speakers?: SwipeSpeakers;
 }
 
 export interface Swipe {

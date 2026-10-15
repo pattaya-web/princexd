@@ -8,6 +8,7 @@ import { ThumbImg, VideoThumb } from "@/components/MediaThumb";
 import { WEEK_STEPS, WEEK_STEP_LABEL, type WeekProgress } from "@/lib/swipe-week";
 import type { ToEditRow } from "@/app/api/swipe/week/route";
 import type { SwipeStage } from "@/lib/types";
+import { SpeakersBadge } from "@/components/SwipeProduction";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -170,6 +171,7 @@ export function WeekBlock({ variant = "full", editor = false }: { variant?: "ful
                     )}
                     <span className="text-[13.5px] font-semibold">{row.script?.hook || row.title}</span>
                     {row.script?.durationSec ? <span className="dim text-[12px]">· {row.script.durationSec} s</span> : null}
+                    <SpeakersBadge speakers={row.script?.speakers} />
                     <span className="ml-auto flex items-center gap-1.5">
                       {row.editJobId ? (
                         <Link href="/monteur" className="btn btn-sm" title={`Dossier « ${row.editJobTitle} »`}>

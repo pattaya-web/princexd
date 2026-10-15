@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api, useCollection } from "@/lib/client";
 import { Card, Empty, PageHeader, Spinner, useToast } from "@/components/ui";
 import { STAGE_COLOR, useWeek } from "@/components/WeekBlock";
+import { SpeakersBadge } from "@/components/SwipeProduction";
 import { SWIPE_STAGES, swipeProdStatus, swipeStage, type Swipe, type SwipeStage } from "@/lib/types";
 
 /**
@@ -189,6 +190,7 @@ export default function TournagePage() {
               {todo.findIndex((x) => x.id === currentSwipe.id) + 1} / {todo.length}
               {currentSwipe.script?.durationSec ? ` · ${currentSwipe.script.durationSec} s` : ""}
             </span>
+            <SpeakersBadge speakers={currentSwipe.script?.speakers} className="!bg-transparent !text-white !border-white/30" />
             {currentSwipe.script?.screenText?.length ? (
               <span className="opacity-70 hidden md:inline truncate">Écran : {currentSwipe.script.screenText.join(" · ")}</span>
             ) : null}

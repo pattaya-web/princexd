@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     analysis.etape = (SWIPE_STAGES as string[]).includes(etape) ? (etape as SwipeStage) : undefined;
     const format = String(analysis.format ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
     analysis.format = (SWIPE_FORMATS as readonly string[]).includes(format) ? (format as SwipeFormat) : "";
+    analysis.speakers = String(analysis.speakers ?? "").toLowerCase().includes("dialog") ? "dialogue" : "solo";
     const confiance = Number(analysis.confiance);
     analysis.confiance = Number.isFinite(confiance) ? Math.min(100, Math.max(0, Math.round(confiance))) : 0;
 
