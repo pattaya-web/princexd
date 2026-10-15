@@ -22,6 +22,8 @@ import { peekClaims, SESSION_COOKIE } from "@/lib/sales/session";
  * compte. Le reste (CRM, ventes, reglages) lui reste ferme.
  */
 const EDITOR_PAGES = ["/monteur", "/studio"];
+/** Collections ouvertes au monteur en lecture seule (GET). */
+const EDITOR_READ_APIS = ["/api/data/testimonials"];
 const EDITOR_APIS = [
   "/api/auth/editor",
   "/api/sales/session",
@@ -121,6 +123,8 @@ export function middleware(req: NextRequest) {
 
   if (role === "editor") {
     if (matches(pathname, EDITOR_PAGES) || matches(pathname, EDITOR_APIS)) return NextResponse.next();
+    // Temoignages : le monteur y pioche (lecture), il n'y touche pas.
+    if (matches(pathname, EDITOR_READ_APIS) && req.method === "GET") return NextResponse.next();
     return deny(req, "/monteur");
   }
 

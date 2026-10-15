@@ -630,6 +630,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             section: "Montage",
             items: [
               { href: "/monteur", label: "Mes vidéos à monter", icon: "✂", extra: <BrollNavBadge /> },
+              { href: "/monteur/temoignages", label: "Témoignages", icon: "★" },
               { href: "/studio?kind=swap", label: "Swap vidéo (IA)", icon: "✦" },
               { href: "/studio?kind=talk", label: "Photo qui parle", icon: "◉" },
             ],
