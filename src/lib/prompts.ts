@@ -11,6 +11,8 @@ export interface AnalyzeArgs {
   author: string;
   caption: string;
   transcript: string;
+  /** Texte incruste a l'ecran, si l'utilisateur l'a saisi. */
+  screenText?: string;
   brandContext: string;
 }
 
@@ -30,6 +32,10 @@ ${a.caption || "(vide)"}
 """
 ${a.transcript || "(vide — déduis ce que tu peux de la légende, et signale-le dans transcriptOriginal)"}
 """
+- Texte à l'écran :
+"""
+${a.screenText?.trim() || "(non fourni)"}
+"""
 
 # Ce que je veux
 1. Reconstitue le SCRIPT COMPLET, nettoyé (ponctuation, phrases finies, sans "euh"), dans sa langue d'origine.
@@ -42,6 +48,32 @@ ${a.transcript || "(vide — déduis ce que tu peux de la légende, et signale-l
 7. Adapte tout ça à MA marque : un script français prêt à tourner pour vendre mon coaching e-commerce.
 8. Donne 5 hooks alternatifs testables.
 9. Donne des prompts prêts à coller dans un générateur d'images et de vidéos IA pour produire le B-roll de cette vidéo (en anglais, très descriptifs).
+10. Classe le Reel selon l'étape du funnel qu'il sert, pour un coach e-commerce (coaching 1:1 dropshipping + IA, vendu via une masterclass puis un appel).
+
+# Classement funnel — UNE SEULE étape
+TOFU (attirer des inconnus)
+- Un inconnu total peut regarder jusqu'au bout et comprendre sans aucun contexte
+- Hook universel : argent, réussite, Dubaï, polémique, parcours
+- Zéro vocabulaire technique e-commerce
+- Aucune mention d'offre, de coaching, d'élèves
+- Formats typiques : tier_list, choix_binaire, hot_take, reaction, anecdote_parcours, chiffre_choc, lifestyle_punchline
+
+MOFU (prouver la méthode à ceux qui suivent déjà)
+- Le Reel montre un process, un écran, une méthode, ou enseigne quelque chose de concret
+- Vocabulaire e-commerce assumé (adset, ROAS, fiche produit, fournisseur, créa)
+- CTA du type « commente X » pour recevoir une ressource, un PDF, une masterclass
+- Formats typiques : tuto_ecran, reponse_commentaire, decryptage, erreur_correction, a_ta_place, coulisses
+
+BOFU (lever les objections, pousser vers l'appel)
+- Le Reel parle de l'offre, des élèves, des résultats, des objections, ou du coach en tant que coach
+- CTA direct : lien bio, réserve ton appel, DM, rejoins
+- Formats typiques : resultat_eleve, objection, pour_qui, comment_ca_se_passe, garantie, urgence
+
+Règles de décision :
+- Un Reel est BOFU uniquement si l'offre, un élève ou une objection est le SUJET PRINCIPAL ou le CTA. Une mention en passant (un élève cité en exemple dans un tuto) ne change pas l'étape.
+- Sinon, s'il montre ou enseigne un process → MOFU
+- Sinon → TOFU
+- En cas d'hésitation TOFU/MOFU, prends MOFU.
 
 # Format de sortie — JSON strict
 {
@@ -69,10 +101,14 @@ ${a.transcript || "(vide — déduis ce que tu peux de la légende, et signale-l
   "imagePrompts": ["prompt image 1 en anglais", "prompt image 2"],
   "videoPrompts": ["prompt vidéo 1 en anglais", "prompt vidéo 2"],
   "formatRecommande": "le format dans lequel je devrais le tourner (reel face cam, voix off + B-roll, screen record, carrousel...)",
-  "scoreViralite": 0
+  "scoreViralite": 0,
+  "etape": "TOFU | MOFU | BOFU",
+  "format": "un seul parmi : tier_list, choix_binaire, hot_take, reaction, anecdote_parcours, chiffre_choc, lifestyle_punchline, tuto_ecran, reponse_commentaire, decryptage, erreur_correction, a_ta_place, coulisses, resultat_eleve, objection, pour_qui, comment_ca_se_passe, garantie, urgence",
+  "confiance": 0
 }
 
-scoreViralite = note de 0 à 100 du potentiel de ce contenu réadapté à ma niche.`;
+scoreViralite = note de 0 à 100 du potentiel de ce contenu réadapté à ma niche.
+confiance = de 0 à 100, ta certitude sur l'étape du funnel.`;
 }
 
 export const SYSTEM_STORY = `Tu es un ghostwriter de stories Instagram pour un coach e-commerce.

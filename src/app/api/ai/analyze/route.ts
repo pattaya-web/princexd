@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { askText, KieError, parseJsonLoose } from "@/lib/kie";
 import { getSettings, readDB, writeDB } from "@/lib/db";
 import { buildAnalyzePrompt, SYSTEM_ANALYST } from "@/lib/prompts";
-import type { SwipeAnalysis } from "@/lib/types";
+import { SWIPE_FORMATS, SWIPE_STAGES, type SwipeAnalysis, type SwipeFormat, type SwipeStage } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -26,12 +26,20 @@ export async function POST(req: NextRequest) {
     author: swipe.author,
     caption: swipe.caption,
     transcript: swipe.transcriptInput,
+    screenText: swipe.screenTextInput ?? "",
     brandContext: getSettings().brandContext,
   });
 
   try {
     const raw = await askText(prompt, SYSTEM_ANALYST, 12000);
     const analysis = parseJsonLoose<SwipeAnalysis>(raw);
+    // Classement funnel : on ne garde que des valeurs connues, le reste est vide.
+    const etape = String(analysis.etape ?? "").trim().toUpperCase();
+    analysis.etape = (SWIPE_STAGES as string[]).includes(etape) ? (etape as SwipeStage) : undefined;
+    const format = String(analysis.format ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+    analysis.format = (SWIPE_FORMATS as readonly string[]).includes(format) ? (format as SwipeFormat) : "";
+    const confiance = Number(analysis.confiance);
+    analysis.confiance = Number.isFinite(confiance) ? Math.min(100, Math.max(0, Math.round(confiance))) : 0;
 
     const fresh = readDB();
     const target = fresh.swipes.find((s) => s.id === swipeId);

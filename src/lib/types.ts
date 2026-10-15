@@ -915,6 +915,35 @@ export interface AdFolder {
 }
 
 /** Analyse structurée renvoyée par l'IA sur un contenu swipé. */
+/** Etape du funnel servie par un Reel (classement des swipes, 2026-10-15). */
+export type SwipeStage = "TOFU" | "MOFU" | "BOFU";
+export const SWIPE_STAGES: SwipeStage[] = ["TOFU", "MOFU", "BOFU"];
+/** Formats reconnus par le classement, un seul par Reel. */
+export const SWIPE_FORMATS = [
+  "tier_list",
+  "choix_binaire",
+  "hot_take",
+  "reaction",
+  "anecdote_parcours",
+  "chiffre_choc",
+  "lifestyle_punchline",
+  "tuto_ecran",
+  "reponse_commentaire",
+  "decryptage",
+  "erreur_correction",
+  "a_ta_place",
+  "coulisses",
+  "resultat_eleve",
+  "objection",
+  "pour_qui",
+  "comment_ca_se_passe",
+  "garantie",
+  "urgence",
+] as const;
+export type SwipeFormat = (typeof SWIPE_FORMATS)[number];
+/** En dessous, le classement automatique est marque « a verifier ». */
+export const SWIPE_CONFIDENCE_MIN = 70;
+
 export interface SwipeAnalysis {
   language: string;
   transcriptOriginal: string;
@@ -935,6 +964,13 @@ export interface SwipeAnalysis {
   videoPrompts: string[];
   formatRecommande: string;
   scoreViralite: number;
+  /* --- Classement funnel (2026-10-15) --- */
+  /** TOFU / MOFU / BOFU, decide par le modele. */
+  etape?: SwipeStage;
+  /** Format parmi SWIPE_FORMATS, vide si le modele n'a rien reconnu. */
+  format?: SwipeFormat | "";
+  /** Confiance du classement, 0 a 100. */
+  confiance?: number;
 }
 
 export interface Swipe {
@@ -946,10 +982,19 @@ export interface Swipe {
   caption: string;
   thumbnail: string;
   transcriptInput: string;
+  /** Texte incruste a l'ecran, saisi a la main (optionnel), donne au classement. */
+  screenTextInput?: string;
   tags: string;
   analysis: SwipeAnalysis | null;
   status: "a-analyser" | "analyse" | "a-tourner" | "fait";
+  /** Etape corrigee a la main : prime toujours sur `analysis.etape`. */
+  etapeManuelle?: SwipeStage | "";
   createdAt: string;
+}
+
+/** Etape retenue pour un swipe : la correction manuelle d'abord, sinon l'auto. */
+export function swipeStage(s: Pick<Swipe, "etapeManuelle" | "analysis">): SwipeStage | "" {
+  return s.etapeManuelle || s.analysis?.etape || "";
 }
 
 export interface Generation {
