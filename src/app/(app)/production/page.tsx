@@ -10,6 +10,7 @@ import { CreatorPlayer, DownloadButton } from "@/components/CreatorPlayer";
 import { fmtCompact, PROD_FOLDERS } from "@/lib/format";
 import type { ProdFolder, SavedItem } from "@/lib/types";
 import { SkPage } from "@/components/Skeleton";
+import { WeekBlock } from "@/components/WeekBlock";
 
 const FOLDER_TABS = [{ value: "", label: "Tous" }, ...PROD_FOLDERS.map((f) => ({ ...f }))];
 
@@ -404,6 +405,8 @@ export default function ProductionPage() {
       <PageHeader
         title="Production"
       />
+
+      <WeekBlock variant="compact" />
 
       <div className="mb-4">
         <QuickAdd onAdded={() => void saved.reload()} />

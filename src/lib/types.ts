@@ -255,6 +255,8 @@ export interface Settings {
   telegramLastReminderAt?: string;
   /** Derniere erreur du bot (jeton faux, reseau), affichee dans Reglages. */
   telegramLastError?: string;
+  /** Cadence cible de Reels par semaine et par etape (defaut 15 / 5 / 5). */
+  weeklyReelTargets?: WeeklyReelTargets;
 }
 
 /** Rappels Telegram envoyes aux setters pendant leurs heures de travail. */
@@ -846,6 +848,8 @@ export interface EditJob {
    * ils arrivent par lien.
    */
   deliveryUrl: string;
+  /** Swipe d'origine (script court, assets IA), quand le dossier vient de la swipe file. */
+  swipeId?: string;
   /** Fil de discussion léger entre moi et le monteur. */
   comments: { author: string; text: string; at: string }[];
   deliveredAt: string;
@@ -944,6 +948,45 @@ export type SwipeFormat = (typeof SWIPE_FORMATS)[number];
 /** En dessous, le classement automatique est marque « a verifier ». */
 export const SWIPE_CONFIDENCE_MIN = 70;
 
+/*
+ * Chaine de production d'un Reel (2026-10-15) : chaque swipe avance de
+ * « source » a « publie », avec la date de chaque passage. C'est cette chaine
+ * qui alimente le bloc « Semaine en cours » partout dans le tool.
+ */
+export type SwipeProdStatus = "source" | "scripte" | "a-tourner" | "tourne" | "monte" | "publie";
+export const SWIPE_PROD_STATUSES: SwipeProdStatus[] = ["source", "scripte", "a-tourner", "tourne", "monte", "publie"];
+export const SWIPE_PROD_LABEL: Record<SwipeProdStatus, string> = {
+  source: "Sourcé",
+  scripte: "Scripté",
+  "a-tourner": "À tourner",
+  tourne: "Tourné",
+  monte: "Monté",
+  publie: "Publié",
+};
+
+/** Le script court a tourner : hook mot pour mot, corps en bullets, CTA. */
+export interface SwipeScript {
+  hook: string;
+  /** Une ligne par bullet, chacune avec son chiffre ou sa raison. */
+  bullets: string[];
+  cta: string;
+  /** Textes a incruster, courts. */
+  screenText: string[];
+  /** Duree cible en secondes. */
+  durationSec: number;
+  /** Genere par l'IA le… (vide si ecrit a la main). */
+  generatedAt: string;
+  updatedAt: string;
+}
+
+/** Objectif de Reels par semaine et par etape du funnel. */
+export interface WeeklyReelTargets {
+  TOFU: number;
+  MOFU: number;
+  BOFU: number;
+}
+export const DEFAULT_WEEKLY_TARGETS: WeeklyReelTargets = { TOFU: 15, MOFU: 5, BOFU: 5 };
+
 export interface SwipeAnalysis {
   language: string;
   transcriptOriginal: string;
@@ -989,7 +1032,20 @@ export interface Swipe {
   status: "a-analyser" | "analyse" | "a-tourner" | "fait";
   /** Etape corrigee a la main : prime toujours sur `analysis.etape`. */
   etapeManuelle?: SwipeStage | "";
+  /* --- Chaine de production (2026-10-15) --- */
+  /** Absent = « source ». */
+  prodStatus?: SwipeProdStatus;
+  /** Date du passage a chaque statut (ISO). */
+  prodDates?: Partial<Record<SwipeProdStatus, string>>;
+  /** Le script court a tourner (onglet « Mon script »). */
+  script?: SwipeScript | null;
+  /** Dossier de montage rattache (rushs du monteur). */
+  editJobId?: string;
   createdAt: string;
+}
+
+export function swipeProdStatus(s: Pick<Swipe, "prodStatus">): SwipeProdStatus {
+  return s.prodStatus ?? "source";
 }
 
 /** Etape retenue pour un swipe : la correction manuelle d'abord, sinon l'auto. */
@@ -1012,6 +1068,10 @@ export interface Generation {
   progress: number;
   /** Duree reelle de generation en secondes, une fois la tache finie. */
   costTimeSec: number;
+  /** Generation lancee depuis un swipe (prompts IA inline) : le swipe et le prompt d'origine. */
+  swipeId?: string;
+  /** « image:0 », « video:2 » : l'index du prompt dans l'analyse. */
+  swipeSlot?: string;
   createdAt: string;
   updatedAt: string;
 }

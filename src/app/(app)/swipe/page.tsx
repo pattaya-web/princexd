@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { api, useCollection } from "@/lib/client";
 import { Card, CopyButton, Empty, ErrorNote, Field, InfoNote, PageHeader, Spinner, Tabs, useToast } from "@/components/ui";
 import { label, relative } from "@/lib/format";
-import { SWIPE_CONFIDENCE_MIN, SWIPE_STAGES, swipeStage, type Post, type Swipe, type SwipeAnalysis, type SwipeStage } from "@/lib/types";
+import { SWIPE_CONFIDENCE_MIN, SWIPE_PROD_LABEL, SWIPE_STAGES, swipeProdStatus, swipeStage, type Post, type Swipe, type SwipeAnalysis, type SwipeProdStatus, type SwipeScript, type SwipeStage } from "@/lib/types";
+import { WeekBlock } from "@/components/WeekBlock";
+import { MyScriptPanel, ProdStepper, PromptsInline } from "@/components/SwipeProduction";
 
 /*
  * Swipe file : les Reels de concurrents qu'on decortique.
@@ -17,7 +18,7 @@ import { SWIPE_CONFIDENCE_MIN, SWIPE_STAGES, swipeStage, type Post, type Swipe, 
  * main et la correction prime toujours sur l'auto (`etapeManuelle`).
  */
 
-type Panel = "source" | "script" | "mecanique" | "plans" | "adaptation" | "prompts";
+type Panel = "source" | "monscript" | "script" | "mecanique" | "plans" | "adaptation" | "prompts";
 type Filter = "all" | SwipeStage | "check" | "none";
 
 const STAGE_COLOR: Record<SwipeStage, string> = { TOFU: "#3b82f6", MOFU: "#a855f7", BOFU: "#22c55e" };
@@ -113,7 +114,7 @@ export default function SwipePage() {
     setSelectedId(s.id);
     setTranscript(s.transcriptInput);
     setScreenText(s.screenTextInput ?? "");
-    setPanel(s.analysis ? "mecanique" : "source");
+    setPanel(s.script ? "monscript" : s.analysis ? "mecanique" : "source");
     setError(null);
   };
 
@@ -245,6 +246,8 @@ export default function SwipePage() {
         subtitle="Colle le lien d'un Reel qui marche. Le tool sort le script, le classe TOFU / MOFU / BOFU, isole les plans à filmer et te le réécrit pour ta niche."
       />
 
+      <WeekBlock />
+
       <Card className="mb-4">
         <div className="flex flex-wrap gap-2">
           <input
@@ -320,6 +323,7 @@ export default function SwipePage() {
                       <span className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <StageBadge s={s} small />
                         {s.analysis?.format && <span className="badge !text-[10px] !py-0">{FORMAT_LABEL[s.analysis.format] ?? s.analysis.format}</span>}
+                        {swipeProdStatus(s) !== "source" && <span className="badge badge-accent !text-[10px] !py-0">{SWIPE_PROD_LABEL[swipeProdStatus(s)]}</span>}
                         <span className="badge !text-[10px] !py-0">{s.platform}</span>
                         {!s.analysis && <span className="badge badge-warn !text-[10px] !py-0">{label(s.status)}</span>}
                       </span>
@@ -383,18 +387,25 @@ export default function SwipePage() {
                   </select>
                 </div>
               )}
-              <div className="px-4 pt-3.5">
+              <div className="px-4 pt-3">
+                <ProdStepper
+                  s={selected}
+                  onChange={(status, dates) => setRows((prev) => prev.map((x) => (x.id === selected.id ? { ...x, prodStatus: status, prodDates: dates } : x)))}
+                />
+              </div>
+              <div className="px-4 pt-3">
                 <Tabs
                   value={panel}
                   onChange={setPanel}
                   options={[
                     { value: "source", label: "Source" },
+                    { value: "monscript", label: "Mon script" },
                     ...(selected.analysis
                       ? ([
                           { value: "mecanique", label: "Mécanique" },
                           { value: "script", label: "Script + traduction" },
                           { value: "plans", label: "Plans à filmer" },
-                          { value: "adaptation", label: "Mon script" },
+                          { value: "adaptation", label: "Adaptation IA" },
                           { value: "prompts", label: "Prompts IA" },
                         ] as { value: Panel; label: string }[])
                       : []),
@@ -441,11 +452,23 @@ export default function SwipePage() {
                   </div>
                 )}
 
+                {panel === "monscript" && (
+                  <MyScriptPanel
+                    key={selected.id}
+                    s={selected}
+                    onPatch={async (p) => {
+                      await patch(selected.id, p);
+                    }}
+                    onGenerated={(script: SwipeScript, status: SwipeProdStatus, dates) =>
+                      setRows((prev) => prev.map((x) => (x.id === selected.id ? { ...x, script, prodStatus: status, prodDates: dates, status: x.status === "a-analyser" ? "analyse" : x.status } : x)))
+                    }
+                  />
+                )}
                 {selected.analysis && panel === "script" && <ScriptPanel a={selected.analysis} />}
                 {selected.analysis && panel === "mecanique" && <MechanicsPanel a={selected.analysis} />}
                 {selected.analysis && panel === "plans" && <ShotsPanel a={selected.analysis} />}
                 {selected.analysis && panel === "adaptation" && <AdaptationPanel a={selected.analysis} onCreatePost={() => void toPost()} />}
-                {selected.analysis && panel === "prompts" && <PromptsPanel a={selected.analysis} />}
+                {selected.analysis && panel === "prompts" && <PromptsInline a={selected.analysis} swipeId={selected.id} />}
               </div>
             </Card>
           </div>
@@ -630,36 +653,6 @@ function AdaptationPanel({ a, onCreatePost }: { a: SwipeAnalysis; onCreatePost: 
           </ul>
         </div>
       )}
-    </div>
-  );
-}
-
-function PromptsPanel({ a }: { a: SwipeAnalysis }) {
-  const section = (title: string, prompts: string[], kind: "image" | "video") =>
-    prompts?.length ? (
-      <div>
-        <span className="label-xs block mb-2">{title}</span>
-        <div className="flex flex-col gap-2">
-          {prompts.map((p, i) => (
-            <div key={i} className="card-flat p-2.5 flex flex-col gap-2">
-              <p className="mono text-[12px] leading-relaxed muted">{p}</p>
-              <div className="flex gap-1.5 justify-end">
-                <CopyButton text={p} />
-                <Link href={`/studio?kind=${kind}&prompt=${encodeURIComponent(p)}`} className="btn btn-sm btn-primary">
-                  Générer →
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    ) : null;
-
-  return (
-    <div className="flex flex-col gap-5">
-      {section("Prompts image", a.imagePrompts, "image")}
-      {section("Prompts vidéo (B-roll)", a.videoPrompts, "video")}
-      {!a.imagePrompts?.length && !a.videoPrompts?.length && <Empty>Aucun prompt généré pour ce contenu.</Empty>}
     </div>
   );
 }

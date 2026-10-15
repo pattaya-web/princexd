@@ -6,6 +6,7 @@ import { useCollection } from "@/lib/client";
 import { MontageDrive } from "@/components/MontageDrive";
 import { useBrollFresh } from "@/components/BrollLibrary";
 import { PageHeader } from "@/components/ui";
+import { WeekBlock } from "@/components/WeekBlock";
 import type { EditJob } from "@/lib/types";
 
 /**
@@ -96,6 +97,9 @@ export default function MonteurPage() {
           des retouches, le dossier revient dans « À monter » avec un badge <strong>Retouches</strong> et son commentaire.
         </Step>
       </div>
+
+      {/* La semaine : objectifs par etape, et les Reels tournes qui attendent un montage (script, texte ecran, duree, rushs, assets IA). */}
+      <WeekBlock editor />
 
       <MontageDrive role="editor" />
     </>

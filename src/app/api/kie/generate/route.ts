@@ -33,7 +33,7 @@ function explain(msg: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const { model, input } = (await req.json()) as { model: string; input: Record<string, unknown> };
+  const { model, input, swipeId, swipeSlot } = (await req.json()) as { model: string; input: Record<string, unknown>; swipeId?: string; swipeSlot?: string };
   const def = getModel(model);
   if (!def) return NextResponse.json({ error: `Modèle inconnu : ${model}` }, { status: 400 });
 
@@ -96,6 +96,8 @@ export async function POST(req: NextRequest) {
       failMsg: "",
       progress: 0,
       costTimeSec: 0,
+      // Prompts IA d'un swipe : le resultat reste rattache a sa fiche.
+      ...(swipeId ? { swipeId: String(swipeId), swipeSlot: String(swipeSlot ?? "") } : {}),
       updatedAt: new Date().toISOString(),
     }) as unknown as Generation;
     return NextResponse.json(row);

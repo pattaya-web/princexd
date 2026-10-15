@@ -697,6 +697,30 @@ const VIDEO: ModelDef[] = [
     ],
   },
   {
+    /*
+     * Seedance 2.5 (2026-10-15) : le modele de l'onglet Creation du Studio,
+     * ici en texte-vers-video pour le B-roll genere depuis un swipe. Tarif
+     * releve dans CREATION (studio/config.ts) : 50 credits / s en 720p.
+     */
+    id: "bytedance/seedance-2-5",
+    name: "Seedance 2.5",
+    kind: "video",
+    vendor: "ByteDance",
+    blurb: "Le plus récent : B-roll réaliste depuis un simple texte, 9:16, avec ou sans son.",
+    approxCredits: 300,
+    creditsPerSec: 50,
+    best: true,
+    fields: [
+      promptField("Close-up of hands unboxing a parcel on a kitchen table, morning light, handheld phone footage."),
+      { key: "first_frame_url", label: "Première image (facultatif)", type: "file", accept: "image" },
+      { key: "reference_image_urls", label: "Images de référence", type: "files", accept: "image", max: 9 },
+      resolutionSel(["480p", "720p", "1080p"], "720p"),
+      aspectVid(["9:16", "16:9", "1:1", "adaptive"], "9:16"),
+      { key: "duration", label: "Durée (s)", type: "number", default: 6 , compact: true },
+      { key: "generate_audio", label: "Générer le son", type: "select", options: ["true", "false"], default: "false" , compact: true },
+    ],
+  },
+  {
     id: "bytedance/seedance-2",
     name: "Seedance 2",
     kind: "video",

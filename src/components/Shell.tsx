@@ -455,6 +455,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/content", label: "Content", icon: "◫" },
       { href: "/production", label: "Production", icon: "▣" },
       { href: "/swipe", label: "Swipe file", icon: "⇥" },
+      { href: "/swipe/tournage", label: "Tournage", icon: "🎬" },
     ],
   },
   {

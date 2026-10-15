@@ -22,8 +22,8 @@ import { peekClaims, SESSION_COOKIE } from "@/lib/sales/session";
  * compte. Le reste (CRM, ventes, reglages) lui reste ferme.
  */
 const EDITOR_PAGES = ["/monteur", "/studio"];
-/** Collections ouvertes au monteur en lecture seule (GET). */
-const EDITOR_READ_APIS = ["/api/data/testimonials"];
+/** Collections et vues ouvertes au monteur en lecture seule (GET). */
+const EDITOR_READ_APIS = ["/api/data/testimonials", "/api/swipe/week", "/api/swipe/assets"];
 const EDITOR_APIS = [
   "/api/auth/editor",
   "/api/sales/session",
@@ -42,6 +42,8 @@ const EDITOR_APIS = [
   "/api/higgsfield/balance",
   "/api/thumb",
   "/api/ai/image-edit",
+  // Le monteur marque un Reel « monte » depuis son espace (la route ne lui permet que ca).
+  "/api/swipe/status",
 ];
 
 /*

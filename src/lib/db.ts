@@ -67,6 +67,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // Calendrier iClosed de l'admin : chaque setter recoit ce lien signe a son nom.
   salesBookingUrl: "https://app.iclosed.io/e/mvdyprince/appel-individuel-royalscale",
   salesLastSyncAt: "",
+  weeklyReelTargets: { TOFU: 15, MOFU: 5, BOFU: 5 },
 };
 
 const EMPTY_DB: DB = {

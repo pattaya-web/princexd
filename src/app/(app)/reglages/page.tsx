@@ -238,6 +238,28 @@ export default function ReglagesPage() {
             </div>
           </Card>
 
+          {/* Cadence de Reels : le bloc « Semaine en cours » compte contre ces objectifs. */}
+          <Card title="Cadence de Reels par semaine" subtitle="Objectif par étape du funnel. La semaine commence le lundi ; les statuts viennent de la Swipe file (Mon script → À tourner → Tourné → Monté → Publié).">
+            <div className="grid grid-cols-3 gap-3">
+              {(["TOFU", "MOFU", "BOFU"] as const).map((st) => (
+                <Field key={st} label={st}>
+                  <input
+                    className="input num"
+                    type="number"
+                    min={0}
+                    value={s.weeklyReelTargets?.[st] ?? { TOFU: 15, MOFU: 5, BOFU: 5 }[st]}
+                    onChange={(e) =>
+                      set("weeklyReelTargets", { ...({ TOFU: 15, MOFU: 5, BOFU: 5 }), ...(s.weeklyReelTargets ?? {}), [st]: Math.max(0, Math.round(Number(e.target.value) || 0)) })
+                    }
+                  />
+                </Field>
+              ))}
+            </div>
+            <p className="dim text-[12px] mt-2">
+              Total : {(s.weeklyReelTargets?.TOFU ?? 15) + (s.weeklyReelTargets?.MOFU ?? 5) + (s.weeklyReelTargets?.BOFU ?? 5)} Reels par semaine.
+            </p>
+          </Card>
+
           <Card title="Contexte de marque">
             <textarea
               className="textarea"

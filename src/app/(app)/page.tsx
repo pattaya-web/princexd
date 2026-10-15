@@ -9,6 +9,7 @@ import { DailyPanel, FormatPosts, GrowthPanel, IgProfileCard, RecentReels } from
 import { bestSlots, filterByKeywords, followerSeries, statsByDimension, verdictFormats } from "@/lib/analytics";
 import { fmtCompact, fmtDateTime, fmtEur, fmtInt, label, mondayISO, relative, todayISO, WEEKDAYS } from "@/lib/format";
 import { SkPage } from "@/components/Skeleton";
+import { WeekBlock } from "@/components/WeekBlock";
 import type {
   CallEvent,
   ProdFolder,
@@ -201,6 +202,9 @@ export default function DashboardPage() {
   return (
     <>
       <PageHeader title={`${WEEKDAYS[weekday]} ${todayLabel}`} />
+
+      {/* Cadence de Reels de la semaine : le meme bloc que sur Swipe file, Content, Production et l'espace monteur. */}
+      <WeekBlock />
 
       {ig && (
         <IgProfileCard

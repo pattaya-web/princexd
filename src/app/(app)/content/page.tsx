@@ -10,6 +10,7 @@ import { SaveMenu, Thumb } from "@/components/instagram";
 import { CreatorPlayer, DownloadButton } from "@/components/CreatorPlayer";
 import type { ContentAnalysis, Creator, CreatorPost, ProdFolder, SavedItem } from "@/lib/types";
 import { SkPage } from "@/components/Skeleton";
+import { WeekBlock } from "@/components/WeekBlock";
 
 type Sort = "engagement" | "comments" | "likes" | "recent";
 
@@ -204,6 +205,8 @@ export default function ContentPage() {
   return (
     <>
       <PageHeader title="Content" />
+
+      <WeekBlock variant="compact" />
 
       {/* Collage universel : c'est le point d'entrée de toute la page. */}
       <Card className="mb-4">

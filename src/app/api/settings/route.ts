@@ -114,6 +114,11 @@ export async function PATCH(req: NextRequest) {
     }
   }
   if (typeof body.salesTakeoverMin === "number" && !(body.salesTakeoverMin >= 0)) delete body.salesTakeoverMin;
+  if (body.weeklyReelTargets) {
+    const t = body.weeklyReelTargets as unknown as Record<string, unknown>;
+    const n = (v: unknown) => Math.max(0, Math.round(Number(v) || 0));
+    body.weeklyReelTargets = { TOFU: n(t.TOFU), MOFU: n(t.MOFU), BOFU: n(t.BOFU) };
+  }
   // Nouveau solde Higgsfield saisi : on date la saisie pour ne deduire que les rendus suivants.
   if (typeof body.higgsfieldBalanceUsd === "number") {
     if (body.higgsfieldBalanceUsd !== getSettings().higgsfieldBalanceUsd) body.higgsfieldBalanceAt = new Date().toISOString();
