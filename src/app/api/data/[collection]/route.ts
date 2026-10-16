@@ -25,6 +25,7 @@ const ALLOWED: CollectionName[] = [
   "adFolders",
   "studioCharacters",
   "testimonials",
+  "investments",
   "broll",
   "adBoards",
 ];

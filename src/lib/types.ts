@@ -1216,6 +1216,8 @@ export interface DB {
   workSessions: WorkSession[];
   /** Temoignages clients (captures, videos, audios) deposes en vrac pour les retrouver. */
   testimonials: Testimonial[];
+  /** Investissements business du proprietaire (accompagnements, contenu, outils). */
+  investments: BusinessInvestment[];
   /** Cases cochees de la liste de taches quotidienne, par membre et par jour. */
   taskChecks: TaskCheck[];
   /** Bibliotheque de B-roll partagee avec le monteur, hors dossiers de montage. */
@@ -1336,6 +1338,23 @@ export interface TaskCheck {
  * Un temoignage : un fichier depose (capture d'ecran d'un DM, video, vocal)
  * avec une note libre pour se souvenir de qui et de quoi il s'agit.
  */
+/**
+ * Investissement business (2026-10-16) : accompagnement, creation de
+ * contenu, outils… Ce que le proprietaire met dans le business, a part des
+ * pubs (Meta Ads). Liste datee, total sur le Pilotage.
+ */
+export interface BusinessInvestment {
+  id: ID;
+  label: string;
+  amount: number;
+  currency: string;
+  category: "accompagnement" | "contenu" | "outils" | "equipe" | "pub" | "autre";
+  /** « AAAA-MM-JJ ». */
+  at: string;
+  notes: string;
+  createdAt: string;
+}
+
 export interface Testimonial {
   id: ID;
   /** Nom du fichier d'origine. */

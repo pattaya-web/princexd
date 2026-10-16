@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { SourceChip } from "@/components/sales/AttributionBlock";
 import { AttentionCard } from "@/components/sales/DashboardBlocks";
+import { InvestmentsCard } from "@/components/sales/InvestmentsCard";
 import { Card, Empty, ErrorNote, Modal, PageHeader, Spinner, Tabs } from "@/components/ui";
 import { api, useLocalState } from "@/lib/client";
 import { fmtDate, fmtDateTime, fmtMoney, label as crmLabel } from "@/lib/format";
@@ -373,6 +374,10 @@ export default function SalesDashboardPage() {
                 {cf.upcoming.length ? <Due rows={cf.upcoming} tone="var(--accent)" /> : <div className="dim text-[12.5px] px-3.5 py-4">Les paiements en plusieurs fois apparaissent ici avec leur date.</div>}
               </Card>
             </div>
+          </Section>
+
+          <Section title="Investissements business" hint="hors publicité : accompagnements, contenu, outils">
+            <InvestmentsCard currency={currency} />
           </Section>
 
           {paidView && t.spend !== null && (

@@ -104,6 +104,7 @@ const EMPTY_DB: DB = {
   shifts: [],
   workSessions: [],
   testimonials: [],
+  investments: [],
   taskChecks: [],
   broll: [],
   adBoards: [],
