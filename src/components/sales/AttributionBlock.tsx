@@ -151,6 +151,17 @@ export function AttributionBlock({ lead, meta, booking, isAdmin, onChanged }: { 
         </dd>
         <dt className="dim">Funnel</dt>
         <dd>{lead.funnelSource ? funnelLabel(lead.funnelSource) : "—"}</dd>
+        {(lead.firstTouchUtmCampaign || lead.firstTouchUtmContent || lead.firstTouchUtmTerm || lead.firstTouchUtmSource) && (
+          <>
+            <dt className="dim">UTM</dt>
+            <dd className="min-w-0 text-[12px] flex flex-col gap-0.5">
+              {lead.firstTouchUtmCampaign && <span className="truncate" title={lead.firstTouchUtmCampaign}><span className="dim">campagne</span> {lead.firstTouchUtmCampaign}</span>}
+              {lead.firstTouchUtmContent && <span className="truncate" title={lead.firstTouchUtmContent}><span className="dim">contenu</span> {lead.firstTouchUtmContent}</span>}
+              {lead.firstTouchUtmTerm && <span className="truncate" title={lead.firstTouchUtmTerm}><span className="dim">terme</span> {lead.firstTouchUtmTerm}</span>}
+              {(lead.firstTouchUtmSource || lead.firstTouchUtmMedium) && <span className="dim mono text-[10.5px]">{[lead.firstTouchUtmSource, lead.firstTouchUtmMedium].filter(Boolean).join(" / ")}</span>}
+            </dd>
+          </>
+        )}
         {(lead.sourceChannel === "META_ADS" || lead.campaignId || lead.adId) && (
           <>
             <dt className="dim">Campagne</dt>

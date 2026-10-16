@@ -421,6 +421,11 @@ function LeadRow({ r, view, currency, busy, last, onStatus, onCall, onFuDone, on
           {r.phone || r.handle || r.email || "—"}
           {r.closerName ? ` · ${r.closerName}` : r.setterName ? ` · ${r.setterName}` : ""}
         </div>
+        {r.utm && (
+          <div className="text-[11px] truncate" style={{ color: "var(--accent)" }} title={`UTM du lien : ${r.utm}`}>
+            UTM · {r.utm}
+          </div>
+        )}
       </div>
 
       {/* Le statut */}

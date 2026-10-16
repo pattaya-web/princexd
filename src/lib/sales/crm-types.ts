@@ -93,6 +93,8 @@ export interface CrmRow {
   campaignName: string;
   adsetName: string;
   adName: string;
+  /** UTM lisibles du lien de campagne (campagne · contenu · terme), vide sans UTM. */
+  utm: string;
   setterId: string;
   setterName: string;
   closerId: string;

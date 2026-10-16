@@ -9,7 +9,7 @@ import type { Appointment, DB, FollowUp, Lead, Sale, Session } from "../types";
 import { canSee } from "./access";
 import { sessionHas } from "./roles";
 import { funnelLabel, SOURCE_CHANNEL_LABEL } from "./attribution";
-import { activeSale, leadBusiness } from "./business";
+import { activeSale, leadBusiness, utmName } from "./business";
 import { PAYMENT_STATE_LABEL, PAYMENT_STATE_TONE, paymentView } from "./installments";
 import { isoToParisInput, label as statusLabel, parisDay } from "../format";
 import type { CrmFollowUp, CrmOptions, CrmPayload, CrmRow, CrmSale, CrmTodo, FollowUpBucket, QuickView } from "./crm-types";
@@ -199,6 +199,7 @@ export function buildCrm(db: DB, session: Session): CrmPayload {
       campaignName: metaNames.campaigns.get(biz.campaignId) ?? biz.campaignName,
       adsetName: metaNames.adsets.get(biz.adsetId)?.name ?? biz.adsetName,
       adName: metaNames.ads.get(biz.adId)?.name ?? biz.adName,
+      utm: [utmName(lead.firstTouchUtmCampaign), utmName(lead.firstTouchUtmContent), utmName(lead.firstTouchUtmTerm)].filter((x, i, arr) => x && arr.indexOf(x) === i).join(" · "),
       setterId: appt?.setterId || lead.setterId || "",
       setterName: names.get(appt?.setterId || lead.setterId || "") ?? "",
       closerId: appt?.closerId || "",

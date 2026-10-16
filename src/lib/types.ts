@@ -257,6 +257,8 @@ export interface Settings {
   telegramLastError?: string;
   /** Cadence cible de Reels par semaine et par etape (defaut 15 / 5 / 5). */
   weeklyReelTargets?: WeeklyReelTargets;
+  /** Funnels v3 (2026-10-16) : LP organique = /lp-orga (l'ancienne /authenticitemady reste reconnue). Applique une fois. */
+  salesFunnelsV3At?: string;
 }
 
 /** Rappels Telegram envoyes aux setters pendant leurs heures de travail. */

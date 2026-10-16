@@ -20,6 +20,12 @@ import { PIPELINE_STAGES, type BookingStatus, type Cashflow, type DueInstallment
 export * from "./business-types";
 import { writeDB } from "../db";
 
+/** Une valeur UTM lisible (nom de campagne, de contenu) ; vide quand ce n'est qu'un identifiant numerique. */
+export function utmName(v?: string): string {
+  const x = (v ?? "").trim();
+  return x && !/^\d{6,}$/.test(x) ? x : "";
+}
+
 /* ------------------------------ Vue par lead -------------------------- */
 
 const SHOWED: Appointment["status"][] = ["completed", "follow-up", "closed-won", "closed-lost"];
@@ -94,9 +100,10 @@ export function leadBusiness(lead: Lead, appts: Appointment[], sales: Sale[], de
     campaignId: lead.campaignId ?? lead.firstTouchCampaignId ?? "",
     adsetId: lead.adsetId ?? lead.firstTouchAdsetId ?? "",
     adId: lead.adId ?? lead.firstTouchAdId ?? "",
-    campaignName: lead.campaignName ?? "",
-    adsetName: lead.adsetName ?? "",
-    adName: lead.adName ?? "",
+    // Sans nom Meta (pas de compte connecte), les UTM des liens de campagne donnent un nom lisible.
+    campaignName: lead.campaignName || utmName(lead.firstTouchUtmCampaign),
+    adsetName: lead.adsetName || utmName(lead.firstTouchUtmTerm),
+    adName: lead.adName || utmName(lead.firstTouchUtmContent),
     lastTouchSourceChannel: lead.lastTouchSourceChannel ?? "",
     validLead,
     qualifiedLead,

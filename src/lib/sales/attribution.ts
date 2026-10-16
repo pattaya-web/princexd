@@ -56,7 +56,8 @@ export const funnelLabel = (key: string, custom?: SalesFunnel[]) => custom?.find
 /** Funnels par defaut tant que l'admin n'en a pas declare. */
 export const DEFAULT_FUNNELS: SalesFunnel[] = [
   { key: "lp1_ads", label: "LP1 Ads", channel: "META_ADS", match: "/lp1-ads", script: "" },
-  { key: "organic_masterclass", label: "LP organique (authenticitemady)", channel: "ORGANIC", match: "/authenticitemady", script: "" },
+  // 2026-10-16 : la LP organique est /lp-orga ; l'ancienne /authenticitemady reste reconnue pour l'historique.
+  { key: "organic_masterclass", label: "LP organique (lp-orga)", channel: "ORGANIC", match: "/lp-orga, /authenticitemady", script: "" },
   { key: "instagram_dm", label: "Instagram DM", channel: "INSTAGRAM", match: "", script: "" },
 ];
 
@@ -71,12 +72,38 @@ export function funnelsOf(db: DB): SalesFunnel[] {
  * Ads, la LP organique comprise.
  */
 export function ensureFunnelsV2(db: DB): number {
-  if (db.settings.salesFunnelsV2At) return 0;
-  const current = db.settings.salesFunnels ?? [];
-  const merged = [...DEFAULT_FUNNELS.map((d) => current.find((c) => c.key === d.key && c.match && c.match !== "royalscalebymady.fr") ?? d), ...current.filter((c) => !DEFAULT_FUNNELS.some((d) => d.key === c.key))];
-  db.settings.salesFunnels = merged;
-  const n = reattributeFromFunnels(db, merged);
-  db.settings.salesFunnelsV2At = new Date().toISOString();
+  let n = 0;
+  if (!db.settings.salesFunnelsV2At) {
+    const current = db.settings.salesFunnels ?? [];
+    const merged = [...DEFAULT_FUNNELS.map((d) => current.find((c) => c.key === d.key && c.match && c.match !== "royalscalebymady.fr") ?? d), ...current.filter((c) => !DEFAULT_FUNNELS.some((d) => d.key === c.key))];
+    db.settings.salesFunnels = merged;
+    n += reattributeFromFunnels(db, merged);
+    db.settings.salesFunnelsV2At = new Date().toISOString();
+  }
+  /*
+   * v3 (2026-10-16) : les leads organiques viennent de la nouvelle landing
+   * page /lp-orga, les Ads de /lp1-ads. On garde les cles (elles sont ecrites
+   * sur les leads) et les scripts, on nettoie les libelles et les URL
+   * reconnues ; l'ancienne page organique reste reconnue pour l'historique.
+   */
+  if (!db.settings.salesFunnelsV3At) {
+    const current = db.settings.salesFunnels?.length ? db.settings.salesFunnels : DEFAULT_FUNNELS;
+    const withNeedles = (match: string, must: string[]) => {
+      const have = needles(match);
+      const out = [...must.filter((m) => !have.includes(m.toLowerCase())), ...needles(match)];
+      return out.join(", ");
+    };
+    const ads = current.find((f) => f.key === "lp1_ads") ?? DEFAULT_FUNNELS[0];
+    const organic = current.find((f) => f.key === "organic_masterclass") ?? DEFAULT_FUNNELS[1];
+    const cleaned: SalesFunnel[] = [
+      { ...ads, label: "LP1 Ads", channel: "META_ADS", match: withNeedles(ads.match, ["/lp1-ads"]) },
+      { ...organic, label: "LP organique (lp-orga)", channel: "ORGANIC", match: withNeedles(organic.match, ["/lp-orga", "/authenticitemady"]) },
+      ...current.filter((f) => f.key !== "lp1_ads" && f.key !== "organic_masterclass"),
+    ];
+    db.settings.salesFunnels = cleaned;
+    n += reattributeFromFunnels(db, cleaned);
+    db.settings.salesFunnelsV3At = new Date().toISOString();
+  }
   return n;
 }
 
@@ -105,6 +132,7 @@ export function funnelForUrl(url: string, funnels: SalesFunnel[]): SalesFunnel |
 const KNOWN_LANDING_PAGES: { test: RegExp; funnelSource: string; channel: SourceChannel }[] = [
   { test: /royalscalebymady\.fr\/lp1-ads/i, funnelSource: "lp1_ads", channel: "META_ADS" },
   { test: /royalscalebymady\.fr\/authenticitemady/i, funnelSource: "organic_masterclass", channel: "ORGANIC" },
+  { test: /royalscalebymady\.fr\/lp-orga/i, funnelSource: "organic_masterclass", channel: "ORGANIC" },
 ];
 
 /* ------------------------------- Resolution --------------------------- */
