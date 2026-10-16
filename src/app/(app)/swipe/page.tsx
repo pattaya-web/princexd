@@ -81,6 +81,8 @@ export default function SwipePage() {
   const [panel, setPanel] = useState<Panel>("source");
   const [analyzing, setAnalyzing] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const [showSource, setShowSource] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState("");
   const [screenText, setScreenText] = useState("");
@@ -166,6 +168,37 @@ export default function SwipePage() {
     } finally {
       setTranscribing(false);
     }
+  };
+
+  /** Contenu US (ou autre) : traduction fidele en francais, l'original reste accessible. */
+  const translate = async () => {
+    if (!selected || !transcript.trim()) return;
+    setTranslating(true);
+    setError(null);
+    try {
+      const r = await api<{ fr: string; language: string; speakers: "solo" | "dialogue" }>("/api/swipe/translate", {
+        method: "POST",
+        body: JSON.stringify({ swipeId: selected.id, text: transcript }),
+        timeoutMs: 120_000,
+      });
+      const original = selected.transcriptSourceInput || transcript;
+      setTranscript(r.fr);
+      setRows((prev) => prev.map((s) => (s.id === selected.id ? { ...s, transcriptInput: r.fr, transcriptSourceInput: r.fr !== original ? original : s.transcriptSourceInput, transcriptLang: r.language } : s)));
+      toast(r.language && !r.language.startsWith("fr") ? `Traduit depuis « ${r.language} ». L'original reste sous le texte.` : "Déjà en français : juste nettoyé et aéré.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  const restoreSource = async () => {
+    if (!selected?.transcriptSourceInput) return;
+    const original = selected.transcriptSourceInput;
+    setTranscript(original);
+    await patch(selected.id, { transcriptInput: original, transcriptSourceInput: "", transcriptLang: "" });
+    setShowSource(false);
+    toast("Original rétabli.");
   };
 
   const analyze = async () => {
@@ -433,11 +466,31 @@ export default function SwipePage() {
                     <Field label="Transcription / script brut" hint="Colle le texte tel quel, même avec les hésitations : l'IA nettoie.">
                       <textarea className="textarea" style={{ minHeight: 190 }} value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Colle ici tout ce qui est dit dans la vidéo…" />
                     </Field>
-                    <div className="flex justify-start -mt-1.5">
-                      <button className="btn btn-sm" onClick={() => void transcribe()} disabled={transcribing || analyzing} title="Récupère l'audio du Reel et le transcrit avec Whisper">
+                    <div className="flex items-center gap-2 flex-wrap -mt-1.5">
+                      <button className="btn btn-sm" onClick={() => void transcribe()} disabled={transcribing || translating || analyzing} title="Récupère l'audio du Reel et le transcrit avec Whisper">
                         {transcribing ? <span className="spinner" /> : "≡"} {transcribing ? "Transcription…" : "Transcrire la vidéo (Whisper)"}
                       </button>
+                      <button className="btn btn-sm" onClick={() => void translate()} disabled={translating || transcribing || analyzing || !transcript.trim()} title="Contenu US ou autre : traduction fidèle en français parlé, sans réécrire. L'original reste accessible.">
+                        {translating ? <span className="spinner" /> : "🌐"} {translating ? "Traduction…" : "Traduire en français"}
+                      </button>
+                      {selected.transcriptSourceInput && (
+                        <>
+                          <button className="btn btn-sm btn-ghost" onClick={() => setShowSource((v) => !v)}>
+                            {showSource ? "Masquer l'original" : `Voir l'original${selected.transcriptLang ? ` (${selected.transcriptLang})` : ""}`}
+                          </button>
+                          <button className="btn btn-sm btn-ghost" onClick={() => void restoreSource()} title="Remet le texte d'origine dans la transcription">
+                            Rétablir l'original
+                          </button>
+                        </>
+                      )}
                     </div>
+                    {showSource && selected.transcriptSourceInput && (
+                      <Field label={`Original${selected.transcriptLang ? ` · ${selected.transcriptLang}` : ""}`}>
+                        <p className="prose-sm p-3 rounded-[8px] whitespace-pre-line leading-[1.8]" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+                          {selected.transcriptSourceInput}
+                        </p>
+                      </Field>
+                    )}
 
                     <Field label="Texte à l'écran (optionnel)" hint="Les textes incrustés, s'il y en a : ils aident le classement TOFU / MOFU / BOFU.">
                       <textarea className="textarea" style={{ minHeight: 70 }} value={screenText} onChange={(e) => setScreenText(e.target.value)} placeholder="Ex. « 3 erreurs qui tuent ton ROAS »" />

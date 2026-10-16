@@ -6,8 +6,8 @@ import type { SwipeScript } from "@/lib/types";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-const SYSTEM = `Tu mets en forme le script d'une video pour qu'il soit facile a lire et a tourner tel quel.
-Tu ne reecris RIEN : pas de reformulation, pas d'adaptation, pas de resume, pas de mot ajoute ni retire (seulement la ponctuation, les hesitations et les repetitions parasites).
+const SYSTEM = `Tu mets en forme le script d'une video pour qu'il soit facile a lire et a tourner tel quel, en francais.
+Tu ne reecris RIEN : pas de reformulation, pas d'adaptation, pas de resume, pas de mot ajoute ni retire (seulement la ponctuation, les hesitations et les repetitions parasites). Un script dans une autre langue est traduit fidelement, c'est la seule transformation permise.
 Tu reponds uniquement par un objet JSON valide, sans texte autour et sans bloc markdown.`;
 
 /**
@@ -37,6 +37,7 @@ Mets ce script en forme, sans changer les mots :
   "speakers": "solo | dialogue"
 }
 Regles :
+- Si le script n'est pas en francais, traduis-le en francais parle et naturel, fidele phrase a phrase (rien d'ajoute, rien de retire) : le script a tourner est toujours en francais.
 - hook + bullets + cta = tout le script, rien de plus, rien de moins (le hook et le CTA ne sont pas repetes dans bullets).
 - Si deux personnes se parlent : speakers = "dialogue", et chaque ligne de bullets commence par "A :" ou "B :" (le hook et le CTA aussi si ce sont des repliques).
 - durationSec = duree de lecture a voix haute, environ 2,5 mots par seconde, entre 10 et 90.`;

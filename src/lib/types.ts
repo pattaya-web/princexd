@@ -1038,6 +1038,10 @@ export interface Swipe {
   transcriptInput: string;
   /** Texte incruste a l'ecran, saisi a la main (optionnel), donne au classement. */
   screenTextInput?: string;
+  /** Script d'origine (ex. anglais) garde quand `transcriptInput` a ete traduit en francais. */
+  transcriptSourceInput?: string;
+  /** Langue detectee du script d'origine a la traduction (ex. « en »). */
+  transcriptLang?: string;
   tags: string;
   analysis: SwipeAnalysis | null;
   status: "a-analyser" | "analyse" | "a-tourner" | "fait";
