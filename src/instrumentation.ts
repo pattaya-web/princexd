@@ -8,6 +8,10 @@
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    // Une generation de boutique coupee par un redemarrage ne reprend pas :
+    // on la marque en erreur pour que la page propose de relancer.
+    const { failInterruptedBuilds } = await import("./lib/boutique/build");
+    failInterruptedBuilds();
     if (process.env.PRINCEXD_NO_SCHEDULER === "1") return;
     const { startScheduler } = await import("./lib/scheduler");
     startScheduler();

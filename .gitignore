@@ -17,3 +17,4 @@ data/.session-secret
 
 # Réglages Claude Code personnels
 .claude/settings.local.json
+data/boutiques

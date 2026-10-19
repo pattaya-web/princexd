@@ -257,6 +257,12 @@ export interface Settings {
   telegramLastError?: string;
   /** Cadence cible de Reels par semaine et par etape (defaut 15 / 5 / 5). */
   weeklyReelTargets?: WeeklyReelTargets;
+  /**
+   * Generateur de boutiques (2026-10-19) : le theme template (zip Shopify)
+   * depose par le proprietaire. `token` protege l'URL publique que Shopify
+   * vient lire pour installer le theme.
+   */
+  shopThemeZip?: ShopThemeZip | null;
   /** Funnels v3 (2026-10-16) : LP organique = /lp-orga (l'ancienne /authenticitemady reste reconnue). Applique une fois. */
   salesFunnelsV3At?: string;
 }
@@ -1228,6 +1234,11 @@ export interface DB {
   courseResources: CourseResource[];
   /** Tableaux de strategie creative (facon Miro) de la section Ads. */
   adBoards: AdBoard[];
+  /* --- Generateur de boutiques Shopify (src/lib/boutique) --- */
+  /** Boutiques clientes connectees (jeton d'app personnalisee). */
+  shops: ClientShop[];
+  /** Historique des generations, une ligne par boutique construite. */
+  shopBuilds: ShopBuild[];
   /* --- Media buying Meta Ads (src/lib/mediabuying) --- */
   /** Comptes publicitaires Meta connectes (jeton chiffre). */
   metaConnections: MetaConnection[];
@@ -1368,6 +1379,122 @@ export interface Testimonial {
   /** Etiquettes libres, ex. « avant/après », « vocal », « story ». */
   tags: string[];
   addedAt: string;
+}
+
+/* ----------------------- Generateur de boutiques ------------------------ */
+
+/** Zip du theme template, servi a Shopify par une URL publique a jeton. */
+export interface ShopThemeZip {
+  /** Nom du fichier sur le disque (data/boutiques/). */
+  file: string;
+  /** Nom d'origine, affiche. */
+  name: string;
+  size: number;
+  uploadedAt: string;
+  /** Segment aleatoire de l'URL publique. */
+  token: string;
+}
+
+/**
+ * Une boutique Shopify cliente (2026-10-19). Le proprietaire cree une app
+ * personnalisee dans l'admin du client et colle ici son jeton Admin API.
+ * Le jeton ne ressort jamais en clair vers le navigateur.
+ */
+export interface ClientShop {
+  id: ID;
+  /** Nom du client ou de la marque, pour s'y retrouver. */
+  name: string;
+  /** « maboutique.myshopify.com ». */
+  domain: string;
+  /**
+   * Jeton Admin API (shpat_…) d'une app personnalisee « legacy » creee dans
+   * l'admin avant le 2026-01-01. Vide quand on passe par le Dev Dashboard.
+   */
+  accessToken: string;
+  /**
+   * App creee dans le Dev Dashboard de l'organisation du client (depuis
+   * 2026) : le jeton s'obtient avec ces identifiants (client credentials),
+   * il vaut 24 h et se renouvelle tout seul.
+   */
+  clientId?: string;
+  clientSecret?: string;
+  /** Dernier jeton echange, avec sa date d'expiration (ISO). */
+  tokenCache?: { token: string; expiresAt: string } | null;
+  notes: string;
+  /** Rempli par « Tester la connexion ». */
+  shopName?: string;
+  currency?: string;
+  lastTestAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Produit relu sur un site concurrent, tel qu'il sera recree. */
+export interface ScrapedProduct {
+  sourceUrl: string;
+  handle: string;
+  title: string;
+  descriptionHtml: string;
+  vendor: string;
+  productType: string;
+  tags: string[];
+  options: { name: string; values: string[] }[];
+  variants: {
+    title: string;
+    price: string;
+    compareAtPrice: string;
+    sku: string;
+    optionValues: string[];
+  }[];
+  images: { src: string; alt: string }[];
+}
+
+/** Ce que le proprietaire demande pour une generation. */
+export interface ShopBuildBrief {
+  /** Nom de marque impose ; vide = l'IA le propose. */
+  brandName: string;
+  /** Langue du copywriting (fr par defaut). */
+  language: string;
+  /** Positionnement, cible, ton… libre. */
+  notes: string;
+  /** Couleurs imposees ; vides = l'IA choisit. */
+  primaryColor: string;
+  secondaryColor: string;
+  /** Installer le theme template et le publier. */
+  installTheme: boolean;
+  publishTheme: boolean;
+  /** Recopier les prix des concurrents tels quels, ou appliquer un coefficient. */
+  priceFactor: number;
+}
+
+export type ShopBuildStatus = "running" | "done" | "error";
+
+/** Une generation de boutique, de l'analyse des concurrents a la publication. */
+export interface ShopBuild {
+  id: ID;
+  shopId: ID;
+  status: ShopBuildStatus;
+  /** Etape en cours, affichee telle quelle. */
+  step: string;
+  /** Journal lisible, une ligne par action. */
+  log: string[];
+  competitorUrls: string[];
+  brief: ShopBuildBrief;
+  result?: {
+    brandName: string;
+    tagline: string;
+    palette: { primary: string; secondary: string };
+    products: { title: string; handle: string; adminUrl: string }[];
+    collectionHandle: string;
+    themeId: string;
+    themeName: string;
+    previewUrl: string;
+    storeUrl: string;
+    adminUrl: string;
+  };
+  error?: string;
+  createdAt: string;
+  finishedAt?: string;
 }
 
 export type CollectionName = Exclude<keyof DB, "settings">;

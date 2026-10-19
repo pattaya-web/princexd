@@ -100,7 +100,7 @@ const SALES_APIS = ["/api/sales/", "/api/auth/editor", "/api/upload", "/api/medi
  *    et les navigateurs des membres vont les chercher sans jeton ;
  *  - les webhooks et callbacks, appeles par des services tiers.
  */
-const PUBLIC = ["/login", "/api/sales/session", "/api/media/", "/api/webhooks/", "/api/kie/callback", "/api/version"];
+const PUBLIC = ["/login", "/api/sales/session", "/api/media/", "/api/webhooks/", "/api/kie/callback", "/api/version", "/api/boutiques/theme/public/"];
 
 /**
  * Site en ligne : `OWNER_PASSWORD` est defini et l'absence de cookie ne vaut
@@ -183,7 +183,7 @@ export const config = {
   // Les routes qui recoivent un fichier sont exclues : le middleware Node
   // consommait le debut du corps de la requete (fichiers amputes). Elles
   // verifient leur session elles-memes (refuseUnless dans lib/sales/access).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/upload|api/kie/upload|api/ai/image-edit|api/ai/transcribe-file|api/formation/resources).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/upload|api/kie/upload|api/ai/image-edit|api/ai/transcribe-file|api/formation/resources|api/boutiques/theme$).*)"],
   // Runtime Node : les variables d'environnement du serveur (OWNER_PASSWORD)
   // sont lues a l'execution, pas figees au build.
   runtime: "nodejs",

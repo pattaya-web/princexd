@@ -68,6 +68,7 @@ export const DEFAULT_SETTINGS: Settings = {
   salesBookingUrl: "https://app.iclosed.io/e/mvdyprince/appel-individuel-royalscale",
   salesLastSyncAt: "",
   weeklyReelTargets: { TOFU: 15, MOFU: 5, BOFU: 5 },
+  shopThemeZip: null,
 };
 
 const EMPTY_DB: DB = {
@@ -110,6 +111,8 @@ const EMPTY_DB: DB = {
   adBoards: [],
   courseModules: [],
   courseResources: [],
+  shops: [],
+  shopBuilds: [],
   metaConnections: [],
   mbSnapshots: [],
   mbSettings: [],
