@@ -56,6 +56,17 @@ export async function loadTemplateZip(): Promise<{ files: ThemeFiles; name: stri
   }
 }
 
+/** Les octets du zip template tel que déposé, pour le ré-héberger ailleurs. */
+export async function templateZipBuffer(): Promise<Uint8Array | null> {
+  const z = getSettings().shopThemeZip;
+  if (!z?.file) return null;
+  try {
+    return new Uint8Array(await fs.readFile(path.join(THEME_DIR, z.file)));
+  } catch {
+    return null;
+  }
+}
+
 /** Écrit un zip « prêt » (fichiers remplacés) et renvoie son nom sur le disque. */
 export async function saveReadyZip(files: ThemeFiles, replaced: { filename: string; content: string }[], buildId: string): Promise<string> {
   const next: ThemeFiles = { ...files };

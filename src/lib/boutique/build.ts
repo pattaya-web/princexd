@@ -12,7 +12,8 @@
  * rater sans empecher la suite (pages, publication, theme) est journalisee
  * au lieu d'arreter la generation.
  */
-import { fileText, loadTemplateZip, mediaSlots, parseThemeJson, saveReadyZip } from "./theme-zip";
+import { fileText, loadTemplateZip, mediaSlots, parseThemeJson, saveReadyZip, templateZipBuffer } from "./theme-zip";
+import { uploadToKie } from "../kie";
 import { getSettings, insert, list, update } from "../db";
 import type { ClientShop, ScrapedProduct, ShopBuild, ShopBuildBrief } from "../types";
 import { recolor } from "./colors";
@@ -165,9 +166,34 @@ async function run(id: string, shop: ClientShop, urls: string[], brief: ShopBuil
     if (zipUrl) {
       say("Installation du thème template (1 à 3 min)…");
       try {
-        const t = await admin.createTheme(zipUrl, `${brief.brandName || "Boutique"} · ${new Date().toISOString().slice(0, 10)}`, (sec) =>
-          update("shopBuilds", id, { step: `Installation du thème template… ${sec}s` }),
-        );
+        /*
+         * Shopify télécharge le zip lui-même et exige un en-tête Content-Length.
+         * Derrière Cloudflare, notre URL n'en a plus (réponse en flux) et
+         * Shopify répond « Src is empty ». On héberge donc le zip quelques
+         * minutes sur le stockage KIE (qui garde l'en-tête), notre URL servant
+         * de repli si cet envoi échoue.
+         */
+        let source = zipUrl;
+        try {
+          const raw = await templateZipBuffer();
+          if (raw) {
+            const file = new File([raw.buffer as ArrayBuffer], "theme-template.zip", { type: "application/zip" });
+            source = await uploadToKie(file, "princexd/themes");
+            note("Zip du thème hébergé temporairement pour Shopify.");
+          }
+        } catch (e) {
+          note(`Hébergement temporaire du zip impossible (${(e as Error).message}) : essai avec l'URL du site.`);
+        }
+        const newThemeName = `${brief.brandName || "Boutique"} · ${new Date().toISOString().slice(0, 10)}`;
+        const onWait = (sec: number) => update("shopBuilds", id, { step: `Installation du thème template… ${sec}s` });
+        let t: { id: string; name: string };
+        try {
+          t = await admin.createTheme(source, newThemeName, onWait);
+        } catch (e) {
+          if (source === zipUrl) throw e;
+          note(`Installation depuis l'hébergement temporaire refusée (${(e as Error).message}) : essai avec l'URL du site.`);
+          t = await admin.createTheme(zipUrl, newThemeName, onWait);
+        }
         themeId = t.id;
         themeName = t.name;
         themeInstalled = true;
