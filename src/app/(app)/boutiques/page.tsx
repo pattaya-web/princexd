@@ -5,6 +5,7 @@ import { api } from "@/lib/client";
 import { Card, Empty, ErrorNote, Field, InfoNote, Modal, PageHeader, Spinner, Toggle, useToast } from "@/components/ui";
 import type { ScrapedProduct, ShopBuild, ShopBuildBrief } from "@/lib/types";
 import { ShopifyAffiliate } from "@/components/ShopifyAffiliate";
+import { TemplateMedia } from "@/components/boutiques/TemplateMedia";
 
 /* ------------------------------- Types -------------------------------- */
 
@@ -40,6 +41,8 @@ const SCOPES = [
   "write_content",
   "read_publications",
   "write_publications",
+  "read_files",
+  "write_files",
 ];
 
 const EMPTY_BRIEF: ShopBuildBrief = {
@@ -345,6 +348,12 @@ export default function BoutiquesPage() {
               </Empty>
             )}
           </Card>
+
+          {theme && (
+            <Card title="Médias du template" subtitle="Les images et vidéos que le template affiche par nom : à faire produire par tes élèves, puis à envoyer dans la boutique.">
+              <TemplateMedia shops={shops} shopId={shopId} brandName={build?.result?.brandName || brief.brandName} />
+            </Card>
+          )}
         </div>
 
         {/* --------------------------- Colonne droite --------------------------- */}
@@ -365,10 +374,10 @@ export default function BoutiquesPage() {
                 <Field label="Nom de marque" hint="Vide : l'IA en propose un.">
                   <input className="input" value={brief.brandName} onChange={(e) => setBrief({ ...brief, brandName: e.target.value })} placeholder="Ex. Lumea" disabled={running} />
                 </Field>
-                <Field label="Langue du copywriting">
+                <Field label="Langue du site (copywriting)" hint="Shop FR ou shop US : titres, descriptions, pages et textes d'accueil sont écrits dans cette langue.">
                   <select className="select" value={brief.language} onChange={(e) => setBrief({ ...brief, language: e.target.value })} disabled={running}>
-                    <option value="fr">Français</option>
-                    <option value="en">Anglais</option>
+                    <option value="fr">Français (shop FR)</option>
+                    <option value="en">Anglais (shop US / international)</option>
                     <option value="es">Espagnol</option>
                     <option value="de">Allemand</option>
                     <option value="it">Italien</option>
@@ -596,12 +605,22 @@ function BuildCard({ build, onDismiss }: { build: ShopBuild; onDismiss: () => vo
             <a className="btn btn-sm" href={r.adminUrl} target="_blank" rel="noreferrer">
               Ouvrir l&apos;admin Shopify
             </a>
+            {r.readyZipFile && (
+              <a className={`btn btn-sm ${r.themeId ? "" : "btn-primary"}`} href={`/api/boutiques/build/zip?id=${build.id}`}>
+                Télécharger le thème prêt (zip)
+              </a>
+            )}
             {r.products.slice(0, 6).map((p) => (
               <a key={p.handle} className="btn btn-sm btn-ghost" href={p.adminUrl} target="_blank" rel="noreferrer" title={p.title}>
                 {p.title.length > 28 ? `${p.title.slice(0, 27)}…` : p.title}
               </a>
             ))}
           </div>
+          {r.readyZipFile && !r.themeId && (
+            <InfoNote>
+              Shopify n&apos;a pas laissé l&apos;app installer le thème : le thème actif du client n&apos;a pas été touché. Importe le zip prêt à la main : admin → Boutique en ligne → Thèmes → Ajouter un thème → Importer un fichier zip, puis ⋯ → Publier. C&apos;est exactement ton template, recoloré et avec les textes d&apos;accueil réécrits. Dépose ensuite les médias (colonne de gauche).
+            </InfoNote>
+          )}
         </div>
       )}
       <details open={running || build.status === "error"}>

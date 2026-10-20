@@ -23,7 +23,7 @@ export interface ParsedScript {
 }
 
 /** Verbes qui introduisent la réplique : « She says: », « Elle dit : », « saying ». */
-const INTRO = /(?:\b(?:she|he|they|the (?:woman|man|girl|guy|person|creator)|elle|il|la personne)\s+)?\b(?:says?|saying|said|speaks?|tells?|dit|déclare|lance)\b(?:\s+(?:to|into|at)\s+(?:the\s+)?(?:camera|lens|phone))?\s*[:,]?\s*/i;
+const INTRO = /(?:\b(?:she|he|they|the (?:woman|man|girl|guy|person|creator)|elle|il|la personne)\s+)?\b(?:says?|saying|said|speaks?|tells?|dialogue|dialog|script|lines?|voice[- ]?over|vo|dit|déclare|lance|réplique|texte)\b(?:\s+(?:to|into|at)\s+(?:the\s+)?(?:camera|lens|phone))?\s*[:,]?\s*/i;
 
 /** Une réplique entre guillemets droits, typographiques ou français. */
 const QUOTE = /["“«]\s*([^"”»]{12,})\s*["”»]/g;

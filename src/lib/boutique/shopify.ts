@@ -32,6 +32,8 @@ export const REQUIRED_SCOPES = [
   "write_content",
   "read_publications",
   "write_publications",
+  "read_files",
+  "write_files",
 ];
 
 export interface ShopInfo {
@@ -271,6 +273,38 @@ export class ShopifyAdmin {
       onWait?.(Math.round((Date.now() - t0) / 1000));
       if (Date.now() - t0 > 6 * 60_000) throw new ShopifyError("Installation du thème trop longue (6 min).");
     }
+  }
+
+  /**
+   * Dépose un fichier dans Contenu → Fichiers en gardant son nom : les
+   * `shopify://shop_images/<nom>` du thème importé le retrouvent tout seuls.
+   */
+  async uploadFile(filename: string, buf: Uint8Array, mimeType: string): Promise<{ id: string; status: string }> {
+    const isVideo = mimeType.startsWith("video/");
+    const isImage = mimeType.startsWith("image/");
+    const resource = isVideo ? "VIDEO" : isImage ? "IMAGE" : "FILE";
+    const staged = await this.query<{
+      stagedUploadsCreate: { stagedTargets: { url: string; resourceUrl: string; parameters: { name: string; value: string }[] }[]; userErrors: { message: string }[] };
+    }>(
+      `mutation($input: [StagedUploadInput!]!) {
+        stagedUploadsCreate(input: $input) { stagedTargets { url resourceUrl parameters { name value } } userErrors { message } }
+      }`,
+      { input: [{ filename, mimeType, resource, httpMethod: "POST", fileSize: String(buf.byteLength) }] },
+    );
+    const target = staged.stagedUploadsCreate.stagedTargets[0];
+    if (!target) throw new ShopifyError(`Envoi refusé : ${staged.stagedUploadsCreate.userErrors.map((e) => e.message).join(" · ") || "pas de cible d'envoi"}`);
+    const form = new FormData();
+    for (const p of target.parameters) form.append(p.name, p.value);
+    form.append("file", new Blob([new Uint8Array(buf).buffer as ArrayBuffer], { type: mimeType }), filename);
+    const up = await fetch(target.url, { method: "POST", body: form, signal: AbortSignal.timeout(180_000) });
+    if (!up.ok) throw new ShopifyError(`Envoi du fichier refusé par le stockage Shopify (HTTP ${up.status}).`);
+    const created = await this.query<{ fileCreate: { files: { id: string; fileStatus: string }[]; userErrors: { message: string }[] } }>(
+      `mutation($files: [FileCreateInput!]!) { fileCreate(files: $files) { files { id fileStatus } userErrors { message } } }`,
+      { files: [{ originalSource: target.resourceUrl, filename, contentType: resource, duplicateResolutionMode: "REPLACE" }] },
+    );
+    const f = created.fileCreate.files[0];
+    if (!f) throw new ShopifyError(`Fichier non créé : ${created.fileCreate.userErrors.map((e) => e.message).join(" · ")}`);
+    return { id: f.id, status: f.fileStatus };
   }
 
   async readThemeFiles(themeId: string, filenames: string[]): Promise<ThemeFile[]> {

@@ -45,7 +45,7 @@ export function createCreationJobs(req: CreateRequest): StudioJob[] {
   if (!req.startImage || !validSource(req.startImage)) throw new CreationError("Image de départ manquante ou invalide.");
   const raw = (req.script ?? "").trim();
   if (!raw) throw new CreationError("Écris ce que la personne doit dire.");
-  if (raw.length > 4000) throw new CreationError("Texte trop long : 4 000 caractères maximum.");
+  if (raw.length > 8000) throw new CreationError("Texte trop long : 8 000 caractères maximum.");
   // Un prompt complet collé ici : la réplique entre guillemets est dite, le reste met en scène.
   const parsed = parseCreationScript(raw);
   const script = parsed.spoken;

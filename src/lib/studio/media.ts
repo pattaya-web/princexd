@@ -236,6 +236,9 @@ export async function publishToKie(localPath: string, name: string): Promise<str
     : ext === ".webm" ? "video/webm"
     : ext === ".png" ? "image/png"
     : ext === ".webp" ? "image/webp"
+    : ext === ".gif" ? "image/gif"
+    : ext === ".avif" ? "image/avif"
+    : ext === ".heic" || ext === ".heif" ? "image/heic"
     : "image/jpeg";
   const safe = (name || path.basename(localPath)).replace(/[^\w.-]+/g, "_");
   const file = new File([new Uint8Array(buf)], safe.includes(".") ? safe : `${safe}${ext}`, { type });

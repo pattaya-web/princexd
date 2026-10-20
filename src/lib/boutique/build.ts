@@ -12,6 +12,7 @@
  * rater sans empecher la suite (pages, publication, theme) est journalisee
  * au lieu d'arreter la generation.
  */
+import { fileText, loadTemplateZip, mediaSlots, parseThemeJson, saveReadyZip } from "./theme-zip";
 import { getSettings, insert, list, update } from "../db";
 import type { ClientShop, ScrapedProduct, ShopBuild, ShopBuildBrief } from "../types";
 import { recolor } from "./colors";
@@ -158,6 +159,9 @@ async function run(id: string, shop: ClientShop, urls: string[], brief: ShopBuil
     let indexJson: IndexJson | null = null;
     let settingsJson = "";
     let themeInstalled = false;
+    let readyZipFile = "";
+    // Le zip template lu localement : sert de repli si Shopify refuse l'installation par l'API.
+    const template = zipUrl ? await loadTemplateZip() : null;
     if (zipUrl) {
       say("Installation du thème template (1 à 3 min)…");
       try {
@@ -170,10 +174,14 @@ async function run(id: string, shop: ClientShop, urls: string[], brief: ShopBuil
         note(`Thème installé : ${t.name}.`);
       } catch (e) {
         note(`Thème non installé par l'API : ${(e as Error).message}`);
-        note("À faire à la main : Boutique en ligne → Thèmes → Ajouter un thème → Importer un fichier zip, puis relance une génération sans « Installer le thème » pour le recolorer.");
+        note(
+          template
+            ? "Pas grave : le thème actif du client n'est pas touché. Un zip « thème prêt » (ton template recoloré, textes d'accueil réécrits) sera à télécharger en fin de génération, à importer dans Boutique en ligne → Thèmes → Ajouter un thème → Importer un fichier zip, puis Publier."
+            : "À faire à la main : Boutique en ligne → Thèmes → Ajouter un thème → Importer un fichier zip, puis relance une génération sans « Installer le thème » pour le recolorer.",
+        );
       }
     }
-    if (!themeId) {
+    if (!themeId && !template) {
       try {
         const main = await admin.mainTheme();
         if (main) {
@@ -185,18 +193,26 @@ async function run(id: string, shop: ClientShop, urls: string[], brief: ShopBuil
         note(`Thèmes inaccessibles : ${(e as Error).message}`);
       }
     }
-    if (themeId) {
-      say("Lecture du thème…");
+    if (themeId || template) {
       let files: { filename: string; content: string }[] = [];
-      try {
-        files = await admin.readThemeFiles(themeId, ["config/settings_data.json", "templates/index.json"]);
-      } catch (e) {
-        note(`Lecture du thème impossible : ${(e as Error).message}`);
+      if (themeId) {
+        say("Lecture du thème…");
+        try {
+          files = await admin.readThemeFiles(themeId, ["config/settings_data.json", "templates/index.json"]);
+        } catch (e) {
+          note(`Lecture du thème impossible : ${(e as Error).message}`);
+        }
+      } else if (template) {
+        say("Lecture du thème template (zip)…");
+        for (const filename of ["config/settings_data.json", "templates/index.json"]) {
+          const content = fileText(template.files, filename);
+          if (content) files.push({ filename, content });
+        }
       }
       settingsJson = files.find((f) => f.filename === "config/settings_data.json")?.content ?? "";
       const idx = files.find((f) => f.filename === "templates/index.json")?.content ?? "";
       try {
-        indexJson = idx ? (JSON.parse(idx) as IndexJson) : null;
+        indexJson = idx ? parseThemeJson<IndexJson>(idx) : null;
       } catch {
         indexJson = null;
         note("templates/index.json illisible : les textes d'accueil ne seront pas réécrits.");
@@ -260,7 +276,7 @@ async function run(id: string, shop: ClientShop, urls: string[], brief: ShopBuil
       note(`Publication : ${(e as Error).message}`);
     }
 
-    if (themeId) {
+    if (themeId || template) {
       say("Couleurs et textes du thème…");
       const files: { filename: string; content: string }[] = [];
       if (settingsJson) {
@@ -270,13 +286,33 @@ async function run(id: string, shop: ClientShop, urls: string[], brief: ShopBuil
       }
       if (indexJson) {
         const changed = applyHomepage(indexJson, brand.homepage, collectionHandle, created[0]?.handle ?? "");
-        if (changed) files.push({ filename: "templates/index.json", content: JSON.stringify(indexJson, null, 2) });
-        note(`${changed} texte${changed > 1 ? "s" : ""} de la page d'accueil réécrit${changed > 1 ? "s" : ""}.`);
+        // Certains templates portent leurs couleurs d'accent dans les sections, pas dans settings_data.
+        const idx = recolor(JSON.stringify(indexJson, null, 2), brand.palette);
+        if (changed || idx.replaced) files.push({ filename: "templates/index.json", content: idx.json });
+        note(
+          `${changed} texte${changed > 1 ? "s" : ""} de la page d'accueil réécrit${changed > 1 ? "s" : ""}${idx.replaced ? `, ${idx.replaced} couleur${idx.replaced > 1 ? "s" : ""} d'accent des sections remplacée${idx.replaced > 1 ? "s" : ""}` : ""}.`,
+        );
       }
-      try {
-        await admin.writeThemeFiles(themeId, files);
-      } catch (e) {
-        note(`Écriture du thème : ${(e as Error).message}`);
+      if (themeId) {
+        try {
+          await admin.writeThemeFiles(themeId, files);
+        } catch (e) {
+          note(`Écriture du thème : ${(e as Error).message}`);
+        }
+      }
+      if (template) {
+        try {
+          readyZipFile = await saveReadyZip(template.files, files, id);
+          note(
+            themeId
+              ? "Thème prêt (zip) disponible aussi en téléchargement, au cas où."
+              : "Thème prêt (zip) à télécharger ci-dessus : Boutique en ligne → Thèmes → Ajouter un thème → Importer un fichier zip, puis ⋯ → Publier.",
+          );
+        } catch (e) {
+          note(`Zip du thème prêt non généré : ${(e as Error).message}`);
+        }
+        const media = mediaSlots(template.files).filter((m) => m.file).length;
+        if (media) note(`${media} médias (images / vidéos) du template sont à fournir et déposer dans la boutique : voir « Médias du template » dans la colonne de gauche.`);
       }
       if (brief.publishTheme && themeInstalled) {
         try {
@@ -305,6 +341,7 @@ async function run(id: string, shop: ClientShop, urls: string[], brief: ShopBuil
         previewUrl,
         storeUrl,
         adminUrl: admin.adminUrl(themeId ? "/themes" : "/products"),
+        readyZipFile,
       },
     });
     update("shops", shop.id, { updatedAt: new Date().toISOString() });

@@ -1491,6 +1491,8 @@ export interface ShopBuild {
     previewUrl: string;
     storeUrl: string;
     adminUrl: string;
+    /** Zip du template recoloré et réécrit (data/boutiques/), à importer à la main. */
+    readyZipFile?: string;
   };
   error?: string;
   createdAt: string;
