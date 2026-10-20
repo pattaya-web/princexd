@@ -6,6 +6,7 @@ import { SourceChip } from "@/components/sales/AttributionBlock";
 import { AttentionCard } from "@/components/sales/DashboardBlocks";
 import { InvestmentsCard } from "@/components/sales/InvestmentsCard";
 import { Card, Empty, ErrorNote, Modal, PageHeader, Spinner, Tabs } from "@/components/ui";
+import { ShopifyAffiliate } from "@/components/ShopifyAffiliate";
 import { api, useLocalState } from "@/lib/client";
 import { fmtDate, fmtDateTime, fmtMoney, label as crmLabel } from "@/lib/format";
 import { RANGE_PRESETS, type RangePreset } from "@/lib/mediabuying/metrics";
@@ -233,6 +234,10 @@ export default function SalesDashboardPage() {
         </div>
       )}
       {error && <div className="mb-3"><ErrorNote>{error}</ErrorNote></div>}
+
+      <div className="mb-4">
+        <ShopifyAffiliate compact />
+      </div>
 
       {filtersOpen && (
         <Card className="mb-4">

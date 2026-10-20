@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { Card, Empty, ErrorNote, Field, InfoNote, Modal, PageHeader, Spinner, Toggle, useToast } from "@/components/ui";
 import type { ScrapedProduct, ShopBuild, ShopBuildBrief } from "@/lib/types";
+import { ShopifyAffiliate } from "@/components/ShopifyAffiliate";
 
 /* ------------------------------- Types -------------------------------- */
 
@@ -261,6 +262,10 @@ export default function BoutiquesPage() {
           </button>
         }
       />
+
+      <div className="mb-5">
+        <ShopifyAffiliate />
+      </div>
 
       <Prerequis />
 
