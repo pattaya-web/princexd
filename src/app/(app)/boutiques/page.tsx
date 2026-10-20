@@ -5,7 +5,7 @@ import { api } from "@/lib/client";
 import { Card, Empty, ErrorNote, Field, InfoNote, Modal, PageHeader, Spinner, Toggle, useToast } from "@/components/ui";
 import type { ScrapedProduct, ShopBuild, ShopBuildBrief } from "@/lib/types";
 import { ShopifyAffiliate } from "@/components/ShopifyAffiliate";
-import { TemplateMedia } from "@/components/boutiques/TemplateMedia";
+import { StudentMediaMessage } from "@/components/boutiques/StudentMediaMessage";
 
 /* ------------------------------- Types -------------------------------- */
 
@@ -41,8 +41,6 @@ const SCOPES = [
   "write_content",
   "read_publications",
   "write_publications",
-  "read_files",
-  "write_files",
 ];
 
 const EMPTY_BRIEF: ShopBuildBrief = {
@@ -257,7 +255,7 @@ export default function BoutiquesPage() {
   return (
     <>
       <PageHeader
-        title="Générateur de boutique"
+        title="Générateur boutique client"
         subtitle="Colle 2 ou 3 liens concurrents, choisis la boutique Shopify du client : les produits sont recréés (prix, variantes, images), le copywriting et les couleurs sont refaits par l'IA sur ton thème template."
         actions={
           <button className="btn btn-primary" onClick={() => setEditing(blank)}>
@@ -271,6 +269,10 @@ export default function BoutiquesPage() {
       </div>
 
       <Prerequis />
+
+      <div className="mt-5">
+        <StudentMediaMessage brandName={build?.result?.brandName || brief.brandName} hasTheme={Boolean(theme)} />
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-[340px_1fr] mt-5">
         {/* --------------------------- Colonne gauche --------------------------- */}
@@ -349,11 +351,6 @@ export default function BoutiquesPage() {
             )}
           </Card>
 
-          {theme && (
-            <Card title="Médias du template" subtitle="Les images et vidéos que le template affiche par nom : à faire produire par tes élèves, puis à envoyer dans la boutique.">
-              <TemplateMedia shops={shops} shopId={shopId} brandName={build?.result?.brandName || brief.brandName} />
-            </Card>
-          )}
         </div>
 
         {/* --------------------------- Colonne droite --------------------------- */}
@@ -618,7 +615,7 @@ function BuildCard({ build, onDismiss }: { build: ShopBuild; onDismiss: () => vo
           </div>
           {r.readyZipFile && !r.themeId && (
             <InfoNote>
-              Shopify n&apos;a pas laissé l&apos;app installer le thème : le thème actif du client n&apos;a pas été touché. Importe le zip prêt à la main : admin → Boutique en ligne → Thèmes → Ajouter un thème → Importer un fichier zip, puis ⋯ → Publier. C&apos;est exactement ton template, recoloré et avec les textes d&apos;accueil réécrits. Dépose ensuite les médias (colonne de gauche).
+              Shopify n&apos;a pas laissé l&apos;app installer le thème : le thème actif du client n&apos;a pas été touché. Importe le zip prêt à la main : admin → Boutique en ligne → Thèmes → Ajouter un thème → Importer un fichier zip, puis ⋯ → Publier. C&apos;est exactement ton template, recoloré et avec les textes d&apos;accueil réécrits. Les médias, c'est l'élève : envoie-lui le message « Médias » en haut de la page.
             </InfoNote>
           )}
         </div>

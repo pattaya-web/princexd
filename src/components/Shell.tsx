@@ -493,7 +493,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     section: "Business",
     items: [
       { href: "/eleves", label: "Élèves", icon: "✓" },
-      { href: "/boutiques", label: "Générateur de boutique", icon: "🛍" },
+      { href: "/boutiques", label: "Générateur boutique client", icon: "🛍" },
       { href: "/sales/agenda", label: "Agenda des calls", icon: "☏" },
       { href: "/pubs/creas", label: "Ads & Scripts", icon: "▶" },
       { href: "/mediabuying", label: "Meta Ads", icon: "◐" },
