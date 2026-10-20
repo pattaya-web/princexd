@@ -7,9 +7,10 @@ import { api, useCollection, useLocalState } from "@/lib/client";
 import { uploadFile, takeFiles, clipboardFiles, droppedFiles } from "@/lib/upload-client";
 import { fmtInt, fmtUsdInEur } from "@/lib/format";
 import { CREATION } from "@/lib/studio/config";
+import { parseCreationScript, spokenSeconds } from "@/lib/studio/script-parse";
 import type { CreateRequest, StudioCharacter, StudioJob } from "@/lib/studio/types";
 import { toSupportedImage } from "./MediaField";
-import { ErrorNote, Field, useToast } from "./ui";
+import { ErrorNote, Field, InfoNote, useToast } from "./ui";
 import { ThumbImg } from "@/components/MediaThumb";
 
 /**
@@ -134,12 +135,13 @@ export function VideoCreate({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: (
   };
 
   /** Estimation : durée choisie, sinon 15 caractères par seconde de parole. */
-  const seconds = duration > 0 ? duration : Math.min(CREATION.maxDurationSec, Math.max(CREATION.minDurationSec, Math.ceil(script.trim().length / 15)));
+  const parsed = parseCreationScript(script);
+  const scriptSeconds = spokenSeconds(parsed.spoken);
+  const seconds = duration > 0 ? duration : Math.min(CREATION.maxDurationSec, Math.max(CREATION.minDurationSec, scriptSeconds));
   const credits = Math.round(CREATION.creditsPerSec[resolution] * seconds * variants);
-  const scriptSeconds = Math.ceil(script.trim().length / 15);
   const tooLongForDuration = duration > 0 && scriptSeconds > duration + 2;
 
-  const ready = Boolean(start) && !startBusy && !productBusy && Boolean(script.trim());
+  const ready = Boolean(start) && !startBusy && !productBusy && Boolean(parsed.spoken);
   // Sans photos produit, Seedance 2.5 part de l'image de départ (first frame)
   // et n'accepte que le format de cette image : les ratios fixes sont refusés.
   const firstFrame = products.length === 0;
@@ -248,13 +250,28 @@ export function VideoCreate({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: (
       </Field>
 
       {/* Script */}
-      <Field label="Ce que la personne dit" hint="Mot pour mot. Phrases courtes, ponctuation naturelle. Environ 15 caractères par seconde : 30 secondes ≈ 450 caractères.">
+      <Field
+        label="Ce que la personne dit"
+        hint="Mot pour mot, phrases courtes (15 caractères ≈ 1 s, 30 s ≈ 450 caractères). Ou colle un prompt complet : caméra, téléphone qui bouge, gestes, ambiance, puis la réplique entre guillemets après « She says: » ou « Elle dit : ». Seule la réplique est dite, le reste met en scène."
+      >
         <div className="flex flex-col gap-2">
-          <textarea className="textarea" style={{ minHeight: 110 }} placeholder="Franchement, depuis que je porte ce bracelet à la salle, j'ai une énergie de dingue…" value={script} onChange={(e) => setScript(e.target.value)} disabled={busy} />
+          <textarea
+            className="textarea"
+            style={{ minHeight: 130 }}
+            placeholder={"Franchement, depuis que je porte ce bracelet à la salle, j'ai une énergie de dingue…\n\nOu un prompt complet : Handheld iPhone selfie video, she walks and moves the phone, lifts the bracelet to the lens. She says: \"Okay je suis obsédée par ce bracelet…\" Street ambient sound, no music."}
+            value={script}
+            onChange={(e) => setScript(e.target.value)}
+            disabled={busy}
+          />
+          {parsed.detected && (
+            <InfoNote>
+              Prompt détecté : <b>{parsed.spoken.length} caractères dits</b> (≈ {scriptSeconds} s). Le reste du texte pilote la caméra, les gestes et le son, et remplace les consignes par défaut.
+            </InfoNote>
+          )}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="label-xs">Langue</span>
             {LANGUAGES.map((l) => <Chip key={l.id} active={language === l.id} onClick={() => setLanguage(l.id)} disabled={busy}>{l.label}</Chip>)}
-            <span className="dim text-[11px] ml-auto">{script.trim().length} caractères · ≈ {scriptSeconds} s de parole</span>
+            <span className="dim text-[11px] ml-auto">{parsed.spoken.length} caractères · ≈ {scriptSeconds} s de parole</span>
           </div>
         </div>
       </Field>

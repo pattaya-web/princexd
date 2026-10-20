@@ -3,6 +3,7 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { CREATION } from "./config";
 import { ensureLocal, isAllowedRemote, localMediaPath, publishToKie } from "./media";
 import { toEnglish } from "./prompt-enhancer";
+import { parseCreationScript } from "./script-parse";
 import type { CreateRequest, StudioJob } from "./types";
 
 /**
@@ -42,8 +43,13 @@ export function estimatedSeconds(script: string, durationSec: number): number {
 
 export function createCreationJobs(req: CreateRequest): StudioJob[] {
   if (!req.startImage || !validSource(req.startImage)) throw new CreationError("Image de départ manquante ou invalide.");
-  const script = (req.script ?? "").trim();
-  if (!script) throw new CreationError("Écris ce que la personne doit dire.");
+  const raw = (req.script ?? "").trim();
+  if (!raw) throw new CreationError("Écris ce que la personne doit dire.");
+  if (raw.length > 4000) throw new CreationError("Texte trop long : 4 000 caractères maximum.");
+  // Un prompt complet collé ici : la réplique entre guillemets est dite, le reste met en scène.
+  const parsed = parseCreationScript(raw);
+  const script = parsed.spoken;
+  if (!script) throw new CreationError("Aucune réplique trouvée : mets ce que la personne dit entre guillemets.");
   if (script.length > 2000) throw new CreationError("Script trop long : 2 000 caractères maximum (30 secondes de parole, c'est environ 450 caractères).");
   const duration = Number(req.durationSec);
   if (!(duration === -1 || (Number.isInteger(duration) && duration >= CREATION.minDurationSec && duration <= CREATION.maxDurationSec))) {
@@ -89,7 +95,8 @@ export function createCreationJobs(req: CreateRequest): StudioJob[] {
       referenceSheet: "",
       sceneImage: "",
       remoteSceneImageUrl: "",
-      userPrompt: (req.scenePrompt ?? "").trim(),
+      userPrompt: [(req.scenePrompt ?? "").trim(), parsed.directions].filter(Boolean).join("\n"),
+      createDirections: parsed.directions,
       prompt: "",
       negativePrompt: "",
       voiceMode: "keep",
@@ -149,6 +156,8 @@ export function buildCreationPrompt(opts: {
   language: string;
   productCount: number;
   productDescription: string;
+  /** Vrai quand `sceneEn` vient d'un prompt complet : il pilote caméra, gestes et ambiance. */
+  directed?: boolean;
 }): string {
   const lang = LANGUAGES[opts.language] ?? "French";
   const parts: string[] = [];
@@ -161,11 +170,21 @@ export function buildCreationPrompt(opts: {
       `The next ${opts.productCount} reference image${opts.productCount > 1 ? "s show" : " shows"} the product (${opts.productDescription || "the product"}): reproduce it exactly, same shape, colors, materials and text, whenever it is visible.`,
     );
   }
-  if (opts.sceneEn) parts.push(opts.sceneEn);
-  parts.push(
-    `The person looks at the camera and speaks in ${lang}, lips perfectly synchronized with the words, natural pauses, small natural hand gestures and head movements, steady framing.`,
-  );
-  parts.push("Audio: only the person's voice, clear and close, with light room ambience. No music, no subtitles, no captions, no on-screen text, no logo.");
+  if (opts.sceneEn) parts.push(opts.directed ? `Direction, follow it closely (camera, movement, gestures, sound): ${opts.sceneEn}` : opts.sceneEn);
+  if (opts.directed) {
+    parts.push(`The person speaks in ${lang}, lips perfectly synchronized with the words, natural pauses.`);
+    const soundDirected = /\b(sound|audio|music|ambien|noise)\b/i.test(opts.sceneEn);
+    parts.push(
+      soundDirected
+        ? "Audio: the person's voice, clear and close, plus the sound described in the direction. No subtitles, no captions, no on-screen text, no logo."
+        : "Audio: only the person's voice, clear and close, with light room ambience. No music, no subtitles, no captions, no on-screen text, no logo.",
+    );
+  } else {
+    parts.push(
+      `The person looks at the camera and speaks in ${lang}, lips perfectly synchronized with the words, natural pauses, small natural hand gestures and head movements, steady framing.`,
+    );
+    parts.push("Audio: only the person's voice, clear and close, with light room ambience. No music, no subtitles, no captions, no on-screen text, no logo.");
+  }
   parts.push(`Spoken lines, said exactly in this order and nothing else: "${opts.script.replace(/\s+/g, " ").trim()}"`);
   return parts.join("\n");
 }
@@ -228,6 +247,7 @@ export async function startCreation(job: StudioJob, onProgress: (patch: Partial<
     language: job.createLanguage ?? "fr",
     productCount: remoteProductUrls.length,
     productDescription: job.productDescription,
+    directed: Boolean(job.createDirections?.trim()),
   });
   await onProgress({ prompt });
 

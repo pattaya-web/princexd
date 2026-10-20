@@ -186,6 +186,8 @@ export interface StudioJob {
 
   /* --- Photo qui parle (et script de la Création) --- */
   talkText?: string;
+  /** Création : mise en scène extraite d'un prompt complet collé dans le script (caméra, gestes, ambiance). */
+  createDirections?: string;
   talkAudio?: string;
   remoteAudioUrl?: string;
   talkResolution?: "480p" | "720p";
