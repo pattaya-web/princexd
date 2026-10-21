@@ -16,6 +16,7 @@ export default function MarquePage() {
   const [brand, setBrand] = useState<BrandProfile>(EMPTY_BRAND);
   const [compiled, setCompiled] = useState("");
   const [legacy, setLegacy] = useState("");
+  const [suggested, setSuggested] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -23,10 +24,12 @@ export default function MarquePage() {
 
   const load = useCallback(async () => {
     try {
-      const r = await api<{ brand: BrandProfile; compiled: string; legacy: string }>("/api/brand");
+      const r = await api<{ brand: BrandProfile; compiled: string; legacy: string; suggested: boolean }>("/api/brand");
       setBrand(r.brand);
       setCompiled(r.compiled);
       setLegacy(r.legacy);
+      setSuggested(r.suggested);
+      if (r.suggested) setDirty(true);
     } catch (e) {
       toast((e as Error).message, "err");
     } finally {
@@ -45,6 +48,7 @@ export default function MarquePage() {
       setBrand(r.brand);
       setCompiled(r.compiled);
       setLegacy(r.legacy);
+      setSuggested(false);
       setDirty(false);
       toast("Marque enregistrée : tous les prompts de contenu l'utilisent dès maintenant.");
     } catch (e) {
@@ -82,7 +86,12 @@ export default function MarquePage() {
         <Spinner label="Chargement…" />
       ) : (
         <div className="grid gap-5">
-          {legacy && filled === 0 && (
+          {suggested && (
+            <InfoNote>
+              Fiche pré-remplie depuis tes documents : questionnaire personal brand, fiche avatar express, framework NESB 60 jours, SOP TOFU / MOFU / BOFU. Rien n&apos;est encore enregistré : relis, corrige ce qui a changé (ressources surtout), puis <b>Enregistrer la marque</b>. À partir de là, toutes les IA de contenu l&apos;utilisent.
+            </InfoNote>
+          )}
+          {legacy && filled === 0 && !suggested && (
             <InfoNote>
               Pour l&apos;instant les prompts utilisent l&apos;ancien « Contexte de marque » des Réglages : « {legacy.slice(0, 160)}
               {legacy.length > 160 ? "…" : ""} ». Dès qu&apos;une section ci-dessous est remplie et enregistrée, c&apos;est cette fiche qui le remplace.

@@ -1528,7 +1528,7 @@ export interface YtVideo {
   /** Langue des sous-titres, vide tant que rien n'est récupéré. */
   transcriptLang: string;
   /** « captions » (sous-titres YouTube), « whisper » (audio transcrit), vide sinon. */
-  transcriptSource: "captions" | "whisper" | "";
+  transcriptSource: "captions" | "whisper" | "manual" | "";
   /** Analyse + script produits par le modèle avec le prompt du scénariste. */
   script: string;
   scriptAt: string;

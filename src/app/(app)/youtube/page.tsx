@@ -230,6 +230,9 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
   const [busy, setBusy] = useState<"" | "transcript" | "whisper" | "script">("");
   const [error, setError] = useState("");
   const [extra, setExtra] = useState("");
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [paste, setPaste] = useState("");
+  const [step, setStep] = useState("");
 
   const transcriptWords = useMemo(() => (v.transcript ? v.transcript.split(/\s+/).length : 0), [v.transcript]);
 
@@ -242,18 +245,63 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
     }
   }
 
-  async function getTranscript(whisper = false, force = false) {
-    setBusy(whisper ? "whisper" : "transcript");
+  async function getTranscript(force = false) {
+    setBusy("transcript");
     setError("");
     try {
-      const r = await api<{ video: YtVideo; cached?: boolean; auto?: boolean; note?: string }>(`/api/youtube/${v.id}/transcript`, {
+      const r = await api<{ video: YtVideo; cached?: boolean; auto?: boolean }>(`/api/youtube/${v.id}/transcript`, {
         method: "POST",
-        body: JSON.stringify({ whisper, force }),
-        timeoutMs: 6 * 60_000,
+        body: JSON.stringify({ force }),
+        timeoutMs: 90_000,
       });
       onUpdate(r.video);
       setTab("transcript");
-      toast(r.cached ? "Transcript déjà là." : r.video.transcriptSource === "captions" ? `Transcript récupéré (sous-titres ${r.auto ? "automatiques" : "manuels"}).` : "Audio transcrit.");
+      toast(r.cached ? "Transcript déjà là." : `Transcript récupéré (sous-titres ${r.auto ? "automatiques" : "manuels"}).`);
+    } catch (e) {
+      setError((e as Error).message);
+      setPasteOpen(true);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  /** Audio + OpenAI : tâche de fond suivie toutes les 3 s (Cloudflare coupe une requête à 100 s). */
+  async function transcribeAudio() {
+    setBusy("whisper");
+    setError("");
+    setStep("Démarrage…");
+    try {
+      const { jobId } = await api<{ jobId: string }>(`/api/youtube/${v.id}/transcript`, { method: "POST", body: JSON.stringify({ whisper: true }) });
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const st = await api<{ status: string; step?: string; result?: { video: YtVideo }; error?: string }>(`/api/youtube/${v.id}/transcript?job=${jobId}`);
+        if (st.step) setStep(st.step);
+        if (st.status === "done" && st.result) {
+          onUpdate(st.result.video);
+          setTab("transcript");
+          toast("Audio transcrit.");
+          break;
+        }
+      }
+    } catch (e) {
+      setError((e as Error).message);
+      setPasteOpen(true);
+    } finally {
+      setBusy("");
+      setStep("");
+    }
+  }
+
+  async function savePaste() {
+    setBusy("transcript");
+    setError("");
+    try {
+      const r = await api<{ video: YtVideo }>(`/api/youtube/${v.id}/transcript`, { method: "POST", body: JSON.stringify({ text: paste }) });
+      onUpdate(r.video);
+      setPaste("");
+      setPasteOpen(false);
+      setTab("transcript");
+      toast("Transcript enregistré.");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -294,15 +342,20 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
             </a>
             <div className="dim text-[12px]">
               {v.transcript
-                ? `Transcript : ${transcriptWords} mots · ${v.transcriptSource === "captions" ? `sous-titres ${v.transcriptLang}` : "audio transcrit"}`
+                ? `Transcript : ${transcriptWords} mots · ${v.transcriptSource === "captions" ? `sous-titres ${v.transcriptLang}` : v.transcriptSource === "manual" ? "collé à la main" : "audio transcrit"}`
                 : "Pas encore de transcript."}
               {v.scriptAt ? ` · Script écrit le ${fmtDate(v.scriptAt)}` : ""}
             </div>
             <div className="flex gap-1.5 flex-wrap mt-1">
               {!v.transcript ? (
-                <button className="btn btn-sm btn-primary" onClick={() => getTranscript()} disabled={Boolean(busy)}>
-                  {busy === "transcript" ? "Récupération…" : "Récupérer le transcript"}
-                </button>
+                <>
+                  <button className="btn btn-sm btn-primary" onClick={() => getTranscript()} disabled={Boolean(busy)}>
+                    {busy === "transcript" ? "Récupération…" : "Récupérer le transcript"}
+                  </button>
+                  <button className="btn btn-sm" onClick={() => setPasteOpen((o) => !o)} disabled={Boolean(busy)} title="Sur YouTube : « …plus » → « Afficher la transcription », tout sélectionner, copier">
+                    Coller le transcript
+                  </button>
+                </>
               ) : (
                 <>
                   <button className="btn btn-sm btn-primary" onClick={writeScript} disabled={Boolean(busy)}>
@@ -311,12 +364,15 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
                   <button className="btn btn-sm" onClick={() => copy(forClaude, "Prompt + transcript")} title="Le prompt du scénariste suivi du transcript, à coller dans Claude">
                     Copier pour Claude
                   </button>
-                  <button className="btn btn-sm btn-ghost" onClick={() => getTranscript(false, true)} disabled={Boolean(busy)} title="Relire les sous-titres YouTube">
+                  <button className="btn btn-sm btn-ghost" onClick={() => getTranscript(true)} disabled={Boolean(busy)} title="Relire les sous-titres YouTube">
                     {busy === "transcript" ? "…" : "Refaire"}
+                  </button>
+                  <button className="btn btn-sm btn-ghost" onClick={() => setPasteOpen((o) => !o)} disabled={Boolean(busy)}>
+                    Remplacer en collant
                   </button>
                 </>
               )}
-              <button className="btn btn-sm btn-ghost" onClick={() => getTranscript(true, true)} disabled={Boolean(busy)} title="Télécharge l'audio et le transcrit avec OpenAI (plus lent, plus précis quand les sous-titres sont mauvais)">
+              <button className="btn btn-sm btn-ghost" onClick={transcribeAudio} disabled={Boolean(busy)} title="Télécharge l'audio et le transcrit avec OpenAI (1 à 3 min, si YouTube laisse passer le serveur)">
                 {busy === "whisper" ? "Transcription audio…" : "Transcrire l'audio"}
               </button>
             </div>
@@ -332,8 +388,23 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
           </div>
         )}
 
+        {pasteOpen && (
+          <div className="grid gap-2 rounded-xl p-3" style={{ border: "1px solid var(--border)", background: "var(--surface-2)" }}>
+            <span className="label-xs">Coller le transcript</span>
+            <span className="dim text-[12px]">Sur YouTube, sous la vidéo : « …plus » → « Afficher la transcription ». Clique dans le panneau, Ctrl+A, Ctrl+C, puis colle ici. Les horodatages peuvent rester, ça ne gêne pas.</span>
+            <textarea className="textarea mono text-[12px]" style={{ minHeight: 160 }} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder="0:00 So the thing nobody tells you about…" disabled={Boolean(busy)} />
+            <div className="flex gap-1.5">
+              <button className="btn btn-sm btn-primary" onClick={savePaste} disabled={Boolean(busy) || paste.trim().length < 40}>
+                Enregistrer le transcript
+              </button>
+              <button className="btn btn-sm btn-ghost" onClick={() => setPasteOpen(false)} disabled={Boolean(busy)}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
         {error && <ErrorNote>{error}</ErrorNote>}
-        {busy && <Spinner label={busy === "script" ? "Analyse puis script, dans ta façon de parler…" : busy === "whisper" ? "Audio téléchargé puis transcrit…" : "Lecture des sous-titres…"} />}
+        {busy && <Spinner label={busy === "script" ? "Analyse puis script, dans ta façon de parler…" : busy === "whisper" ? step || "Audio téléchargé puis transcrit…" : "Lecture des sous-titres…"} />}
 
         <Tabs<Tab>
           value={tab}
