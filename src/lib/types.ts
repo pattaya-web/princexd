@@ -60,6 +60,16 @@ export interface IgAudience {
   fetchedAt: string;
 }
 
+export interface BrandProfile {
+  identity: string;
+  audience: string;
+  offer: string;
+  resources: string;
+  pillars: string;
+  rules: string;
+  sops: string;
+}
+
 export interface Settings {
   /** Clé API KIE. Priorité à process.env.KIE_API_KEY si définie. */
   kieApiKey: string;
@@ -116,8 +126,10 @@ export interface Settings {
   iclosedApiKey: string;
   /** Flux .ics iClosed — repli si l'API n'est pas utilisée. */
   iclosedIcsUrl: string;
-  /** Contexte business injecté dans tous les prompts IA. */
+  /** Contexte business injecté dans tous les prompts IA (compilé depuis `brand` quand la fiche est remplie). */
   brandContext: string;
+  /** Fiche « Ma marque » : personal brand, avatar, offre, ressources, piliers, règles, SOP. */
+  brand?: BrandProfile;
   /** Rotation des types de story par jour (0 = dimanche). */
   storyPlan: Record<string, string[]>;
   /** Plan editorial de la semaine : theme et objectif par jour (0 = dimanche). */

@@ -1,0 +1,50 @@
+name: Déploiement Coolify
+
+# Chaque push sur main redéploie mvdyprince.fr (même chose que `node scripts/deploy.mjs`).
+# Secret à poser une fois dans GitHub → Settings → Secrets and variables → Actions :
+#   COOLIFY_TOKEN : jeton d'API Coolify avec la permission « deploy ».
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Demander le déploiement à Coolify
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          APP_UUID: 3ebdarupnoajyk3ygbvebial
+        run: |
+          if [ -z "$COOLIFY_TOKEN" ]; then
+            echo "::error::Secret COOLIFY_TOKEN absent : ajoute-le dans Settings → Secrets → Actions."
+            exit 1
+          fi
+          res=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" \
+            "http://185.97.146.171:8000/api/v1/deploy?uuid=$APP_UUID&force=false")
+          code=$(echo "$res" | tail -n1)
+          body=$(echo "$res" | sed '$d')
+          echo "$body"
+          if [ "$code" != "200" ]; then
+            echo "::error::Coolify a répondu HTTP $code"
+            exit 1
+          fi
+          uuid=$(echo "$body" | sed -n 's/.*"deployment_uuid":"\([^"]*\)".*/\1/p')
+          if [ -z "$uuid" ]; then echo "Déploiement demandé (pas d'identifiant à suivre)."; exit 0; fi
+          for i in $(seq 1 60); do
+            sleep 10
+            st=$(curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" \
+              "http://185.97.146.171:8000/api/v1/deployments/$uuid" | sed -n 's/.*"status":"\([^"]*\)".*/\1/p')
+            echo "$st ($((i*10))s)"
+            case "$st" in
+              finished) echo "✓ En ligne : https://mvdyprince.fr"; exit 0 ;;
+              failed|cancelled-by-user) echo "::error::Déploiement $st (logs dans Coolify)"; exit 1 ;;
+            esac
+          done
+          echo "::warning::Toujours en cours après 10 min, voir Coolify."

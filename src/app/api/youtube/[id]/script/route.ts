@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSettings, readDB, writeDB } from "@/lib/db";
 import { askText, KieError } from "@/lib/kie";
 import { DEFAULT_SCRIPT_PROMPT, transcriptMessage } from "@/lib/youtube";
+import { withBrandContext } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -15,7 +16,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!v) return NextResponse.json({ error: "Vidéo introuvable." }, { status: 404 });
   if (!v.transcript.trim()) return NextResponse.json({ error: "Récupère d'abord le transcript." }, { status: 400 });
 
-  const system = (getSettings().ytScriptPrompt ?? "").trim() || DEFAULT_SCRIPT_PROMPT;
+  const settings = getSettings();
+  const system = withBrandContext((settings.ytScriptPrompt ?? "").trim() || DEFAULT_SCRIPT_PROMPT, settings);
   const extra = (body.extra ?? "").trim();
   const prompt = `${transcriptMessage(v)}${extra ? `\n\nCONSIGNE DU JOUR : ${extra}` : ""}`;
   try {

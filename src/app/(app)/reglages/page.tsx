@@ -260,13 +260,10 @@ export default function ReglagesPage() {
             </p>
           </Card>
 
-          <Card title="Contexte de marque">
-            <textarea
-              className="textarea"
-              style={{ minHeight: 150 }}
-              value={s.brandContext}
-              onChange={(e) => set("brandContext", e.target.value)}
-            />
+          <Card title="Contexte de marque" subtitle="Se remplit maintenant dans la page « Ma marque » (personal brand, avatar, offre, piliers, règles, SOP).">
+            <a className="btn btn-sm" href="/marque">
+              Ouvrir « Ma marque »
+            </a>
           </Card>
 
           <Card title="Accès monteur">

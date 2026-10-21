@@ -25,14 +25,20 @@ export default function YoutubePage() {
   const [promptOpen, setPromptOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [defaultPrompt, setDefaultPrompt] = useState("");
+  const [brandBlock, setBrandBlock] = useState("");
   const [promptSaving, setPromptSaving] = useState(false);
 
   const reload = useCallback(async () => {
     try {
-      const [v, p] = await Promise.all([api<YtVideo[]>("/api/youtube"), api<{ prompt: string; defaultPrompt: string }>("/api/youtube/prompt")]);
+      const [v, p, b] = await Promise.all([
+        api<YtVideo[]>("/api/youtube"),
+        api<{ prompt: string; defaultPrompt: string }>("/api/youtube/prompt"),
+        api<{ compiled: string }>("/api/brand").catch(() => ({ compiled: "" })),
+      ]);
       setVideos(v);
       setPrompt(p.prompt);
       setDefaultPrompt(p.defaultPrompt);
+      setBrandBlock(b.compiled ?? "");
     } catch (e) {
       toast((e as Error).message, "err");
     } finally {
@@ -129,7 +135,10 @@ export default function YoutubePage() {
           video={open}
           onClose={() => setOpenId(null)}
           onUpdate={(nv) => setVideos((list) => list.map((x) => (x.id === nv.id ? nv : x)))}
-          prompt={prompt}
+          prompt={brandBlock ? `${prompt}
+
+CONTEXTE DE MARQUE (source de vérité, prime sur toute autre description) :
+${brandBlock}` : prompt}
         />
       )}
 

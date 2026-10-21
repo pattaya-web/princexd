@@ -505,6 +505,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
   {
     section: "Perso",
     items: [
+      { href: "/marque", label: "Ma marque", icon: "◆" },
       { href: "/ressources", label: "Ressources", icon: "▤" },
       { href: "/todo", label: "To-do", icon: "☑" },
       { href: "/reglages", label: "Réglages", icon: "⚙" },
