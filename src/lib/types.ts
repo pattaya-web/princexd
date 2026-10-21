@@ -130,6 +130,8 @@ export interface Settings {
   brandContext: string;
   /** Fiche « Ma marque » : personal brand, avatar, offre, ressources, piliers, règles, SOP. */
   brand?: BrandProfile;
+  /** Content OS : habitudes du jour, priorités, routine hebdo, ressources, chantiers. */
+  contentOs?: Partial<ContentOsState>;
   /** Rotation des types de story par jour (0 = dimanche). */
   storyPlan: Record<string, string[]>;
   /** Plan editorial de la semaine : theme et objectif par jour (0 = dimanche). */
@@ -1255,6 +1257,8 @@ export interface DB {
   shopBuilds: ShopBuild[];
   /** Vidéos YouTube US à adapter : transcript et script. */
   ytVideos: YtVideo[];
+  /** Content OS : les contenus du pipeline de production. */
+  contentItems: ContentItem[];
   /* --- Media buying Meta Ads (src/lib/mediabuying) --- */
   /** Comptes publicitaires Meta connectes (jeton chiffre). */
   metaConnections: MetaConnection[];
@@ -1533,6 +1537,72 @@ export interface YtVideo {
   script: string;
   scriptAt: string;
   notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ------------------------------ Content OS ------------------------------ */
+
+export interface CosHabit {
+  id: ID;
+  label: string;
+  order: number;
+}
+
+export interface CosResource {
+  id: ID;
+  label: string;
+  url: string;
+  notes: string;
+}
+
+export interface CosProject {
+  id: ID;
+  title: string;
+  status: "done" | "doing" | "todo";
+  order: number;
+}
+
+export interface ContentOsState {
+  habits: CosHabit[];
+  /** AAAA-MM-JJ (date locale du user) → ids des habitudes cochées ce jour-là. */
+  habitLog: Record<string, string[]>;
+  /** AAAA-MM-JJ → la priorité du jour. */
+  priorities: Record<string, string>;
+  routineItems: CosHabit[];
+  /** Lundi de la semaine (AAAA-MM-JJ) → ids cochés. */
+  routineLog: Record<string, string[]>;
+  resources: CosResource[];
+  projects: CosProject[];
+}
+
+export type ContentStatus = "idea" | "script" | "ready" | "shot" | "editing" | "review" | "scheduled" | "published";
+
+/** Un contenu dans le pipeline de production. */
+export interface ContentItem {
+  id: ID;
+  title: string;
+  platform: "youtube" | "instagram";
+  format: "vlog" | "value" | "reel" | "testimonial" | "challenge";
+  funnel: "TOFU" | "MOFU" | "BOFU";
+  hook: string;
+  plan: string;
+  owner: string;
+  /** AAAA-MM-JJ. */
+  dueAt: string;
+  rushesUrl: string;
+  editUrl: string;
+  status: ContentStatus;
+  views: number;
+  comments: number;
+  dms: number;
+  leads: number;
+  postNotes: string;
+  /** Contenu gagnant à reproduire. */
+  winner: boolean;
+  winnerNotes: string;
+  variations: string;
+  order: number;
   createdAt: string;
   updatedAt: string;
 }

@@ -459,6 +459,15 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     ],
   },
   {
+    section: "Content OS",
+    items: [
+      { href: "/content-os", label: "Aujourd'hui", icon: "☀" },
+      { href: "/content-os/strategie", label: "Stratégie", icon: "◎" },
+      { href: "/content-os/pipeline", label: "Pipeline", icon: "▦" },
+      { href: "/content-os/ressources", label: "Ressources & roadmap", icon: "▤" },
+    ],
+  },
+  {
     section: "Création",
     items: [
       { href: "/studio", label: "Studio IA", icon: "✦" },

@@ -114,6 +114,7 @@ const EMPTY_DB: DB = {
   shops: [],
   shopBuilds: [],
   ytVideos: [],
+  contentItems: [],
   metaConnections: [],
   mbSnapshots: [],
   mbSettings: [],
