@@ -104,8 +104,9 @@ export function colorMap(json: string, palette: Palette): Map<string, string> {
 }
 
 /** Applique la table a tout le fichier (cles `color_*`, degrades, schemas…). */
-export function recolor(json: string, palette: Palette): { json: string; replaced: number } {
-  const map = colorMap(json, palette);
+export function recolor(json: string, palette: Palette, mode: "palette" | "accent" = "palette"): { json: string; replaced: number } {
+  // « accent » : toutes les couleurs saturees deviennent la couleur secondaire (accents de sections).
+  const map = mode === "accent" ? new Map(brandColors(json).map(({ color }) => [color, normalizeHex(palette.secondary || palette.primary)])) : colorMap(json, palette);
   let replaced = 0;
   const out = json.replace(HEX, (m) => {
     const to = map.get(normalizeHex(m));
@@ -120,4 +121,25 @@ export function recolor(json: string, palette: Palette): { json: string; replace
 export function readableOn(hex: string): "#ffffff" | "#111111" {
   const [, , l] = toHsl(hex);
   return l > 0.6 ? "#111111" : "#ffffff";
+}
+
+/**
+ * Charte CSS d'un theme sur mesure : les variables de `:root` (teintes,
+ * encres, fonds sombres) passent a la teinte de la couleur principale en
+ * gardant leur clarte et leur saturation. Les gris restent gris : la
+ * hierarchie visuelle du template est conservee, seule la couleur change.
+ */
+export function recolorCssRoot(css: string, palette: Palette): { css: string; replaced: number } {
+  const [ph, ps] = toHsl(normalizeHex(palette.primary));
+  if (ps < 0.06) return { css, replaced: 0 };
+  let replaced = 0;
+  const out = css.replace(/:root\s*{[^}]*}/g, (block) =>
+    block.replace(HEX, (m) => {
+      const [, s, l] = toHsl(m);
+      if (s < 0.06 || l < 0.04 || l > 0.97) return m;
+      replaced++;
+      return fromHsl(ph, Math.min(1, Math.max(s, s * (ps / 0.4))), l);
+    }),
+  );
+  return { css: out, replaced };
 }

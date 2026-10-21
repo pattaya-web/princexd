@@ -16,8 +16,8 @@ import { fileText, loadTemplateZip, mediaSlots, parseThemeJson, saveReadyZip, te
 import { uploadToKie } from "../kie";
 import { getSettings, insert, list, update } from "../db";
 import type { ClientShop, ScrapedProduct, ShopBuild, ShopBuildBrief } from "../types";
-import { recolor } from "./colors";
-import { fallbackBrandCopy, faqHtml, generateBrandCopy, generateProductCopy } from "./copy";
+import { recolor, recolorCssRoot } from "./colors";
+import { fallbackBrandCopy, faqHtml, generateBrandCopy, generateProductCopy, rewriteTemplateTexts } from "./copy";
 import { scrapeLinks, slug } from "./scrape";
 import { adminFor, gidNumber } from "./shopify";
 
@@ -48,18 +48,42 @@ interface IndexJson {
   order?: string[];
 }
 
-/** Textes de la page d'accueil, par cle « section.cle » ou « section.bloc.cle ». */
-function collectHomepageTexts(index: IndexJson): Record<string, string> {
+/** Fichiers du theme dont les textes sont reecrits pour la niche. */
+const COPY_FILES = ["templates/index.json", "templates/product.json", "sections/header-group.json", "sections/footer-group.json"];
+/** Feuilles de style ou peut vivre la charte (`:root`) d'un theme sur mesure. */
+const CSS_FILES = ["assets/base.css", "assets/theme.css", "assets/styles.css", "assets/main.css"];
+const THEME_READ_FILES = ["config/settings_data.json", ...COPY_FILES, ...CSS_FILES];
+
+/** Cles qui ne portent jamais de texte a reecrire (liens, medias, mise en page, identifiants). */
+const SKIP_KEYS = /url|link$|href|asset|image|video|logo|icon|ratio|color|colour|font|align|size|width|height|layout|style|handle|^id$|_id$|product$|collection$|page$|menu|date|^time|seconds|delay|speed|count|columns|rows|position|anchor|class|css|js|^steps$/i;
+
+export type TemplateJson = IndexJson;
+
+/**
+ * Tous les textes d'un template, par cle « fichier|section.cle » ou
+ * « fichier|section.bloc.cle ». Une valeur est un texte si elle ressemble a
+ * une phrase ou un libelle : pas une URL, un identifiant, une couleur, un
+ * nombre ni un mot-cle technique.
+ */
+export function collectHomepageTexts(index: TemplateJson, prefix = "templates/index.json"): Record<string, string> {
   const out: Record<string, string> = {};
-  const usable = (v: unknown): v is string =>
-    typeof v === "string" && v.trim().length >= 2 && v.length <= 900 && !/^shopify:\/\/|^https?:\/\/|^#|^\d+$/.test(v.trim());
+  const usable = (k: string, v: unknown): v is string => {
+    if (SKIP_KEYS.test(k)) return false;
+    if (typeof v !== "string") return false;
+    const t = v.trim();
+    if (t.length < 2 || t.length > 1500) return false;
+    if (/^(shopify:\/\/|https?:\/\/|\/|#|mailto:|tel:)/i.test(t)) return false;
+    if (/^[\d\s.,%€$:+-]+$/.test(t)) return false;
+    if (/^[a-z0-9_-]+$/.test(t)) return false; // identifiant, handle, mot-cle (left, right, auto…)
+    return true;
+  };
   for (const [sid, section] of Object.entries(index.sections ?? {})) {
     for (const [k, v] of Object.entries(section.settings ?? {})) {
-      if (TEXT_KEYS.test(k) && usable(v)) out[`${sid}.${k}`] = v;
+      if (usable(k, v)) out[`${prefix}|${sid}.${k}`] = v;
     }
     for (const [bid, block] of Object.entries(section.blocks ?? {})) {
       for (const [k, v] of Object.entries(block.settings ?? {})) {
-        if (TEXT_KEYS.test(k) && usable(v)) out[`${sid}.${bid}.${k}`] = v;
+        if (usable(k, v)) out[`${prefix}|${sid}.${bid}.${k}`] = v;
       }
     }
   }
@@ -67,12 +91,12 @@ function collectHomepageTexts(index: IndexJson): Record<string, string> {
 }
 
 /** Ecrit les textes reecrits et pointe les sections vers la nouvelle collection / le premier produit. */
-function applyHomepage(index: IndexJson, texts: Record<string, string>, collectionHandle: string, productHandle: string): number {
+export function applyHomepage(index: TemplateJson, texts: Record<string, string>, prefix: string, collectionHandle: string, productHandle: string): number {
   let changed = 0;
   for (const [sid, section] of Object.entries(index.sections ?? {})) {
     const settings = section.settings ?? {};
     for (const k of Object.keys(settings)) {
-      const key = `${sid}.${k}`;
+      const key = `${prefix}|${sid}.${k}`;
       if (texts[key] !== undefined) {
         settings[k] = texts[key];
         changed++;
@@ -87,7 +111,7 @@ function applyHomepage(index: IndexJson, texts: Record<string, string>, collecti
     for (const [bid, block] of Object.entries(section.blocks ?? {})) {
       const bs = block.settings ?? {};
       for (const k of Object.keys(bs)) {
-        const key = `${sid}.${bid}.${k}`;
+        const key = `${prefix}|${sid}.${bid}.${k}`;
         if (texts[key] !== undefined) {
           bs[k] = texts[key];
           changed++;
@@ -157,7 +181,8 @@ async function run(id: string, shop: ClientShop, urls: string[], brief: ShopBuil
     if (brief.installTheme && !zipUrl) note("Aucun zip de thème déposé : on travaille sur le thème actif de la boutique.");
 
     let homepageTexts: Record<string, string> = {};
-    let indexJson: IndexJson | null = null;
+    const tpls: Record<string, TemplateJson> = {};
+    const cssFiles: Record<string, string> = {};
     let settingsJson = "";
     let themeInstalled = false;
     let readyZipFile = "";
@@ -224,32 +249,38 @@ async function run(id: string, shop: ClientShop, urls: string[], brief: ShopBuil
       if (themeId) {
         say("Lecture du thème…");
         try {
-          files = await admin.readThemeFiles(themeId, ["config/settings_data.json", "templates/index.json"]);
+          files = await admin.readThemeFiles(themeId, THEME_READ_FILES);
         } catch (e) {
           note(`Lecture du thème impossible : ${(e as Error).message}`);
         }
       } else if (template) {
         say("Lecture du thème template (zip)…");
-        for (const filename of ["config/settings_data.json", "templates/index.json"]) {
+        for (const filename of THEME_READ_FILES) {
           const content = fileText(template.files, filename);
           if (content) files.push({ filename, content });
         }
       }
       settingsJson = files.find((f) => f.filename === "config/settings_data.json")?.content ?? "";
-      const idx = files.find((f) => f.filename === "templates/index.json")?.content ?? "";
-      try {
-        indexJson = idx ? parseThemeJson<IndexJson>(idx) : null;
-      } catch {
-        indexJson = null;
-        note("templates/index.json illisible : les textes d'accueil ne seront pas réécrits.");
+      for (const f of files) {
+        if (COPY_FILES.includes(f.filename)) {
+          try {
+            tpls[f.filename] = parseThemeJson<TemplateJson>(f.content);
+            Object.assign(homepageTexts, collectHomepageTexts(tpls[f.filename], f.filename));
+          } catch {
+            note(`${f.filename} illisible : ses textes ne seront pas réécrits.`);
+          }
+        } else if (CSS_FILES.includes(f.filename) && /:root\s*{/.test(f.content)) {
+          cssFiles[f.filename] = f.content;
+        }
       }
-      if (indexJson) homepageTexts = collectHomepageTexts(indexJson);
+      const n = Object.keys(homepageTexts).length;
+      if (n) note(`${n} textes du thème à adapter à la niche (${Object.keys(tpls).map((f) => f.replace(/^.*\//, "").replace(/\.json$/, "")).join(", ")}).`);
     }
 
     say("Copywriting de la marque (IA)…");
     let brand: Awaited<ReturnType<typeof generateBrandCopy>>;
     try {
-      brand = await generateBrandCopy(brief, products, homepageTexts);
+      brand = await generateBrandCopy(brief, products);
     } catch (e) {
       // Le modèle texte KIE a lâché trois fois : on continue sans slogan ni accueil réécrit.
       brand = fallbackBrandCopy(brief);
@@ -258,10 +289,11 @@ async function run(id: string, shop: ClientShop, urls: string[], brief: ShopBuil
     const brandSlug = slug(brand.brandName);
     const tag = `marque:${brandSlug}`;
     note(`Marque : ${brand.brandName}${brand.tagline ? ` — ${brand.tagline}` : ""}. Palette ${brand.palette.primary} / ${brand.palette.secondary}.`);
+    if (brand.niche) note(`Niche : ${brand.niche.replace(/\s+/g, " ").slice(0, 300)}${brand.niche.length > 300 ? "…" : ""}`);
     update("shopBuilds", id, { brief: { ...brief, brandName: brand.brandName } });
 
     say("Réécriture des fiches produit (IA)…");
-    const copies = await generateProductCopy(brief, brand.brandName, products, (done, total) =>
+    const copies = await generateProductCopy(brief, brand, products, (done, total) =>
       update("shopBuilds", id, { step: `Réécriture des fiches produit (IA)… ${done}/${total}` }),
     );
 
@@ -309,6 +341,17 @@ async function run(id: string, shop: ClientShop, urls: string[], brief: ShopBuil
       note(`Publication : ${(e as Error).message}`);
     }
 
+    let rewritten: Record<string, string> = {};
+    const totalTexts = Object.keys(homepageTexts).length;
+    if (totalTexts) {
+      say(`Copywriting du thème pour la niche (IA)… 0/${totalTexts}`);
+      rewritten = await rewriteTemplateTexts(brief, brand, homepageTexts, (done, total) =>
+        update("shopBuilds", id, { step: `Copywriting du thème pour la niche (IA)… ${done}/${total}` }),
+      );
+      const got = Object.keys(rewritten).length;
+      note(got === totalTexts ? `${got} textes du thème réécrits pour la niche.` : `${got} textes du thème réécrits sur ${totalTexts} : les autres gardent le texte du template (modèle texte capricieux), relance pour compléter.`);
+    }
+
     if (themeId || template) {
       say("Couleurs et textes du thème…");
       const files: { filename: string; content: string }[] = [];
@@ -317,14 +360,21 @@ async function run(id: string, shop: ClientShop, urls: string[], brief: ShopBuil
         if (replaced) files.push({ filename: "config/settings_data.json", content: json });
         note(replaced ? `${replaced} couleur${replaced > 1 ? "s" : ""} du thème remplacée${replaced > 1 ? "s" : ""}.` : "Aucune couleur saturée trouvée dans le thème : couleurs inchangées.");
       }
-      if (indexJson) {
-        const changed = applyHomepage(indexJson, brand.homepage, collectionHandle, created[0]?.handle ?? "");
-        // Certains templates portent leurs couleurs d'accent dans les sections, pas dans settings_data.
-        const idx = recolor(JSON.stringify(indexJson, null, 2), brand.palette);
-        if (changed || idx.replaced) files.push({ filename: "templates/index.json", content: idx.json });
-        note(
-          `${changed} texte${changed > 1 ? "s" : ""} de la page d'accueil réécrit${changed > 1 ? "s" : ""}${idx.replaced ? `, ${idx.replaced} couleur${idx.replaced > 1 ? "s" : ""} d'accent des sections remplacée${idx.replaced > 1 ? "s" : ""}` : ""}.`,
-        );
+      for (const [filename, tpl] of Object.entries(tpls)) {
+        const changed = applyHomepage(tpl, rewritten, filename, collectionHandle, created[0]?.handle ?? "");
+        // Les accents de couleur des sections (boutons, badges) prennent la couleur secondaire.
+        const r = recolor(JSON.stringify(tpl, null, 2), brand.palette, "accent");
+        if (changed || r.replaced) {
+          files.push({ filename, content: r.json });
+          note(`${filename.replace(/^.*\//, "")} : ${changed} texte${changed > 1 ? "s" : ""}${r.replaced ? `, ${r.replaced} couleur${r.replaced > 1 ? "s" : ""} d'accent` : ""}.`);
+        }
+      }
+      for (const [filename, css] of Object.entries(cssFiles)) {
+        const r = recolorCssRoot(css, brand.palette);
+        if (r.replaced) {
+          files.push({ filename, content: r.css });
+          note(`${filename.replace(/^.*\//, "")} : charte (:root) passée à la teinte de la marque (${r.replaced} couleurs).`);
+        }
       }
       if (themeId) {
         try {
