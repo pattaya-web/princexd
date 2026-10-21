@@ -466,6 +466,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/temoignages", label: "Témoignages", icon: "★" },
       { href: "/tournage", label: "Kit tournage", icon: "▶" },
       { href: "/transcript", label: "Transcript", icon: "≡" },
+      { href: "/youtube", label: "Vidéos YouTube", icon: "▶" },
     ],
   },
   {

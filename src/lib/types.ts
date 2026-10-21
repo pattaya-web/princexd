@@ -65,6 +65,8 @@ export interface Settings {
   kieApiKey: string;
   /** Modèle texte KIE utilisé pour la traduction / l'analyse de scripts. */
   kieTextModel: string;
+  /** Prompt du scénariste YouTube (page Vidéos YouTube) ; vide = prompt par défaut. */
+  ytScriptPrompt?: string;
   /** Prix d'un crédit KIE en USD (kie.ai facture ~0,005 $/crédit). */
   creditUsdRate: number;
   /** Taux EUR pour l'affichage secondaire. */
@@ -1239,6 +1241,8 @@ export interface DB {
   shops: ClientShop[];
   /** Historique des generations, une ligne par boutique construite. */
   shopBuilds: ShopBuild[];
+  /** Vidéos YouTube US à adapter : transcript et script. */
+  ytVideos: YtVideo[];
   /* --- Media buying Meta Ads (src/lib/mediabuying) --- */
   /** Comptes publicitaires Meta connectes (jeton chiffre). */
   metaConnections: MetaConnection[];
@@ -1497,6 +1501,28 @@ export interface ShopBuild {
   error?: string;
   createdAt: string;
   finishedAt?: string;
+}
+
+/** Une vidéo YouTube de référence : vignette, transcript, puis le script adapté. */
+export interface YtVideo {
+  id: ID;
+  videoId: string;
+  url: string;
+  title: string;
+  author: string;
+  thumbnail: string;
+  durationSec: number;
+  transcript: string;
+  /** Langue des sous-titres, vide tant que rien n'est récupéré. */
+  transcriptLang: string;
+  /** « captions » (sous-titres YouTube), « whisper » (audio transcrit), vide sinon. */
+  transcriptSource: "captions" | "whisper" | "";
+  /** Analyse + script produits par le modèle avec le prompt du scénariste. */
+  script: string;
+  scriptAt: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type CollectionName = Exclude<keyof DB, "settings">;
