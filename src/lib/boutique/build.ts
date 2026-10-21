@@ -17,7 +17,7 @@ import { uploadToKie } from "../kie";
 import { getSettings, insert, list, update } from "../db";
 import type { ClientShop, ScrapedProduct, ShopBuild, ShopBuildBrief } from "../types";
 import { recolor } from "./colors";
-import { faqHtml, generateBrandCopy, generateProductCopy } from "./copy";
+import { fallbackBrandCopy, faqHtml, generateBrandCopy, generateProductCopy } from "./copy";
 import { scrapeLinks, slug } from "./scrape";
 import { adminFor, gidNumber } from "./shopify";
 
@@ -247,7 +247,14 @@ async function run(id: string, shop: ClientShop, urls: string[], brief: ShopBuil
     }
 
     say("Copywriting de la marque (IA)…");
-    const brand = await generateBrandCopy(brief, products, homepageTexts);
+    let brand: Awaited<ReturnType<typeof generateBrandCopy>>;
+    try {
+      brand = await generateBrandCopy(brief, products, homepageTexts);
+    } catch (e) {
+      // Le modèle texte KIE a lâché trois fois : on continue sans slogan ni accueil réécrit.
+      brand = fallbackBrandCopy(brief);
+      note(`Copywriting de marque indisponible (KIE : ${(e as Error).message}) : slogan, À propos, FAQ et textes d'accueil non générés, relance plus tard pour les avoir. Les produits continuent.`);
+    }
     const brandSlug = slug(brand.brandName);
     const tag = `marque:${brandSlug}`;
     note(`Marque : ${brand.brandName}${brand.tagline ? ` — ${brand.tagline}` : ""}. Palette ${brand.palette.primary} / ${brand.palette.secondary}.`);

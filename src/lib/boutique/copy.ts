@@ -8,6 +8,26 @@
  * recopies tels quels des concurrents.
  */
 import { askText, parseJsonLoose } from "../kie";
+
+/**
+ * KIE échoue parfois côté modèle (« 2 times retry fail ») sur les grosses
+ * requêtes : on réessaie avec une pause, et l'appelant peut alléger la
+ * demande entre deux essais.
+ */
+async function askWithRetry(build: (attempt: number) => { prompt: string; system: string; maxTokens: number }, tries = 3): Promise<string> {
+  let last: Error | null = null;
+  for (let attempt = 0; attempt < tries; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 3000 * attempt));
+    const { prompt, system, maxTokens } = build(attempt);
+    try {
+      return await askText(prompt, system, maxTokens);
+    } catch (e) {
+      last = e as Error;
+      if (/cle API|API KIE|401/.test(last.message)) throw last;
+    }
+  }
+  throw last ?? new Error("Modèle texte indisponible.");
+}
 import type { ScrapedProduct, ShopBuildBrief } from "../types";
 import { isHex, normalizeHex } from "./colors";
 
@@ -78,13 +98,16 @@ export async function generateBrandCopy(
     .slice(0, 12)
     .map((p) => `- ${p.title} (${p.variants[0]?.price || "?"}) : ${stripHtml(p.descriptionHtml, 220)}`)
     .join("\n");
-  const keys = Object.entries(homepageTexts).slice(0, 70);
-  const homepageBlock = keys.length
+  // Essai 1 : jusqu'à 70 textes d'accueil ; essai 2 : 30 ; essai 3 : marque seule.
+  const homepageBlockFor = (attempt: number) => {
+    const keys = Object.entries(homepageTexts).slice(0, attempt === 0 ? 70 : attempt === 1 ? 30 : 0);
+    return keys.length
     ? `\n\nTEXTES DE LA PAGE D'ACCUEIL À RÉÉCRIRE (garde exactement les mêmes clés ; même longueur approximative ; si la valeur contient des balises HTML, garde la même structure de balises ; ne touche pas aux URL) :\n${JSON.stringify(Object.fromEntries(keys), null, 1)}`
-    : "";
+      : "";
+  };
 
   const system = `Tu es un copywriter e-commerce senior (marques DTC qui font +50 000 € par mois). Tu écris en ${lang}, ton direct, concret, orienté bénéfices, sans superlatifs creux ni emojis. Tu réponds UNIQUEMENT avec un objet JSON valide, sans commentaire ni bloc de code.`;
-  const prompt = `Crée l'identité d'une nouvelle boutique en ligne qui vend ce catalogue.
+  const promptFor = (attempt: number) => `Crée l'identité d'une nouvelle boutique en ligne qui vend ce catalogue.
 
 CATALOGUE :
 ${catalogue || "(vide)"}
@@ -103,9 +126,9 @@ Réponds avec ce JSON :
   "about": "page À propos en HTML simple (<p>, <h2>), 120 à 200 mots, à la première personne du pluriel",
   "faq": [ { "q": "question", "a": "réponse en 1 à 3 phrases" } ] (6 questions : livraison, délais, retours, paiement, suivi, garantie),
   "homepage": { "clé": "texte réécrit", … }
-}${homepageBlock}`;
+}${homepageBlockFor(attempt)}`;
 
-  const raw = await askText(prompt, system, 8000);
+  const raw = await askWithRetry((attempt) => ({ prompt: promptFor(attempt), system, maxTokens: attempt === 2 ? 4000 : 8000 }));
   const out = parseJsonLoose<Partial<BrandCopy>>(raw);
   const homepage: Record<string, string> = {};
   for (const [k, v] of Object.entries(out.homepage ?? {})) {
@@ -119,6 +142,19 @@ Réponds avec ce JSON :
     about: (out.about ?? "").trim(),
     faq: Array.isArray(out.faq) ? out.faq.filter((f) => f && f.q && f.a).slice(0, 8) : [],
     homepage,
+  };
+}
+
+/** Identité minimale quand le modèle texte est indisponible : la boutique sort quand même. */
+export function fallbackBrandCopy(brief: ShopBuildBrief): BrandCopy {
+  return {
+    brandName: (brief.brandName || "Ma Boutique").trim(),
+    tagline: "",
+    palette: pickPalette(brief),
+    announcement: "",
+    about: "",
+    faq: [],
+    homepage: {},
   };
 }
 
@@ -145,7 +181,7 @@ PRODUITS (dans l'ordre, renvoie un tableau de même longueur) :
 ${batch.map((p, j) => `${j + 1}. ${p.title}\nOptions : ${p.options.map((o) => `${o.name} (${o.values.slice(0, 6).join(", ")})`).join(" ; ") || "aucune"}\nDescription concurrente : ${stripHtml(p.descriptionHtml, 900) || "(vide)"}`).join("\n\n")}`;
 
     try {
-      const raw = await askText(prompt, system, 6000);
+      const raw = await askWithRetry(() => ({ prompt, system, maxTokens: 6000 }));
       const arr = parseJsonLoose<Partial<ProductCopy>[]>(raw);
       if (Array.isArray(arr)) {
         arr.forEach((c, j) => {
