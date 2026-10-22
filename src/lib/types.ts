@@ -1083,6 +1083,9 @@ export interface SwipeMetrics {
   sales: number;
 }
 
+/** Ce qu'il me faut pour tourner MA version : seul face cam, a deux (question-reponse, podcast), ou filme par quelqu'un (cadreur, lieu). */
+export type SwipeNeed = "solo" | "duo" | "crew";
+
 /** D'ou vient la transcription : auto (audio recupere), fichier importe, collee a la main. */
 export type SwipeTranscriptSource = "auto" | "file" | "manual" | "";
 
@@ -1195,6 +1198,8 @@ export interface Swipe {
   /* --- Fiche de production (2026-10-22) --- */
   /** Mes notes personnelles sur ce Reel. */
   notes?: string;
+  /** Besoin de tournage pour ma version (voir SwipeNeed). Absent = pas encore choisi. */
+  need?: SwipeNeed;
   transcriptSource?: SwipeTranscriptSource;
   /** Vrai quand la transcription automatique a echoue : il faut importer un fichier ou coller le texte. */
   transcriptNeeded?: boolean;

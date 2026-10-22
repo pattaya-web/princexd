@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, useCollection } from "@/lib/client";
 import { Card, Empty, ErrorNote, PageHeader, Spinner, Tabs, useToast } from "@/components/ui";
 import { relative } from "@/lib/format";
-import { swipeProdStatus, swipeStage, type Swipe, type SwipeAnalysis, type SwipeProdStatus, type SwipeStage } from "@/lib/types";
+import { swipeProdStatus, swipeStage, type Swipe, type SwipeAnalysis, type SwipeNeed, type SwipeProdStatus, type SwipeStage } from "@/lib/types";
 import { PromptsInline } from "@/components/SwipeProduction";
-import { MechanicsPanel, ShotsPanel, STAGE_COLOR, STAGE_HINT, STAGE_TITLE, StageBadge, StateBadge, swipeState, type SwipeState } from "@/components/swipe/panels";
+import { MechanicsPanel, NeedSelect, ShotsPanel, STAGE_COLOR, STAGE_HINT, STAGE_TITLE, StageBadge, StateBadge, swipeState, type SwipeState } from "@/components/swipe/panels";
 import { SourcePanel } from "@/components/swipe/SourcePanel";
 import { ScriptStudio } from "@/components/swipe/ScriptStudio";
 import { ProductionPanel } from "@/components/swipe/ProductionPanel";
@@ -182,6 +182,14 @@ export default function SwipePage() {
     }
   };
 
+  const setNeed = async (s: Swipe, need: SwipeNeed | "") => {
+    try {
+      await patch(s.id, { need: need || undefined });
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
   const setStatus = async (s: Swipe, status: SwipeProdStatus) => {
     const r = await api<{ swipe: Swipe }>("/api/swipe/status", { method: "POST", body: JSON.stringify({ swipeId: s.id, status }) });
     setRows((prev) => prev.map((x) => (x.id === s.id ? { ...x, prodStatus: status, prodDates: r.swipe.prodDates } : x)));
@@ -247,6 +255,7 @@ export default function SwipePage() {
             if (await analyzeSwipe(selected.id)) setPanel("analyse");
           }}
           onStage={(stage) => void setStage(selected, stage)}
+          onNeed={(need) => void setNeed(selected, need)}
           onStatus={(status) => setStatus(selected, status)}
           onStatusChange={(status, dates) => setRows((prev) => prev.map((x) => (x.id === selected.id ? { ...x, prodStatus: status, prodDates: dates } : x)))}
           onGenerated={(script, status, dates) => setRows((prev) => prev.map((x) => (x.id === selected.id ? { ...x, script, prodStatus: status, prodDates: dates, status: x.status === "a-analyser" ? "analyse" : x.status } : x)))}
@@ -281,9 +290,9 @@ export default function SwipePage() {
       ) : (
         <div className="flex flex-col gap-3">
           {(["TOFU", "MOFU", "BOFU"] as SwipeStage[]).map((st) => (
-            <Section key={st} id={st} title={STAGE_TITLE[st]} hint={STAGE_HINT[st]} color={STAGE_COLOR[st]} items={grouped[st]} open={openSections[st]} onToggle={() => setOpenSections((o) => ({ ...o, [st]: !o[st] }))} working={working} selectedId={selectedId} onOpen={open} />
+            <Section key={st} id={st} title={STAGE_TITLE[st]} hint={STAGE_HINT[st]} color={STAGE_COLOR[st]} items={grouped[st]} open={openSections[st]} onToggle={() => setOpenSections((o) => ({ ...o, [st]: !o[st] }))} working={working} selectedId={selectedId} onOpen={open} onNeed={setNeed} />
           ))}
-          <Section id="check" title="À analyser" hint="Transcription ou classification incomplète : ouvre la fiche pour finir." color="#6b7280" items={grouped.check} open={openSections.check} onToggle={() => setOpenSections((o) => ({ ...o, check: !o.check }))} working={working} selectedId={selectedId} onOpen={open} discreet />
+          <Section id="check" title="À analyser" hint="Transcription ou classification incomplète : ouvre la fiche pour finir." color="#6b7280" items={grouped.check} open={openSections.check} onToggle={() => setOpenSections((o) => ({ ...o, check: !o.check }))} working={working} selectedId={selectedId} onOpen={open} onNeed={setNeed} discreet />
         </div>
       )}
     </div>
@@ -292,7 +301,7 @@ export default function SwipePage() {
 
 /* ------------------------------- Sections ------------------------------- */
 
-function Section({ id, title, hint, color, items, open, onToggle, working, selectedId, onOpen, discreet }: { id: string; title: string; hint: string; color: string; items: Swipe[]; open: boolean; onToggle: () => void; working: Record<string, string>; selectedId: string | null; onOpen: (s: Swipe, p?: Panel) => void; discreet?: boolean }) {
+function Section({ id, title, hint, color, items, open, onToggle, working, selectedId, onOpen, onNeed, discreet }: { id: string; title: string; hint: string; color: string; items: Swipe[]; open: boolean; onToggle: () => void; working: Record<string, string>; selectedId: string | null; onOpen: (s: Swipe, p?: Panel) => void; onNeed: (s: Swipe, need: SwipeNeed | "") => void; discreet?: boolean }) {
   if (discreet && !items.length) return null;
   return (
     <section className="card" style={{ borderColor: open && !discreet ? `color-mix(in srgb, ${color} 35%, var(--border))` : undefined }} data-section={id}>
@@ -312,7 +321,7 @@ function Section({ id, title, hint, color, items, open, onToggle, working, selec
           ) : (
             <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
               {items.map((s) => (
-                <SwipeCard key={s.id} s={s} working={working[s.id]} active={selectedId === s.id} onOpen={onOpen} />
+                <SwipeCard key={s.id} s={s} working={working[s.id]} active={selectedId === s.id} onOpen={onOpen} onNeed={onNeed} />
               ))}
             </div>
           )}
@@ -322,7 +331,7 @@ function Section({ id, title, hint, color, items, open, onToggle, working, selec
   );
 }
 
-function SwipeCard({ s, working, active, onOpen }: { s: Swipe; working?: string; active: boolean; onOpen: (s: Swipe, p?: Panel) => void }) {
+function SwipeCard({ s, working, active, onOpen, onNeed }: { s: Swipe; working?: string; active: boolean; onOpen: (s: Swipe, p?: Panel) => void; onNeed: (s: Swipe, need: SwipeNeed | "") => void }) {
   const hook = s.script?.hook || s.analysis?.hook || "";
   const excerpt = hook || (s.transcriptInput ?? "").trim().split(/\n/)[0] || "";
   const title = s.title || hook || s.caption || s.url;
@@ -356,6 +365,9 @@ function SwipeCard({ s, working, active, onOpen }: { s: Swipe; working?: string;
       <div className="flex items-center gap-1.5 flex-wrap">
         <StageBadge s={s} small />
         <StateBadge s={s} working={working} />
+        <span className="ml-auto">
+          <NeedSelect s={s} onChange={(need) => onNeed(s, need)} small />
+        </span>
       </div>
       <div className="flex gap-1.5 mt-auto">
         <button className="btn btn-sm flex-1" onClick={() => onOpen(s)}>
@@ -380,6 +392,7 @@ function Detail({
   onPatch,
   onAnalyze,
   onStage,
+  onNeed,
   onStatus,
   onStatusChange,
   onGenerated,
@@ -393,6 +406,7 @@ function Detail({
   onPatch: (p: Partial<Swipe>) => Promise<void>;
   onAnalyze: () => Promise<void>;
   onStage: (stage: SwipeStage | "") => void;
+  onNeed: (need: SwipeNeed | "") => void;
   onStatus: (status: SwipeProdStatus) => Promise<void>;
   onStatusChange: (status: SwipeProdStatus, dates: Swipe["prodDates"]) => void;
   onGenerated: (script: NonNullable<Swipe["script"]>, status: SwipeProdStatus, dates: Swipe["prodDates"]) => void;
@@ -420,6 +434,7 @@ function Detail({
       actions={
         <>
           <StateBadge s={s} working={working} />
+          <NeedSelect s={s} onChange={onNeed} />
           <select className="select select-sm !w-auto" value={s.etapeManuelle ?? ""} onChange={(e) => onStage(e.target.value as SwipeStage | "")} title="Déplacer dans une autre catégorie">
             <option value="">{s.analysis?.etape ? `Auto · ${s.analysis.etape}` : stage ? stage : "Catégorie…"}</option>
             {(["TOFU", "MOFU", "BOFU"] as SwipeStage[]).map((st) => (

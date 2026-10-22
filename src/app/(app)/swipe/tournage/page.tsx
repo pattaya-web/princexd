@@ -5,7 +5,7 @@ import Link from "next/link";
 import { api, useCollection } from "@/lib/client";
 import { Card, Empty, PageHeader, Spinner, useToast } from "@/components/ui";
 import { useWeek } from "@/components/WeekBlock";
-import { STAGE_COLOR } from "@/components/swipe/panels";
+import { NEED_LABEL, needOf, STAGE_COLOR } from "@/components/swipe/panels";
 import { SWIPE_STAGES, swipeProdStatus, swipeStage, type Swipe, type SwipeStage } from "@/lib/types";
 
 /**
@@ -160,6 +160,7 @@ export default function TournagePage() {
                     </span>
                   )}
                   <span className="text-[14px] font-semibold min-w-0 flex-1 truncate">{s.title || sc?.hook || s.url}</span>
+                  {needOf(s) && <span className="badge !text-[10.5px] !py-0" style={{ color: "var(--accent)" }}>{NEED_LABEL[needOf(s) as keyof typeof NEED_LABEL]}</span>}
                   {s.shootAt && <span className="badge !text-[10.5px] !py-0">📅 {fmtDay(s.shootAt)}</span>}
                   {sc?.durationSec ? <span className="dim text-[12px]">{sc.durationSec} s</span> : null}
                   {s.assignee && <span className="dim text-[12px]">· {s.assignee}</span>}
@@ -233,6 +234,7 @@ export default function TournagePage() {
               {todo.findIndex((x) => x.id === currentSwipe.id) + 1} / {todo.length}
               {currentSwipe.script?.durationSec ? ` · ${currentSwipe.script.durationSec} s` : ""}
             </span>
+            {needOf(currentSwipe) && <span className="opacity-80">{NEED_LABEL[needOf(currentSwipe) as keyof typeof NEED_LABEL]}</span>}
             <a href={currentSwipe.url} target="_blank" rel="noreferrer" className="opacity-70 underline hidden md:inline">
               référence ↗
             </a>

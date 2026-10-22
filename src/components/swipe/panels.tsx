@@ -1,7 +1,7 @@
 "use client";
 
 import { CopyButton } from "@/components/ui";
-import { SWIPE_CONFIDENCE_MIN, SWIPE_PROD_LABEL, swipeProdStatus, swipeStage, type Swipe, type SwipeAnalysis, type SwipeProdStatus, type SwipeStage } from "@/lib/types";
+import { SWIPE_CONFIDENCE_MIN, SWIPE_PROD_LABEL, swipeProdStatus, swipeStage, type Swipe, type SwipeAnalysis, type SwipeNeed, type SwipeProdStatus, type SwipeStage } from "@/lib/types";
 
 /* Briques partagées du Swipe file : étapes du funnel, états d'une fiche, panneaux d'analyse. */
 
@@ -34,6 +34,40 @@ export const FORMAT_LABEL: Record<string, string> = {
   garantie: "Garantie",
   urgence: "Urgence",
 };
+
+/** Besoin de tournage : ce qu'il me faut pour refaire ce Reel. */
+export const NEED_OPTIONS: { key: SwipeNeed; label: string; short: string; hint: string }[] = [
+  { key: "solo", label: "🙂 Solo face cam", short: "Solo", hint: "Je le tourne seul, face caméra, tranquille." },
+  { key: "duo", label: "👥 À deux", short: "À deux", hint: "Il me faut quelqu'un : question-réponse, podcast, dialogue." },
+  { key: "crew", label: "🎥 À filmer", short: "À filmer", hint: "Il faut quelqu'un pour me filmer ou un lieu précis." },
+];
+export const NEED_LABEL: Record<SwipeNeed, string> = Object.fromEntries(NEED_OPTIONS.map((o) => [o.key, o.label])) as Record<SwipeNeed, string>;
+
+/** Besoin choisi, sinon suggéré par l'analyse (deux personnes qui parlent → à deux). */
+export const needOf = (s: Swipe): SwipeNeed | "" => s.need ?? (s.analysis?.speakers === "dialogue" ? "duo" : "");
+
+/** Sélecteur compact du besoin, utilisable sur une carte comme dans la fiche. */
+export function NeedSelect({ s, onChange, small }: { s: Swipe; onChange: (need: SwipeNeed | "") => void; small?: boolean }) {
+  const chosen = s.need ?? "";
+  const suggested = !chosen && needOf(s);
+  return (
+    <select
+      className={`select ${small ? "select-sm !h-[24px] !text-[11px] !py-0 !pr-6" : "select-sm"} !w-auto`}
+      value={chosen}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => onChange(e.target.value as SwipeNeed | "")}
+      title={chosen ? NEED_OPTIONS.find((o) => o.key === chosen)?.hint : "De quoi j'ai besoin pour tourner ma version ?"}
+      style={chosen ? { color: "var(--accent)", borderColor: "var(--accent)", fontWeight: 600 } : undefined}
+    >
+      <option value="">{suggested ? `Besoin ? (suggéré : ${NEED_OPTIONS.find((o) => o.key === suggested)?.short})` : "Besoin ?"}</option>
+      {NEED_OPTIONS.map((o) => (
+        <option key={o.key} value={o.key}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 /** Le classement est-il à vérifier (auto peu sûr ou absent, pas corrigé à la main) ? */
 export const needsCheck = (s: Swipe) => Boolean(s.analysis) && !s.etapeManuelle && (!s.analysis?.etape || (s.analysis?.confiance ?? 0) < SWIPE_CONFIDENCE_MIN);
