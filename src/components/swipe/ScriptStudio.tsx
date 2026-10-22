@@ -6,7 +6,8 @@ import { api, useCollection, useDebouncedSave } from "@/lib/client";
 import { fmtDateTime } from "@/lib/format";
 import { CopyButton, Field, useToast } from "@/components/ui";
 import { SWIPE_PROD_LABEL, swipeProdStatus, swipeStage, type EditJob, type Swipe, type SwipeProdStatus, type SwipeScript } from "@/lib/types";
-import { Block, STAGE_TITLE } from "./panels";
+import { Block } from "./panels";
+import { editJobFromSwipe } from "@/lib/swipe-edit-job";
 
 const EMPTY_SCRIPT: SwipeScript = { hook: "", bullets: [], cta: "", message: "", broll: [], mode: "adapt", screenText: [], durationSec: 30, speakers: "solo", generatedAt: "", updatedAt: "" };
 
@@ -109,40 +110,7 @@ export function ScriptStudio({
   const createJob = async () => {
     setCreatingJob(true);
     try {
-      const stage = swipeStage(s);
-      const brief = [
-        `RÉFÉRENCE : ${s.url}${s.author ? ` (@${s.author})` : ""}`,
-        stage ? `CATÉGORIE : ${STAGE_TITLE[stage]}` : "",
-        script.hook ? `HOOK : ${script.hook}` : "",
-        script.bullets.length ? `CORPS :\n${script.bullets.map((b) => `- ${b}`).join("\n")}` : "",
-        script.message ? `MESSAGE : ${script.message}` : "",
-        script.cta ? `CTA : ${script.cta}` : "",
-        script.broll?.length ? `B-ROLL / PREUVES :\n${script.broll.map((b) => `- ${b}`).join("\n")}` : "",
-        script.screenText.length ? `TEXTE ÉCRAN : ${script.screenText.join(" · ")}` : "",
-        s.shootNotes ? `NOTES DE TOURNAGE : ${s.shootNotes}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n\n");
-      const created = await edits.create({
-        title: (script.hook || s.title || "Reel").slice(0, 90),
-        status: "rush-a-deposer",
-        style: "rapide",
-        brief,
-        subtitles: true,
-        music: "",
-        aspectRatio: "9:16",
-        targetDurationSec: script.durationSec || 30,
-        priority: "P2",
-        dueAt: "",
-        assignee: s.assignee ?? "",
-        postId: "",
-        media: [],
-        deliveryUrl: "",
-        swipeId: s.id,
-        comments: [],
-        deliveredAt: "",
-        postedAt: "",
-      } as Omit<EditJob, "id" | "createdAt">);
+      const created = await edits.create(editJobFromSwipe({ ...s, script }));
       await onPatch({ editJobId: created.id });
       toast("Dossier de montage créé avec la référence et le brief.");
     } catch (e) {

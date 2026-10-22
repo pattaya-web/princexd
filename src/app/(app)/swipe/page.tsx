@@ -6,7 +6,8 @@ import { isLocalMedia, ThumbImg } from "@/components/MediaThumb";
 import { api, useCollection } from "@/lib/client";
 import { Card, Empty, ErrorNote, Modal, PageHeader, Spinner, Tabs, useToast } from "@/components/ui";
 import { relative } from "@/lib/format";
-import { swipeProdStatus, swipeStage, type Swipe, type SwipeAnalysis, type SwipeNeed, type SwipeProdStatus, type SwipeStage } from "@/lib/types";
+import { swipeProdStatus, swipeStage, type EditJob, type Swipe, type SwipeAnalysis, type SwipeNeed, type SwipeProdStatus, type SwipeStage } from "@/lib/types";
+import { editJobFromSwipe } from "@/lib/swipe-edit-job";
 import { PromptsInline } from "@/components/SwipeProduction";
 import { MechanicsPanel, NeedSelect, ShotsPanel, STAGE_COLOR, STAGE_HINT, STAGE_TITLE, StageBadge, StateBadge, swipeState, type SwipeState } from "@/components/swipe/panels";
 import { SourcePanel } from "@/components/swipe/SourcePanel";
@@ -191,6 +192,22 @@ export default function SwipePage() {
     void patch(s.id, { thumbnail: localSrc }).catch(() => undefined);
   };
 
+  /** Je l'ai filmé : dossier monteur (référence + brief) et passage au montage. */
+  const sendToEditor = async (s: Swipe) => {
+    try {
+      let editJobId = s.editJobId ?? "";
+      if (!editJobId) {
+        const job = await api<EditJob>("/api/data/edits", { method: "POST", body: JSON.stringify(editJobFromSwipe(s)) });
+        editJobId = job.id;
+        await patch(s.id, { editJobId });
+      }
+      await setStatus(s, "tourne");
+      toast("Envoyé au monteur : dossier créé avec le brief, le Reel passe au montage.");
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
   const setNeed = async (s: Swipe, need: SwipeNeed | "") => {
     try {
       await patch(s.id, { need: need || undefined });
@@ -300,9 +317,9 @@ export default function SwipePage() {
       ) : (
         <div className="flex flex-col gap-3">
           {(["TOFU", "MOFU", "BOFU"] as SwipeStage[]).map((st) => (
-            <Section key={st} id={st} title={STAGE_TITLE[st]} hint={STAGE_HINT[st]} color={STAGE_COLOR[st]} items={grouped[st]} open={openSections[st]} onToggle={() => setOpenSections((o) => ({ ...o, [st]: !o[st] }))} working={working} selectedId={selectedId} onOpen={open} onNeed={setNeed} onPlay={setPlaying} />
+            <Section key={st} id={st} title={STAGE_TITLE[st]} hint={STAGE_HINT[st]} color={STAGE_COLOR[st]} items={grouped[st]} open={openSections[st]} onToggle={() => setOpenSections((o) => ({ ...o, [st]: !o[st] }))} working={working} selectedId={selectedId} onOpen={open} onNeed={setNeed} onPlay={setPlaying} onSend={sendToEditor} />
           ))}
-          <Section id="check" title="À analyser" hint="Transcription ou classification incomplète : ouvre la fiche pour finir." color="#6b7280" items={grouped.check} open={openSections.check} onToggle={() => setOpenSections((o) => ({ ...o, check: !o.check }))} working={working} selectedId={selectedId} onOpen={open} onNeed={setNeed} onPlay={setPlaying} discreet />
+          <Section id="check" title="À analyser" hint="Transcription ou classification incomplète : ouvre la fiche pour finir." color="#6b7280" items={grouped.check} open={openSections.check} onToggle={() => setOpenSections((o) => ({ ...o, check: !o.check }))} working={working} selectedId={selectedId} onOpen={open} onNeed={setNeed} onPlay={setPlaying} onSend={sendToEditor} discreet />
         </div>
       )}
 
@@ -334,7 +351,7 @@ export default function SwipePage() {
 
 /* ------------------------------- Sections ------------------------------- */
 
-function Section({ id, title, hint, color, items, open, onToggle, working, selectedId, onOpen, onNeed, onPlay, discreet }: { id: string; title: string; hint: string; color: string; items: Swipe[]; open: boolean; onToggle: () => void; working: Record<string, string>; selectedId: string | null; onOpen: (s: Swipe, p?: Panel) => void; onNeed: (s: Swipe, need: SwipeNeed | "") => void; onPlay: (s: Swipe) => void; discreet?: boolean }) {
+function Section({ id, title, hint, color, items, open, onToggle, working, selectedId, onOpen, onNeed, onPlay, onSend, discreet }: { id: string; title: string; hint: string; color: string; items: Swipe[]; open: boolean; onToggle: () => void; working: Record<string, string>; selectedId: string | null; onOpen: (s: Swipe, p?: Panel) => void; onNeed: (s: Swipe, need: SwipeNeed | "") => void; onPlay: (s: Swipe) => void; onSend: (s: Swipe) => Promise<void>; discreet?: boolean }) {
   if (discreet && !items.length) return null;
   return (
     <section className="card" style={{ borderColor: open && !discreet ? `color-mix(in srgb, ${color} 35%, var(--border))` : undefined }} data-section={id}>
@@ -354,7 +371,7 @@ function Section({ id, title, hint, color, items, open, onToggle, working, selec
           ) : (
             <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
               {items.map((s) => (
-                <SwipeCard key={s.id} s={s} working={working[s.id]} active={selectedId === s.id} onOpen={onOpen} onNeed={onNeed} onPlay={onPlay} />
+                <SwipeCard key={s.id} s={s} working={working[s.id]} active={selectedId === s.id} onOpen={onOpen} onNeed={onNeed} onPlay={onPlay} onSend={onSend} />
               ))}
             </div>
           )}
@@ -364,7 +381,7 @@ function Section({ id, title, hint, color, items, open, onToggle, working, selec
   );
 }
 
-function SwipeCard({ s, working, active, onOpen, onNeed, onPlay }: { s: Swipe; working?: string; active: boolean; onOpen: (s: Swipe, p?: Panel) => void; onNeed: (s: Swipe, need: SwipeNeed | "") => void; onPlay: (s: Swipe) => void }) {
+function SwipeCard({ s, working, active, onOpen, onNeed, onPlay, onSend }: { s: Swipe; working?: string; active: boolean; onOpen: (s: Swipe, p?: Panel) => void; onNeed: (s: Swipe, need: SwipeNeed | "") => void; onPlay: (s: Swipe) => void; onSend: (s: Swipe) => Promise<void> }) {
   const hook = s.script?.hook || s.analysis?.hook || "";
   const excerpt = hook || (s.transcriptInput ?? "").trim().split(/\n/)[0] || "";
   const title = s.title || hook || s.caption || s.url;
@@ -399,9 +416,15 @@ function SwipeCard({ s, working, active, onOpen, onNeed, onPlay }: { s: Swipe; w
         <button className="btn btn-sm flex-1" onClick={() => onOpen(s)}>
           Ouvrir
         </button>
-        <button className="btn btn-sm btn-primary flex-1" onClick={() => onOpen(s, "script")}>
-          Préparer mon script
-        </button>
+        {swipeProdStatus(s) === "a-tourner" ? (
+          <button className="btn btn-sm btn-primary flex-1" onClick={() => void onSend(s)} title="Je l'ai filmé : dossier monteur créé avec le brief, le Reel passe au montage">
+            📤 Envoyer au monteur
+          </button>
+        ) : (
+          <button className="btn btn-sm btn-primary flex-1" onClick={() => onOpen(s, "script")}>
+            Préparer mon script
+          </button>
+        )}
       </div>
     </div>
   );

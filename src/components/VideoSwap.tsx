@@ -1,5 +1,7 @@
 "use client";
 
+import { DictateButton } from "@/components/Dictate";
+
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
@@ -888,6 +890,7 @@ export function VideoSwap({
               <button type="button" className="btn btn-sm !h-[24px] !text-[11px]" onClick={() => void enhance()} disabled={disabledAll || enhancing || !video} title="Analyse ta vidéo et tes références, puis écrit une consigne structurée (plan par plan, décor, lumière) avec les balises @Video 1 / @Image N">
                 {enhancing ? <span className="spinner" /> : "✨ Rédiger la consigne"}
               </button>
+              <DictateButton className="!h-[24px] !text-[11px]" onText={(t) => setUserPrompt((v) => (v ? `${v} ${t}` : t))} disabled={disabledAll} />
               {userPrompt && <button type="button" className="btn btn-sm btn-ghost !h-[24px] !text-[11px]" onClick={() => setUserPrompt("")} disabled={disabledAll}>Effacer</button>}
             </div>
           </div>
@@ -1173,6 +1176,9 @@ export function VideoSwap({
           disabled={disabledAll}
           onChange={(e) => setUserPrompt(e.target.value)}
         />
+        <div className="flex justify-end -mt-1">
+          <DictateButton onText={(t) => setUserPrompt((v) => (v ? `${v} ${t}` : t))} disabled={disabledAll} />
+        </div>
       </Field>
 
       {/* E. Negative prompt */}

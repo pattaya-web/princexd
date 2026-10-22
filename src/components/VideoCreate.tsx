@@ -1,5 +1,7 @@
 "use client";
 
+import { DictateButton } from "@/components/Dictate";
+
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -263,6 +265,9 @@ export function VideoCreate({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: (
             onChange={(e) => setScript(e.target.value)}
             disabled={busy}
           />
+          <div className="flex justify-end -mt-1">
+            <DictateButton onText={(t) => setScript((v) => (v ? `${v} ${t}` : t))} disabled={busy} />
+          </div>
           {parsed.detected && (
             <InfoNote>
               Prompt détecté : <b>{parsed.spoken.length} caractères dits</b> (≈ {scriptSeconds} s). Le reste du texte pilote la caméra, les gestes et le son, et remplace les consignes par défaut.

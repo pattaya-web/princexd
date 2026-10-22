@@ -1,5 +1,7 @@
 "use client";
 
+import { DictateButton } from "@/components/Dictate";
+
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -233,6 +235,9 @@ export function TalkingPhoto({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: 
           {mode === "text" ? (
             <>
               <textarea className="textarea" style={{ minHeight: 96 }} placeholder="Le texte exact à dire. Phrases courtes, ponctuation naturelle : les pauses suivent la ponctuation." value={text} onChange={(e) => setText(e.target.value)} disabled={busy} />
+              <div className="flex justify-end -mt-1">
+                <DictateButton onText={(t) => setText((v) => (v ? `${v} ${t}` : t))} disabled={busy} />
+              </div>
               <div className="flex flex-col gap-2 rounded-[10px] p-3" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
                 {voices === null ? (
                   <span className="dim text-[12px]"><span className="spinner" /> Chargement des voix…</span>

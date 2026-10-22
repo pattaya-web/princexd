@@ -1,5 +1,7 @@
 "use client";
 
+import { DictateButton } from "@/components/Dictate";
+
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api, useCollection, useLocalState } from "@/lib/client";
@@ -673,6 +675,9 @@ function StudioInner() {
                         value={String(input[f.key] ?? "")}
                         onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
                       />
+                      <div className="flex justify-end -mt-1">
+                        <DictateButton onText={(t) => setInput((v) => ({ ...v, [f.key]: String(v[f.key] ?? "") ? `${String(v[f.key])} ${t}` : t }))} />
+                      </div>
                     </Field>
                   ))}
 

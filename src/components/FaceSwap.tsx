@@ -1,5 +1,7 @@
 "use client";
 
+import { DictateButton } from "@/components/Dictate";
+
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useRef, useState } from "react";
@@ -397,6 +399,9 @@ export function FaceSwap({ onQueued }: { onQueued: (g: Generation) => void }) {
           disabled={busy}
           onChange={(e) => setPrompt(e.target.value)}
         />
+        <div className="flex justify-end -mt-1">
+          <DictateButton onText={(t) => setPrompt((v) => (v ? `${v} ${t}` : t))} disabled={busy} />
+        </div>
       </Field>
 
       {error && <ErrorNote>{error}</ErrorNote>}
