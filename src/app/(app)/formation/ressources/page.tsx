@@ -12,8 +12,9 @@ import type { CourseResourcesPayload } from "@/app/api/formation/resources/route
  *
  * Toutes les annexes PDF de la formation au meme endroit : on les depose en
  * glisser-deposer (n'importe ou sur la page, ou dans la zone), puis on
- * telecharge celle dont l'eleve a besoin pour la lui envoyer. Rien n'est
- * montre aux eleves : c'est la reserve de l'admin.
+ * telecharge celle dont l'eleve a besoin pour la lui envoyer. Chaque annexe
+ * est visible dans l'espace Ressources des eleves (Scale X), sauf si on la
+ * cache ici.
  */
 
 const MAX_MB = 50;
@@ -176,6 +177,19 @@ export default function RessourcesFormationPage() {
     }
   };
 
+  const toggleVisible = async (r: CourseResourceRow) => {
+    setBusyId(r.id);
+    try {
+      await api(`/api/formation/resources/${r.id}`, { method: "PATCH", body: JSON.stringify({ studentVisible: !r.studentVisible }) });
+      toast(r.studentVisible ? "Annexe cachée aux élèves." : "Annexe visible dans l'espace Ressources des élèves.");
+      await load();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusyId("");
+    }
+  };
+
   const remove = async (r: CourseResourceRow) => {
     if (!window.confirm(`Supprimer « ${r.title} » ?\nLe PDF sera effacé du CRM.`)) return;
     setBusyId(r.id);
@@ -322,6 +336,16 @@ export default function RessourcesFormationPage() {
                           <a href={r.viewUrl} target="_blank" rel="noreferrer" className="btn btn-sm btn-ghost">
                             Ouvrir
                           </a>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-ghost"
+                            onClick={() => void toggleVisible(r)}
+                            disabled={busy}
+                            title={r.studentVisible ? "Les élèves la voient dans Ressources. Cliquer pour la cacher." : "Cachée aux élèves. Cliquer pour la montrer."}
+                            style={r.studentVisible ? { color: "var(--good)" } : undefined}
+                          >
+                            {r.studentVisible ? "✓ Visible élèves" : "Cachée"}
+                          </button>
                           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setRenaming({ id: r.id, title: r.title })} disabled={busy}>
                             Renommer
                           </button>

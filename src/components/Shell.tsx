@@ -497,6 +497,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/formation/modules", label: "Modules vidéo", icon: "▤" },
       { href: "/formation/eleves", label: "Accès élèves", icon: "⚿" },
       { href: "/formation/ressources", label: "Ressources formation", icon: "▣" },
+      { href: "/formation/parcours", label: "Parcours & étapes", icon: "☑" },
     ],
   },
   {
@@ -525,7 +526,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
 ];
 
 /** Marque : carré ardoise + mot-symbole, réutilisé sur la page de connexion. */
-export function Brand({ size = "md" }: { size?: "md" | "lg" }) {
+export function Brand({ size = "md", mark = "MP", name = "MPGate" }: { size?: "md" | "lg"; mark?: string; name?: string }) {
   const box = size === "lg" ? 30 : 24;
   return (
     <span className="inline-flex items-center gap-2.5">
@@ -542,13 +543,13 @@ export function Brand({ size = "md" }: { size?: "md" | "lg" }) {
           letterSpacing: "0.02em",
         }}
       >
-        MP
+        {mark}
       </span>
       <span
         className="font-medium"
         style={{ fontSize: size === "lg" ? 17 : 14.5, letterSpacing: "-0.025em" }}
       >
-        MPGate
+        {name}
       </span>
     </span>
   );
@@ -638,7 +639,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
     : isVa
       ? [{ section: "Outreach", items: [{ href: "/va/outreach", label: "Instagram Outreach", icon: "✉" }] }]
       : isStudent
-        ? [{ section: "Formation", items: [{ href: "/formation", label: "Mes modules", icon: "▶" }] }]
+        ? [
+            {
+              section: "Scale X",
+              items: [
+                { href: "/formation", label: "Tableau de bord", icon: "◈" },
+                { href: "/formation/cours", label: "Formation", icon: "▶" },
+                { href: "/formation/etapes", label: "Mes étapes", icon: "☑" },
+                { href: "/formation/sops", label: "Ressources", icon: "▤" },
+                { href: "/formation/appel", label: "Réserver un appel", icon: "☏" },
+              ],
+            },
+          ]
       : isEditor
       ? [
           {
@@ -675,7 +687,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         style={{ background: "var(--bg)", borderRight: "1px solid var(--border)" }}
       >
         <div className="px-5 h-[60px] flex items-center shrink-0">
-          <Brand />
+          {isStudent ? <Brand mark="SX" name="Scale X" /> : <Brand />}
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 pb-3">

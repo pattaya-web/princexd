@@ -18,10 +18,11 @@ export async function GET(req: NextRequest) {
     requireAdmin(readSession(req));
     const db = readDB();
     const published = new Set(db.courseModules.filter((m) => m.published).map((m) => m.id));
+    const publishedSteps = new Set((db.courseSteps ?? []).filter((s) => s.published).map((s) => s.id));
     const students = db.students
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name, "fr"))
-      .map((s) => toAccessRow(s, published));
+      .map((s) => toAccessRow(s, published, publishedSteps));
     return { students, publishedModules: published.size };
   });
 }

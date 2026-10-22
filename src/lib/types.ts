@@ -136,6 +136,10 @@ export interface Settings {
   brand?: BrandProfile;
   /** Onboarding des eleves : liens (formulaire, affiliations) et message de bienvenue (lib/onboarding.ts). */
   studentOnboarding?: Partial<StudentOnboardingSettings>;
+  /** Plateforme eleves « Scale X » : lien de reservation, WhatsApp, citation. */
+  studentPortal?: Partial<StudentPortalSettings>;
+  /** Etapes par defaut de la marche a suivre posees une fois. */
+  courseStepsSeededAt?: string;
   /** Content OS : habitudes du jour, priorités, routine hebdo, ressources, chantiers. */
   contentOs?: Partial<ContentOsState>;
   /** Rotation des types de story par jour (0 = dimanche). */
@@ -668,6 +672,12 @@ export interface Student {
   completedModules?: ID[];
   /** Date a laquelle le message d'onboarding lui a ete envoye (marque a la main). */
   onboardingSentAt?: string;
+  /* --- Parcours (Scale X) : etapes de la marche a suivre cochees, et etapes
+         assignees par le coach a cet eleve seulement. --- */
+  completedSteps?: ID[];
+  tasks?: StudentTask[];
+  /** Notes du coach sur cet eleve (visibles de l'admin seulement). */
+  coachNotes?: string;
 }
 
 /* ------------------------- Plateforme de formation ------------------------ */
@@ -695,6 +705,8 @@ export interface CourseResource {
   size: number;
   createdAt: string;
   updatedAt: string;
+  /** Visible par les eleves dans leur espace Ressources. Absent = visible. */
+  studentVisible?: boolean;
 }
 
 /**
@@ -718,6 +730,53 @@ export interface CourseModule {
   published: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Une etape de la marche a suivre (plateforme eleves « Scale X »).
+ *
+ * La meme liste pour tous les eleves, dans l'ordre : formulaire, outils,
+ * produit, boutique, creatives, premiere campagne… L'eleve coche chaque
+ * etape quand elle est faite ; le coach voit ou il en est. `link` peut porter
+ * une balise d'onboarding ({{formulaire}}, {{shopify}}…) remplacee a l'affichage.
+ */
+export interface CourseStep {
+  id: ID;
+  title: string;
+  /** Consignes detaillees (mise en forme legere, comme l'annexe d'un module). */
+  detail: string;
+  /** Lien a ouvrir pour faire l'etape (outil, formulaire, module…). */
+  link: string;
+  /** Module video a regarder pour cette etape, s'il y en a un. */
+  moduleId?: ID;
+  order: number;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Etape assignee par le coach a un seul eleve (« Prochaines etapes »). */
+export interface StudentTask {
+  id: ID;
+  title: string;
+  detail: string;
+  link: string;
+  done: boolean;
+  doneAt: string;
+  createdAt: string;
+}
+
+/** Reglages de la plateforme eleves (Formation → Parcours). */
+export interface StudentPortalSettings {
+  /** Lien de reservation d'un appel avec le coach (iClosed par defaut). */
+  bookingUrl: string;
+  /** Numero WhatsApp du coach pour l'aide (international, ex. +33 6…). Vide = pas de bouton. */
+  whatsapp: string;
+  /** Phrase sous « Accompagnement ». */
+  helpText: string;
+  /** Citation du pied de page et sa signature. */
+  quote: string;
+  quoteAuthor: string;
 }
 
 export interface CallEvent {
@@ -1267,6 +1326,7 @@ export interface DB {
   courseModules: CourseModule[];
   /** Annexes PDF de la formation, a piocher pour les envoyer aux eleves. */
   courseResources: CourseResource[];
+  courseSteps: CourseStep[];
   /** Tableaux de strategie creative (facon Miro) de la section Ads. */
   adBoards: AdBoard[];
   /* --- Generateur de boutiques Shopify (src/lib/boutique) --- */

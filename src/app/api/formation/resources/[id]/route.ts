@@ -6,7 +6,7 @@ import { cleanTitle, removeResourceFile, toResourceRow } from "@/lib/formation-r
 
 export const dynamic = "force-dynamic";
 
-/** Renommer une annexe (le titre affiche ; le fichier ne bouge pas). */
+/** Renommer une annexe (le titre affiche ; le fichier ne bouge pas) ou changer sa visibilite pour les eleves. */
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handle(async () => {
     requireAdmin(readSession(req));
@@ -16,6 +16,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const row = db.courseResources.find((r) => r.id === id);
     if (!row) throw new Error("Annexe introuvable.");
     row.title = cleanTitle(raw.title, row.title);
+    if (typeof raw.studentVisible === "boolean") row.studentVisible = raw.studentVisible;
     row.updatedAt = new Date().toISOString();
     writeDB(db);
     return toResourceRow(row);

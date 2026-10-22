@@ -4,7 +4,7 @@ import path from "path";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 import { newId, readDB, writeDB } from "@/lib/db";
-import { readSession, requireAdmin } from "@/lib/sales/access";
+import { readSession, requireAdmin, requireFormation } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { isPdf, MAX_PDF_BYTES, RESOURCES_DIR, safeFileName, titleFromFileName, toResourceRow, type CourseResourceRow } from "@/lib/formation-resources";
 import type { CourseResource } from "@/lib/types";
@@ -19,7 +19,8 @@ export interface CourseResourcesPayload {
 const sorted = (rows: CourseResource[]) => rows.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(toResourceRow);
 
 /**
- * Les annexes PDF de la formation (admin).
+ * Les annexes PDF de la formation : gerees par l'admin, lues par les eleves
+ * dans leur espace Ressources (Scale X) quand elles sont marquees visibles.
  *
  * Cette route est hors middleware (voir middleware.ts) : elle recoit des
  * fichiers, et le middleware Node amputait les corps de requete. Elle verifie
@@ -27,8 +28,10 @@ const sorted = (rows: CourseResource[]) => rows.slice().sort((a, b) => b.created
  */
 export async function GET(req: NextRequest) {
   return handle((): CourseResourcesPayload => {
-    requireAdmin(readSession(req));
-    return { resources: sorted(readDB().courseResources) };
+    const session = requireFormation(readSession(req));
+    const all = readDB().courseResources;
+    // L'eleve ne voit que les annexes marquees visibles ; l'admin voit tout.
+    return { resources: sorted(session.isAdmin ? all : all.filter((r) => r.studentVisible !== false)) };
   });
 }
 

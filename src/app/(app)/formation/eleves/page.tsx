@@ -7,6 +7,7 @@ import { forgetSession } from "@/lib/sales/client";
 import { Card, CopyButton, Empty, ErrorNote, Field, Modal, PageHeader, Spinner, Toggle, useToast } from "@/components/ui";
 import type { StudentAccessRow } from "@/lib/formation";
 import type { StudentAccessPayload } from "@/app/api/formation/access/route";
+import { StudentFollowUp } from "@/components/formation/StudentFollowUp";
 
 /**
  * Acces des eleves a la plateforme (admin).
@@ -30,6 +31,7 @@ export default function StudentAccessPage() {
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState("");
   const [lastCreds, setLastCreds] = useState<{ name: string; username: string; password: string } | null>(null);
+  const [followUpId, setFollowUpId] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -101,7 +103,7 @@ export default function StudentAccessPage() {
     <div>
       <PageHeader
         title="Accès élèves"
-        subtitle="Qui peut entrer sur la plateforme de formation. Crée les identifiants de chaque élève ici, puis transmets-les lui."
+        subtitle="Qui peut entrer sur Scale X, et où chacun en est. « Suivi » : ses étapes, celles que tu lui assignes, tes notes."
         actions={
           <Link href="/eleves" className="btn btn-sm btn-ghost">
             Fiches élèves
@@ -151,7 +153,8 @@ export default function StudentAccessPage() {
                   <th className="text-left">Contrat</th>
                   <th className="text-left">Identifiant</th>
                   <th className="text-left">Accès</th>
-                  <th className="text-left">Avancement</th>
+                  <th className="text-left">Modules</th>
+                  <th className="text-left">Étapes</th>
                   <th className="text-left">Dernière visite</th>
                   <th />
                 </tr>
@@ -188,9 +191,16 @@ export default function StudentAccessPage() {
                     <td className="num">
                       {s.completed} / {data.publishedModules}
                     </td>
+                    <td className="num">
+                      {s.stepsDone} / {s.stepsTotal}
+                      {s.tasksPending > 0 && <span className="badge badge-warn !text-[10px] !py-0 ml-1.5">{s.tasksPending} assignée{s.tasksPending > 1 ? "s" : ""}</span>}
+                    </td>
                     <td className="dim">{fmtDate(s.portalLastSeenAt)}</td>
                     <td className="text-right whitespace-nowrap">
-                      <button className="btn btn-sm" onClick={() => openEdit(s)}>
+                      <button className="btn btn-sm btn-primary" onClick={() => setFollowUpId(s.id)}>
+                        Suivi
+                      </button>
+                      <button className="btn btn-sm ml-1" onClick={() => openEdit(s)}>
                         {s.hasPassword ? "Identifiants" : "Créer l'accès"}
                       </button>
                       <button className="btn btn-sm btn-ghost ml-1" onClick={() => void viewAs(s)} title="Ouvrir la plateforme comme cet élève">
@@ -204,6 +214,8 @@ export default function StudentAccessPage() {
           </div>
         </Card>
       )}
+
+      {followUpId && <StudentFollowUp studentId={followUpId} onClose={() => setFollowUpId("")} onChanged={() => void load()} />}
 
       <Modal
         open={editing !== null}

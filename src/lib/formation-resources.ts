@@ -49,6 +49,8 @@ export interface CourseResourceRow {
   size: number;
   createdAt: string;
   updatedAt: string;
+  /** Visible dans l'espace Ressources des eleves. */
+  studentVisible: boolean;
   /** Telechargement, nom d'origine restitue. */
   downloadUrl: string;
   /** Lecture dans le navigateur. */
@@ -63,6 +65,7 @@ export function toResourceRow(r: CourseResource): CourseResourceRow {
     size: r.size,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
+    studentVisible: r.studentVisible !== false,
     downloadUrl: `/api/formation/resources/${r.id}/file`,
     viewUrl: `/api/formation/resources/${r.id}/file?inline=1`,
   };

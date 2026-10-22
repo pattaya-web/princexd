@@ -63,7 +63,7 @@ const VA_APIS = ["/api/outreach/", "/api/sales/session", "/api/version"];
  * ses modules.
  */
 const STUDENT_PAGES = ["/formation"];
-const STUDENT_ADMIN_PAGES = ["/formation/modules", "/formation/eleves", "/formation/ressources"];
+const STUDENT_ADMIN_PAGES = ["/formation/modules", "/formation/eleves", "/formation/ressources", "/formation/parcours"];
 const STUDENT_APIS = ["/api/formation/", "/api/sales/session", "/api/version"];
 
 /* --- Equipe commerciale --- */

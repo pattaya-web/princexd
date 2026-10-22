@@ -111,6 +111,7 @@ const EMPTY_DB: DB = {
   adBoards: [],
   courseModules: [],
   courseResources: [],
+  courseSteps: [],
   shops: [],
   shopBuilds: [],
   ytVideos: [],

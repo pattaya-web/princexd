@@ -12,14 +12,16 @@ export const dynamic = "force-dynamic";
  *
  * Par defaut en telechargement (c'est le geste attendu : prendre le fichier
  * pour l'envoyer a l'eleve) ; `?inline=1` l'ouvre dans le navigateur.
- * Reserve a l'admin : la route est hors middleware, la session est relue ici.
+ * Admin, ou eleve pour une annexe visible : la route est hors middleware, la session est relue ici.
  */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = readSession(req);
-  if (!session.isAdmin) return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
-
   const { id } = await ctx.params;
   const row = readDB().courseResources.find((r) => r.id === id);
+  // Admin : tout. Eleve : seulement une annexe marquee visible. Les autres : rien.
+  const allowed = session.isAdmin || (session.role === "student" && row && row.studentVisible !== false);
+  if (!allowed) return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
+
   const full = row ? resourcePath(row.stored) : null;
   if (!row || !full || !fs.existsSync(full)) {
     return NextResponse.json({ error: "Fichier introuvable." }, { status: 404 });

@@ -95,10 +95,19 @@ export interface StudentAccessRow {
   portalLastSeenAt: string;
   /** Modules publies marques « terminé ». */
   completed: number;
+  /** Etapes du parcours (communes publiees + assignees) faites / total. */
+  stepsDone: number;
+  stepsTotal: number;
+  /** Etapes assignees par le coach pas encore faites. */
+  tasksPending: number;
 }
 
-export function toAccessRow(s: Student, published: Set<string>): StudentAccessRow {
+export function toAccessRow(s: Student, published: Set<string>, publishedSteps: Set<string> = new Set()): StudentAccessRow {
+  const stepsDone = (s.completedSteps ?? []).filter((id) => publishedSteps.has(id)).length + (s.tasks ?? []).filter((t) => t.done).length;
   return {
+    stepsDone,
+    stepsTotal: publishedSteps.size + (s.tasks ?? []).length,
+    tasksPending: (s.tasks ?? []).filter((t) => !t.done).length,
     id: s.id,
     name: s.name,
     email: s.email ?? "",
