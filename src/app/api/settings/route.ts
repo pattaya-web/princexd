@@ -20,6 +20,8 @@ function publicView(s: Settings) {
   const igKey = igEnv ? process.env.IG_ACCESS_TOKEN!.trim() : s.igAccessToken;
   const oaEnv = Boolean(process.env.OPENAI_API_KEY?.trim());
   const oaKey = oaEnv ? process.env.OPENAI_API_KEY!.trim() : s.openaiApiKey;
+  const anEnv = Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+  const anKey = anEnv ? process.env.ANTHROPIC_API_KEY!.trim() : (s.anthropicApiKey ?? "");
   const elEnv = Boolean(process.env.ELEVENLABS_API_KEY?.trim());
   const elKey = elEnv ? process.env.ELEVENLABS_API_KEY!.trim() : (s.elevenLabsApiKey ?? "");
   const sioEnv = Boolean(process.env.SYSTEMEIO_API_KEY?.trim());
@@ -45,6 +47,9 @@ function publicView(s: Settings) {
     openaiApiKey: "",
     openaiApiKeyMask: mask(oaKey),
     openaiApiKeySource: oaEnv ? "env" : oaKey ? "reglages" : "absente",
+    anthropicApiKey: "",
+    anthropicApiKeyMask: mask(anKey),
+    anthropicApiKeySource: anEnv ? "env" : anKey ? "reglages" : "absente",
     elevenLabsApiKey: "",
     elevenLabsApiKeyMask: mask(elKey),
     elevenLabsApiKeySource: elEnv ? "env" : elKey ? "reglages" : "absente",
@@ -88,6 +93,7 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.igAccessToken === "string" && !body.igAccessToken.trim()) delete body.igAccessToken;
   if (typeof body.openaiApiKey === "string" && !body.openaiApiKey.trim()) delete body.openaiApiKey;
   if (typeof body.elevenLabsApiKey === "string" && !body.elevenLabsApiKey.trim()) delete body.elevenLabsApiKey;
+  if (typeof body.anthropicApiKey === "string" && !body.anthropicApiKey.trim()) delete body.anthropicApiKey;
   if (typeof body.higgsfieldKeySecret === "string" && !body.higgsfieldKeySecret.trim()) delete body.higgsfieldKeySecret;
   if (typeof body.systemeioApiKey === "string" && !body.systemeioApiKey.trim()) delete body.systemeioApiKey;
   if (typeof body.systemeioWebhookSecret === "string" && !body.systemeioWebhookSecret.trim()) delete body.systemeioWebhookSecret;

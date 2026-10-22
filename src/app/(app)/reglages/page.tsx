@@ -17,6 +17,8 @@ type View = Settings & {
   igAccessTokenMask?: string;
   igAccessTokenSource?: string;
   openaiApiKeyMask?: string;
+  anthropicApiKeyMask?: string;
+  anthropicApiKeySource?: string;
   openaiApiKeySource?: string;
   elevenLabsApiKeyMask?: string;
   elevenLabsApiKeySource?: string;
@@ -53,6 +55,7 @@ export default function ReglagesPage() {
   const [apiKey, setApiKey] = useState("");
   const [iclosedKey, setIclosedKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
+  const [anthropicKey, setAnthropicKey] = useState("");
   const [elevenKey, setElevenKey] = useState("");
   const [hfSecret, setHfSecret] = useState("");
   const [sioKey, setSioKey] = useState("");
@@ -87,6 +90,10 @@ export default function ReglagesPage() {
       else delete payload.iclosedApiKey;
       if (openaiKey.trim()) payload.openaiApiKey = openaiKey.trim();
       else delete payload.openaiApiKey;
+      if (anthropicKey.trim()) payload.anthropicApiKey = anthropicKey.trim();
+      else delete payload.anthropicApiKey;
+      delete (payload as Record<string, unknown>).anthropicApiKeyMask;
+      delete (payload as Record<string, unknown>).anthropicApiKeySource;
       if (elevenKey.trim()) payload.elevenLabsApiKey = elevenKey.trim();
       else delete payload.elevenLabsApiKey;
       if (hfSecret.trim()) payload.higgsfieldKeySecret = hfSecret.trim();
@@ -473,6 +480,26 @@ export default function ReglagesPage() {
                   value={s.higgsfieldBalanceUsd ?? ""}
                   onChange={(e) => set("higgsfieldBalanceUsd", e.target.value === "" ? undefined : Number(e.target.value))}
                 />
+              </Field>
+            </div>
+          </Card>
+
+          <Card title="Assistant Claude (chat Nouvel élève)">
+            <div className="flex flex-col gap-3.5">
+              {s.anthropicApiKeyMask ? (
+                <InfoNote>
+                  Clé active : <code className="mono">{s.anthropicApiKeyMask}</code> — source :{" "}
+                  <strong>{s.anthropicApiKeySource === "env" ? "variable d'environnement" : "ces réglages"}</strong>. Le chat
+                  « Nouvel élève » répond avec Claude.
+                </InfoNote>
+              ) : (
+                <InfoNote>
+                  Aucune clé Anthropic : le chat « Nouvel élève » se rabat sur le modèle texte KIE. Crée une clé sur
+                  console.anthropic.com (API keys), elle commence par <code className="mono">sk-ant-</code>.
+                </InfoNote>
+              )}
+              <Field label={s.anthropicApiKeyMask ? "Remplacer la clé Anthropic" : "Clé API Anthropic"} hint="Laisse vide pour conserver la clé actuelle.">
+                <input className="input mono" type="password" placeholder="sk-ant-…" value={anthropicKey} onChange={(e) => setAnthropicKey(e.target.value)} />
               </Field>
             </div>
           </Card>

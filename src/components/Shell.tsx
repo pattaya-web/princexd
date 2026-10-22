@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { JobsDock } from "./JobsDock";
+import { NewStudentChat } from "./NewStudentChat";
 import { AlertsBell } from "./sales/AlertsBell";
 import { useBrollFresh } from "./BrollLibrary";
 import { usePathname } from "next/navigation";
@@ -783,19 +784,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
       {/* Hors du <main> : il ne doit pas etre remonte a chaque navigation. */}
       {!isVa && !isStudent && <JobsDock />}
-      {/* Bouton flottant vers le chat « Nouvel élève » (admin seulement), là où était la to-do. Pas sur le chat lui-même. */}
-      {session?.isAdmin && !pathname.startsWith("/eleves/nouveau") && (
-        <Link
-          href="/eleves/nouveau"
-          aria-label="Nouvel élève (chat)"
-          title="Nouvel élève (chat)"
-          className="fixed right-4 bottom-4 z-40 flex items-center gap-2 rounded-full px-4 h-12 font-semibold text-[14px] shadow-lg"
-          style={{ background: "var(--accent)", color: "#fff", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-        >
-          <span aria-hidden>💬</span>
-          <span>Nouvel élève</span>
-        </Link>
-      )}
+      {/* Chat « Nouvel élève » (admin seulement) : bulle en bas à droite, sauf sur la page du chat. */}
+      {session?.isAdmin && !pathname.startsWith("/eleves/nouveau") && <NewStudentChat variant="widget" />}
       <NewVersionBanner />
     </div>
   );
