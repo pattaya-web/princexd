@@ -60,7 +60,7 @@ export default function LoginPage() {
             </h1>
             <p className="muted text-[14px] mt-2 mb-6 leading-relaxed">
               Connecte-toi avec l&apos;identifiant et le mot de passe qui t&apos;ont été transmis.
-              Monteur : ton code d&apos;accès dans « Mot de passe » suffit.
+              Élève Scale X : ton identifiant suffit, laisse le mot de passe vide. Monteur : ton code d&apos;accès dans « Mot de passe » suffit.
             </p>
 
             <label className="block">

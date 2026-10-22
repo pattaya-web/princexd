@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 /**
  * Identifiants et acces d'un eleve a la plateforme.
  *
- * Le mot de passe est hache a la reception et jamais relu : l'admin le
- * communique lui-meme a l'eleve. Le premier mot de passe ouvre l'acces ;
- * ensuite, `portalAccess` le coupe ou le rouvre sans toucher aux identifiants.
+ * L'identifiant suffit a entrer (prenom.nom). Un mot de passe reste possible
+ * (hache, jamais relu) pour qui en veut un. `portalAccess` coupe ou rouvre
+ * l'acces sans toucher aux identifiants.
  */
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handle(async () => {
@@ -23,7 +23,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const s = db.students.find((x) => x.id === id);
     if (!s) throw new Error("Élève introuvable.");
 
-    if (typeof raw.username === "string") s.username = checkStudentUsername(raw.username, s.id);
+    if (typeof raw.username === "string") {
+      const first = !s.username;
+      s.username = checkStudentUsername(raw.username, s.id);
+      // Un identifiant suffit : le poser ouvre l'acces, sauf demande contraire.
+      if (first && raw.portalAccess === undefined && typeof raw.password !== "string") s.portalAccess = true;
+    }
 
     if (typeof raw.password === "string" && raw.password) {
       if (raw.password.length < 6) throw new Error("Mot de passe trop court : 6 caractères minimum.");
@@ -34,8 +39,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
 
     if (typeof raw.portalAccess === "boolean") {
-      if (raw.portalAccess && (!s.username || !s.passwordHash)) {
-        throw new Error("Définis un identifiant et un mot de passe avant d'ouvrir l'accès.");
+      if (raw.portalAccess && !s.username) {
+        throw new Error("Définis un identifiant avant d'ouvrir l'accès.");
       }
       s.portalAccess = raw.portalAccess;
     }

@@ -42,7 +42,7 @@ Installe tout maintenant : chaque jour sans ces outils, c'est un jour de retard 
 
 3️⃣ TA PLATEFORME DE FORMATION
 👉 {{plateforme}}
-Identifiant : {{identifiant}}
+Identifiant : {{identifiant}} (pas de mot de passe, ton identifiant suffit)
 Mot de passe : {{motdepasse}}
 Regarde les premiers modules avant notre call et coche chaque étape quand elle est faite : c'est comme ça que je suis ton avancement.
 
@@ -94,7 +94,9 @@ export function renderOnboarding(cfg: StudentOnboardingSettings, ctx: Onboarding
     rep("identifiant", ctx.username || "(je te l'envoie juste après)"),
     rep("motdepasse", ctx.password || (ctx.username ? "(celui que je t'ai envoyé)" : "(je te l'envoie juste après)")),
   ];
-  return steps.reduce((text, step) => step(text), cfg.message);
+  // Sans mot de passe (identifiant seul depuis le 2026-10-22), la ligne « Mot de passe » saute.
+  const base = ctx.password ? cfg.message : cfg.message.replace(/^.*\{\{\s*motdepasse\s*\}\}.*(\r?\n)?/gim, "");
+  return steps.reduce((text, step) => step(text), base);
 }
 
 /** Balises reconnues, pour l'aide de l'éditeur. */

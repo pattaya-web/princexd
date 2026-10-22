@@ -59,8 +59,8 @@ export default function StudentAccessPage() {
       const body: Record<string, unknown> = { username: username.trim() };
       if (password) body.password = password;
       await api(`/api/formation/access/${editing.id}`, { method: "PATCH", body: JSON.stringify(body) });
-      if (password) setLastCreds({ name: editing.name, username: username.trim().toLowerCase(), password });
-      toast(password ? "Identifiants enregistrés. Transmets-les à l'élève." : "Identifiant enregistré.");
+      setLastCreds({ name: editing.name, username: username.trim().toLowerCase(), password });
+      toast("Identifiant enregistré. Transmets-le à l'élève.");
       setEditing(null);
       await load();
     } catch (e) {
@@ -118,13 +118,14 @@ export default function StudentAccessPage() {
         <div className="card p-4 mb-4 flex flex-wrap items-center gap-3" style={{ borderColor: "var(--accent)" }}>
           <div className="min-w-0 flex-1">
             <div className="text-[13px] font-semibold">Identifiants de {lastCreds.name}</div>
-            <div className="dim text-[12px]">Affichés une seule fois : le mot de passe n&apos;est pas conservé en clair.</div>
+            <div className="dim text-[12px]">{lastCreds.password ? "Affichés une seule fois : le mot de passe n'est pas conservé en clair." : "Pas de mot de passe : l'identifiant suffit pour entrer."}</div>
             <div className="mono text-[13px] mt-1.5">
-              Identifiant : {lastCreds.username} · Mot de passe : {lastCreds.password}
+              Identifiant : {lastCreds.username}
+              {lastCreds.password ? ` · Mot de passe : ${lastCreds.password}` : ""}
             </div>
           </div>
           <CopyButton
-            text={`Ta plateforme de formation : ${typeof window !== "undefined" ? window.location.origin : ""}/login\nIdentifiant : ${lastCreds.username}\nMot de passe : ${lastCreds.password}`}
+            text={`Ta plateforme Scale X : ${typeof window !== "undefined" ? window.location.origin : ""}/login\nIdentifiant : ${lastCreds.username}${lastCreds.password ? `\nMot de passe : ${lastCreds.password}` : " (pas de mot de passe, ton identifiant suffit)"}`}
             label="Copier le message"
           />
           <button className="btn btn-ghost btn-sm" onClick={() => setLastCreds(null)}>
@@ -179,7 +180,7 @@ export default function StudentAccessPage() {
                       ) : (
                         <span className="dim">—</span>
                       )}
-                      <div className="dim text-[11.5px]">{s.hasPassword ? "mot de passe défini" : "pas de mot de passe"}</div>
+                      <div className="dim text-[11.5px]">{s.hasPassword ? "avec mot de passe" : s.username ? "identifiant seul" : ""}</div>
                     </td>
                     <td>
                       <Toggle
@@ -229,7 +230,7 @@ export default function StudentAccessPage() {
             <button
               className="btn btn-sm btn-primary"
               onClick={() => void save()}
-              disabled={saving || !username.trim() || (!editing?.hasPassword && password.length < 6) || (password.length > 0 && password.length < 6)}
+              disabled={saving || !username.trim() || (password.length > 0 && password.length < 6)}
             >
               {saving ? "Enregistrement…" : "Enregistrer"}
             </button>
@@ -237,17 +238,17 @@ export default function StudentAccessPage() {
         }
       >
         <div className="flex flex-col gap-3">
-          <Field label="Identifiant" hint="Ce que l'élève tape sur la page de connexion. Minuscules, sans espace.">
+          <Field label="Identifiant" hint="Ce que l'élève tape sur la page de connexion : prenom.nom, minuscules, sans espace. Il suffit pour entrer.">
             <input className="input" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
           </Field>
           <Field
-            label={editing?.hasPassword ? "Nouveau mot de passe" : "Mot de passe"}
-            hint={editing?.hasPassword ? "Laisse vide pour garder l'actuel. 6 caractères minimum." : "6 caractères minimum. Tu le transmets toi-même à l'élève."}
+            label={editing?.hasPassword ? "Nouveau mot de passe (facultatif)" : "Mot de passe (facultatif)"}
+            hint={editing?.hasPassword ? "Laisse vide pour garder l'actuel. 6 caractères minimum." : "Laisse vide : l'identifiant suffit. Sinon 6 caractères minimum."}
           >
             <input className="input" type="text" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={editing?.hasPassword ? "••••••" : ""} />
           </Field>
           {!editing?.hasPassword && (
-            <div className="dim text-[12px] leading-snug">L&apos;accès s&apos;ouvre dès que le mot de passe est enregistré. Tu pourras le couper depuis la liste.</div>
+            <div className="dim text-[12px] leading-snug">L&apos;accès s&apos;ouvre dès que l&apos;identifiant est enregistré. Tu pourras le couper depuis la liste.</div>
           )}
         </div>
       </Modal>

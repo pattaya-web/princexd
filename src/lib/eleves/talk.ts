@@ -28,7 +28,8 @@ export interface TalkResult {
 const ADD_SWIPE_RE = /<add_swipe>([\s\S]*?)<\/add_swipe>/gi;
 
 const CREATE_RE = /<create>([\s\S]*?)<\/create>/i;
-const CONFIRM_RE = /\b(oui|ok|okay|okey|yes|yep|ouais|go|vas[- ]y|valide|valid[eé]|confirm[eé]|c'?est bon|exact|parfait|nickel|enregistre|cr[eé]e|envoie|lance|[cç]a marche|top|d'?accord|dac|bien s[uû]r|carr[eé]ment|fonce)\b/i;
+const CONFIRM_RE = /\b(oui|ok|okay|okey|yes|yep|ouais|go|vas[- ]y|valide|valid[eé]|confirm[eé]|c'?est bon|exact|parfait|nickel|enregistre|cr[eé]e|envoie|lance|[cç]a marche|top|d'?accord|dac|bien s[uû]r|carr[eé]ment|fonce|ajoute|rajoute|mets?|inscris|rentre)\b/i;
+const CREATE_ALL_RE = /<create>([\s\S]*?)<\/create>/gi;
 
 const STABLE_SYSTEM = `Tu es l'assistant de Mady dans son tool (princexd), un coach e-commerce + IA. Tu lui parles comme Claude : naturel, direct, chaleureux, en français et en le tutoyant. C'est un chat sur téléphone : réponses courtes (une à quatre phrases), pas de titres, pas de listes à puces sauf pour un récapitulatif, pas de markdown lourd.
 
@@ -38,9 +39,12 @@ MISSION 1 · Répondre sur son business. À chaque tour tu reçois une photo à 
 
 MISSION 2 · Ajouter un reel au swipe file. Quand Mady te colle un lien (Instagram, TikTok, YouTube) et te dit de l'ajouter, termine ton message par un bloc <add_swipe>{"url":"…","funnel":"TOFU"|"MOFU"|"BOFU"|"","note":"…"}</add_swipe> par lien (funnel vide si Mady ne le précise pas ; note = ce qu'il dit du reel, sinon ""). Pas besoin de confirmation : c'est réversible. Le tool récupère le titre et la vignette et l'affiche ensuite dans Swipe file, statut « à analyser ».
 
-MISSION 3 · Enregistrer un nouvel élève. Quand Mady t'annonce qu'un prospect a signé (« closé »), tu enregistres le nouvel élève dans son CRM. Pour ça il te faut :
+MISSION 3 · Ajouter un élève. Deux cas :
+(a) « Ajoute Alexandre Martin en élève » (sans montant) : tu crées juste la fiche élève et son identifiant de plateforme, tout de suite, sans récap ni question. Le nom suffit. Plusieurs noms = un bloc <create> par élève, dans le même message.
+(b) « Alexandre closé 2500 en instant » : fiche élève + vente dans le CRM. Si l'instruction est complète (nom + montant), enregistre directement ; ne récapitule et ne demande que s'il manque quelque chose d'important.
+Champs du bloc :
 - name : prénom et nom ;
-- contractValue : la valeur du contrat (nombre, dans la devise indiquée) ;
+- contractValue : la valeur du contrat (nombre, dans la devise indiquée) ; 0 si aucune vente n'est annoncée ;
 - cashCollected : ce qui est encaissé aujourd'hui, et paymentType : "paid-in-full" (payé en une fois : « instant », « cash », « comptant »), "installments" (en plusieurs fois, avec installments = nombre de fois ; sans précision, cashCollected = contrat / nombre de fois), "deposit" (acompte), "other" (contrat envoyé, rien encaissé : cashCollected = 0) ;
 - soldAt : date de la vente AAAA-MM-JJ (aujourd'hui si rien n'est dit) ;
 - source : d'où vient le prospect, une clé parmi la liste fournie ;
@@ -49,10 +53,10 @@ MISSION 3 · Enregistrer un nouvel élève. Quand Mady t'annonce qu'un prospect 
 - facultatif : email, igUsername (sans @), offer (nom de l'offre), notes (contexte utile), setterId (parmi les setters fournis, si Mady dit qui a amené le lead), createAccess (true par défaut : crée son accès à la plateforme de formation), contractSigned (true seulement si Mady dit que le contrat est signé).
 
 Règles :
-1. Ne demande que ce qui manque, deux questions maximum à la fois. Le nom et le montant sont indispensables ; la source et le mode de paiement sont importants ; le reste est optionnel.
-2. Quand tu as l'essentiel, fais un récapitulatif en une ligne ou en quelques puces et demande « Je l'enregistre ? ». N'invente jamais une information.
-3. Quand Mady confirme (« oui », « ok », « valide », « go »…), réponds par une phrase très courte puis termine ton message par un bloc exactement de la forme <create>{...}</create> contenant le JSON de l'élève (clés ci-dessus, nombres sans unité, chaînes vides plutôt que null). Un seul bloc, jamais avant confirmation explicite.
-4. Si Mady corrige quelque chose après le récapitulatif, refais le récapitulatif corrigé et redemande.
+1. Ne demande que ce qui manque vraiment, deux questions maximum à la fois. Le nom suffit pour une fiche ; pour une vente il faut aussi le montant. Le reste (source, paiement, numéro) est utile mais jamais bloquant : ne le demande qu'une fois, et enregistre si Mady n'a pas répondu.
+2. Quand Mady donne une instruction directe (« ajoute », « rajoute », « mets », « enregistre », « closé … ») et que tu as le nom (et le montant s'il y a une vente), termine ton message par un bloc <create>{...}</create> par élève (JSON avec les clés ci-dessus, nombres sans unité, chaînes vides plutôt que null) et dis en une phrase ce que tu as fait. Si quelque chose d'important manque, pose la question, puis émets le bloc dès que Mady répond ou confirme (« oui », « ok », « go »…).
+3. N'invente jamais une information : ce que Mady n'a pas dit reste vide ou à 0.
+4. Si Mady corrige quelque chose, réémets un bloc corrigé pour le même élève (le tool met à jour, il ne duplique pas).
 5. Après l'enregistrement, le tool affiche lui-même le message de bienvenue, les identifiants et le bouton WhatsApp : ne les réinvente pas, dis juste que c'est fait.
 6. MISSION 4 · Tout le reste (un message à écrire, un conseil, une relance, une idée de contenu) : réponds normalement, toujours bref, en t'appuyant sur le contexte métier.
 
@@ -112,32 +116,36 @@ export async function talkNewStudent(session: Session, turns: ChatTurn[]): Promi
   const text = rawText.replace(ADD_SWIPE_RE, "").trim();
   const withSwipes = (reply: string) => (swipeNotes.length ? `${reply}\n${swipeNotes.join("\n")}`.trim() : reply);
 
-  const m = text.match(CREATE_RE);
-  if (!m) return { reply: withSwipes(text), swipes: swipes.length ? swipes : undefined, source };
+  const blocks = [...text.matchAll(CREATE_ALL_RE)].map((x) => x[1]);
+  if (!blocks.length) return { reply: withSwipes(text), swipes: swipes.length ? swipes : undefined, source };
 
-  const clean = text.replace(CREATE_RE, "").trim();
-  if (!CONFIRM_RE.test(last.content)) {
-    // Le modèle a brûlé l'étape : on garde son texte, mais rien n'est écrit sans un « ok ».
-    return { reply: `${clean}\n\nDis-moi « ok » et je l'enregistre.`.trim(), source };
+  const clean = text.replace(CREATE_ALL_RE, "").trim();
+  // Garde-fou : une instruction ou une confirmation de Mady dans son dernier message, sinon rien n'est écrit.
+  const consent = CONFIRM_RE.test(last.content) || /clos[eé]|sign[eé]|vendu|nouvel(le)? [eé]l[eè]ve|[eé]l[eè]ve/i.test(last.content);
+  if (!consent) return { reply: withSwipes(`${clean}\n\nDis-moi « ok » et je l'enregistre.`.trim()), source };
+
+  const lines: string[] = [clean || "C'est fait."];
+  let result: ConfirmResult | undefined;
+  for (const raw of blocks) {
+    let parsed: Partial<NewStudentDraft>;
+    try {
+      parsed = JSON.parse(raw) as Partial<NewStudentDraft>;
+    } catch {
+      lines.push("Je n'ai pas réussi à mettre une fiche en forme, redis-moi « ok » pour que je réessaie.");
+      continue;
+    }
+    const draft = completeDraft(parsed, { offer: ctx.offers[0]?.name ?? "Accompagnement e-commerce + IA", today: ctx.today });
+    try {
+      const r = confirmNewStudent(session, draft, users.slice(-300));
+      result = result ?? r;
+      const sale = r.sale.id ? ` : ${r.sale.contractValue} ${r.sale.currency} (${r.sale.cashCollected} encaissés)${r.lead.setterName ? `, setter ${r.lead.setterName}` : ""}, source ${r.lead.sourceLabel}` : "";
+      lines.push(`${r.studentCreated ? "Fiche élève créée" : "Fiche déjà existante, mise à jour"} pour ${r.student.name}${sale}.${r.credentials ? ` Identifiant Scale X : ${r.credentials.username}.` : ""}`);
+      lines.push(...r.notes);
+    } catch (e) {
+      lines.push(`Je n'ai pas pu enregistrer ${draft.name || "cet élève"} : ${(e as Error).message}`);
+    }
   }
-  let parsed: Partial<NewStudentDraft>;
-  try {
-    parsed = JSON.parse(m[1]) as Partial<NewStudentDraft>;
-  } catch {
-    return { reply: `${clean}\n\nJe n'ai pas réussi à mettre la fiche en forme, redis-moi « ok » pour que je réessaie.`.trim(), source };
-  }
-  const draft = completeDraft(parsed, { offer: ctx.offers[0]?.name ?? "Accompagnement e-commerce + IA", today: ctx.today });
-  try {
-    const result = confirmNewStudent(session, draft, users.slice(-300));
-    const bits = [
-      clean || "C'est fait.",
-      `${result.studentCreated ? "Fiche élève créée" : "Fiche déjà existante, vente mise à jour"} pour ${result.student.name} : ${result.sale.contractValue} ${result.sale.currency} (${result.sale.cashCollected} encaissés)${result.lead.setterName ? `, setter ${result.lead.setterName}` : ""}, source ${result.lead.sourceLabel}.${result.credentials ? " Son accès à la plateforme est créé." : ""}`,
-      ...result.notes,
-    ];
-    return { reply: bits.join("\n"), result, source };
-  } catch (e) {
-    return { reply: `${clean}\n\nJe n'ai rien pu enregistrer : ${(e as Error).message}`.trim(), source };
-  }
+  return { reply: withSwipes(lines.join("\n")), result, swipes: swipes.length ? swipes : undefined, source };
 }
 
 export { assistantSource };

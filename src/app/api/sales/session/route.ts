@@ -82,11 +82,11 @@ export async function POST(req: NextRequest) {
   }
 
   /*
-   * Eleve de la formation : identifiant + mot de passe poses par l'admin sur
-   * sa fiche. Un seul espace, /formation. L'acces coupe est dit clairement :
+   * Eleve de la formation : son identifiant suffit (mot de passe seulement
+   * sur les anciennes fiches qui en ont un). Un seul espace, /formation. L'acces coupe est dit clairement :
    * un « identifiant incorrect » ferait croire a l'eleve qu'il s'est trompe.
    */
-  if (username && password) {
+  if (username) {
     const student = findStudentByLogin(username, password);
     if (student) {
       if (!student.portalAccess) {

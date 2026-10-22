@@ -1,16 +1,14 @@
-import { randomInt } from "crypto";
 import { getApiKey, readDB, writeDB } from "@/lib/db";
 import { askText, parseJsonLoose } from "@/lib/kie";
-import { hashPassword } from "@/lib/sales/access";
 import { SOURCE_CHANNEL_LABEL, setManualAttribution } from "@/lib/sales/attribution";
 import { enrollStudentFromSale, quickOutcome, salesMembers, upsertLead } from "@/lib/sales/repo";
 import { memberRoles } from "@/lib/sales/roles";
 import { waLink } from "@/lib/sales/templates";
-import { suggestUsername } from "@/lib/formation";
 import { checkStudentUsername } from "@/lib/formation-server";
 import { onboardingSettings, renderOnboarding } from "@/lib/onboarding";
 import type { DB, Lead, Sale, Session, Student } from "@/lib/types";
 import { completeDraft, describeDraft, fold, parisToday, parseStudentText, sourceOption, SOURCE_OPTIONS, type NewStudentDraft } from "./draft";
+import { newId } from "@/lib/db";
 
 /**
  * Chat « Nouvel élève » (côté serveur).
@@ -256,16 +254,18 @@ export interface ConfirmResult {
   appointmentCreated: boolean;
 }
 
-function genPassword(): string {
-  const alphabet = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
-  let out = "";
-  for (let i = 0; i < 10; i++) out += alphabet[randomInt(alphabet.length)];
-  return out;
+/** « Alexandre Martin » → alexandre.martin ; « Alexandre » → alexandre. */
+export function usernameFromName(name: string): string {
+  const words = fold(name)
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  return words.join(".");
 }
 
-/** Identifiant libre dérivé du nom ou de l'email. */
+/** Identifiant libre : prénom.nom, puis prénom.nom2, prénom.nom3… */
 function pickUsername(s: Student): string {
-  let base = suggestUsername(s) || "eleve";
+  let base = usernameFromName(s.name) || "eleve";
   if (base.length < 3) base = `${base}.eleve`;
   for (let i = 1; i < 100; i++) {
     const candidate = i === 1 ? base : `${base}${i}`;
@@ -278,13 +278,104 @@ function pickUsername(s: Student): string {
   return checkStudentUsername(`eleve.${Date.now().toString(36)}`, s.id);
 }
 
+/** Fiche élève seule (pas de montant) : lead si besoin, élève, identifiant, message. Pas de doublon sur le nom. */
+function addStudentWithoutSale(session: Session, d: NewStudentDraft, ctx: ChatContext): ConfirmResult {
+  const db = readDB();
+  const names = new Map(db.team.map((m) => [m.id, m.name]));
+  const src = sourceOption(d.source);
+  const notes: string[] = [];
+  const now = new Date().toISOString();
+
+  const existing = db.students.find((s) => fold(s.name) === fold(d.name));
+  let lead = d.leadId ? db.leads.find((l) => l.id === d.leadId) : undefined;
+  const leadCreated = !lead && !existing;
+  if (!lead && !existing) {
+    lead = upsertLead(db, { igUsername: d.igUsername, name: d.name, email: d.email, phone: d.phone, source: src.leadSource });
+    if (src.channel) setManualAttribution(lead, { sourceChannel: src.channel, funnelSource: src.funnel }, now);
+    lead.stage = "closed-won";
+  }
+
+  let s = existing;
+  if (s) {
+    notes.push(`${s.name} était déjà dans Élèves : je n'ai pas créé de doublon.`);
+  } else {
+    s = {
+      id: newId(),
+      name: d.name,
+      handle: lead?.handle || (d.igUsername ? `@${d.igUsername}` : ""),
+      program: d.offer,
+      startedAt: d.soldAt,
+      price: 0,
+      paid: 0,
+      status: "onboarding",
+      progress: 0,
+      nextSessionAt: "",
+      objective: "",
+      result: "",
+      notes: d.notes,
+      createdAt: now,
+      leadId: lead?.id,
+      setterId: lead?.setterId || d.setterId || "",
+      igUsername: d.igUsername || lead?.igUsername || "",
+      email: d.email || lead?.email || "",
+      phone: d.phone || lead?.phone || "",
+      currency: ctx.currency,
+    };
+    db.students.unshift(s);
+    db.activityLogs.unshift({
+      id: newId(),
+      at: now,
+      actorId: session.memberId,
+      actorName: session.memberName || "Moi",
+      action: "student.enrolled",
+      entity: "lead",
+      entityId: s.id,
+      summary: `${s.name} ajouté dans Élèves depuis l'assistant (sans vente)`,
+    });
+  }
+  s.email = s.email || d.email;
+  s.phone = s.phone || d.phone;
+  if (d.contractSigned) {
+    s.contractSigned = true;
+    s.contractAt = s.contractAt || d.soldAt;
+  }
+  let credentials: ConfirmResult["credentials"] = null;
+  if (d.createAccess) {
+    if (!s.username) s.username = pickUsername(s);
+    s.portalAccess = true;
+    credentials = { username: s.username, password: "" };
+  }
+  writeDB(db);
+
+  const cfg = onboardingSettings(db.settings);
+  const message = renderOnboarding(cfg, { name: s.name, username: s.username, password: "", baseUrl: ctx.baseUrl });
+  return {
+    student: { id: s.id, name: s.name, program: s.program, price: s.price, paid: s.paid, username: s.username, portalAccess: s.portalAccess, phone: s.phone, email: s.email },
+    sale: { id: "", contractValue: 0, cashCollected: 0, currency: ctx.currency, soldAt: "", paymentType: "other", installments: 0 },
+    lead: {
+      id: lead?.id ?? s.leadId ?? "",
+      name: lead?.name ?? s.name,
+      created: leadCreated,
+      setterName: names.get(lead?.setterId ?? s.setterId ?? "") ?? "",
+      sourceLabel: lead?.sourceChannel ? SOURCE_CHANNEL_LABEL[lead.sourceChannel] : "Inconnue",
+    },
+    credentials,
+    message,
+    whatsapp: s.phone ? waLink(s.phone, message) : "",
+    notes,
+    studentCreated: !existing,
+    appointmentCreated: false,
+  };
+}
+
 /** Écrit tout, dans l'ordre : lead → call closé + vente → élève → accès → message. */
 export function confirmNewStudent(session: Session, input: NewStudentDraft, rawMessage: string): ConfirmResult {
   const ctx = chatContext();
   const d = completeDraft(input, { offer: ctx.offers[0]?.name ?? "Accompagnement e-commerce + IA", today: ctx.today });
   if (!d.name) throw new Error("Le nom de l'élève est obligatoire.");
-  if (!(d.contractValue > 0)) throw new Error("Le montant du contrat est obligatoire.");
-  if (d.soldAt > ctx.today) throw new Error("La date de la vente ne peut pas être dans le futur.");
+  if (d.soldAt > ctx.today) throw new Error("La date ne peut pas être dans le futur.");
+  // Sans montant : une fiche élève, pas de vente (élève déjà client, ou vente enregistrée ailleurs).
+  if (!(d.contractValue > 0)) return addStudentWithoutSale(session, d, ctx);
 
   const notes: string[] = [];
   const db = readDB();
@@ -369,15 +460,13 @@ export function confirmNewStudent(session: Session, input: NewStudentDraft, rawM
     s.contractAt = s.contractAt || d.soldAt;
   }
   let credentials: ConfirmResult["credentials"] = null;
-  if (d.createAccess && !s.passwordHash) {
-    const username = pickUsername(s);
-    const password = genPassword();
-    s.username = username;
-    s.passwordHash = hashPassword(password);
+  if (d.createAccess && !s.username) {
+    s.username = pickUsername(s);
     s.portalAccess = true;
-    credentials = { username, password };
-  } else if (d.createAccess && s.passwordHash) {
-    notes.push(`${s.name} a déjà un accès à la plateforme (identifiant ${s.username}) : je ne l'ai pas changé.`);
+    credentials = { username: s.username, password: "" };
+  } else if (d.createAccess && s.username) {
+    s.portalAccess = true;
+    credentials = { username: s.username, password: "" };
   }
   writeDB(db2);
 

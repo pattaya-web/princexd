@@ -276,15 +276,27 @@ function ResultCard({ r, currency }: { r: ConfirmResult; currency: string }) {
     <div className="card p-3 flex flex-col gap-2.5 text-[12.5px]">
       <div className="flex flex-wrap gap-x-3 gap-y-1">
         <span className="font-semibold">{r.student.name}</span>
-        <span>{fmtMoney(r.sale.contractValue, r.sale.currency || currency)}</span>
-        <span className="dim">{fmtMoney(r.sale.cashCollected, r.sale.currency || currency)} encaissés</span>
+        {r.sale.id ? (
+          <>
+            <span>{fmtMoney(r.sale.contractValue, r.sale.currency || currency)}</span>
+            <span className="dim">{fmtMoney(r.sale.cashCollected, r.sale.currency || currency)} encaissés</span>
+          </>
+        ) : (
+          <span className="dim">fiche élève, sans vente</span>
+        )}
       </div>
       {r.credentials && (
         <div className="card-flat p-2 mono text-[12px]" style={{ borderColor: "var(--accent)" }}>
-          <div className="dim font-sans text-[11px]">Accès plateforme, affiché une seule fois</div>
+          <div className="dim font-sans text-[11px]">Accès Scale X</div>
           Identifiant : {r.credentials.username}
-          <br />
-          Mot de passe : {r.credentials.password}
+          {r.credentials.password ? (
+            <>
+              <br />
+              Mot de passe : {r.credentials.password}
+            </>
+          ) : (
+            <span className="dim font-sans"> · pas de mot de passe, l&apos;identifiant suffit</span>
+          )}
         </div>
       )}
       <details>
