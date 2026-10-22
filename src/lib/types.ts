@@ -103,6 +103,8 @@ export interface Settings {
   transcribeModel: string;
   /** Cle Anthropic pour l'assistant du chat « Nouvel eleve ». Priorite a ANTHROPIC_API_KEY. */
   anthropicApiKey?: string;
+  /** Espace de travail Anthropic (wrkspc_…), requis avec une cle utilisateur sk-ant-usr. Priorite a ANTHROPIC_WORKSPACE_ID. */
+  anthropicWorkspaceId?: string;
   /** Cle ElevenLabs pour la transformation de voix du Swap video. Priorite a ELEVENLABS_API_KEY. */
   elevenLabsApiKey?: string;
   /** Cles Higgsfield (Genjutsu). Priorite a HIGGSFIELD_API_KEY_ID / HIGGSFIELD_API_KEY_SECRET. */

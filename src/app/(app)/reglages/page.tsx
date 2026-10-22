@@ -501,6 +501,9 @@ export default function ReglagesPage() {
               <Field label={s.anthropicApiKeyMask ? "Remplacer la clé Anthropic" : "Clé API Anthropic"} hint="Laisse vide pour conserver la clé actuelle.">
                 <input className="input mono" type="password" placeholder="sk-ant-…" value={anthropicKey} onChange={(e) => setAnthropicKey(e.target.value)} />
               </Field>
+              <Field label="Espace de travail (workspace ID)" hint="Seulement avec une clé « utilisateur » (sk-ant-usr-…) : console.anthropic.com → Settings → Workspaces, identifiant wrkspc_…. Inutile avec une clé créée dans un workspace.">
+                <input className="input mono" placeholder="wrkspc_…" value={s.anthropicWorkspaceId ?? ""} onChange={(e) => set("anthropicWorkspaceId", e.target.value.trim())} />
+              </Field>
             </div>
           </Card>
 
