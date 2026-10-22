@@ -132,7 +132,7 @@ export default function NouvelElevePage() {
         }
       />
 
-      <div className="flex-1 flex flex-col gap-3 max-w-[760px] w-full mx-auto pb-4">
+      <div className="flex-1 flex flex-col gap-3 max-w-[760px] w-full mx-auto pb-28 md:pb-4">
         {!msgs.length && (
           <div className="card p-4">
             <div className="text-[13px] font-semibold mb-1">Exemples</div>
@@ -186,7 +186,7 @@ export default function NouvelElevePage() {
       </div>
 
       <form
-        className="sticky bottom-0 -mx-3 px-3 pb-3 pt-2"
+        className="fixed md:sticky bottom-0 left-0 right-0 z-30 px-3 pb-3 pt-2 md:-mx-3"
         style={{ background: "linear-gradient(to top, var(--bg) 70%, transparent)" }}
         onSubmit={(e) => {
           e.preventDefault();
