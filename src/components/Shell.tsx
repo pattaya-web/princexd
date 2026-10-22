@@ -503,6 +503,8 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     section: "Business",
     items: [
       { href: "/eleves", label: "Élèves", icon: "✓" },
+      { href: "/eleves/nouveau", label: "Nouvel élève (chat)", icon: "💬" },
+      { href: "/eleves/onboarding", label: "Onboarding élèves", icon: "✉" },
       { href: "/boutiques", label: "Générateur boutique client", icon: "🛍" },
       { href: "/sales/agenda", label: "Agenda des calls", icon: "☏" },
       { href: "/pubs/creas", label: "Ads & Scripts", icon: "▶" },

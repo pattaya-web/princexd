@@ -33,6 +33,12 @@ export default function ElevesPage() {
               />
               <StatTile label="Accès plateforme" value={fmtInt(withAccess.length)} hint="ouverts" />
             </div>
+            <Link href="/eleves/nouveau" className="btn btn-sm btn-primary self-center">
+              Nouvel élève (chat)
+            </Link>
+            <Link href="/eleves/onboarding" className="btn btn-sm self-center">
+              Message d'onboarding
+            </Link>
             <Link href="/formation/eleves" className="btn btn-sm self-center">
               Gérer les accès à la formation
             </Link>

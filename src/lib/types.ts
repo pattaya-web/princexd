@@ -130,6 +130,8 @@ export interface Settings {
   brandContext: string;
   /** Fiche « Ma marque » : personal brand, avatar, offre, ressources, piliers, règles, SOP. */
   brand?: BrandProfile;
+  /** Onboarding des eleves : liens (formulaire, affiliations) et message de bienvenue (lib/onboarding.ts). */
+  studentOnboarding?: Partial<StudentOnboardingSettings>;
   /** Content OS : habitudes du jour, priorités, routine hebdo, ressources, chantiers. */
   contentOs?: Partial<ContentOsState>;
   /** Rotation des types de story par jour (0 = dimanche). */
@@ -603,6 +605,17 @@ export interface MessageTemplate {
   updatedAt: string;
 }
 
+/** Reglages du message de bienvenue des eleves (Eleves → Onboarding). */
+export interface StudentOnboardingSettings {
+  /** Formulaire d'onboarding (pourquoi il m'a choisi, situation, objectif). */
+  formUrl: string;
+  shopifyUrl: string;
+  claudeUrl: string;
+  brainsearchUrl: string;
+  /** Texte du message, avec les balises {{prenom}}, {{formulaire}}, {{shopify}}, {{claude}}, {{brainsearch}}, {{plateforme}}, {{identifiant}}, {{motdepasse}}. */
+  message: string;
+}
+
 export interface Student {
   id: ID;
   name: string;
@@ -649,6 +662,8 @@ export interface Student {
   portalLastSeenAt?: string;
   /** Modules video marques « terminé » par l'eleve, dans l'ordre ou il les a coches. */
   completedModules?: ID[];
+  /** Date a laquelle le message d'onboarding lui a ete envoye (marque a la main). */
+  onboardingSentAt?: string;
 }
 
 /* ------------------------- Plateforme de formation ------------------------ */
