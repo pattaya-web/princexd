@@ -5,9 +5,8 @@ import { api, useCollection } from "@/lib/client";
 import { Card, Empty, ErrorNote, PageHeader, Spinner, Tabs, useToast } from "@/components/ui";
 import { relative } from "@/lib/format";
 import { swipeProdStatus, swipeStage, type Swipe, type SwipeAnalysis, type SwipeProdStatus, type SwipeStage } from "@/lib/types";
-import { WeekBlock } from "@/components/WeekBlock";
 import { PromptsInline } from "@/components/SwipeProduction";
-import { FORMAT_LABEL, MechanicsPanel, ProdBadge, ShotsPanel, STAGE_COLOR, STAGE_HINT, STAGE_TITLE, StageBadge, StateBadge, swipeState, type SwipeState } from "@/components/swipe/panels";
+import { MechanicsPanel, ShotsPanel, STAGE_COLOR, STAGE_HINT, STAGE_TITLE, StageBadge, StateBadge, swipeState, type SwipeState } from "@/components/swipe/panels";
 import { SourcePanel } from "@/components/swipe/SourcePanel";
 import { ScriptStudio } from "@/components/swipe/ScriptStudio";
 import { ProductionPanel } from "@/components/swipe/ProductionPanel";
@@ -209,7 +208,7 @@ export default function SwipePage() {
 
   return (
     <div style={BLUE}>
-      <PageHeader title="Swipe file" subtitle="Colle le lien d'un Reel qui marche. Le tool récupère la transcription, le classe TOFU / MOFU / BOFU, et tu génères ton script Scale X à tourner." />
+      <PageHeader title="Swipe file" subtitle="Un lien, le type, la transcription (traduite si besoin). Rien d'autre." />
 
       <Card className="mb-4">
         <div className="flex flex-wrap gap-2">
@@ -258,8 +257,6 @@ export default function SwipePage() {
           }}
         />
       )}
-
-      <WeekBlock variant="compact" />
 
       <div className="flex flex-wrap gap-1.5 mb-3 items-center">
         {FILTERS.map((f) => {
@@ -327,6 +324,7 @@ function Section({ id, title, hint, color, items, open, onToggle, working, selec
 
 function SwipeCard({ s, working, active, onOpen }: { s: Swipe; working?: string; active: boolean; onOpen: (s: Swipe, p?: Panel) => void }) {
   const hook = s.script?.hook || s.analysis?.hook || "";
+  const excerpt = hook || (s.transcriptInput ?? "").trim().split(/\n/)[0] || "";
   const title = s.title || hook || s.caption || s.url;
   return (
     <div className="card-flat p-3 flex flex-col gap-2" style={{ borderColor: active ? "var(--accent)" : undefined }}>
@@ -354,12 +352,10 @@ function SwipeCard({ s, working, active, onOpen }: { s: Swipe; working?: string;
           </div>
         </div>
       </div>
-      {hook && <p className="text-[12.5px] leading-snug line-clamp-2 muted">« {hook} »</p>}
+      {excerpt && <p className="text-[12.5px] leading-snug line-clamp-2 muted">« {excerpt} »</p>}
       <div className="flex items-center gap-1.5 flex-wrap">
-        <StateBadge s={s} working={working} />
         <StageBadge s={s} small />
-        <ProdBadge s={s} />
-        {s.analysis?.format && <span className="badge !text-[10px] !py-0">{FORMAT_LABEL[s.analysis.format] ?? s.analysis.format}</span>}
+        <StateBadge s={s} working={working} />
       </div>
       <div className="flex gap-1.5 mt-auto">
         <button className="btn btn-sm flex-1" onClick={() => onOpen(s)}>
@@ -403,14 +399,18 @@ function Detail({
   onDelete: () => Promise<void>;
 }) {
   const state: SwipeState = swipeState(s);
-  const tabs: { value: Panel; label: string }[] = [
-    { value: "source", label: "Source" },
-    { value: "analyse", label: "Analyse" },
+  const [more, setMore] = useState(panel !== "source" && panel !== "script");
+  const main: { value: Panel; label: string }[] = [
+    { value: "source", label: "Transcription" },
     { value: "script", label: "Mon script" },
+  ];
+  const extra: { value: Panel; label: string }[] = [
+    { value: "analyse", label: "Analyse" },
     { value: "plans", label: "Plans" },
     { value: "prompts", label: "Prompts IA" },
     { value: "production", label: "Production" },
   ];
+  const tabs = more ? [...main, ...extra] : main;
   const stage = swipeStage(s);
   return (
     <Card
@@ -441,8 +441,11 @@ function Detail({
       }
       padded={false}
     >
-      <div className="px-4 pt-3">
+      <div className="px-4 pt-3 flex items-center gap-2 flex-wrap">
         <Tabs value={panel} onChange={setPanel} options={tabs} />
+        <button type="button" className="btn btn-sm btn-ghost" onClick={() => setMore((v) => !v)}>
+          {more ? "Moins" : "Plus ▸"}
+        </button>
       </div>
       <div className="p-4">
         {panel === "source" && <SourcePanel s={s} busy={working} onPatch={onPatch} onAnalyze={onAnalyze} />}
