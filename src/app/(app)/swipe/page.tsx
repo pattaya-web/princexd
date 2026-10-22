@@ -27,14 +27,16 @@ import { ProductionPanel } from "@/components/swipe/ProductionPanel";
  */
 
 type Panel = "source" | "analyse" | "script" | "plans" | "prompts" | "production";
-type Filter = "all" | "fresh" | "script" | "prod" | "published";
+type Filter = "todo" | "all" | "fresh" | "script" | "prod" | "published";
 
+/** Par défaut, seulement ce qui reste à faire : un Reel coché « Tourné » disparaît de la vue. */
 const FILTERS: { key: Filter; label: string }[] = [
-  { key: "all", label: "Tous" },
+  { key: "todo", label: "À faire" },
   { key: "fresh", label: "Non exploités" },
   { key: "script", label: "Script prêt" },
   { key: "prod", label: "En production" },
   { key: "published", label: "Publiés" },
+  { key: "all", label: "Tout" },
 ];
 
 const IN_PROD: SwipeProdStatus[] = ["a-tourner", "tourne", "monte", "validation", "programme"];
@@ -42,6 +44,7 @@ const IN_PROD: SwipeProdStatus[] = ["a-tourner", "tourne", "monte", "validation"
 const matchesFilter = (s: Swipe, f: Filter) => {
   const prod = swipeProdStatus(s);
   if (f === "all") return true;
+  if (f === "todo") return prod === "source" || prod === "scripte" || prod === "a-tourner";
   if (f === "fresh") return prod === "source";
   if (f === "script") return prod === "scripte";
   if (f === "prod") return IN_PROD.includes(prod);
@@ -69,7 +72,7 @@ export default function SwipePage() {
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel>("source");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>("todo");
   const [working, setWorking] = useState<Record<string, string>>({});
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ TOFU: true, MOFU: true, BOFU: true, check: true });
   const [playing, setPlaying] = useState<Swipe | null>(null);
@@ -195,7 +198,7 @@ export default function SwipePage() {
   const sendToEditor = async (s: Swipe) => {
     try {
       await setStatus(s, "tourne");
-      toast("Tourné : il passe au montage.");
+      toast("Tourné : il sort de la liste (retrouve-le dans « En production »).");
     } catch (e) {
       toast((e as Error).message, "err");
     }
@@ -228,8 +231,8 @@ export default function SwipePage() {
     return g;
   }, [rows, filter]);
   const counts = useMemo(() => {
-    const c: Record<Filter, number> = { all: rows.length, fresh: 0, script: 0, prod: 0, published: 0 };
-    for (const s of rows) for (const f of ["fresh", "script", "prod", "published"] as Filter[]) if (matchesFilter(s, f)) c[f]++;
+    const c: Record<Filter, number> = { todo: 0, all: rows.length, fresh: 0, script: 0, prod: 0, published: 0 };
+    for (const s of rows) for (const f of ["todo", "fresh", "script", "prod", "published"] as Filter[]) if (matchesFilter(s, f)) c[f]++;
     return c;
   }, [rows]);
 
