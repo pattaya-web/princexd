@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CreatorPlayer, DownloadButton } from "@/components/CreatorPlayer";
+import { isLocalMedia, ThumbImg } from "@/components/MediaThumb";
 import { api, useCollection } from "@/lib/client";
-import { Card, Empty, ErrorNote, PageHeader, Spinner, Tabs, useToast } from "@/components/ui";
+import { Card, Empty, ErrorNote, Modal, PageHeader, Spinner, Tabs, useToast } from "@/components/ui";
 import { relative } from "@/lib/format";
 import { swipeProdStatus, swipeStage, type Swipe, type SwipeAnalysis, type SwipeNeed, type SwipeProdStatus, type SwipeStage } from "@/lib/types";
 import { PromptsInline } from "@/components/SwipeProduction";
@@ -70,6 +72,7 @@ export default function SwipePage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [working, setWorking] = useState<Record<string, string>>({});
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ TOFU: true, MOFU: true, BOFU: true, check: true });
+  const [playing, setPlaying] = useState<Swipe | null>(null);
 
   const selected = rows.find((s) => s.id === selectedId) ?? null;
   const setWork = (id: string, phase: string) => setWorking((w) => ({ ...w, [id]: phase }));
@@ -182,6 +185,12 @@ export default function SwipePage() {
     }
   };
 
+  /** Le fichier vidéo est en cache chez nous : sa première image devient la miniature de la carte. */
+  const rememberPoster = (s: Swipe, localSrc: string) => {
+    if (!isLocalMedia(localSrc) || (s.thumbnail && isLocalMedia(s.thumbnail))) return;
+    void patch(s.id, { thumbnail: localSrc }).catch(() => undefined);
+  };
+
   const setNeed = async (s: Swipe, need: SwipeNeed | "") => {
     try {
       await patch(s.id, { need: need || undefined });
@@ -264,6 +273,7 @@ export default function SwipePage() {
             await destroy(selected.id);
             setSelectedId(null);
           }}
+          onPlay={setPlaying}
         />
       )}
 
@@ -290,10 +300,33 @@ export default function SwipePage() {
       ) : (
         <div className="flex flex-col gap-3">
           {(["TOFU", "MOFU", "BOFU"] as SwipeStage[]).map((st) => (
-            <Section key={st} id={st} title={STAGE_TITLE[st]} hint={STAGE_HINT[st]} color={STAGE_COLOR[st]} items={grouped[st]} open={openSections[st]} onToggle={() => setOpenSections((o) => ({ ...o, [st]: !o[st] }))} working={working} selectedId={selectedId} onOpen={open} onNeed={setNeed} />
+            <Section key={st} id={st} title={STAGE_TITLE[st]} hint={STAGE_HINT[st]} color={STAGE_COLOR[st]} items={grouped[st]} open={openSections[st]} onToggle={() => setOpenSections((o) => ({ ...o, [st]: !o[st] }))} working={working} selectedId={selectedId} onOpen={open} onNeed={setNeed} onPlay={setPlaying} />
           ))}
-          <Section id="check" title="À analyser" hint="Transcription ou classification incomplète : ouvre la fiche pour finir." color="#6b7280" items={grouped.check} open={openSections.check} onToggle={() => setOpenSections((o) => ({ ...o, check: !o.check }))} working={working} selectedId={selectedId} onOpen={open} onNeed={setNeed} discreet />
+          <Section id="check" title="À analyser" hint="Transcription ou classification incomplète : ouvre la fiche pour finir." color="#6b7280" items={grouped.check} open={openSections.check} onToggle={() => setOpenSections((o) => ({ ...o, check: !o.check }))} working={working} selectedId={selectedId} onOpen={open} onNeed={setNeed} onPlay={setPlaying} discreet />
         </div>
+      )}
+
+      {playing && (
+        <Modal open onClose={() => setPlaying(null)} title={playing.title || (playing.author ? `@${playing.author}` : "Reel")}>
+          <div className="flex flex-col gap-3">
+            <CreatorPlayer permalink={playing.url} src={`/api/creators/media?url=${encodeURIComponent(playing.url)}`} onReady={(local) => rememberPoster(playing, local)} />
+            <div className="flex items-center gap-2 flex-wrap">
+              <DownloadButton href={`/api/creators/media?url=${encodeURIComponent(playing.url)}&download=1`} />
+              <a className="btn btn-sm" href={playing.url} target="_blank" rel="noreferrer">
+                Ouvrir sur {playing.platform === "instagram" ? "Instagram" : playing.platform}
+              </a>
+              <button
+                className="btn btn-sm btn-ghost ml-auto"
+                onClick={() => {
+                  setPlaying(null);
+                  open(playing);
+                }}
+              >
+                Ouvrir la fiche
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
@@ -301,7 +334,7 @@ export default function SwipePage() {
 
 /* ------------------------------- Sections ------------------------------- */
 
-function Section({ id, title, hint, color, items, open, onToggle, working, selectedId, onOpen, onNeed, discreet }: { id: string; title: string; hint: string; color: string; items: Swipe[]; open: boolean; onToggle: () => void; working: Record<string, string>; selectedId: string | null; onOpen: (s: Swipe, p?: Panel) => void; onNeed: (s: Swipe, need: SwipeNeed | "") => void; discreet?: boolean }) {
+function Section({ id, title, hint, color, items, open, onToggle, working, selectedId, onOpen, onNeed, onPlay, discreet }: { id: string; title: string; hint: string; color: string; items: Swipe[]; open: boolean; onToggle: () => void; working: Record<string, string>; selectedId: string | null; onOpen: (s: Swipe, p?: Panel) => void; onNeed: (s: Swipe, need: SwipeNeed | "") => void; onPlay: (s: Swipe) => void; discreet?: boolean }) {
   if (discreet && !items.length) return null;
   return (
     <section className="card" style={{ borderColor: open && !discreet ? `color-mix(in srgb, ${color} 35%, var(--border))` : undefined }} data-section={id}>
@@ -321,7 +354,7 @@ function Section({ id, title, hint, color, items, open, onToggle, working, selec
           ) : (
             <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
               {items.map((s) => (
-                <SwipeCard key={s.id} s={s} working={working[s.id]} active={selectedId === s.id} onOpen={onOpen} onNeed={onNeed} />
+                <SwipeCard key={s.id} s={s} working={working[s.id]} active={selectedId === s.id} onOpen={onOpen} onNeed={onNeed} onPlay={onPlay} />
               ))}
             </div>
           )}
@@ -331,21 +364,14 @@ function Section({ id, title, hint, color, items, open, onToggle, working, selec
   );
 }
 
-function SwipeCard({ s, working, active, onOpen, onNeed }: { s: Swipe; working?: string; active: boolean; onOpen: (s: Swipe, p?: Panel) => void; onNeed: (s: Swipe, need: SwipeNeed | "") => void }) {
+function SwipeCard({ s, working, active, onOpen, onNeed, onPlay }: { s: Swipe; working?: string; active: boolean; onOpen: (s: Swipe, p?: Panel) => void; onNeed: (s: Swipe, need: SwipeNeed | "") => void; onPlay: (s: Swipe) => void }) {
   const hook = s.script?.hook || s.analysis?.hook || "";
   const excerpt = hook || (s.transcriptInput ?? "").trim().split(/\n/)[0] || "";
   const title = s.title || hook || s.caption || s.url;
   return (
     <div className="card-flat p-3 flex flex-col gap-2" style={{ borderColor: active ? "var(--accent)" : undefined }}>
       <div className="flex gap-2.5">
-        {s.thumbnail ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={s.thumbnail} alt="" className="w-[44px] h-[58px] object-cover rounded-[6px] shrink-0" loading="lazy" />
-        ) : (
-          <span className="w-[44px] h-[58px] rounded-[6px] shrink-0 grid place-items-center text-[15px]" style={{ background: "var(--surface-3)" }}>
-            ▶
-          </span>
-        )}
+        <Thumb s={s} onPlay={onPlay} size={58} />
         <div className="min-w-0 flex-1">
           <button type="button" className="block text-left text-[13px] font-semibold leading-snug line-clamp-2 hover:underline" onClick={() => onOpen(s)}>
             {title}
@@ -381,6 +407,26 @@ function SwipeCard({ s, working, active, onOpen, onNeed }: { s: Swipe; working?:
   );
 }
 
+/** Vignette cliquable : ouvre le lecteur (play direct, téléchargement, repli Instagram). */
+function Thumb({ s, onPlay, size }: { s: Swipe; onPlay: (s: Swipe) => void; size: number }) {
+  const w = Math.round(size * 0.76);
+  return (
+    <button type="button" onClick={() => onPlay(s)} className="relative shrink-0 rounded-[6px] overflow-hidden grid place-items-center group" style={{ width: w, height: size, background: "var(--surface-3)" }} title="Voir le Reel">
+      {s.thumbnail ? (
+        isLocalMedia(s.thumbnail) ? (
+          <ThumbImg src={s.thumbnail} className="w-full h-full object-cover" />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={s.thumbnail} alt="" className="w-full h-full object-cover" loading="lazy" />
+        )
+      ) : null}
+      <span className="absolute inset-0 grid place-items-center text-[14px]" style={{ background: s.thumbnail ? "rgb(0 0 0 / 0.25)" : "transparent", color: s.thumbnail ? "#fff" : "var(--text-2)" }}>
+        ▶
+      </span>
+    </button>
+  );
+}
+
 /* --------------------------------- Fiche --------------------------------- */
 
 function Detail({
@@ -397,6 +443,7 @@ function Detail({
   onStatusChange,
   onGenerated,
   onDelete,
+  onPlay,
 }: {
   s: Swipe;
   working: string;
@@ -411,8 +458,17 @@ function Detail({
   onStatusChange: (status: SwipeProdStatus, dates: Swipe["prodDates"]) => void;
   onGenerated: (script: NonNullable<Swipe["script"]>, status: SwipeProdStatus, dates: Swipe["prodDates"]) => void;
   onDelete: () => Promise<void>;
+  onPlay: (s: Swipe) => void;
 }) {
   const state: SwipeState = swipeState(s);
+  // Échap referme la fiche et rend la bibliothèque.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) onBack();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onBack]);
   const [more, setMore] = useState(panel !== "source" && panel !== "script");
   const main: { value: Panel; label: string }[] = [
     { value: "source", label: "Transcription" },
@@ -429,7 +485,15 @@ function Detail({
   return (
     <Card
       className="mb-4"
-      title={s.title || "Reel"}
+      title={
+        <span className="inline-flex items-center gap-3">
+          <button type="button" className="btn btn-sm" onClick={onBack} title="Retour à la bibliothèque (Échap)">
+            ← Bibliothèque
+          </button>
+          <Thumb s={s} onPlay={onPlay} size={44} />
+          <span className="min-w-0 truncate">{s.title || "Reel"}</span>
+        </span>
+      }
       subtitle={`${s.platform}${s.author ? ` · @${s.author}` : ""} · ajouté ${relative(s.createdAt)}`}
       actions={
         <>
@@ -448,9 +512,6 @@ function Detail({
           </a>
           <button className="btn btn-sm btn-ghost" onClick={() => void onDelete()}>
             Supprimer
-          </button>
-          <button className="btn btn-sm" onClick={onBack}>
-            ← Bibliothèque
           </button>
         </>
       }
@@ -482,6 +543,11 @@ function Detail({
         {panel === "plans" && (s.analysis ? <ShotsPanel a={s.analysis} /> : <Empty>Lance l&apos;analyse pour obtenir le découpage et les plans.</Empty>)}
         {panel === "prompts" && (s.analysis ? <PromptsInline a={s.analysis} swipeId={s.id} /> : <Empty>Lance l&apos;analyse pour obtenir les prompts d&apos;images et de B-roll.</Empty>)}
         {panel === "production" && <ProductionPanel s={s} onPatch={onPatch} onStatusChange={onStatusChange} />}
+      </div>
+      <div className="px-4 pb-4 flex justify-end">
+        <button className="btn btn-sm" onClick={onBack}>
+          ← Retour à la bibliothèque
+        </button>
       </div>
     </Card>
   );

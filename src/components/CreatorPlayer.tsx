@@ -27,7 +27,7 @@ export function igEmbedUrl(permalink: string): string | null {
 
 type Ready = { src: string } | null;
 
-export function CreatorPlayer({ permalink, src }: { permalink: string; src: string }) {
+export function CreatorPlayer({ permalink, src, onReady }: { permalink: string; src: string; onReady?: (localSrc: string) => void }) {
   const embed = igEmbedUrl(permalink);
   const [ready, setReady] = useState<Ready>(null);
   const [useVideo, setUseVideo] = useState(false);
@@ -51,6 +51,7 @@ export function CreatorPlayer({ permalink, src }: { permalink: string; src: stri
           setReady({ src: body.src });
           setUseVideo(true);
           setChecked(true);
+          onReady?.(body.src);
           return;
         }
         setChecked(true);
@@ -60,6 +61,7 @@ export function CreatorPlayer({ permalink, src }: { permalink: string; src: stri
           if (!alive) return;
           if (r2.ok && b2.ok && b2.src) {
             setReady({ src: b2.src });
+            onReady?.(b2.src);
             // Sans embed possible (TikTok, YouTube), on bascule directement.
             if (!embed) setUseVideo(true);
           } else {
@@ -74,6 +76,7 @@ export function CreatorPlayer({ permalink, src }: { permalink: string; src: stri
         setFailed(e.message);
       });
     return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src, permalink, embed]);
 
   if (useVideo && ready) {
