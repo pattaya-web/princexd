@@ -31,7 +31,7 @@ const STORE = "princexd.nouvel-eleve.chat";
 const EXAMPLES = ["Alexandre Martin, closé 2500 en instant aujourd'hui, vient d'Instagram", "Combien j'ai encaissé ce mois ?", "Combien de reels à tourner cette semaine ?", "Ajoute ce reel en TOFU : https://www.instagram.com/reel/…"];
 
 /** Le modèle met parfois du gras markdown : on l'enlève, la bulle affiche du texte brut. */
-const plain = (t: string) => t.replace(/**(.+?)**/g, "$1").replace(/^#+s*/gm, "");
+const plain = (t: string) => t.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#+\s*/gm, "");
 
 function loadMsgs(): Msg[] {
   try {
