@@ -6,8 +6,7 @@ import { isLocalMedia, ThumbImg } from "@/components/MediaThumb";
 import { api, useCollection } from "@/lib/client";
 import { Card, Empty, ErrorNote, Modal, PageHeader, Spinner, Tabs, useToast } from "@/components/ui";
 import { relative } from "@/lib/format";
-import { swipeProdStatus, swipeStage, type EditJob, type Swipe, type SwipeAnalysis, type SwipeNeed, type SwipeProdStatus, type SwipeStage } from "@/lib/types";
-import { editJobFromSwipe } from "@/lib/swipe-edit-job";
+import { swipeProdStatus, swipeStage, type Swipe, type SwipeAnalysis, type SwipeNeed, type SwipeProdStatus, type SwipeStage } from "@/lib/types";
 import { PromptsInline } from "@/components/SwipeProduction";
 import { MechanicsPanel, NeedSelect, ShotsPanel, STAGE_COLOR, STAGE_HINT, STAGE_TITLE, StageBadge, StateBadge, swipeState, type SwipeState } from "@/components/swipe/panels";
 import { SourcePanel } from "@/components/swipe/SourcePanel";
@@ -192,17 +191,11 @@ export default function SwipePage() {
     void patch(s.id, { thumbnail: localSrc }).catch(() => undefined);
   };
 
-  /** Je l'ai filmé : dossier monteur (référence + brief) et passage au montage. */
+  /** Je l'ai filmé : le Reel passe au montage (les rushs, le monteur les a déjà). */
   const sendToEditor = async (s: Swipe) => {
     try {
-      let editJobId = s.editJobId ?? "";
-      if (!editJobId) {
-        const job = await api<EditJob>("/api/data/edits", { method: "POST", body: JSON.stringify(editJobFromSwipe(s)) });
-        editJobId = job.id;
-        await patch(s.id, { editJobId });
-      }
       await setStatus(s, "tourne");
-      toast("Envoyé au monteur : dossier créé avec le brief, le Reel passe au montage.");
+      toast("Tourné : il passe au montage.");
     } catch (e) {
       toast((e as Error).message, "err");
     }
@@ -417,9 +410,10 @@ function SwipeCard({ s, working, active, onOpen, onNeed, onPlay, onSend }: { s: 
           Ouvrir
         </button>
         {swipeProdStatus(s) === "a-tourner" ? (
-          <button className="btn btn-sm btn-primary flex-1" onClick={() => void onSend(s)} title="Je l'ai filmé : dossier monteur créé avec le brief, le Reel passe au montage">
-            📤 Envoyer au monteur
-          </button>
+          <label className="btn btn-sm flex-1 cursor-pointer gap-2" title="Je l'ai filmé : il passe au montage">
+            <input type="checkbox" checked={false} onChange={() => void onSend(s)} />
+            Tourné
+          </label>
         ) : (
           <button className="btn btn-sm btn-primary flex-1" onClick={() => onOpen(s, "script")}>
             Préparer mon script

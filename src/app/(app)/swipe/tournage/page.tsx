@@ -6,8 +6,7 @@ import { api, useCollection } from "@/lib/client";
 import { Card, Empty, PageHeader, Spinner, useToast } from "@/components/ui";
 import { useWeek } from "@/components/WeekBlock";
 import { NEED_LABEL, needOf, STAGE_COLOR } from "@/components/swipe/panels";
-import { SWIPE_STAGES, swipeProdStatus, swipeStage, type EditJob, type Swipe, type SwipeStage } from "@/lib/types";
-import { editJobFromSwipe } from "@/lib/swipe-edit-job";
+import { SWIPE_STAGES, swipeProdStatus, swipeStage, type Swipe, type SwipeStage } from "@/lib/types";
 
 /**
  * Mes prochains tournages : tout ce qui est « Prêt à tourner », trié par date
@@ -43,19 +42,13 @@ export default function TournagePage() {
     return week.progress.stages.map((s) => ({ stage: s.stage, left: Math.max(0, s.target - s.counts.tourne), ready: s.pipeline["a-tourner"] }));
   }, [week]);
 
-  /** Tourné → le dossier monteur est créé (référence + brief) et le Reel passe au montage. */
+  /** Tourné : le Reel sort de la liste et passe au montage. Les rushs, le monteur les a déjà dans son espace. */
   const markShot = async (s: Swipe, openNext: boolean) => {
     setBusy(true);
     try {
-      let editJobId = s.editJobId ?? "";
-      if (!editJobId) {
-        const job = await api<EditJob>("/api/data/edits", { method: "POST", body: JSON.stringify(editJobFromSwipe(s)) });
-        editJobId = job.id;
-        await api("/api/data/swipes", { method: "PATCH", body: JSON.stringify({ id: s.id, editJobId }) });
-      }
       await api("/api/swipe/status", { method: "POST", body: JSON.stringify({ swipeId: s.id, status: "tourne" }) });
       const now = new Date().toISOString();
-      setRows((prev) => prev.map((x) => (x.id === s.id ? { ...x, editJobId, prodStatus: "tourne", prodDates: { ...(x.prodDates ?? {}), tourne: now } } : x)));
+      setRows((prev) => prev.map((x) => (x.id === s.id ? { ...x, prodStatus: "tourne", prodDates: { ...(x.prodDates ?? {}), tourne: now } } : x)));
       window.dispatchEvent(new Event("swipes:changed"));
       if (openNext) {
         const idx = todo.findIndex((x) => x.id === s.id);
@@ -63,7 +56,7 @@ export default function TournagePage() {
         setCurrent(next && next.id !== s.id ? next.id : null);
         if (!next || next.id === s.id) toast("Tout est tourné pour ce filtre. Bien joué.");
       } else {
-        toast("Envoyé au monteur : dossier créé avec le brief, le Reel passe au montage.");
+        toast("Tourné : il sort de la liste et passe au montage.");
       }
     } catch (e) {
       toast((e as Error).message, "err");
@@ -92,7 +85,7 @@ export default function TournagePage() {
     <div style={{ "--accent": "#006DBC", "--accent-hover": "#005a9c", "--accent-soft": "#e6f1fa" } as React.CSSProperties}>
       <PageHeader
         title="Mes prochains tournages"
-        subtitle="Tout ce qui est prêt à tourner, dans l'ordre. Ouvre le prompteur, lis, tourne, « Envoyer au monteur » : le dossier monteur est créé et le Reel passe au montage."
+        subtitle="Tout ce qui est prêt à tourner, dans l'ordre. Ouvre le prompteur, lis, tourne, coche « Tourné » : il sort de la liste et passe au montage."
         actions={
           <Link href="/swipe" className="btn btn-sm">
             ← Swipe file
@@ -181,9 +174,10 @@ export default function TournagePage() {
                   <button className="btn btn-sm" onClick={() => setCurrent(s.id)}>
                     Prompteur
                   </button>
-                  <button className="btn btn-sm btn-primary" disabled={busy} onClick={() => void markShot(s, false)} title="Je l'ai filmé : crée le dossier monteur avec le brief et passe le Reel au montage">
-                    📤 Envoyer au monteur
-                  </button>
+                  <label className="inline-flex items-center gap-2 text-[13px] font-medium cursor-pointer select-none px-2 h-[30px] rounded-full" style={{ border: "1px solid var(--border)" }} title="Je l'ai filmé : il sort de la liste et passe au montage">
+                    <input type="checkbox" checked={false} disabled={busy} onChange={() => void markShot(s, false)} />
+                    Tourné
+                  </label>
                 </div>
                 <div className="px-4 pb-4 grid md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-4">
                   <div>
@@ -251,7 +245,7 @@ export default function TournagePage() {
                 Fermer
               </button>
               <button className="btn btn-sm btn-primary" disabled={busy} onClick={() => void markShot(currentSwipe, true)} title="Espace ou → : marque tourné et passe au suivant">
-                {busy ? <span className="spinner" /> : "Envoyer au monteur → suivant"}
+                {busy ? <span className="spinner" /> : "✓ Tourné → suivant"}
               </button>
             </span>
           </div>
