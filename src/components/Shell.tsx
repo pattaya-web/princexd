@@ -504,7 +504,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     section: "Business",
     items: [
       { href: "/eleves", label: "Élèves", icon: "✓" },
-      { href: "/eleves/nouveau", label: "Nouvel élève (chat)", icon: "💬" },
+      { href: "/eleves/nouveau", label: "Assistant (chat)", icon: "💬" },
       { href: "/eleves/onboarding", label: "Onboarding élèves", icon: "✉" },
       { href: "/boutiques", label: "Générateur boutique client", icon: "🛍" },
       { href: "/sales/agenda", label: "Agenda des calls", icon: "☏" },
@@ -524,6 +524,59 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     ],
   },
 ];
+
+/**
+ * Menu simple (par défaut depuis le 2026-10-22) : l'essentiel, cinq
+ * sections. Le menu complet reste à un clic (« Tout le menu » en bas), rien
+ * n'est supprimé : chaque page garde son adresse.
+ */
+const SIMPLE_NAV: typeof NAV = [
+  {
+    section: "Pilotage",
+    items: [
+      { href: "/", label: "Dashboard", icon: "◈" },
+      { href: "/eleves/nouveau", label: "Assistant (chat)", icon: "💬" },
+    ],
+  },
+  {
+    section: "Contenu",
+    items: [
+      { href: "/swipe", label: "Swipe file", icon: "⇥" },
+      { href: "/swipe/tournage", label: "Tournage", icon: "🎬" },
+      { href: "/studio", label: "Studio IA", icon: "✦" },
+      { href: "/content-os", label: "Content OS", icon: "☀" },
+    ],
+  },
+  {
+    section: "Ventes",
+    items: [
+      { href: "/sales/dashboard", label: "Sales Dashboard", icon: "◎" },
+      { href: "/sales/leads", label: "Leads", icon: "☏" },
+      { href: "/sales/rendez-vous", label: "CRM", icon: "▤" },
+      { href: "/sales/messages", label: "Messages", icon: "✉" },
+    ],
+  },
+  {
+    section: "Élèves",
+    items: [
+      { href: "/formation", label: "Scale X (plateforme)", icon: "▶" },
+      { href: "/formation/modules", label: "Modules vidéo", icon: "▤" },
+      { href: "/formation/parcours", label: "Parcours & étapes", icon: "☑" },
+      { href: "/formation/eleves", label: "Accès & suivi élèves", icon: "⚿" },
+      { href: "/eleves/onboarding", label: "Onboarding élèves", icon: "✉" },
+      { href: "/boutiques", label: "Générateur boutique", icon: "🛍" },
+    ],
+  },
+  {
+    section: "Réglages",
+    items: [
+      { href: "/marque", label: "Ma marque", icon: "◆" },
+      { href: "/reglages", label: "Réglages", icon: "⚙" },
+    ],
+  },
+];
+
+const NAV_MODE_KEY = "princexd.nav.full";
 
 /** Marque : carré ardoise + mot-symbole, réutilisé sur la page de connexion. */
 export function Brand({ size = "md", mark = "MP", name = "MPGate" }: { size?: "md" | "lg"; mark?: string; name?: string }) {
@@ -620,6 +673,24 @@ function SessionBadge() {
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // Menu simple par défaut ; « Tout le menu » se souvient du choix sur cet appareil.
+  const [fullNav, setFullNav] = useState(false);
+  useEffect(() => {
+    try {
+      setFullNav(localStorage.getItem(NAV_MODE_KEY) === "1");
+    } catch {
+      // Stockage indisponible : menu simple.
+    }
+  }, []);
+  const toggleNav = () => {
+    const next = !fullNav;
+    setFullNav(next);
+    try {
+      localStorage.setItem(NAV_MODE_KEY, next ? "1" : "0");
+    } catch {
+      // ignoré
+    }
+  };
   const { session, loading: sessionLoading } = useSession();
 
   // Referme le tiroir mobile dès qu'on change de page.
@@ -663,7 +734,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
             ],
           },
         ]
-      : NAV;
+      : fullNav
+        ? NAV
+        : SIMPLE_NAV;
 
   return (
     <div className="min-h-screen flex">
@@ -742,6 +815,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-3 shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
+          {!isSalesOnly && !isEditor && !isVa && !isStudent && (
+            <button type="button" className="btn btn-sm btn-ghost w-full justify-start mb-1 !text-[12px]" onClick={toggleNav}>
+              {fullNav ? "◂ Menu simple" : "Tout le menu ▸"}
+            </button>
+          )}
           <ViewSwitcher />
           <SessionBadge />
           {/* Le solde de credits IA ne concerne pas l'equipe commerciale. */}

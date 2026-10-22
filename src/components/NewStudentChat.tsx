@@ -22,12 +22,16 @@ interface Msg {
   role: "user" | "assistant";
   text: string;
   result?: ConfirmResult;
+  swipes?: { id: string; title: string; funnel: string; url: string }[];
   error?: boolean;
 }
 
-const GREETING = "Salut Mady 👋 Dis-moi qui vient de rejoindre : prénom nom, montant, comment il paie et d'où il vient. Je m'occupe du reste.";
+const GREETING = "Salut Mady 👋 Un élève à ajouter, un chiffre à vérifier, un reel à mettre dans le swipe file ? Dis-moi.";
 const STORE = "princexd.nouvel-eleve.chat";
-const EXAMPLES = ["Alexandre Martin, closé 2500 en instant aujourd'hui, vient d'Instagram", "Sarah, 3000 en 3 fois, payé 1000 hier, elle vient de YouTube", "Karim closé 2000 le 20 octobre, contrat envoyé pas encore payé, parrainage"];
+const EXAMPLES = ["Alexandre Martin, closé 2500 en instant aujourd'hui, vient d'Instagram", "Combien j'ai encaissé ce mois ?", "Combien de reels à tourner cette semaine ?", "Ajoute ce reel en TOFU : https://www.instagram.com/reel/…"];
+
+/** Le modèle met parfois du gras markdown : on l'enlève, la bulle affiche du texte brut. */
+const plain = (t: string) => t.replace(/**(.+?)**/g, "$1").replace(/^#+s*/gm, "");
 
 function loadMsgs(): Msg[] {
   try {
@@ -82,7 +86,7 @@ function useChat() {
         const turns = history.slice(firstUser).filter((m) => !m.error).map((m) => ({ role: m.role, content: m.text }));
         const r = await api<TalkResult>("/api/eleves/chat", { method: "POST", body: JSON.stringify({ action: "talk", messages: turns }), timeoutMs: 90_000 });
         setSource(r.source);
-        setMsgs((list) => [...list, { id: Date.now() + 1, role: "assistant", text: r.reply, result: r.result }]);
+        setMsgs((list) => [...list, { id: Date.now() + 1, role: "assistant", text: r.reply, result: r.result, swipes: r.swipes }]);
       } catch (e) {
         setMsgs((list) => [...list, { id: Date.now() + 1, role: "assistant", text: `Je n'ai pas pu répondre : ${(e as Error).message}`, error: true }]);
       } finally {
@@ -133,12 +137,12 @@ export function NewStudentChat({ variant }: { variant: "widget" | "page" }) {
         <button
           type="button"
           onClick={() => toggle(true)}
-          aria-label="Ouvrir le chat Nouvel élève"
+          aria-label="Ouvrir l'assistant"
           className="fixed right-4 bottom-4 z-40 flex items-center gap-2 rounded-full px-4 h-12 font-semibold text-[14px] shadow-lg"
           style={{ background: "var(--accent)", color: "#fff" }}
         >
           <span aria-hidden>💬</span>
-          <span>Nouvel élève</span>
+          <span>Assistant</span>
         </button>
       )}
       {open && (
@@ -176,7 +180,7 @@ function ChatBody({ onClose }: { onClose?: () => void }) {
       <div className="flex items-center gap-2 px-3.5 py-2.5 border-b shrink-0" style={{ borderColor: "var(--border)" }}>
         <span aria-hidden>💬</span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] font-semibold leading-tight">Nouvel élève</div>
+          <div className="text-[13.5px] font-semibold leading-tight">Assistant</div>
           <div className="dim text-[11px] leading-tight">
             {source === "claude" ? "Claude" : source === "kie" ? "IA KIE (ajoute une clé Anthropic dans Réglages pour Claude)" : source === "none" ? "Aucune clé IA" : "Assistant"}
           </div>
@@ -200,9 +204,18 @@ function ChatBody({ onClose }: { onClose?: () => void }) {
           ) : (
             <div key={m.id} className="self-start w-full max-w-[94%] flex flex-col gap-2">
               <div className="card-flat rounded-2xl rounded-bl-md px-3 py-2 text-[13.5px] leading-snug whitespace-pre-wrap break-words" style={m.error ? { color: "var(--warning)" } : undefined}>
-                {m.text}
+                {plain(m.text)}
               </div>
               {m.result && <ResultCard r={m.result} currency={currency} />}
+              {m.swipes && m.swipes.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {m.swipes.map((sw) => (
+                    <Link key={sw.id} href="/swipe" className="btn btn-sm">
+                      Voir dans Swipe file{sw.funnel ? ` · ${sw.funnel}` : ""}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           ),
         )}
