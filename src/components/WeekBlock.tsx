@@ -12,7 +12,7 @@ import { SpeakersBadge } from "@/components/SwipeProduction";
 
 /* eslint-disable @next/next/no-img-element */
 
-export const STAGE_COLOR: Record<SwipeStage, string> = { TOFU: "#3b82f6", MOFU: "#a855f7", BOFU: "#22c55e" };
+export const STAGE_COLOR: Record<SwipeStage, string> = { TOFU: "#006DBC", MOFU: "#a855f7", BOFU: "#16a34a" };
 
 interface Payload {
   progress: WeekProgress;
@@ -93,8 +93,8 @@ export function WeekBlock({ variant = "full", editor = false }: { variant?: "ful
       padded={false}
       actions={
         !editor ? (
-          <Link href="/swipe/tournage" className="btn btn-sm" title="Tous les Reels « À tourner », en mode prompteur">
-            🎬 Tournage
+          <Link href="/swipe/tournage" className="btn btn-sm" title="Tout ce qui est prêt à tourner, en mode prompteur">
+            🎬 Mes tournages
           </Link>
         ) : undefined
       }
@@ -135,6 +135,18 @@ export function WeekBlock({ variant = "full", editor = false }: { variant?: "ful
           </tbody>
         </table>
       </div>
+      {p.totals && p.readyByStage && (
+        <div className="px-4 py-2 text-[12px] flex flex-wrap gap-x-3 gap-y-1 dim" style={{ borderTop: "1px solid var(--border)" }}>
+          <span>
+            Prêts à tourner : <strong style={{ color: STAGE_COLOR.TOFU }}>{p.readyByStage.TOFU} TOFU</strong> · <strong style={{ color: STAGE_COLOR.MOFU }}>{p.readyByStage.MOFU} MOFU</strong> · <strong style={{ color: STAGE_COLOR.BOFU }}>{p.readyByStage.BOFU} BOFU</strong>
+          </span>
+          <span>· {p.totals.scripte} script{p.totals.scripte > 1 ? "s" : ""} prêt{p.totals.scripte > 1 ? "s" : ""}</span>
+          <span>· {p.totals.tourne} montage{p.totals.tourne > 1 ? "s" : ""} en attente</span>
+          <span>· {p.totals.validation} en validation</span>
+          <span>· {p.totals.programme} programmé{p.totals.programme > 1 ? "s" : ""}</span>
+          <span>· {p.totals.publie} publié{p.totals.publie > 1 ? "s" : ""}</span>
+        </div>
+      )}
       {(p.todayLabel || p.unclassified > 0) && (
         <div className="px-4 py-2.5 text-[12.5px] flex flex-wrap gap-x-4 gap-y-1" style={{ borderTop: "1px solid var(--border)" }}>
           {p.todayLabel && (

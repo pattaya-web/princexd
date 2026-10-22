@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readDB } from "@/lib/db";
+import { readDB, writeDB } from "@/lib/db";
 import { weekProgress } from "@/lib/swipe-week";
 import { swipeProdStatus, swipeStage, type SwipeScript, type SwipeStage } from "@/lib/types";
 
@@ -29,6 +29,13 @@ export interface ToEditRow {
  */
 export async function GET(_req: NextRequest) {
   const db = readDB();
+  // Bascule unique (2026-10-22) : les anciens objectifs 15/5/5 passent a 24/9/2 (5 Reels par jour).
+  if (!db.settings.weeklyTargetsV2At) {
+    const t = db.settings.weeklyReelTargets;
+    if (!t || (t.TOFU === 15 && t.MOFU === 5 && t.BOFU === 5)) db.settings.weeklyReelTargets = { TOFU: 24, MOFU: 9, BOFU: 2 };
+    db.settings.weeklyTargetsV2At = new Date().toISOString();
+    writeDB(db);
+  }
   const progress = weekProgress(db.swipes, db.settings.weeklyReelTargets);
   const jobs = new Map(db.edits.map((j) => [j.id, j]));
   const toEdit: ToEditRow[] = db.swipes

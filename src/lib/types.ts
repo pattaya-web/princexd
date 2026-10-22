@@ -283,6 +283,8 @@ export interface Settings {
   telegramLastError?: string;
   /** Cadence cible de Reels par semaine et par etape (defaut 15 / 5 / 5). */
   weeklyReelTargets?: WeeklyReelTargets;
+  /** Objectifs passes une fois de 15/5/5 a 24/9/2 (2026-10-22). */
+  weeklyTargetsV2At?: string;
   /**
    * Generateur de boutiques (2026-10-19) : le theme template (zip Shopify)
    * depose par le proprietaire. `token` protege l'URL publique que Shopify
@@ -1055,16 +1057,34 @@ export const SWIPE_CONFIDENCE_MIN = 70;
  * « source » a « publie », avec la date de chaque passage. C'est cette chaine
  * qui alimente le bloc « Semaine en cours » partout dans le tool.
  */
-export type SwipeProdStatus = "source" | "scripte" | "a-tourner" | "tourne" | "monte" | "publie";
-export const SWIPE_PROD_STATUSES: SwipeProdStatus[] = ["source", "scripte", "a-tourner", "tourne", "monte", "publie"];
+export type SwipeProdStatus = "source" | "scripte" | "a-tourner" | "tourne" | "monte" | "validation" | "programme" | "publie";
+export const SWIPE_PROD_STATUSES: SwipeProdStatus[] = ["source", "scripte", "a-tourner", "tourne", "monte", "validation", "programme", "publie"];
+/** Pipeline (2026-10-22) : Swipe file → Script prêt → Prêt à tourner → Tourné → Monté → Validation → Programmé → Publié. */
 export const SWIPE_PROD_LABEL: Record<SwipeProdStatus, string> = {
-  source: "Sourcé",
-  scripte: "Scripté",
-  "a-tourner": "À tourner",
+  source: "Swipe file",
+  scripte: "Script prêt",
+  "a-tourner": "Prêt à tourner",
   tourne: "Tourné",
   monte: "Monté",
+  validation: "Validation",
+  programme: "Programmé",
   publie: "Publié",
 };
+
+/** Resultats d'un Reel publie (saisis a la main, jamais inventes). */
+export interface SwipeMetrics {
+  views: number;
+  reach: number;
+  followers: number;
+  comments: number;
+  dms: number;
+  leads: number;
+  calls: number;
+  sales: number;
+}
+
+/** D'ou vient la transcription : auto (audio recupere), fichier importe, collee a la main. */
+export type SwipeTranscriptSource = "auto" | "file" | "manual" | "";
 
 /** Une personne face camera, ou deux personnes qui se parlent. */
 export type SwipeSpeakers = "solo" | "dialogue";
@@ -1079,6 +1099,12 @@ export interface SwipeScript {
   /** Une ligne par bullet, chacune avec son chiffre ou sa raison. */
   bullets: string[];
   cta: string;
+  /** Script Scale X (2026-10-22) : le message central en une phrase. */
+  message?: string;
+  /** Indications de B-roll et de preuves a afficher, une par ligne. */
+  broll?: string[];
+  /** « adapt » : script personnel qui garde la mecanique ; « verbatim » : le texte de la video, mis en forme (video a moi). */
+  mode?: "adapt" | "verbatim";
   /** Textes a incruster, courts. */
   screenText: string[];
   /** Duree cible en secondes. */
@@ -1096,7 +1122,8 @@ export interface WeeklyReelTargets {
   MOFU: number;
   BOFU: number;
 }
-export const DEFAULT_WEEKLY_TARGETS: WeeklyReelTargets = { TOFU: 15, MOFU: 5, BOFU: 5 };
+/** 5 Reels par jour = 35 par semaine : 24 TOFU / 9 MOFU / 2 BOFU (le reste du BOFU se fait en stories). */
+export const DEFAULT_WEEKLY_TARGETS: WeeklyReelTargets = { TOFU: 24, MOFU: 9, BOFU: 2 };
 
 export interface SwipeAnalysis {
   language: string;
@@ -1127,6 +1154,13 @@ export interface SwipeAnalysis {
   confiance?: number;
   /** Une personne face camera, ou deux personnes qui se parlent. */
   speakers?: SwipeSpeakers;
+  /* --- Classement selon les principes de Hans (2026-10-22) --- */
+  /** Pourquoi cette etape, en une ou deux phrases. */
+  justification?: string;
+  /** Emotion dominante (TOFU) ou objection traitee (MOFU / BOFU). */
+  emotion?: string;
+  /** Structure narrative en quelques mots (ex. « hook → anecdote → lecon → question »). */
+  structure?: string;
 }
 
 export interface Swipe {
@@ -1158,6 +1192,23 @@ export interface Swipe {
   script?: SwipeScript | null;
   /** Dossier de montage rattache (rushs du monteur). */
   editJobId?: string;
+  /* --- Fiche de production (2026-10-22) --- */
+  /** Mes notes personnelles sur ce Reel. */
+  notes?: string;
+  transcriptSource?: SwipeTranscriptSource;
+  /** Vrai quand la transcription automatique a echoue : il faut importer un fichier ou coller le texte. */
+  transcriptNeeded?: boolean;
+  /** Date de tournage prevue (AAAA-MM-JJ). */
+  shootAt?: string;
+  /** Date de publication prevue (AAAA-MM-JJ). */
+  publishAt?: string;
+  /** Qui tourne / monte (nom libre). */
+  assignee?: string;
+  /** Notes de tournage (lieu, tenue, accessoires, plans). */
+  shootNotes?: string;
+  /** Lien de ma video publiee. */
+  publishedUrl?: string;
+  metrics?: Partial<SwipeMetrics>;
   createdAt: string;
 }
 

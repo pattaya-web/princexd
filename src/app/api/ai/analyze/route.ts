@@ -13,11 +13,9 @@ export async function POST(req: NextRequest) {
   const swipe = db.swipes.find((s) => s.id === swipeId);
   if (!swipe) return NextResponse.json({ error: "Swipe introuvable" }, { status: 404 });
 
-  if (!swipe.transcriptInput?.trim() && !swipe.caption?.trim()) {
-    return NextResponse.json(
-      { error: "Il faut au minimum une transcription ou une légende pour analyser ce contenu." },
-      { status: 400 },
-    );
+  // Une legende Instagram n'est pas une transcription : sans les paroles, pas de classement.
+  if (!swipe.transcriptInput?.trim()) {
+    return NextResponse.json({ error: "Transcription nécessaire : importe la vidéo ou colle le texte des paroles, puis relance l'analyse." }, { status: 400 });
   }
 
   const prompt = buildAnalyzePrompt({
@@ -41,12 +39,14 @@ export async function POST(req: NextRequest) {
     analysis.speakers = String(analysis.speakers ?? "").toLowerCase().includes("dialog") ? "dialogue" : "solo";
     const confiance = Number(analysis.confiance);
     analysis.confiance = Number.isFinite(confiance) ? Math.min(100, Math.max(0, Math.round(confiance))) : 0;
+    for (const k of ["justification", "emotion", "structure"] as const) analysis[k] = String(analysis[k] ?? "").trim().slice(0, 600);
 
     const fresh = readDB();
     const target = fresh.swipes.find((s) => s.id === swipeId);
     if (target) {
       target.analysis = analysis;
       target.status = "analyse";
+      target.transcriptNeeded = false;
       if (!target.title && analysis.hook) target.title = analysis.hook.slice(0, 80);
       writeDB(fresh);
     }

@@ -28,9 +28,9 @@ ${a.brandContext}
 """
 ${a.caption || "(vide)"}
 """
-- Transcription / script brut :
+- Transcription / script brut (les paroles réellement dites ; la légende n'est PAS une transcription) :
 """
-${a.transcript || "(vide — déduis ce que tu peux de la légende, et signale-le dans transcriptOriginal)"}
+${a.transcript || "(vide)"}
 """
 - Texte à l'écran :
 """
@@ -52,30 +52,29 @@ ${a.screenText?.trim() || "(non fourni)"}
 9. Donne des prompts prêts à coller dans un générateur d'images et de vidéos IA pour produire le B-roll de cette vidéo (en anglais, très descriptifs).
 10. Classe le Reel selon l'étape du funnel qu'il sert, pour un coach e-commerce (coaching 1:1 dropshipping + IA, vendu via une masterclass puis un appel).
 
-# Classement funnel — UNE SEULE étape
-TOFU (attirer des inconnus)
-- Un inconnu total peut regarder jusqu'au bout et comprendre sans aucun contexte
-- Hook universel : argent, réussite, Dubaï, polémique, parcours
-- Zéro vocabulaire technique e-commerce
-- Aucune mention d'offre, de coaching, d'élèves
+# Classement funnel — UNE SEULE étape, selon l'OBJECTIF RÉEL du Reel (principes de Hans)
+TOFU — ATTIRER : toucher une audience nouvelle.
+- Hook large, sujet compréhensible sans jargon, curiosité / inspiration / validation / urgence
+- Storytelling, histoire personnelle, lifestyle ; pas de vente directe
+- CTA recommandé : aucun CTA commercial, éventuellement s'abonner
 - Formats typiques : tier_list, choix_binaire, hot_take, reaction, anecdote_parcours, chiffre_choc, lifestyle_punchline
 
-MOFU (prouver la méthode à ceux qui suivent déjà)
-- Le Reel montre un process, un écran, une méthode, ou enseigne quelque chose de concret
-- Vocabulaire e-commerce assumé (adset, ROAS, fiche produit, fournisseur, créa)
-- CTA du type « commente X » pour recevoir une ressource, un PDF, une masterclass
+MOFU — CONVAINCRE : rassurer, éduquer, supprimer une objection.
+- Démonstration technique, étude de cas, explication d'un mécanisme, réponse à une objection, preuve d'expertise, changement de croyance
+- CTA recommandé : facultatif, plutôt une question ou une ressource pertinente (« commente X »)
 - Formats typiques : tuto_ecran, reponse_commentaire, decryptage, erreur_correction, a_ta_place, coulisses
 
-BOFU (lever les objections, pousser vers l'appel)
-- Le Reel parle de l'offre, des élèves, des résultats, des objections, ou du coach en tant que coach
-- CTA direct : lien bio, réserve ton appel, DM, rejoins
+BOFU — CONVERTIR : provoquer une action commerciale immédiate.
+- Preuve réelle, transformation client, offre ou proposition concrète, raison légitime d'agir, CTA direct ou invitation au DM
+- CTA recommandé : un seul appel à l'action adapté
 - Formats typiques : resultat_eleve, objection, pour_qui, comment_ca_se_passe, garantie, urgence
 
 Règles de décision :
-- Un Reel est BOFU uniquement si l'offre, un élève ou une objection est le SUJET PRINCIPAL ou le CTA. Une mention en passant (un élève cité en exemple dans un tuto) ne change pas l'étape.
-- Sinon, s'il montre ou enseigne un process → MOFU
-- Sinon → TOFU
-- En cas d'hésitation TOFU/MOFU, prends MOFU.
+- Classe selon l'objectif réel du Reel, pas seulement les mots présents.
+- Un témoignage sans CTA commercial peut être MOFU. Un tutoriel avec une ressource gratuite peut être MOFU. Une vidéo avec une forte preuve et une invitation à réserver est BOFU. Une vidéo dont le sujet est l'argent n'est pas forcément BOFU.
+- Un Reel est BOFU uniquement si l'offre, un client ou une raison d'agir maintenant est le SUJET PRINCIPAL ou le CTA. Une mention en passant ne change pas l'étape.
+- Sinon, s'il prouve, enseigne ou lève une objection → MOFU. Sinon → TOFU.
+- Si la transcription est trop courte ou ambiguë pour trancher, mets confiance sous 50 : le tool affichera « Classification à vérifier ».
 
 # Format de sortie — JSON strict
 {
@@ -107,7 +106,10 @@ Règles de décision :
   "speakers": "solo | dialogue",
   "etape": "TOFU | MOFU | BOFU",
   "format": "un seul parmi : tier_list, choix_binaire, hot_take, reaction, anecdote_parcours, chiffre_choc, lifestyle_punchline, tuto_ecran, reponse_commentaire, decryptage, erreur_correction, a_ta_place, coulisses, resultat_eleve, objection, pour_qui, comment_ca_se_passe, garantie, urgence",
-  "confiance": 0
+  "confiance": 0,
+  "justification": "pourquoi cette étape, en une ou deux phrases, à partir de l'objectif réel du Reel",
+  "emotion": "l'émotion dominante (TOFU) ou l'objection principale traitée (MOFU / BOFU), en quelques mots",
+  "structure": "la structure narrative en une ligne, ex. « hook choc → anecdote → leçon → question »"
 }
 
 scoreViralite = note de 0 à 100 du potentiel de ce contenu réadapté à ma niche.

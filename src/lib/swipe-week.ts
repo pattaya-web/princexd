@@ -71,9 +71,13 @@ export interface WeekProgress {
   today: { step: Exclude<WeekStep, "source">; n: number }[];
   /** Phrase prete a afficher, ex. « 3 à tourner, 2 à monter ». */
   todayLabel: string;
+  /** Swipes a chaque statut, toutes etapes confondues (le pipeline global). */
+  totals: Record<SwipeProdStatus, number>;
+  /** Scripts prets a tourner par etape du funnel. */
+  readyByStage: Record<SwipeStage, number>;
 }
 
-const STEP_ORDER: Record<SwipeProdStatus, number> = { source: 0, scripte: 1, "a-tourner": 2, tourne: 3, monte: 4, publie: 5 };
+const STEP_ORDER: Record<SwipeProdStatus, number> = { source: 0, scripte: 1, "a-tourner": 2, tourne: 3, monte: 4, validation: 5, programme: 6, publie: 7 };
 
 /** Date a laquelle le swipe est passe par une etape (source = creation). */
 function reachedAt(s: Swipe, step: WeekStep): string {
@@ -114,7 +118,9 @@ export function weekProgress(swipes: Swipe[], targets: Partial<WeeklyReelTargets
   }
   const verb: Record<Exclude<WeekStep, "source">, string> = { scripte: "à scripter", tourne: "à tourner", monte: "à monter", publie: "à publier" };
   const todayLabel = today.length ? today.map((x) => `${x.n} ${verb[x.step]}`).join(", ") : "";
-  return { bounds, targets: t, stages, unclassified, today, todayLabel };
+  const totals = Object.fromEntries(SWIPE_PROD_STATUSES.map((st) => [st, swipes.filter((s) => swipeProdStatus(s) === st).length])) as Record<SwipeProdStatus, number>;
+  const readyByStage = Object.fromEntries(stages.map((s) => [s.stage, s.pipeline["a-tourner"]])) as Record<SwipeStage, number>;
+  return { bounds, targets: t, stages, unclassified, today, todayLabel, totals, readyByStage };
 }
 
 /** Le statut de production qui suit, ou null en bout de chaine. */

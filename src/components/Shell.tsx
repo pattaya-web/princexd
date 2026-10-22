@@ -455,7 +455,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/content", label: "Content", icon: "◫" },
       { href: "/production", label: "Production", icon: "▣" },
       { href: "/swipe", label: "Swipe file", icon: "⇥" },
-      { href: "/swipe/tournage", label: "Tournage", icon: "🎬" },
+      { href: "/swipe/tournage", label: "Mes tournages", icon: "🎬" },
     ],
   },
   {
@@ -542,7 +542,7 @@ const SIMPLE_NAV: typeof NAV = [
     section: "Contenu",
     items: [
       { href: "/swipe", label: "Swipe file", icon: "⇥" },
-      { href: "/swipe/tournage", label: "Tournage", icon: "🎬" },
+      { href: "/swipe/tournage", label: "Mes tournages", icon: "🎬" },
       { href: "/studio", label: "Studio IA", icon: "✦" },
       { href: "/content-os", label: "Content OS", icon: "☀" },
     ],
