@@ -182,9 +182,6 @@ export default function DemarragePage() {
   const [data, setData] = useState<DemarragePayload | null>(null);
   const [error, setError] = useState("");
   const [os, setOs] = useState<"windows" | "mac">("windows");
-  const [storeUrl, setStoreUrl] = useState("");
-  const [note, setNote] = useState("");
-  const [sending, setSending] = useState(false);
   const [editVideo, setEditVideo] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const [savingVideo, setSavingVideo] = useState(false);
@@ -247,27 +244,12 @@ export default function DemarragePage() {
     }
   };
 
-  const askShop = async () => {
-    setSending(true);
-    try {
-      const r = await api<{ preview: boolean }>("/api/formation/demarrage", { method: "POST", body: JSON.stringify({ storeUrl, note }) });
-      if (r.preview) toast("Aperçu : rien n'est envoyé à Mady.");
-      else toast("Demande envoyée. Mady est prévenu, il génère ta boutique et te fait signe.");
-      await load();
-    } catch (e) {
-      toast((e as Error).message, "err");
-    } finally {
-      setSending(false);
-    }
-  };
-
   if (error) return <ErrorNote>{error}</ErrorNote>;
   if (!data) return <Spinner label="Chargement…" />;
 
   const name = data.student?.firstName ?? "Mady";
   const wa = waHelpLink(data.whatsapp, name);
   const guideDone = new Set(data.guideDone);
-  const fmt = (iso: string) => new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }).format(new Date(iso));
 
   return (
     <div className="flex flex-col gap-5">
@@ -373,65 +355,11 @@ export default function DemarragePage() {
             {s.title}
           </a>
         ))}
-        <a href="#boutique" className="font-medium hover:underline">
-          <span className="dim num mr-1">10</span>Demande ta boutique
-        </a>
       </nav>
 
       {GUIDE_SECTIONS.map((s) => (
         <Section key={s.id} s={s} os={os} setOs={setOs} done={guideDone} onToggle={(k, d) => void toggleGuide(k, d)} />
       ))}
-
-      {/* 09 / Demande ta boutique */}
-      <section id="boutique" className="card p-5 scroll-mt-4">
-        <SectionLabel n="10" title="Demande ta boutique à Mady" />
-        <h2 className="text-[22px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.02em" }}>
-          Ton produit est validé ? Demande ta boutique.
-        </h2>
-        <p className="muted text-[14px] mt-2 leading-relaxed max-w-[64ch]">
-          Mady génère ta boutique avec le générateur (produits, collection, pages, thème Aesthetic Lab) directement sur ton Shopify. Il lui faut l&apos;adresse de ta boutique et ton produit. Il reçoit la demande sur son téléphone et te fait signe quand c&apos;est en ligne.
-        </p>
-        {data.shopRequest ? (
-          <div className="mt-4 rounded-md px-4 py-3" style={{ background: "var(--surface-3)" }}>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`badge ${data.shopRequest.status === "livree" ? "badge-good" : "badge-warn"}`}>{data.shopRequest.status === "livree" ? "Boutique livrée" : "Demande envoyée"}</span>
-              <span className="dim text-[12.5px]">le {fmt(data.shopRequest.requestedAt)}</span>
-            </div>
-            <div className="text-[14px] mt-2">
-              Boutique : <strong>{data.shopRequest.storeUrl}</strong>
-            </div>
-            {data.shopRequest.note && <div className="muted text-[13px] mt-1 whitespace-pre-wrap">{data.shopRequest.note}</div>}
-            {data.shopRequest.status === "livree" ? (
-              <p className="text-[13.5px] mt-3">
-                Ta boutique est générée. Va dans Boutique en ligne &gt; Thèmes, publie le thème, puis fais tes médias (page Créatives) et place-les dans Personnaliser.
-              </p>
-            ) : (
-              <p className="dim text-[13px] mt-3">Mady est prévenu. En attendant, avance sur les réglages Shopify (section 04) et tes créatives.</p>
-            )}
-          </div>
-        ) : (
-          <form
-            className="mt-4 flex flex-col gap-3 max-w-[560px]"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void askShop();
-            }}
-          >
-            <label className="flex flex-col gap-1">
-              <span className="label-xs">Adresse de ta boutique</span>
-              <input className="input" placeholder="ma-boutique.myshopify.com" value={storeUrl} onChange={(e) => setStoreUrl(e.target.value)} required />
-              <span className="dim text-[12px]">Paramètres &gt; Domaines dans Shopify. Mady doit aussi avoir accès à ta boutique (il te dira comment).</span>
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="label-xs">Ton produit et les liens concurrents</span>
-              <textarea className="input" rows={4} placeholder={"Produit : …\nLien concurrent 1 : https://…\nLien concurrent 2 : https://…\nNom de marque souhaité : …"} value={note} onChange={(e) => setNote(e.target.value)} />
-            </label>
-            <button type="submit" className="btn btn-primary w-fit" disabled={sending || !storeUrl.trim()}>
-              {sending ? "Envoi…" : "Demander ma boutique à Mady"}
-            </button>
-          </form>
-        )}
-      </section>
 
       <section className="card-flat p-4 flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex-1 text-[13.5px] leading-relaxed">

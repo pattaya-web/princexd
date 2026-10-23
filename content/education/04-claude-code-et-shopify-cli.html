@@ -106,7 +106,7 @@
     <tr><td>Chaque nouveau produit repart de zéro</td><td>« Duplique la page X pour le produit Y » : fait en 10 minutes</td></tr>
   </table>
 
-  <div class="note info"><b>Ce que Mady a déjà fait pour toi</b>Quand tu as demandé ta boutique (page Démarrage, section 09), Mady a généré sur ton Shopify les produits, la collection, les pages et le thème Aesthetic Lab, recoloré et réécrit pour ta marque. Ce guide commence là : la boutique existe, tu vas la personnaliser et construire ta page produit avec Claude Code.</div>
+  <div class="note info"><b>D'où vient ton thème</b>Ton thème, c'est celui qui est sur ton Shopify (celui que tu as choisi, ou le thème de départ). Claude le récupère dans ton dossier et le transforme section par section, en français. Ce guide commence là : tu vas construire ta page produit et ta boutique avec Claude Code.</div>
 
   <h3>La règle de ce guide</h3>
   <p>Tu travailles toujours sur une <strong>copie de développement</strong> du thème. Ta boutique publiée ne bouge pas tant que Mady n'a pas validé. Tu peux donc tout essayer, tout casser, tout recommencer : rien n'est visible des clients. Retiens cette phrase, elle revient dans chaque chapitre : <strong>jamais de <code>theme push</code> ni de <code>theme publish</code> sans consigne de Mady.</strong></p>
@@ -171,21 +171,15 @@ claude --version</pre>
     <p>La première fois, Shopify ouvre ton navigateur : connecte-toi, choisis la bonne boutique, autorise Shopify CLI. Si une liste de thèmes apparaît dans la fenêtre de commande, ton ordinateur est connecté. Rien n'a été modifié.</p>
   </div></div>
 
-  <h3>Récupérer le thème Aesthetic Lab : trois cas, un seul résultat</h3>
+  <h3>Récupérer ton thème dans ton dossier</h3>
   <p>Le but : avoir les fichiers du thème dans <code>BOUTIQUE-SHOPIFY</code>, avec les dossiers <code>assets</code>, <code>config</code>, <code>layout</code>, <code>locales</code>, <code>sections</code>, <code>snippets</code>, <code>templates</code> directement à la racine (pas dans un sous-dossier).</p>
-
-  <table class="t">
-    <tr><th>Ta situation</th><th>Ce que tu fais</th></tr>
-    <tr><td><strong>Cas A.</strong> Mady a généré ta boutique et le thème est déjà sur ton Shopify (c'est le cas normal)</td><td>Admin → Boutique en ligne → Thèmes. Le thème apparaît dans « Bibliothèque de thèmes ». Clique sur « … » → Publier (après accord de Mady). Puis récupère-le sur ton ordinateur avec la commande ci-dessous.</td></tr>
-    <tr><td><strong>Cas B.</strong> Mady t'a envoyé un fichier <code>aesthetic-lab.zip</code></td><td>Admin → Thèmes → « Ajouter un thème » → « Importer un fichier zip » → choisis le zip tel quel (ne le décompresse pas pour l'import). Ensuite, décompresse une copie du zip dans <code>BOUTIQUE-SHOPIFY</code> pour Claude Code.</td></tr>
-    <tr><td><strong>Cas C.</strong> Tu veux repartir de ce qui est en ligne</td><td>La commande <code>theme pull</code> ci-dessous télécharge n'importe quel thème de ta boutique dans le dossier courant.</td></tr>
-  </table>
-
-  <p>La commande qui télécharge le thème depuis ta boutique (lance-la dans <code>BOUTIQUE-SHOPIFY</code>) :</p>
+  <p>Le plus simple : tu le demandes à Claude dans VS Code, il fait tout (connexion, téléchargement, vérification).</p>
+  <pre class="prompt">Connecte-toi à ma boutique MA-BOUTIQUE.myshopify.com et télécharge dans ce dossier le thème qui est actuellement publié. Vérifie que les dossiers assets, sections, templates, config, layout, snippets et locales sont bien à la racine du dossier, puis dis-moi « C'est fait ».</pre>
+  <p>Si tu préfères le faire toi-même, la commande (dans <code>BOUTIQUE-SHOPIFY</code>) :</p>
   <pre class="cmd">shopify theme pull --store MA-BOUTIQUE.myshopify.com</pre>
-  <p>Shopify te demande quel thème : choisis « Aesthetic Lab » avec les flèches, Entrée. Attends la fin. Ouvre le dossier dans l'Explorateur ou le Finder : tu dois voir les sept dossiers listés plus haut.</p>
+  <p>Shopify te demande quel thème : choisis celui qui est publié (marqué « live ») avec les flèches, Entrée. Attends la fin. Ouvre le dossier dans l'Explorateur ou le Finder : tu dois voir les sept dossiers listés plus haut.</p>
 
-  <div class="note warn"><b>Le sous-dossier fantôme</b>Si en décompressant un zip tu obtiens <code>BOUTIQUE-SHOPIFY/aesthetic-lab-template/assets/…</code>, Claude Code et Shopify CLI ne trouveront rien. Déplace le contenu du sous-dossier à la racine de <code>BOUTIQUE-SHOPIFY</code> et supprime le sous-dossier vide.</div>
+  <div class="note warn"><b>Le sous-dossier fantôme</b>Si tu obtiens <code>BOUTIQUE-SHOPIFY/mon-theme/assets/…</code>, Claude Code et Shopify CLI ne trouveront rien. Déplace le contenu du sous-dossier à la racine de <code>BOUTIQUE-SHOPIFY</code> et supprime le sous-dossier vide (ou demande à Claude de le faire).</div>
 
   <div class="done"><b>✅ Fait quand</b><code>shopify theme list</code> affiche tes thèmes, et le dossier <code>BOUTIQUE-SHOPIFY</code> contient directement <code>assets</code>, <code>sections</code>, <code>templates</code>, <code>config</code>, <code>layout</code>, <code>snippets</code>, <code>locales</code>.</div>
 </section>
@@ -241,7 +235,7 @@ claude --version</pre>
 
   <h3>Prompt 2 : les règles du jeu (valables pour toute la session)</h3>
   <pre class="prompt">À partir de maintenant, pour chaque section que tu crées : tout texte, image, couleur et prix doit être modifiable depuis l'éditeur de thème (schema settings). Mobile first. Pas de librairie externe. Couleurs : fond #FFFFFF, texte #111111, accent #006DBC. Après chaque section, dis-moi quoi vérifier dans l'aperçu.</pre>
-  <p>Remplace les trois couleurs par celles de ta marque (tu les as choisies au guide 06, chapitre couleurs ; sinon prends celles que Mady a mises dans ton thème : demande à Claude « quelles sont les couleurs principales définies dans assets/base.css ? »).</p>
+  <p>Remplace les trois couleurs par celles de ta marque (tu les as choisies au guide 06, chapitre couleurs ; sinon prends celles déjà présentes dans ton thème : demande à Claude « quelles sont les couleurs principales définies dans assets/base.css ? »).</p>
 
   <div class="note info"><b>Pourquoi ces règles comptent</b>« Modifiable depuis l'éditeur de thème » : tu pourras changer un texte ou une image depuis Shopify → Personnaliser, sans revenir dans Claude Code. « Mobile first » : 80 % de tes clients arrivent depuis Instagram ou TikTok, sur téléphone. « Pas de librairie externe » : ta page reste rapide, et rapide = ça vend.</div>
 
@@ -428,7 +422,7 @@ Ajoute chaque section au template product.json. Textes en français, placeholder
   <ul class="check">
     <li>Thème poussé en non publié (prompt « Mettre en ligne », chapitre 07) OU capture d'écran complète de l'aperçu mobile.</li>
     <li>Message envoyé : lien de la boutique, nom du thème dans la bibliothèque, et les 2 ou 3 points sur lesquels tu hésites.</li>
-    <li>Étape « Demande ta boutique à Mady, puis vérifie et complète » cochée dans Mes étapes.</li>
+    <li>Étape « Construis ta boutique avec Claude Code » cochée dans Mes étapes.</li>
   </ul>
 
   <div class="note info"><b>La suite</b>Guide 05 : la page produit qui convertit (les textes, l'offre, les avis, chaque section expliquée). Guide 06 : les médias de ta boutique avec GPT Image 2 (les images à mettre dans ces sections).</div>

@@ -95,10 +95,9 @@ export default function ScaleXDashboard() {
           <section className="card p-5" style={{ borderColor: "var(--accent-ring)" }}>
             <div className="flex items-center justify-between gap-3">
               <SectionLabel n="00" title="Démarrage" />
-              {data.shopRequest && <span className={`badge !text-[10.5px] ${data.shopRequest === "livree" ? "badge-good" : "badge-warn"}`}>{data.shopRequest === "livree" ? "Boutique livrée" : "Boutique demandée"}</span>}
             </div>
             <h2 className="text-[20px] font-semibold mt-3 leading-tight">Commence ici : formulaire, outils, installation, ta boutique.</h2>
-            <p className="muted text-[13.5px] mt-1 leading-relaxed">La vidéo de Mady, tous les liens, VS Code + Claude Code en 3 étapes sans code, les réglages Shopify, le Pixel, et le bouton pour demander ta boutique à Mady.</p>
+            <p className="muted text-[13.5px] mt-1 leading-relaxed">La vidéo de Mady, tous les liens, VS Code + Claude Code en 3 étapes sans code, les réglages Shopify, le Pixel.</p>
             <div className="flex flex-wrap items-center gap-3 mt-4">
               <Link href="/formation/demarrage" className="btn btn-primary btn-sm">
                 Ouvrir Démarrage

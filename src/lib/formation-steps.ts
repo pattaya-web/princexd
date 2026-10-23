@@ -95,11 +95,11 @@ const SEED: SeedV2[] = [
     link: "/formation/appel",
   },
   {
-    was: /boutique est générée|boutique est generee/i,
-    title: "Demande ta boutique à Mady, puis vérifie et complète",
+    was: /boutique est générée|boutique est generee|demande ta boutique/i,
+    title: "Construis ta boutique avec Claude Code",
     detail:
-      "Page Démarrage, section 09 : donne ton adresse myshopify et ton produit. Mady génère la boutique (produits, collection, pages, thème Aesthetic Lab). Ensuite, à toi :\n- relire l'accueil et la fiche produit\n- ajouter logo, nom de marque, politiques\n- activer Shopify Payments et faire une commande test (Démarrage, section 04)\n\n✅ Fait quand : tu peux acheter sur ta boutique depuis ton téléphone.",
-    link: "/formation/demarrage#boutique",
+      "Dans VS Code, demande à Claude de construire ta page produit et ta page d'accueil avec les prompts des guides 04 et 05 (Education) : une section à la fois, tu vérifies dans l'aperçu (F5), puis « mets en ligne ». Ensuite : relis les textes, ajoute logo, nom de marque et politiques, active Shopify Payments et fais une commande test (Démarrage, section 07).\n\n✅ Fait quand : tu peux acheter sur ta boutique depuis ton téléphone.",
+    link: "/formation/education",
   },
   {
     was: /cr[ée]e tes cr[ée]atives/i,
@@ -145,7 +145,7 @@ export function ensureCourseSteps(db: DB): boolean {
 }
 
 /** Version du texte des étapes par défaut. Monter ce numéro réécrit les étapes déjà en base (ids conservés). */
-const SEED_VERSION = 3;
+const SEED_VERSION = 4;
 
 /**
  * Met à jour les étapes déjà en base vers la dernière version du texte par
