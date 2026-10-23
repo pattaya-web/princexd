@@ -1,10 +1,11 @@
 /**
  * Guide Démarrage de la plateforme élèves (Scale X).
  *
- * Tout le contenu de la page /formation/demarrage, en données : l'élève
- * installe seul Claude Code + Shopify CLI, paramètre sa boutique Shopify,
- * installe le thème Aesthetic Lab et le Pixel Meta. Module pur, utilisable
- * serveur et navigateur. Le PDF d'origine est servi depuis /formation/.
+ * Écrit pour un débutant complet : pas de jargon, pas de commande à taper.
+ * L'élève installe VS Code, y met l'extension Claude Code, ouvre son dossier
+ * et PARLE à Claude : c'est Claude qui installe et connecte le reste. Trois
+ * fenêtres ouvertes (VS Code, admin Shopify, sa boutique) et F5 pour voir.
+ * Module pur, utilisable serveur et navigateur.
  */
 
 export const GUIDE_PDF_URL = "/formation/guide-installation-claude-code-shopify.pdf";
@@ -21,7 +22,7 @@ export interface GuideStep {
   title: string;
   /** Texte libre (mise en forme légère : lignes, « - » pour une liste). */
   text: string;
-  /** Commandes à copier, une par bloc. */
+  /** Messages à copier-coller tels quels (à Claude), un par bloc. */
   cmds?: string[];
   /** Lien à ouvrir. */
   link?: { label: string; href: string };
@@ -37,301 +38,235 @@ export interface GuideSection {
   os?: { windows: GuideStep[]; mac: GuideStep[] };
   steps?: GuideStep[];
   notes?: GuideNote[];
-  /** Définitions (section « Avant de commencer »). */
+  /** Définitions (plus utilisées : gardé pour la page). */
   defs?: { term: string; text: string }[];
-  /** Dépannage (section finale). */
+  /** Dépannage. */
   fixes?: { problem: string; fix: string }[];
 }
 
-const WINDOWS: GuideStep[] = [
-  {
-    title: "Installer Git for Windows",
-    text: "Dans Chrome, ouvre git-scm.com/download/win. Télécharge Git, ouvre le fichier puis laisse les options par défaut : Next jusqu'à Install, puis Finish.",
-    link: { label: "Télécharger Git for Windows", href: "https://git-scm.com/download/win" },
-  },
-  {
-    title: "Installer Node.js",
-    text: "Sur nodejs.org, télécharge la version LTS. Elle doit être au minimum en version 22.12. Lance l'installateur puis Next > Install.",
-    link: { label: "Télécharger Node.js", href: "https://nodejs.org" },
-  },
-  {
-    title: "Ouvrir l'Invite de commandes",
-    text: "Appuie sur la touche Windows, tape cmd, puis ouvre « Invite de commandes ». Une fenêtre noire apparaît : c'est normal.\n\nCopie ces trois commandes UNE PAR UNE et appuie sur Entrée après chaque ligne :",
-    cmds: ["git --version", "node -v", "npm -v"],
-    note: { kind: "ok", title: "Résultat attendu", text: "Git et npm affichent un numéro. Node doit afficher v22.12.0 ou une version plus récente." },
-  },
-  {
-    title: "Installer Shopify CLI",
-    text: "Dans la même fenêtre noire, copie la commande suivante puis attends la fin. Vérifie ensuite avec la deuxième commande.",
-    cmds: ["npm install -g @shopify/cli@latest", "shopify help"],
-  },
-  {
-    title: "Installer Claude Code",
-    text: "Ouvre PowerShell : touche Windows > tape PowerShell > ouvre Windows PowerShell. Colle la commande officielle ci-dessous. Pas besoin du mode administrateur.\n\nFerme PowerShell puis rouvre-le, ensuite vérifie avec les deux commandes suivantes.",
-    cmds: ["irm https://claude.ai/install.ps1 | iex", "claude --version", "claude doctor"],
-  },
-  {
-    title: "Se connecter à Claude",
-    text: "Tape claude puis Entrée. Une page de connexion s'ouvre dans ton navigateur. Connecte-toi avec ton compte Claude Max (ou Pro).",
-    cmds: ["claude"],
-  },
-];
+const MSG_INSTALL = `Salut Claude. Je lance une boutique Shopify et je ne sais pas coder. Ce dossier est vide : c'est ici qu'on va travailler sur ma boutique.
+Mon adresse Shopify : MA-BOUTIQUE.myshopify.com
+Fais tout toi-même, étape par étape : installe sur mon ordinateur ce qu'il faut pour travailler sur un thème Shopify (Shopify CLI et ce dont il a besoin), connecte-toi à ma boutique, récupère le thème qui est en ligne dans ce dossier, puis lance l'aperçu de la boutique et donne-moi le lien à ouvrir.
+Quand tu as besoin que je fasse quelque chose (me connecter dans le navigateur, cliquer sur Autoriser), dis-le moi en une phrase simple. Explique-moi chaque étape comme à un débutant complet.`;
 
-const MAC: GuideStep[] = [
-  {
-    title: "Ouvrir Terminal et vérifier Git",
-    text: "Appuie sur ⌘ + Espace, tape Terminal puis Entrée. Colle la commande suivante. Si un numéro apparaît, Git est prêt. Si macOS propose les « Command Line Developer Tools », clique sur Installer et attends la fin.",
-    cmds: ["git --version"],
-  },
-  {
-    title: "Installer Node.js",
-    text: "Sur nodejs.org, télécharge la version LTS pour macOS. Elle doit être au minimum en version 22.12. Ouvre le fichier .pkg puis Continuer > Installer.",
-    link: { label: "Télécharger Node.js", href: "https://nodejs.org" },
-  },
-  {
-    title: "Vérifier Node et npm",
-    text: "Ferme puis rouvre Terminal et lance :",
-    cmds: ["node -v", "npm -v"],
-  },
-  {
-    title: "Installer Shopify CLI",
-    text: "Dans Terminal, copie la commande puis attends la fin. Vérifie ensuite avec la deuxième commande.",
-    cmds: ["npm install -g @shopify/cli@latest", "shopify help"],
-    note: { kind: "warn", title: "Erreur de permission ?", text: "Ne mets pas « sudo » au hasard. Fais une capture du message complet et envoie-la à Mady." },
-  },
-  {
-    title: "Installer Claude Code",
-    text: "Dans Terminal, copie la commande officielle suivante puis Entrée. Ferme Terminal puis rouvre-le, ensuite vérifie avec les deux commandes suivantes.",
-    cmds: ["curl -fsSL https://claude.ai/install.sh | bash", "claude --version", "claude doctor"],
-  },
-  {
-    title: "Se connecter à Claude",
-    text: "Tape claude puis suis la connexion dans le navigateur. Connecte-toi avec ton compte Claude Max (ou Pro).",
-    cmds: ["claude"],
-  },
-];
+const MSG_CHECK = `Vérifie que tout est prêt : tu vois bien les fichiers du thème dans ce dossier, tu es connecté à ma boutique, et l'aperçu fonctionne. Dis-moi « C'est prêt » et donne-moi le lien de l'aperçu. Ne modifie rien pour l'instant.`;
+
+const MSG_EDIT = `Sur la page d'accueil, change le titre de la bannière en « [ton titre] » et le texte en dessous en « [ton texte] ». Montre-moi dans l'aperçu avant de mettre en ligne.`;
+
+const MSG_LIVE = `C'est bon pour moi. Mets ces modifications en ligne sur ma boutique.`;
 
 export const GUIDE_SECTIONS: GuideSection[] = [
   {
-    id: "avant",
+    id: "vscode",
     n: "01",
-    title: "Avant de commencer",
-    intro: "Compte 20 à 30 minutes, tranquillement, dans l'ordre. Ton ordinateur doit être prêt AVANT ton premier call avec Mady : on ne perd pas le call à installer des logiciels.",
-    notes: [
-      { kind: "info", title: "À la fin tu dois avoir", text: "Git + Node.js installés · Shopify CLI installé et connecté à ta boutique · Claude Code installé et connecté à ton compte · un dossier de travail prêt à recevoir le thème." },
-      { kind: "ok", title: "À retenir", text: "Shopify CLI connecte ton ordinateur à Shopify. Claude Code travaille ensuite dans les fichiers du thème présents sur ton ordinateur." },
-      { kind: "warn", title: "Règle simple", text: "Copie uniquement les commandes de ce guide. Si un message d'erreur apparaît, fais une capture avant de fermer la fenêtre et envoie-la à Mady." },
-    ],
-    defs: [
-      { term: "Boutique Shopify accessible", text: "Tu dois pouvoir ouvrir l'administration et voir Boutique en ligne > Thèmes. Tu dois être propriétaire ou avoir l'autorisation de gérer les thèmes." },
-      { term: "Compte Claude", text: "Claude Code demande un compte Max (recommandé, c'est lui qui construit ta boutique) ou Pro." },
-      { term: "Terminal / Invite de commandes", text: "Une petite fenêtre où tu copies-colles les commandes de ce guide. Tu n'as pas besoin de savoir coder." },
-      { term: "Node.js", text: "Un logiciel nécessaire à Shopify CLI. Shopify demande Node.js 22.12 ou supérieur." },
-      { term: "Shopify CLI", text: "L'outil qui connecte ta boutique à ton ordinateur et prévisualise le thème." },
-      { term: "Claude Code", text: "L'outil qui lit et modifie le thème à partir de tes instructions, en français." },
-    ],
-  },
-  {
-    id: "installation",
-    n: "02",
-    title: "Installer les outils",
-    intro: "Suis les étapes dans l'ordre. Ne passe à la suivante que si la précédente fonctionne. On installe une fois, tout reste disponible pour la suite.",
-    os: { windows: WINDOWS, mac: MAC },
-  },
-  {
-    id: "shopify-cli",
-    n: "03",
-    title: "Connecter Shopify à ton ordinateur",
-    intro: "À partir d'ici, les étapes sont les mêmes sur Windows et Mac. Connecte-toi d'abord à ton administration Shopify dans Chrome et vérifie que tu vois Boutique en ligne > Thèmes.",
+    title: "Installe VS Code (5 min)",
+    intro: "VS Code, c'est le logiciel dans lequel tu vas parler à Claude. Gratuit, Windows et Mac.",
     steps: [
       {
-        title: "Trouver ton adresse .myshopify.com",
-        text: "Dans Shopify : Paramètres > Domaines. Repère l'adresse qui se termine par .myshopify.com, par exemple ma-boutique.myshopify.com. Note-la : tu en auras besoin partout, et Mady aussi pour te générer ta boutique.",
+        title: "Télécharge VS Code",
+        text: "Clique sur le bouton, télécharge la version pour ton ordinateur (Windows ou Mac), ouvre le fichier, puis Suivant / Suivant / Installer. Laisse tout par défaut.",
+        link: { label: "Télécharger VS Code", href: "https://code.visualstudio.com/download" },
       },
       {
-        title: "Créer le dossier de travail",
-        text: "Dans Documents, crée un dossier nommé BOUTIQUE-SHOPIFY. C'est ici que tu mettras le thème et que Claude Code travaillera.\n\nOuvrir une commande directement dans ce dossier :\n- Windows : ouvre le dossier dans l'Explorateur. Clique dans la barre d'adresse tout en haut, tape cmd puis Entrée.\n- Mac : ouvre Terminal. Tape cd suivi d'un espace, fais glisser le dossier depuis Finder dans Terminal, puis Entrée.",
-      },
-      {
-        title: "Tester la connexion Shopify",
-        text: "Remplace MA-BOUTIQUE par ta vraie adresse puis lance :",
-        cmds: ["shopify theme list --store MA-BOUTIQUE.myshopify.com"],
-        note: { kind: "ok", title: "Connexion réussie", text: "La première fois, Shopify ouvre le navigateur : connecte-toi, choisis la bonne boutique et autorise Shopify CLI. Si une liste de thèmes apparaît, ton ordinateur est connecté. Rien n'a encore été modifié sur la boutique." },
-      },
-    ],
-    notes: [{ kind: "danger", title: "Ne pousse rien sur le thème principal", text: "N'utilise pas « shopify theme push » ni « shopify theme publish » sans consigne de Mady." }],
-  },
-  {
-    id: "parametrer",
-    n: "04",
-    title: "Paramétrer Shopify (les réglages de base)",
-    intro: "30 minutes, une seule fois. Sans ça, personne ne peut te payer ni être livré. Tout se passe dans l'admin Shopify, menu Paramètres (en bas à gauche).",
-    steps: [
-      {
-        title: "Général : nom, adresse, devise, langue",
-        text: "Paramètres > Général : nom de la boutique, e-mail de contact, adresse de facturation. Devise de la boutique : EUR si tu vends en France. Fuseau horaire : Paris. Paramètres > Langues : français (ou la langue de ton marché).",
-      },
-      {
-        title: "Moyens de paiement",
-        text: "Paramètres > Paiements.\n- Active Shopify Payments (carte bancaire, Apple Pay, Google Pay) : remplis ton identité, ton adresse, ton IBAN. Statut auto-entrepreneur ou société, prépare ton SIRET.\n- Ajoute PayPal (compte PayPal Business) : beaucoup de clients paient avec.\n- Capture des paiements : automatique.\n- Tant que Shopify Payments n'est pas validé, tu peux tester le checkout avec la passerelle de test (Paramètres > Paiements > Passerelle fictive « Bogus »).",
-        link: { label: "Ouvrir Shopify Payments", href: "https://admin.shopify.com/settings/payments" },
-      },
-      {
-        title: "Livraison",
-        text: "Paramètres > Expédition et livraison > Tarifs généraux.\n- Zone France (ou ton marché) : un tarif « Livraison standard 5 à 10 jours » gratuit à partir de 0 € (livraison offerte, on l'affiche comme argument), ou un tarif fixe de 4,90 €.\n- Zone Europe si tu veux vendre à côté.\n- Supprime les tarifs par défaut qui ne te concernent pas.\n- Pas de poids compliqué : un tarif unique, simple.",
-        link: { label: "Ouvrir Expédition", href: "https://admin.shopify.com/settings/shipping" },
-      },
-      {
-        title: "Taxes",
-        text: "Paramètres > Taxes et droits de douane : France > TVA 20 %. Coche « Inclure les taxes dans les prix » pour afficher des prix TTC. Si tu es auto-entrepreneur en franchise de TVA, mets la TVA à 0 % et garde les prix TTC.",
-      },
-      {
-        title: "Politiques légales",
-        text: "Paramètres > Politiques. Shopify génère les textes : politique de remboursement, confidentialité, conditions de vente, mentions légales, livraison. Génère-les, lis-les vite, adapte le délai de retour (14 jours minimum en France). Les liens se mettent automatiquement dans le pied de page du thème.",
-        link: { label: "Ouvrir Politiques", href: "https://admin.shopify.com/settings/legal" },
-      },
-      {
-        title: "Checkout et comptes clients",
-        text: "Paramètres > Paiement (checkout) : comptes clients facultatifs, téléphone facultatif, adresse e-mail obligatoire. Active « Panier abandonné » : Shopify envoie un e-mail automatique aux gens qui n'ont pas fini leur commande.",
-      },
-      {
-        title: "Domaine",
-        text: "Paramètres > Domaines : achète ton nom de domaine (dans Shopify, le plus simple, environ 15 €/an) ou connecte celui que tu as déjà. Mets-le en domaine principal. Sans domaine, ta boutique s'appelle xxx.myshopify.com et ça fait fuir.",
-      },
-      {
-        title: "Retirer le mot de passe et faire une commande test",
-        text: "Boutique en ligne > Préférences : décoche « Restreindre l'accès aux visiteurs avec un mot de passe » (dès que tu as choisi un forfait). Puis fais une commande test de bout en bout (passerelle fictive ou vraie carte puis remboursement) : page produit > panier > paiement > e-mail de confirmation.",
-        note: { kind: "ok", title: "Tu as fini quand", text: "Tu peux acheter un produit sur ta boutique, de ton téléphone, en moins de 2 minutes, et tu reçois l'e-mail de commande." },
-      },
-    ],
-  },
-  {
-    id: "theme",
-    n: "05",
-    title: "Installer le thème Aesthetic Lab",
-    intro: "Le thème de travail s'appelle aesthetic-lab (fichier aesthetic-lab.zip). Soit Mady l'a installé directement sur ta boutique quand il a généré ta boutique, soit tu l'importes toi-même.",
-    steps: [
-      {
-        title: "Cas 1 : Mady a généré ta boutique",
-        text: "Admin Shopify > Boutique en ligne > Thèmes. Le thème apparaît dans « Bibliothèque de thèmes ». Clique sur « … » > Publier. Puis « Personnaliser » pour vérifier.",
-      },
-      {
-        title: "Cas 2 : tu as reçu aesthetic-lab.zip",
-        text: "Admin Shopify > Boutique en ligne > Thèmes > bouton « Ajouter un thème » > « Importer un fichier zip » > choisis aesthetic-lab.zip > Importer. Attends la fin, puis « … » > Publier. Ne décompresse pas le zip pour l'importer : Shopify veut le .zip tel quel.",
-        link: { label: "Ouvrir Thèmes", href: "https://admin.shopify.com/themes" },
-      },
-      {
-        title: "Mettre le thème dans ton dossier pour Claude Code",
-        text: "Décompresse aesthetic-lab.zip et place les fichiers dans BOUTIQUE-SHOPIFY. Tu dois voir des dossiers comme assets, sections, snippets, templates, config, layout directement dans BOUTIQUE-SHOPIFY (pas dans un sous-dossier).\n\nSi Mady a installé le thème sans te donner le zip, récupère-le depuis ta boutique avec cette commande (dans BOUTIQUE-SHOPIFY) et choisis le thème Aesthetic Lab dans la liste :",
-        cmds: ["shopify theme pull --store MA-BOUTIQUE.myshopify.com"],
-      },
-      {
-        title: "Lancer la prévisualisation Shopify",
-        text: "Dans le dossier du thème, lance :",
-        cmds: ["shopify theme dev --store MA-BOUTIQUE.myshopify.com"],
-        note: { kind: "info", title: "Ce que ça fait", text: "Shopify crée une prévisualisation de développement (lien http://127.0.0.1:9292). Elle sert à voir les changements en direct sans toucher au thème publié." },
-      },
-      {
-        title: "Ouvrir Claude Code dans une deuxième fenêtre",
-        text: "Garde « shopify theme dev » ouvert. Ouvre une DEUXIÈME fenêtre de commande dans le même dossier puis tape :",
-        cmds: ["claude"],
-      },
-      {
-        title: "Vérifier que Claude voit le projet",
-        text: "Envoie ce message, sans demander de modification :",
-        cmds: ["Analyse ce projet Shopify sans modifier aucun fichier. Confirme simplement que tu vois bien la structure du thème et que tu es prêt à travailler dessus."],
-        note: { kind: "info", title: "Pourquoi deux fenêtres ?", text: "La première garde la prévisualisation Shopify active. La deuxième sert à travailler avec Claude Code. Quand un changement te plaît, dis-le à Mady avant de pousser quoi que ce soit." },
-      },
-      {
-        title: "Tes médias dans le thème",
-        text: "Les images et vidéos du thème, c'est toi qui les fais (page Créatives) et qui les places : Boutique en ligne > Thèmes > Personnaliser > la section > remplacer l'image. Les photos produit : Produits > le produit > Médias.",
-      },
-    ],
-  },
-  {
-    id: "pixel",
-    n: "06",
-    title: "Installer le Pixel Meta et la Conversions API",
-    intro: "Sans Pixel, Meta ne sait pas qui achète et tes pubs n'apprennent rien. À faire avant la première campagne, jamais après.",
-    steps: [
-      {
-        title: "Créer le Pixel (jeu de données)",
-        text: "Dans le Gestionnaire d'événements Meta (business.facebook.com/events_manager) > Connecter des sources de données > Web > donne un nom (ta marque) > Créer. Ne colle aucun code : on passe par l'application Shopify.",
-        link: { label: "Ouvrir le Gestionnaire d'événements", href: "https://business.facebook.com/events_manager" },
-      },
-      {
-        title: "Installer l'application Facebook & Instagram dans Shopify",
-        text: "Admin Shopify > Applications > cherche « Facebook & Instagram » (par Meta) > Installer. Connecte ton compte Facebook, choisis ton portefeuille Meta Business, ta page Facebook, ton compte publicitaire et ton Pixel.",
-        link: { label: "Application Facebook & Instagram", href: "https://apps.shopify.com/facebook" },
-      },
-      {
-        title: "Partage de données : maximal",
-        text: "Dans l'application, section Partage des données : choisis « Maximal » (c'est ça qui active la Conversions API côté serveur, en plus du Pixel navigateur). Accepte les conditions.",
-      },
-      {
-        title: "Vérifier que ça remonte",
-        text: "Gestionnaire d'événements > ton Pixel > Tester les événements > entre l'adresse de ta boutique > ouvre ta boutique dans un autre onglet, va sur un produit, ajoute au panier, va jusqu'au paiement. Tu dois voir apparaître PageView, ViewContent, AddToCart, InitiateCheckout. Fais une commande test pour voir Purchase.",
-        note: { kind: "ok", title: "C'est bon quand", text: "Les 4 événements apparaissent en vert avec « Navigateur » ET « Serveur » dans la colonne source. Si tu ne vois que Navigateur, le partage de données n'est pas en Maximal." },
+        title: "Ouvre VS Code",
+        text: "Une fenêtre sombre avec une barre d'icônes à gauche. C'est tout ce dont tu as besoin pour l'instant.",
       },
     ],
   },
   {
     id: "claude",
-    n: "07",
-    title: "Travaille AVEC Claude, tout le temps",
-    intro: "La règle n°1 de l'accompagnement : tu ne bloques jamais seul. Avant d'écrire à Mady, tu demandes à Claude. Il règle 80 % des problèmes en direct, si tu lui parles.",
+    n: "02",
+    title: "Mets Claude Code dans VS Code (5 min)",
+    intro: "Claude Code, c'est l'extension qui fait le travail. Tu lui parles en français, il fait.",
     steps: [
       {
-        title: "Prends Claude Max",
-        text: "C'est l'abonnement qui donne assez d'usage pour construire une boutique entière avec Claude Code et travailler des heures par jour. Pro peut suffire pour commencer, mais tu vas taper la limite vite. Un jour de blocage coûte plus cher qu'un mois d'abonnement.",
-        link: { label: "Prendre Claude Max", href: "https://claude.ai/upgrade" },
+        title: "Ouvre les extensions",
+        text: "Dans la barre de gauche de VS Code, clique sur l'icône faite de 4 petits carrés (Extensions). Une barre de recherche apparaît en haut.",
       },
       {
-        title: "Installe l'extension Claude dans Chrome",
-        text: "Claude peut prendre le contrôle de ton navigateur : il clique, remplit les réglages Shopify, vérifie le Pixel, crée tes zones de livraison… pendant que tu regardes. Installe « Claude in Chrome », connecte-le à ton compte, puis ouvre le panneau Claude sur ta page Shopify et dis-lui ce que tu veux faire.",
-        link: { label: "Installer Claude pour Chrome", href: "https://claude.ai/chrome" },
+        title: "Tape « Claude Code » et installe",
+        text: "Dans la recherche, tape Claude Code. Clique sur le résultat « Claude Code » (éditeur : Anthropic), puis sur le bouton bleu Install.",
+        link: { label: "Voir l'extension Claude Code", href: "https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code" },
       },
       {
-        title: "Parle-lui beaucoup, comme à un associé",
-        text: "Explique ton contexte en entier : « Je lance une boutique Shopify de [produit] pour [cible], je suis sur Windows, je ne sais pas coder. Je veux [objectif précis]. Guide-moi étape par étape et fais-le pour moi quand tu peux. » Puis colle les messages d'erreur, envoie des captures d'écran, pose des questions bêtes. Plus tu lui en dis, plus il est précis.",
-      },
-      {
-        title: "Ne le sous-estime pas",
-        text: "Claude peut : installer et dépanner Node, Shopify CLI, Git · modifier le thème (textes, couleurs, sections, vitesse) · écrire tes fiches produit, tes e-mails, tes politiques · configurer paiements, livraison, taxes avec l'extension Chrome · analyser tes résultats Meta Ads · t'écrire des scripts de créatives. Teste-le sur chaque chose qui te bloque AVANT de la mettre de côté.",
-        note: { kind: "warn", title: "Une seule limite", text: "Il ne publie rien sur ton thème principal et il ne lance pas de pub sans que tu valides. Le reste, demande-lui." },
-      },
-      {
-        title: "Exemples de demandes qui marchent",
-        text: "- « Voici la capture d'une erreur dans PowerShell, explique-moi et donne-moi la commande exacte à taper. »\n- « Ouvre les paramètres d'expédition de ma boutique et crée une zone France avec livraison offerte. » (extension Chrome)\n- « Dans ce thème, change la couleur principale en #1F6F5B et vérifie que le contraste reste lisible. » (Claude Code)\n- « Relis ma fiche produit et réécris-la pour une femme de 35 ans qui veut [bénéfice]. »\n- « Vérifie que mon Pixel Meta remonte bien les événements et dis-moi ce qui manque. »",
+        title: "Connecte-toi avec ton compte Claude Max",
+        text: "Une nouvelle icône Claude apparaît dans la barre de gauche. Clique dessus, puis sur Se connecter : ton navigateur s'ouvre, tu te connectes avec le compte Claude Max que tu as pris, tu reviens dans VS Code. C'est fait une fois pour toutes.",
+        link: { label: "Prendre Claude Max si ce n'est pas fait", href: "https://claude.ai/upgrade" },
       },
     ],
   },
   {
-    id: "controle",
-    n: "08",
-    title: "Contrôle final avant ton call",
-    intro: "Fais ce contrôle la veille, ou au minimum 30 minutes avant le rendez-vous. Fais une capture d'écran avec ces commandes et envoie-la à Mady.",
+    id: "dossier",
+    n: "03",
+    title: "Crée ton dossier et ouvre-le dans VS Code (2 min)",
     steps: [
       {
-        title: "Les cinq commandes",
-        text: "Dans une fenêtre de commande :",
-        cmds: ["git --version", "node -v", "npm -v", "shopify help", "claude --version"],
-        note: { kind: "ok", title: "À envoyer à Mady", text: "Si les cinq commandes affichent un résultat sans erreur, ton ordinateur est prêt et le call peut commencer directement sur la boutique." },
+        title: "Crée un dossier vide",
+        text: "Dans Documents, crée un dossier qui s'appelle MA-BOUTIQUE (clic droit > Nouveau dossier). Il reste vide, c'est normal : Claude va le remplir.",
+      },
+      {
+        title: "Ouvre ce dossier dans VS Code",
+        text: "Dans VS Code : menu Fichier > Ouvrir le dossier, choisis MA-BOUTIQUE, puis clique sur « Oui, je fais confiance aux auteurs ». Le nom du dossier apparaît en haut à gauche.",
       },
     ],
-    fixes: [
-      { problem: "node non reconnu", fix: "Redémarre l'ordinateur. Si besoin, réinstalle Node.js LTS." },
-      { problem: "shopify non reconnu", fix: "Ouvre une nouvelle fenêtre et relance npm install -g @shopify/cli@latest." },
-      { problem: "claude non reconnu", fix: "Ferme et rouvre Terminal / PowerShell, puis relance l'installation de Claude Code." },
-      { problem: "Shopify refuse l'accès", fix: "Vérifie le compte utilisé et l'autorisation de gérer les thèmes." },
-      { problem: "Toujours bloqué", fix: "Demande à Claude avec la capture du message complet. Puis, si ça ne passe pas, envoie la capture à Mady." },
+  },
+  {
+    id: "premier-message",
+    n: "04",
+    title: "Parle à Claude : il installe et connecte tout (15 min)",
+    intro: "Tu ne tapes aucune commande. Tu copies ce message, tu remplaces MA-BOUTIQUE par ton adresse Shopify, et tu laisses Claude faire.",
+    steps: [
+      {
+        title: "Trouve ton adresse Shopify",
+        text: "Dans ton admin Shopify : Paramètres (en bas à gauche) > Domaines. C'est l'adresse qui finit par .myshopify.com, par exemple ma-boutique.myshopify.com. Copie-la.",
+        link: { label: "Ouvrir mes domaines Shopify", href: "https://admin.shopify.com/settings/domains" },
+      },
+      {
+        title: "Colle ce message à Claude",
+        text: "Clique sur l'icône Claude à gauche dans VS Code, colle le message ci-dessous dans la zone de texte (bouton Copier), remplace MA-BOUTIQUE par ton adresse, Entrée.",
+        cmds: [MSG_INSTALL],
+      },
+      {
+        title: "Dis oui quand il demande",
+        text: "Claude va installer des choses et te demander la permission à chaque fois : clique sur Yes / Autoriser. À un moment, ton navigateur s'ouvre pour te connecter à Shopify : connecte-toi, choisis ta boutique, clique sur Autoriser, et reviens dans VS Code. Ça prend 5 à 15 minutes, tu n'as rien d'autre à faire.",
+        note: { kind: "warn", title: "Un message rouge ?", text: "Ne ferme rien. Fais une capture d'écran et colle-la à Claude en écrivant : « Voilà l'erreur, corrige et continue ». Il se débrouille." },
+      },
+      {
+        title: "Vérifie que c'est prêt",
+        text: "Quand Claude a fini, colle-lui ce message :",
+        cmds: [MSG_CHECK],
+        note: { kind: "ok", title: "C'est bon quand", text: "Claude répond « C'est prêt » et te donne un lien (souvent http://127.0.0.1:9292). Tu l'ouvres : c'est ta boutique, en aperçu, sur ton ordinateur." },
+      },
+    ],
+  },
+  {
+    id: "trois-fenetres",
+    n: "05",
+    title: "Ta façon de travailler : 3 fenêtres ouvertes",
+    intro: "C'est comme ça que tu bosses sur ta boutique, tous les jours. Toujours ces 3 fenêtres.",
+    steps: [
+      {
+        title: "Fenêtre 1 : VS Code avec Claude Code",
+        text: "C'est là que tu parles. Tu lui dis ce que tu veux changer sur ta boutique, en français, comme à une personne. Il modifie le thème.",
+      },
+      {
+        title: "Fenêtre 2 : ton admin Shopify",
+        text: "admin.shopify.com, avec les onglets à gauche : Commandes, Produits, Clients, Boutique en ligne. C'est là que tu gères tes produits, tes commandes, tes réglages, et que tu peux aussi modifier le thème à la souris (Boutique en ligne > Thèmes > Personnaliser).",
+        link: { label: "Ouvrir mon admin Shopify", href: "https://admin.shopify.com" },
+      },
+      {
+        title: "Fenêtre 3 : ta boutique",
+        text: "Le lien d'aperçu que Claude t'a donné (ou ta boutique en ligne). Après chaque modification de Claude, tu appuies sur F5 (actualiser) et tu vois le résultat en direct.",
+      },
+      {
+        title: "Mets-les côte à côte",
+        text: "VS Code à gauche, ton navigateur à droite avec deux onglets (admin Shopify et ta boutique). Tu demandes à gauche, tu regardes à droite.",
+      },
+    ],
+  },
+  {
+    id: "modifier",
+    n: "06",
+    title: "Modifier ta boutique avec Claude, et mettre en ligne",
+    intro: "Une modification = un message. Tu vérifies dans l'aperçu, puis tu dis « mets en ligne ».",
+    steps: [
+      {
+        title: "Demande une modification",
+        text: "Exemple, à adapter :",
+        cmds: [MSG_EDIT],
+      },
+      {
+        title: "Regarde dans l'aperçu",
+        text: "Fenêtre 3, F5. Si ce n'est pas ça, dis-lui simplement ce qui ne va pas : « plus gros », « en noir », « remonte cette section au-dessus des avis ». Il recommence.",
+      },
+      {
+        title: "Mets en ligne",
+        text: "Quand c'est bon :",
+        cmds: [MSG_LIVE],
+        note: { kind: "info", title: "Deux façons de modifier, pas de conflit", text: "Tu peux aussi changer des textes et des images à la souris dans Shopify (Personnaliser). Les deux marchent. Règle simple : les textes et images dans Shopify, tout ce qui touche à la structure ou au design avec Claude." },
+      },
+      {
+        title: "Ce que tu peux lui demander",
+        text: "- « Ajoute une section avis clients sous le produit »\n- « Rends le bouton Acheter plus visible sur mobile »\n- « Mets mes couleurs : fond blanc, boutons #1F6F5B »\n- « Fais une page Livraison et retours avec ce texte : … »\n- « Ma page est lente sur téléphone, améliore ça »\n- « Traduis la boutique en anglais »",
+      },
+    ],
+  },
+  {
+    id: "parametrer",
+    n: "07",
+    title: "Les réglages Shopify pour pouvoir vendre (30 min)",
+    intro: "À faire une fois, dans l'admin Shopify > Paramètres. Sans ça, personne ne peut te payer.",
+    steps: [
+      {
+        title: "Paiements",
+        text: "Paramètres > Paiements : active Shopify Payments (carte bancaire) en remplissant ton identité, ton adresse et ton IBAN. Ajoute PayPal si tu as un compte PayPal Business.",
+        link: { label: "Ouvrir Paiements", href: "https://admin.shopify.com/settings/payments" },
+      },
+      {
+        title: "Livraison",
+        text: "Paramètres > Expédition et livraison : une zone France (ou ton pays), un seul tarif « Livraison standard 5 à 10 jours », gratuit (ou 4,90 €). Supprime les autres tarifs.",
+        link: { label: "Ouvrir Expédition", href: "https://admin.shopify.com/settings/shipping" },
+      },
+      {
+        title: "Politiques et mentions légales",
+        text: "Paramètres > Politiques : clique sur « Créer à partir d'un modèle » pour chaque texte (remboursement, confidentialité, conditions de vente, livraison). Ils s'ajoutent tout seuls en bas de ta boutique.",
+        link: { label: "Ouvrir Politiques", href: "https://admin.shopify.com/settings/legal" },
+      },
+      {
+        title: "Ton nom de domaine",
+        text: "Paramètres > Domaines > Acheter un nouveau domaine (environ 15 € par an). Sans ça ta boutique s'appelle xxx.myshopify.com, et ça fait fuir.",
+      },
+      {
+        title: "Fais une commande test",
+        text: "Boutique en ligne > Préférences : enlève le mot de passe. Puis, depuis ton téléphone, achète un produit sur ta boutique comme un client. Tu dois recevoir l'e-mail de commande.",
+        note: { kind: "info", title: "Tu n'as pas envie de cliquer partout ?", text: "Installe Claude pour Chrome (section 09) et dis-lui : « Ouvre mes paramètres Shopify et configure la livraison : zone France, livraison offerte ». Il clique à ta place, tu regardes." },
+      },
+    ],
+  },
+  {
+    id: "pixel",
+    n: "08",
+    title: "Le Pixel Meta (pour que tes pubs marchent)",
+    intro: "Le Pixel dit à Meta qui achète. Sans lui, tes pubs n'apprennent rien. À faire avant ta première campagne.",
+    steps: [
+      {
+        title: "Installe l'application Facebook & Instagram dans Shopify",
+        text: "Admin Shopify > Applications > cherche « Facebook & Instagram » > Installer. Connecte ton compte Facebook, choisis ton compte publicitaire et ton Pixel (crée-le si on te le propose).",
+        link: { label: "Application Facebook & Instagram", href: "https://apps.shopify.com/facebook" },
+      },
+      {
+        title: "Partage de données : Maximal",
+        text: "Dans l'application, partie Partage des données, choisis Maximal. C'est tout.",
+      },
+      {
+        title: "Vérifie",
+        text: "Va sur ta boutique, ouvre un produit, ajoute-le au panier. Dans Meta (Gestionnaire d'événements > Tester les événements) tu dois voir apparaître des lignes vertes. Si tu ne vois rien, demande à Claude : « Vérifie que mon Pixel Meta remonte bien les événements ».",
+        link: { label: "Gestionnaire d'événements Meta", href: "https://business.facebook.com/events_manager" },
+      },
+    ],
+  },
+  {
+    id: "claude-aide",
+    n: "09",
+    title: "Bloqué ? Demande à Claude, pas à Mady",
+    intro: "Claude règle 80 % des problèmes en direct. Mady, c'est pour les urgences et les validations.",
+    steps: [
+      {
+        title: "Dis-lui tout",
+        text: "Colle le message d'erreur, envoie une capture d'écran, explique ce que tu voulais faire. Plus tu lui en dis, plus il est précis. Pose des questions bêtes, il ne juge pas.",
+      },
+      {
+        title: "Installe Claude pour Chrome",
+        text: "Claude peut prendre le contrôle de ton navigateur : il clique dans Shopify, dans Meta, remplit les réglages, pendant que tu regardes. Installe l'extension, connecte-la à ton compte, ouvre le panneau Claude sur la page et dis-lui ce que tu veux.",
+        link: { label: "Installer Claude pour Chrome", href: "https://claude.ai/chrome" },
+      },
+      {
+        title: "Chrome Remote Desktop pour les vrais blocages",
+        text: "Installe-le une fois : si tu es vraiment bloqué, Mady prend la main sur ton écran pendant un call.",
+        link: { label: "Installer Chrome Remote Desktop", href: "https://remotedesktop.google.com/access" },
+      },
     ],
   },
 ];
 
-export const GUIDE_SOURCES: { label: string; href: string }[] = [
-  { label: "Claude Code : installation officielle", href: "https://docs.claude.com/fr/docs/claude-code/setup" },
-  { label: "Shopify CLI : installation et prérequis", href: "https://shopify.dev/docs/api/shopify-cli" },
-  { label: "Shopify CLI pour les thèmes", href: "https://shopify.dev/docs/themes/tools/cli" },
-  { label: "Application Facebook & Instagram (Pixel + Conversions API)", href: "https://help.shopify.com/fr/manual/online-sales-channels/facebook" },
-];
+export const GUIDE_SOURCES: { label: string; href: string }[] = [];

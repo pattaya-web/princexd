@@ -47,9 +47,9 @@ const SEED: SeedV2[] = [
   },
   {
     was: /installe les outils/i,
-    title: "Installe les outils sur ton ordinateur (30 min)",
+    title: "Installe VS Code et Claude Code (15 min)",
     detail:
-      "Page Démarrage, sections 01 à 03 : Git, Node.js, Shopify CLI, Claude Code, connexion à ta boutique. Prends Claude Max ({{claude}}) et installe l'extension Claude pour Chrome (section 07). Coche chaque étape du guide au fur et à mesure.\n\n✅ Fait quand : les 5 commandes du contrôle final (section 08) répondent sans erreur et tu as envoyé la capture à Mady.",
+      "Page Démarrage, sections 01 à 04 : tu installes VS Code, tu ajoutes l'extension Claude Code, tu ouvres ton dossier et tu colles le premier message à Claude. C'est lui qui installe et connecte le reste, tu dis oui. Prends Claude Max ({{claude}}) avant.\n\n✅ Fait quand : Claude te répond « C'est prêt » et ton aperçu de boutique s'ouvre dans le navigateur.",
     link: "/formation/demarrage",
   },
   {
@@ -145,7 +145,7 @@ export function ensureCourseSteps(db: DB): boolean {
 }
 
 /** Version du texte des étapes par défaut. Monter ce numéro réécrit les étapes déjà en base (ids conservés). */
-const SEED_VERSION = 2;
+const SEED_VERSION = 3;
 
 /**
  * Met à jour les étapes déjà en base vers la dernière version du texte par
