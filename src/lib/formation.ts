@@ -100,6 +100,8 @@ export interface StudentAccessRow {
   stepsTotal: number;
   /** Etapes assignees par le coach pas encore faites. */
   tasksPending: number;
+  /** Demande de boutique en attente (page Demarrage). */
+  shopRequested: boolean;
 }
 
 export function toAccessRow(s: Student, published: Set<string>, publishedSteps: Set<string> = new Set()): StudentAccessRow {
@@ -108,6 +110,7 @@ export function toAccessRow(s: Student, published: Set<string>, publishedSteps: 
     stepsDone,
     stepsTotal: publishedSteps.size + (s.tasks ?? []).length,
     tasksPending: (s.tasks ?? []).filter((t) => !t.done).length,
+    shopRequested: s.shopRequest?.status === "demandee",
     id: s.id,
     name: s.name,
     email: s.email ?? "",

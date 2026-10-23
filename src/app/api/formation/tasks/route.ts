@@ -3,6 +3,7 @@ import { readDB, writeDB } from "@/lib/db";
 import { readSession, requireAdmin } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { ensureCourseSteps, newTask, stepItems, type StepItem } from "@/lib/formation-steps";
+import type { ShopRequest } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export interface StudentFollowUpPayload {
   coachNotes: string;
   modulesDone: number;
   modulesTotal: number;
+  shopRequest: ShopRequest | null;
 }
 
 function payload(studentId: string): StudentFollowUpPayload {
@@ -32,6 +34,7 @@ function payload(studentId: string): StudentFollowUpPayload {
     coachNotes: s.coachNotes ?? "",
     modulesDone: published.filter((m) => done.has(m.id)).length,
     modulesTotal: published.length,
+    shopRequest: s.shopRequest ?? null,
   };
 }
 
@@ -74,6 +77,8 @@ export async function PATCH(req: NextRequest) {
       detail?: string;
       link?: string;
       coachNotes?: string;
+      /** Demande de boutique : « livree » quand la boutique est générée, « demandee » pour la rouvrir, null pour l'effacer. */
+      shopRequest?: "livree" | "demandee" | null;
     };
     const db = readDB();
     const s = db.students.find((x) => x.id === body.studentId);
@@ -95,6 +100,11 @@ export async function PATCH(req: NextRequest) {
       s.completedSteps = body.done ? (cur.includes(body.stepId) ? cur : [...cur, body.stepId]) : cur.filter((x) => x !== body.stepId);
     }
     if (typeof body.coachNotes === "string") s.coachNotes = body.coachNotes.slice(0, 8000);
+    if (body.shopRequest === null) delete s.shopRequest;
+    else if (body.shopRequest && s.shopRequest) {
+      s.shopRequest.status = body.shopRequest;
+      s.shopRequest.doneAt = body.shopRequest === "livree" ? now : undefined;
+    }
     writeDB(db);
     return payload(s.id);
   });

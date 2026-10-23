@@ -94,6 +94,26 @@ export function notifyTelegram(member: Pick<TeamMember, "telegramChatId" | "name
   });
 }
 
+/**
+ * Previent Mady (proprietaire) : son compte d'equipe (salesOwnerMemberId) s'il
+ * est relie au bot, sinon tous les admins relies. Sans bot ou sans liaison,
+ * l'erreur est notee dans les reglages et rien ne plante.
+ */
+export function notifyOwner(html: string): void {
+  const db = readDB();
+  const ownerId = db.settings.salesOwnerMemberId ?? "";
+  const owner = ownerId ? db.team.find((m) => m.id === ownerId) : undefined;
+  const targets = owner?.telegramChatId ? [owner] : db.team.filter((m) => m.role === "admin" && m.telegramChatId);
+  if (!targets.length) {
+    db.settings.telegramLastError = `${new Date().toISOString()} · aucun compte admin relié au bot : notification élève non envoyée`;
+    writeDB(db);
+    return;
+  }
+  for (const m of targets) notifyTelegram(m, html);
+}
+
+export const escTelegram = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /** Code de liaison du membre, cree au besoin (6 caracteres lisibles). */

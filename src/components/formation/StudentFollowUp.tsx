@@ -82,6 +82,26 @@ export function StudentFollowUp({ studentId, onClose, onChanged }: { studentId: 
             </Link>
           </div>
 
+          {data.shopRequest && (
+            <div className="card-flat p-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]" style={{ borderColor: data.shopRequest.status === "livree" ? "var(--good)" : "var(--warning)" }}>
+              <span className={`badge ${data.shopRequest.status === "livree" ? "badge-good" : "badge-warn"}`}>{data.shopRequest.status === "livree" ? "Boutique livrée" : "Boutique demandée"}</span>
+              <span>
+                <strong>{data.shopRequest.storeUrl}</strong> <span className="dim">· {fmt(data.shopRequest.requestedAt)}</span>
+              </span>
+              {data.shopRequest.note && <span className="w-full dim whitespace-pre-wrap text-[12.5px]">{data.shopRequest.note}</span>}
+              <span className="flex-1" />
+              {data.shopRequest.status === "demandee" ? (
+                <button className="btn btn-sm btn-primary" disabled={busy} onClick={() => void call({ method: "PATCH", body: JSON.stringify({ studentId, shopRequest: "livree" }) }, "Marquée livrée : l'élève le voit dans Démarrage.")}>
+                  Marquer livrée
+                </button>
+              ) : (
+                <button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => void call({ method: "PATCH", body: JSON.stringify({ studentId, shopRequest: "demandee" }) })}>
+                  Rouvrir
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="grid gap-4 md:grid-cols-2 items-start">
             <div className="card-flat p-3">
               <div className="label-xs mb-2">Marche à suivre</div>

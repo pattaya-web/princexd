@@ -3,7 +3,7 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { readSession, requireAdmin, requireFormation } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { sortModules } from "@/lib/formation";
-import { ensureCourseSteps, portalSettings, readStepFields, sortSteps, stepItems, type StepItem } from "@/lib/formation-steps";
+import { ensureCourseSteps, ensureGuideStepLink, portalSettings, readStepFields, sortSteps, stepItems, type StepItem } from "@/lib/formation-steps";
 import { onboardingSettings } from "@/lib/onboarding";
 import type { CourseStep, StudentPortalSettings } from "@/lib/types";
 
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   return handle((): StepsPayload => {
     const session = requireFormation(readSession(req));
     const db = readDB();
-    if (ensureCourseSteps(db)) writeDB(db);
+    if (ensureCourseSteps(db) || ensureGuideStepLink(db)) writeDB(db);
     const student = session.role === "student" ? db.students.find((s) => s.id === session.memberId) : undefined;
     const { steps, tasks } = stepItems(db, student, { includeDrafts: session.isAdmin });
     return {

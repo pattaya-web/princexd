@@ -36,7 +36,7 @@ export function waHelpLink(phone: string, firstName: string): string {
   if (d.startsWith("00")) d = d.slice(2);
   if (d.length === 10 && d.startsWith("0")) d = `33${d.slice(1)}`;
   if (!d) return "";
-  return `https://wa.me/${d}?text=${encodeURIComponent(`Salut Mady, c'est ${firstName}. J'ai une question sur mon avancement :`)}`;
+  return `https://wa.me/${d}?text=${encodeURIComponent(`Salut Mady, c'est ${firstName}. URGENCE (j'ai déjà demandé à Claude) :`)}`;
 }
 
 /** Une étape à cocher. `compact` : sans la consigne détaillée (tableau de bord). */

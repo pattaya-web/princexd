@@ -715,6 +715,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               section: "Scale X",
               items: [
                 { href: "/formation", label: "Tableau de bord", icon: "◈" },
+                { href: "/formation/demarrage", label: "Démarrage", icon: "⚑" },
                 { href: "/formation/cours", label: "Formation", icon: "▶" },
                 { href: "/formation/etapes", label: "Mes étapes", icon: "☑" },
                 { href: "/formation/sops", label: "Ressources", icon: "▤" },

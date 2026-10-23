@@ -90,6 +90,24 @@ export default function ScaleXDashboard() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] items-start">
         <div className="flex flex-col gap-4">
+          {/* 00 / Démarrage */}
+          <section className="card p-5" style={{ borderColor: "var(--accent-ring)" }}>
+            <div className="flex items-center justify-between gap-3">
+              <SectionLabel n="00" title="Démarrage" />
+              {data.shopRequest && <span className={`badge !text-[10.5px] ${data.shopRequest === "livree" ? "badge-good" : "badge-warn"}`}>{data.shopRequest === "livree" ? "Boutique livrée" : "Boutique demandée"}</span>}
+            </div>
+            <h2 className="text-[20px] font-semibold mt-3 leading-tight">Commence ici : formulaire, outils, installation, ta boutique.</h2>
+            <p className="muted text-[13.5px] mt-1 leading-relaxed">Le message de bienvenue avec tous les liens, le guide pour installer Claude Code et connecter Shopify, les réglages de base, le thème, le Pixel, et le bouton pour demander ta boutique à Mady.</p>
+            <div className="flex flex-wrap items-center gap-3 mt-4">
+              <Link href="/formation/demarrage" className="btn btn-primary btn-sm">
+                Ouvrir Démarrage
+              </Link>
+              <Link href="/formation/demarrage#claude" className="text-[13px] font-medium hover:underline">
+                Bloqué ? Demande à Claude →
+              </Link>
+            </div>
+          </section>
+
           {/* 01 / Formation */}
           <section className="card p-5">
             <div className="flex items-center justify-between gap-3">
@@ -173,7 +191,7 @@ export default function ScaleXDashboard() {
             )}
             {wa && (
               <a href={wa} target="_blank" rel="noreferrer" className="btn w-full mt-2">
-                Écrire à Mady sur WhatsApp
+                Urgence : écrire à Mady sur WhatsApp
               </a>
             )}
           </section>

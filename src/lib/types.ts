@@ -140,6 +140,8 @@ export interface Settings {
   studentPortal?: Partial<StudentPortalSettings>;
   /** Etapes par defaut de la marche a suivre posees une fois. */
   courseStepsSeededAt?: string;
+  /** Date a laquelle l etape « Installe les outils » a ete reliee a la page Demarrage (migration unique). */
+  courseStepsGuideLinkedAt?: string;
   /** Content OS : habitudes du jour, priorités, routine hebdo, ressources, chantiers. */
   contentOs?: Partial<ContentOsState>;
   /** Rotation des types de story par jour (0 = dimanche). */
@@ -680,6 +682,19 @@ export interface Student {
   tasks?: StudentTask[];
   /** Notes du coach sur cet eleve (visibles de l'admin seulement). */
   coachNotes?: string;
+  /** Demande de generation de boutique faite depuis la page Demarrage. */
+  shopRequest?: ShopRequest;
+}
+
+/** « Demande ta boutique à Mady » : l'eleve donne son adresse Shopify, Mady genere avec le generateur. */
+export interface ShopRequest {
+  requestedAt: string;
+  /** Adresse xxx.myshopify.com. */
+  storeUrl: string;
+  /** Produit choisi, liens concurrents, remarques. */
+  note: string;
+  status: "demandee" | "livree";
+  doneAt?: string;
 }
 
 /* ------------------------- Plateforme de formation ------------------------ */

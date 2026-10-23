@@ -4,7 +4,7 @@ import { readSession, requireFormation } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { sortModules } from "@/lib/formation";
 import { toResourceRow, type CourseResourceRow } from "@/lib/formation-resources";
-import { ensureCourseSteps, portalSettings, stepItems, type StepItem } from "@/lib/formation-steps";
+import { ensureCourseSteps, ensureGuideStepLink, portalSettings, stepItems, type StepItem } from "@/lib/formation-steps";
 import { onboardingSettings } from "@/lib/onboarding";
 import type { StudentPortalSettings } from "@/lib/types";
 
@@ -35,6 +35,8 @@ export interface DashboardPayload {
   resources: { total: number; latest: CourseResourceRow[] };
   portal: StudentPortalSettings;
   formUrl: string;
+  /** Etat de la demande de boutique (page Demarrage), vide si aucune. */
+  shopRequest: "demandee" | "livree" | "";
 }
 
 /** Tout ce que montre le tableau de bord Scale X, en une requête. */
@@ -42,7 +44,7 @@ export async function GET(req: NextRequest) {
   return handle((): DashboardPayload => {
     const session = requireFormation(readSession(req));
     const db = readDB();
-    if (ensureCourseSteps(db)) writeDB(db);
+    if (ensureCourseSteps(db) || ensureGuideStepLink(db)) writeDB(db);
     const student = session.role === "student" ? db.students.find((s) => s.id === session.memberId) : undefined;
 
     const modules = sortModules(db.courseModules).filter((m) => m.published);
@@ -86,6 +88,7 @@ export async function GET(req: NextRequest) {
       resources: { total: visible.length, latest: visible.slice(0, 3).map(toResourceRow) },
       portal: portalSettings(db.settings),
       formUrl: onboardingSettings(db.settings).formUrl,
+      shopRequest: student?.shopRequest?.status ?? "",
     };
   });
 }

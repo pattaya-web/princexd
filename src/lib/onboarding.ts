@@ -99,6 +99,25 @@ export function renderOnboarding(cfg: StudentOnboardingSettings, ctx: Onboarding
   return steps.reduce((text, step) => step(text), base);
 }
 
+/**
+ * Le message d'onboarding tel qu'il s'affiche sur la plateforme : les
+ * balises sont remplacées, le prénom n'est pas affiché (« on s'en fout »), et
+ * tout ce qui suit la partie « plateforme de formation » saute puisque
+ * l'élève y est déjà.
+ */
+export function welcomeMessage(settings: Pick<Settings, "studentOnboarding">): string {
+  const cfg = onboardingSettings(settings);
+  const paragraphs = cfg.message.replace(/\r\n/g, "\n").split(/\n{2,}/);
+  const cut = paragraphs.findIndex((p) => /3️⃣|\{\{\s*(plateforme|identifiant|motdepasse)\s*\}\}/i.test(p));
+  const kept = cut > 0 ? paragraphs.slice(0, cut) : paragraphs;
+  const text = renderOnboarding({ ...cfg, message: kept.join("\n\n") }, { name: "", baseUrl: "" });
+  return text
+    .split("\n")
+    .map((l) => l.replace(/[ \t]{2,}/g, " ").trimEnd())
+    .join("\n")
+    .trim();
+}
+
 /** Balises reconnues, pour l'aide de l'éditeur. */
 export const ONBOARDING_TAGS: { tag: string; label: string }[] = [
   { tag: "{{prenom}}", label: "prénom de l'élève" },

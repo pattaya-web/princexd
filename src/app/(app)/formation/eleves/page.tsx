@@ -194,7 +194,7 @@ export default function StudentAccessPage() {
                     </td>
                     <td className="num">
                       {s.stepsDone} / {s.stepsTotal}
-                      {s.tasksPending > 0 && <span className="badge badge-warn !text-[10px] !py-0 ml-1.5">{s.tasksPending} assignée{s.tasksPending > 1 ? "s" : ""}</span>}
+                      {s.tasksPending > 0 && <span className="badge badge-warn !text-[10px] !py-0 ml-1.5">{s.tasksPending} assignée{s.tasksPending > 1 ? "s" : ""}</span>}{s.shopRequested && <span className="badge badge-warn !text-[10px] !py-0 ml-1.5">🛍 boutique demandée</span>}
                     </td>
                     <td className="dim">{fmtDate(s.portalLastSeenAt)}</td>
                     <td className="text-right whitespace-nowrap">

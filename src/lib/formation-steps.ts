@@ -13,7 +13,7 @@ import type { CourseStep, DB, Settings, Student, StudentPortalSettings, StudentT
 export const DEFAULT_PORTAL: StudentPortalSettings = {
   bookingUrl: "",
   whatsapp: "",
-  helpText: "Un point avec Mady dès que tu bloques ou qu'une étape est validée : réserve ton créneau.",
+  helpText: "Tu bloques ? Demande d'abord à Claude (page Démarrage, section 07) : il règle la plupart des problèmes en direct. Mady, c'est pour les urgences et les validations : réserve ton créneau.",
   quote: "Plus vite tu lances, plus vite tu apprends. Le reste, c'est de l'optimisation.",
   quoteAuthor: "Mady",
 };
@@ -41,8 +41,8 @@ const SEED: Seed[] = [
   {
     title: "Installe les outils de travail",
     detail:
-      "- Visual Studio Code (gratuit) : https://code.visualstudio.com\n- Claude Pro Max (90 €/mois) : {{claude}} , puis installe Claude Code dans VS Code\n- Chrome Remote Desktop (gratuit) : https://remotedesktop.google.com/access , pour que Mady prenne la main sur ton écran quand tu bloques\n\nTout doit être installé avant ton premier call.",
-    link: "",
+      "Suis la page Démarrage : message de bienvenue avec tous les liens, guide pas à pas pour installer Claude Code et connecter Shopify (Windows et Mac), installation du thème.\n- Visual Studio Code (gratuit) : https://code.visualstudio.com\n- Claude Pro Max (90 €/mois) : {{claude}}\n- Chrome Remote Desktop (gratuit) : https://remotedesktop.google.com/access , pour que Mady prenne la main sur ton écran quand tu bloques\n\nTout doit être installé avant ton premier call.",
+    link: "/formation/demarrage",
   },
   {
     title: "Ouvre ta boutique Shopify (1 €)",
@@ -112,6 +112,21 @@ export function ensureCourseSteps(db: DB): boolean {
     db.courseSteps = SEED.map((s, i) => ({ id: newId(), ...s, order: i, published: true, createdAt: now, updatedAt: now }));
   }
   db.settings.courseStepsSeededAt = new Date().toISOString();
+  return true;
+}
+
+/**
+ * Migration unique : relie l'étape « Installe les outils de travail » déjà en
+ * base à la page Démarrage (guide d'installation). Renvoie vrai s'il y a eu écriture.
+ */
+export function ensureGuideStepLink(db: DB): boolean {
+  if (db.settings.courseStepsGuideLinkedAt) return false;
+  const step = (db.courseSteps ?? []).find((s) => /installe les outils/i.test(s.title));
+  if (step && !step.link.trim()) {
+    step.link = "/formation/demarrage";
+    step.updatedAt = new Date().toISOString();
+  }
+  db.settings.courseStepsGuideLinkedAt = new Date().toISOString();
   return true;
 }
 
