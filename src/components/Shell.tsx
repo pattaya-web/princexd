@@ -718,6 +718,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 { href: "/formation/demarrage", label: "Démarrage", icon: "⚑" },
                 { href: "/formation/cours", label: "Formation", icon: "▶" },
                 { href: "/formation/etapes", label: "Mes étapes", icon: "☑" },
+                { href: "/formation/creatives", label: "Créatives", icon: "✦" },
                 { href: "/formation/sops", label: "Ressources", icon: "▤" },
                 { href: "/formation/appel", label: "Réserver un appel", icon: "☏" },
               ],

@@ -102,6 +102,9 @@ export default function ScaleXDashboard() {
               <Link href="/formation/demarrage" className="btn btn-primary btn-sm">
                 Ouvrir Démarrage
               </Link>
+              <Link href="/formation/creatives" className="btn btn-sm btn-ghost">
+                Créatives &amp; prompts
+              </Link>
               <Link href="/formation/demarrage#claude" className="text-[13px] font-medium hover:underline">
                 Bloqué ? Demande à Claude →
               </Link>

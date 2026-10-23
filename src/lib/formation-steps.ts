@@ -83,8 +83,8 @@ const SEED: Seed[] = [
   },
   {
     title: "Crée tes créatives avec l'IA",
-    detail: "3 vidéos UGC et 3 images par produit, avec les prompts donnés dans le module créatives. Pas de perfection : on teste vite et on garde ce qui marche.",
-    link: "",
+    detail: "Page Créatives : la boutique exemple, des créatives qui marchent et les prompts à copier dans Claude ou GPT. 3 vidéos UGC et 3 images par produit, avec les prompts donnés dans le module créatives. Pas de perfection : on teste vite et on garde ce qui marche.",
+    link: "/formation/creatives",
   },
   {
     title: "Installe le Pixel Meta et la Conversions API",
@@ -116,18 +116,25 @@ export function ensureCourseSteps(db: DB): boolean {
 }
 
 /**
- * Migration unique : relie l'étape « Installe les outils de travail » déjà en
- * base à la page Démarrage (guide d'installation). Renvoie vrai s'il y a eu écriture.
+ * Relie les étapes déjà en base aux pages de la plateforme quand leur lien
+ * est vide (Démarrage, Créatives). Idempotent : vrai seulement s'il y a eu
+ * une écriture.
  */
 export function ensureGuideStepLink(db: DB): boolean {
-  if (db.settings.courseStepsGuideLinkedAt) return false;
-  const step = (db.courseSteps ?? []).find((s) => /installe les outils/i.test(s.title));
-  if (step && !step.link.trim()) {
-    step.link = "/formation/demarrage";
-    step.updatedAt = new Date().toISOString();
+  const links: [RegExp, string][] = [
+    [/installe les outils/i, "/formation/demarrage"],
+    [/crée tes créatives/i, "/formation/creatives"],
+  ];
+  let changed = false;
+  for (const [re, link] of links) {
+    const step = (db.courseSteps ?? []).find((s) => re.test(s.title));
+    if (step && !step.link.trim()) {
+      step.link = link;
+      step.updatedAt = new Date().toISOString();
+      changed = true;
+    }
   }
-  db.settings.courseStepsGuideLinkedAt = new Date().toISOString();
-  return true;
+  return changed;
 }
 
 export const sortSteps = <T extends Pick<CourseStep, "order" | "createdAt">>(steps: T[]): T[] =>

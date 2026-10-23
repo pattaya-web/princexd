@@ -138,10 +138,10 @@ export interface Settings {
   studentOnboarding?: Partial<StudentOnboardingSettings>;
   /** Plateforme eleves « Scale X » : lien de reservation, WhatsApp, citation. */
   studentPortal?: Partial<StudentPortalSettings>;
+  /** Page Créatives de la plateforme eleves : boutique exemple, creatives exemples, prompts. */
+  studentCreatives?: Partial<StudentCreativesSettings>;
   /** Etapes par defaut de la marche a suivre posees une fois. */
   courseStepsSeededAt?: string;
-  /** Date a laquelle l etape « Installe les outils » a ete reliee a la page Demarrage (migration unique). */
-  courseStepsGuideLinkedAt?: string;
   /** Content OS : habitudes du jour, priorités, routine hebdo, ressources, chantiers. */
   contentOs?: Partial<ContentOsState>;
   /** Rotation des types de story par jour (0 = dimanche). */
@@ -781,6 +781,37 @@ export interface StudentTask {
   done: boolean;
   doneAt: string;
   createdAt: string;
+}
+
+/** Une creative exemple montree aux eleves (image ou video, hebergee ou lien externe). */
+export interface CreativeExample {
+  id: ID;
+  title: string;
+  kind: "image" | "video";
+  url: string;
+  /** Pourquoi elle marche, en une phrase. */
+  note: string;
+}
+
+/** Un prompt que l'eleve copie dans Claude ou GPT pour produire ses creatives. */
+export interface CreativePrompt {
+  id: ID;
+  kind: "image" | "video" | "strategie";
+  title: string;
+  /** Ou le coller (« Claude ou GPT », puis l'outil de generation). */
+  target: string;
+  text: string;
+}
+
+/** Reglages de la page Creatives (Scale X), modifiables par l'admin depuis la page. */
+export interface StudentCreativesSettings {
+  /** Boutique exemple de Mady. */
+  exampleShopUrl: string;
+  exampleShopNote: string;
+  /** La methode en quelques lignes (mise en forme legere). */
+  method: string;
+  examples: CreativeExample[];
+  prompts: CreativePrompt[];
 }
 
 /** Reglages de la plateforme eleves (Formation → Parcours). */
