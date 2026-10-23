@@ -16,7 +16,8 @@ export const DEFAULT_PORTAL: StudentPortalSettings = {
   helpText: "Tu bloques ? Demande d'abord à Claude (page Démarrage, section 07) : il règle la plupart des problèmes en direct. Mady, c'est pour les urgences et les validations : réserve ton créneau.",
   quote: "Plus vite tu lances, plus vite tu apprends. Le reste, c'est de l'optimisation.",
   quoteAuthor: "Mady",
-  welcomeVideoUrl: "",
+  /** Vidéo d'accompagnement de Mady (YouTube non répertorié), remplaçable depuis Démarrage. */
+  welcomeVideoUrl: "https://youtu.be/ZqxCDnJMZ2w",
 };
 
 /** Réglages en vigueur, avec le lien iClosed du compte en repli pour la réservation. */
@@ -28,7 +29,7 @@ export function portalSettings(settings: Pick<Settings, "studentPortal" | "sales
     helpText: (p.helpText ?? "").trim() || DEFAULT_PORTAL.helpText,
     quote: (p.quote ?? "").trim() || DEFAULT_PORTAL.quote,
     quoteAuthor: (p.quoteAuthor ?? "").trim() || DEFAULT_PORTAL.quoteAuthor,
-    welcomeVideoUrl: (p.welcomeVideoUrl ?? "").trim(),
+    welcomeVideoUrl: (p.welcomeVideoUrl ?? "").trim() || DEFAULT_PORTAL.welcomeVideoUrl,
   };
 }
 
