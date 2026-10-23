@@ -3,9 +3,9 @@ import { readDB, writeDB } from "@/lib/db";
 import { readSession, requireFormation } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { portalSettings } from "@/lib/formation-steps";
-import { welcomeMessage } from "@/lib/onboarding";
+import { onboardingSettings, welcomeMessage } from "@/lib/onboarding";
 import { escTelegram, notifyOwner } from "@/lib/telegram";
-import type { ShopRequest } from "@/lib/types";
+import type { ShopRequest, StudentPortalSettings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,12 @@ export interface DemarragePayload {
   welcome: string;
   whatsapp: string;
   bookingUrl: string;
+  /** Video d'accompagnement (YouTube ou fichier), vide si aucune. */
+  welcomeVideoUrl: string;
+  /** Liens utiles sous la video : formulaire, outils. */
+  links: { label: string; href: string; note: string }[];
+  /** Reglages complets du portail, pour que l'admin modifie la video depuis la page. Null pour un eleve. */
+  portal: StudentPortalSettings | null;
   shopRequest: ShopRequest | null;
   /** Etapes du guide cochees par l'eleve (cles section:os:index). */
   guideDone: string[];
@@ -33,6 +39,17 @@ export async function GET(req: NextRequest) {
   return handle((): DemarragePayload => {
     const { session, db, student } = studentOf(req);
     const portal = portalSettings(db.settings);
+    const ob = onboardingSettings(db.settings);
+    const links = [
+      { label: "Formulaire d'onboarding", href: ob.formUrl, note: "5 min, à faire en premier" },
+      { label: "Shopify, 1 € les premiers mois", href: ob.shopifyUrl, note: "le lien de Mady" },
+      { label: "Claude Max", href: ob.claudeUrl, note: "c'est lui qui construit ta boutique" },
+      { label: "BrandSearch, plan Starter", href: ob.brainsearchUrl, note: "recherche produit" },
+      { label: "Meta Business", href: "https://business.facebook.com", note: "compte pub + Gestionnaire" },
+      { label: "Visual Studio Code", href: "https://code.visualstudio.com", note: "gratuit" },
+      { label: "Chrome Remote Desktop", href: "https://remotedesktop.google.com/access", note: "pour que Mady prenne la main" },
+      { label: "Claude pour Chrome", href: "https://claude.ai/chrome", note: "Claude règle Shopify à ta place" },
+    ].filter((l) => l.href);
     return {
       student: student ? { id: student.id, name: student.name, firstName: student.name.trim().split(/\s+/)[0] ?? student.name } : null,
       isAdmin: session.isAdmin,
@@ -40,6 +57,9 @@ export async function GET(req: NextRequest) {
       welcome: welcomeMessage(db.settings),
       whatsapp: portal.whatsapp,
       bookingUrl: portal.bookingUrl,
+      welcomeVideoUrl: portal.welcomeVideoUrl,
+      links,
+      portal: session.isAdmin ? portal : null,
       shopRequest: student?.shopRequest ?? null,
       guideDone: student?.guideDone ?? [],
     };

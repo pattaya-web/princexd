@@ -837,6 +837,8 @@ export interface StudentPortalSettings {
   /** Citation du pied de page et sa signature. */
   quote: string;
   quoteAuthor: string;
+  /** Video d'accompagnement en haut de Demarrage : lien YouTube, ou fichier depose (/api/media/…). Vide = pas de video. */
+  welcomeVideoUrl: string;
 }
 
 export interface CallEvent {

@@ -220,6 +220,9 @@ export default function ParcoursAdminPage() {
             <Field label="Signature">
               <input className="input" value={portal.quoteAuthor} onChange={(e) => setP("quoteAuthor", e.target.value)} />
             </Field>
+            <Field label="Vidéo d'accompagnement (Démarrage)" hint="Lien YouTube non répertorié, ou fichier déposé depuis la page Démarrage. Affichée en haut de Démarrage avec les liens en dessous.">
+              <input className="input" value={portal.welcomeVideoUrl} onChange={(e) => setP("welcomeVideoUrl", e.target.value)} placeholder="https://youtu.be/…" inputMode="url" />
+            </Field>
             <div className="flex justify-end">
               <button className="btn btn-sm btn-primary" onClick={() => void savePortal()} disabled={savingPortal}>
                 {savingPortal ? "Enregistrement…" : "Enregistrer"}

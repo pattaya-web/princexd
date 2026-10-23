@@ -7,6 +7,8 @@ import { ErrorNote, Spinner, useToast } from "@/components/ui";
 import { Annex } from "@/components/formation/Annex";
 import { PortalFooter, SectionLabel, waHelpLink } from "@/components/formation/portal";
 import { GUIDE_PDF_URL, GUIDE_SECTIONS, GUIDE_SOURCES, type GuideNote, type GuideSection, type GuideStep } from "@/lib/formation-guide";
+import { youtubeEmbedUrl, youtubeId } from "@/lib/formation";
+import { DropZone, ProgressBar, uploadMany, type Progress } from "@/components/upload-ui";
 import type { DemarragePayload } from "@/app/api/formation/demarrage/route";
 
 /**
@@ -180,6 +182,10 @@ export default function DemarragePage() {
   const [storeUrl, setStoreUrl] = useState("");
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
+  const [editVideo, setEditVideo] = useState(false);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [savingVideo, setSavingVideo] = useState(false);
+  const [progress, setProgress] = useState<Progress | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -209,6 +215,32 @@ export default function DemarragePage() {
     } catch (e) {
       toast((e as Error).message, "err");
       await load();
+    }
+  };
+
+  const saveVideo = async (url: string) => {
+    if (!data?.portal) return;
+    setSavingVideo(true);
+    try {
+      await api("/api/settings", { method: "PATCH", body: JSON.stringify({ studentPortal: { ...data.portal, welcomeVideoUrl: url.trim() } }) });
+      toast(url.trim() ? "Vidéo enregistrée : les élèves la voient en haut de Démarrage." : "Vidéo retirée.");
+      setEditVideo(false);
+      await load();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setSavingVideo(false);
+    }
+  };
+
+  const dropVideo = async (files: File[]) => {
+    try {
+      const up = await uploadMany(files.slice(0, 1), setProgress);
+      if (up[0]) await saveVideo(up[0].url);
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setProgress(null);
     }
   };
 
@@ -257,10 +289,75 @@ export default function DemarragePage() {
         )}
       </header>
 
-      {/* 00 / Bienvenue : le message d'onboarding, sans prénom */}
+      {/* 00 / Bienvenue : la vidéo d'accompagnement, les liens utiles, le message d'onboarding */}
       <section className="card p-5">
-        <SectionLabel n="00" title="Bienvenue" />
-        <div className="mt-3 text-[14.5px] leading-relaxed whitespace-pre-wrap">
+        <div className="flex items-center justify-between gap-3">
+          <SectionLabel n="00" title="Bienvenue" />
+          {data.isAdmin && !data.student && (
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => { setVideoUrl(data.welcomeVideoUrl); setEditVideo((v) => !v); }}>
+              {data.welcomeVideoUrl ? "Changer la vidéo" : "Ajouter la vidéo d'accompagnement"}
+            </button>
+          )}
+        </div>
+        {editVideo && data.portal && (
+          <div className="card-flat p-3 mt-3 flex flex-col gap-2">
+            <div className="label-xs">Vidéo d&apos;accompagnement</div>
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void saveVideo(videoUrl);
+              }}
+            >
+              <input className="input flex-1" placeholder="Lien YouTube (non répertorié) ou lien d'un fichier vidéo" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} inputMode="url" />
+              <button type="submit" className="btn btn-sm btn-primary" disabled={savingVideo}>
+                {savingVideo ? "…" : "Enregistrer"}
+              </button>
+              {data.welcomeVideoUrl && (
+                <button type="button" className="btn btn-sm btn-ghost" disabled={savingVideo} onClick={() => void saveVideo("")}>
+                  Retirer
+                </button>
+              )}
+            </form>
+            <DropZone label="Ou dépose le fichier vidéo ici (MP4)" hint="Hébergé sur la plateforme. YouTube non répertorié reste plus léger pour les élèves." accept="video/*" multiple={false} onFiles={(f) => void dropVideo(f)} compact />
+            {progress && <ProgressBar p={progress} />}
+          </div>
+        )}
+        {data.welcomeVideoUrl && (
+          <div className="mt-3 rounded-lg overflow-hidden" style={{ background: "#000" }}>
+            {youtubeId(data.welcomeVideoUrl) ? (
+              <div style={{ position: "relative", paddingTop: "56.25%" }}>
+                <iframe
+                  src={youtubeEmbedUrl(youtubeId(data.welcomeVideoUrl)!)}
+                  title="Vidéo d'accompagnement"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
+                />
+              </div>
+            ) : (
+              <video src={data.welcomeVideoUrl} controls playsInline preload="metadata" className="w-full max-h-[70vh]" />
+            )}
+          </div>
+        )}
+        {!data.welcomeVideoUrl && data.isAdmin && !data.student && <p className="dim text-[12.5px] mt-3">Pas encore de vidéo : ajoute ta vidéo d&apos;accompagnement, elle s&apos;affiche ici avec les liens en dessous.</p>}
+        {data.links.length > 0 && (
+          <div className="mt-4">
+            <div className="label-xs mb-2">Les liens</div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {data.links.map((l) => (
+                <a key={l.href + l.label} href={l.href} target="_blank" rel="noreferrer" className="card-flat px-3 py-2.5 flex items-center justify-between gap-3 hover:underline">
+                  <span className="min-w-0">
+                    <span className="block text-[13.5px] font-semibold leading-snug">{l.label}</span>
+                    <span className="dim text-[12px]">{l.note}</span>
+                  </span>
+                  <span className="shrink-0 text-[13px]">↗</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="mt-4 text-[14.5px] leading-relaxed whitespace-pre-wrap">
           <Annex text={data.welcome} className="!text-[14.5px]" />
         </div>
       </section>
