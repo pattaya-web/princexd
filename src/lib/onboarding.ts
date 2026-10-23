@@ -10,7 +10,7 @@ import type { Settings, StudentOnboardingSettings } from "./types";
  *   {{formulaire}}   lien du formulaire d'onboarding
  *   {{shopify}}      lien affilié Shopify (1 €)
  *   {{claude}}       lien Claude Pro Max (affilié quand il y en aura un)
- *   {{brainsearch}}  lien BrainSearch (affilié quand il y en aura un)
+ *   {{brainsearch}}  lien BrandSearch (affilié quand il y en aura un) ; {{brandsearch}} accepté aussi
  *   {{plateforme}}   adresse de connexion à la plateforme de formation
  *   {{identifiant}}  identifiant de l'élève sur la plateforme
  *   {{motdepasse}}   mot de passe (connu seulement à sa création)
@@ -29,12 +29,12 @@ T'as pris la bonne décision, maintenant on avance. Voici les 3 choses à faire 
 C'est ce qui me permet de préparer ton accompagnement sur mesure : où tu en es, ton objectif, pourquoi tu m'as choisi. On ne démarre pas sans.
 
 2️⃣ LES OUTILS (on bosse avec dès le premier jour)
-La méthode : on trouve le produit avec BrainSearch, on construit la boutique avec Claude Code, on crée les créatives avec l'IA et on lance les pubs avec le Gestionnaire de publicités Meta.
+La méthode : on trouve le produit avec BrandSearch, on construit la boutique avec Claude Code, on crée les créatives avec l'IA et on lance les pubs avec le Gestionnaire de publicités Meta.
 
 • Shopify, 1 € les premiers mois avec mon lien 👉 {{shopify}}
 • Claude Pro Max (90 €/mois), c'est lui qui construit ta boutique 👉 {{claude}}
 • Visual Studio Code (gratuit), c'est là que tourne Claude Code 👉 https://code.visualstudio.com
-• BrainSearch, plan Starter (63 $/mois), pour trouver les produits 👉 {{brainsearch}}
+• BrandSearch, plan Starter (63 $/mois), pour trouver les produits 👉 {{brainsearch}}
 • Un compte Meta Business + Gestionnaire de publicités (gratuit) 👉 https://business.facebook.com
 • Chrome Remote Desktop (gratuit), pour que je prenne la main sur ton écran quand tu bloques 👉 https://remotedesktop.google.com/access
 
@@ -55,7 +55,7 @@ export const DEFAULT_ONBOARDING: StudentOnboardingSettings = {
   formUrl: "",
   shopifyUrl: SHOPIFY_AFFILIATE,
   claudeUrl: "https://claude.ai/upgrade",
-  brainsearchUrl: "https://brainsearch.co",
+  brainsearchUrl: "https://brandsearch.co",
   message: DEFAULT_ONBOARDING_MESSAGE,
 };
 
@@ -66,8 +66,9 @@ export function onboardingSettings(settings: Pick<Settings, "studentOnboarding">
     formUrl: (s.formUrl ?? "").trim(),
     shopifyUrl: (s.shopifyUrl ?? "").trim() || DEFAULT_ONBOARDING.shopifyUrl,
     claudeUrl: (s.claudeUrl ?? "").trim() || DEFAULT_ONBOARDING.claudeUrl,
-    brainsearchUrl: (s.brainsearchUrl ?? "").trim() || DEFAULT_ONBOARDING.brainsearchUrl,
-    message: (s.message ?? "").trim() ? s.message! : DEFAULT_ONBOARDING_MESSAGE,
+    // L'outil s'appelle BrandSearch (brandsearch.co) : l'ancienne adresse enregistrée est corrigée à la lecture.
+    brainsearchUrl: ((s.brainsearchUrl ?? "").trim() || DEFAULT_ONBOARDING.brainsearchUrl).replace(/brainsearch\.co/i, "brandsearch.co"),
+    message: ((s.message ?? "").trim() ? s.message! : DEFAULT_ONBOARDING_MESSAGE).replace(/BrainSearch/g, "BrandSearch"),
   };
 }
 
@@ -90,6 +91,7 @@ export function renderOnboarding(cfg: StudentOnboardingSettings, ctx: Onboarding
     rep("shopify", cfg.shopifyUrl),
     rep("claude", cfg.claudeUrl),
     rep("brainsearch", cfg.brainsearchUrl),
+    rep("brandsearch", cfg.brainsearchUrl),
     rep("plateforme", `${ctx.baseUrl.replace(/\/$/, "")}/login`),
     rep("identifiant", ctx.username || "(je te l'envoie juste après)"),
     rep("motdepasse", ctx.password || (ctx.username ? "(celui que je t'ai envoyé)" : "(je te l'envoie juste après)")),
@@ -124,7 +126,7 @@ export const ONBOARDING_TAGS: { tag: string; label: string }[] = [
   { tag: "{{formulaire}}", label: "formulaire d'onboarding" },
   { tag: "{{shopify}}", label: "lien Shopify affilié" },
   { tag: "{{claude}}", label: "lien Claude Pro Max" },
-  { tag: "{{brainsearch}}", label: "lien BrainSearch" },
+  { tag: "{{brainsearch}}", label: "lien BrandSearch" },
   { tag: "{{plateforme}}", label: "page de connexion" },
   { tag: "{{identifiant}}", label: "identifiant plateforme" },
   { tag: "{{motdepasse}}", label: "mot de passe plateforme" },

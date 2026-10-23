@@ -18,6 +18,8 @@ export interface DemarragePayload {
   whatsapp: string;
   bookingUrl: string;
   shopRequest: ShopRequest | null;
+  /** Etapes du guide cochees par l'eleve (cles section:os:index). */
+  guideDone: string[];
 }
 
 function studentOf(req: NextRequest) {
@@ -39,7 +41,27 @@ export async function GET(req: NextRequest) {
       whatsapp: portal.whatsapp,
       bookingUrl: portal.bookingUrl,
       shopRequest: student?.shopRequest ?? null,
+      guideDone: student?.guideDone ?? [],
     };
+  });
+}
+
+/** L'élève coche (ou décoche) une étape du guide. */
+export async function PATCH(req: NextRequest) {
+  return handle(async (): Promise<{ preview: boolean; guideDone: string[] }> => {
+    const { session, db, student } = studentOf(req);
+    const body = (await req.json().catch(() => ({}))) as { key?: string; done?: boolean };
+    const key = (body.key ?? "").trim().slice(0, 80);
+    if (!/^[a-z0-9-]+:[a-z]*:\d+$/i.test(key)) throw new Error("Étape inconnue.");
+    if (!student) {
+      if (session.isAdmin) return { preview: true, guideDone: [] };
+      throw new Error("Élève introuvable.");
+    }
+    if (session.impersonated) return { preview: true, guideDone: student.guideDone ?? [] };
+    const cur = student.guideDone ?? [];
+    student.guideDone = body.done ? (cur.includes(key) ? cur : [...cur, key]) : cur.filter((k) => k !== key);
+    writeDB(db);
+    return { preview: false, guideDone: student.guideDone };
   });
 }
 

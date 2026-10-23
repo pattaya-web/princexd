@@ -5,7 +5,7 @@ import { api } from "@/lib/client";
 import { Empty, ErrorNote, Spinner } from "@/components/ui";
 import type { CourseResourcesPayload } from "@/app/api/formation/resources/route";
 
-/** Ressources (Scale X) : les PDF de la formation, à ouvrir ou télécharger. */
+/** Ressources (Scale X) : les PDF complémentaires, à ouvrir ou télécharger. */
 
 function fmtSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} Ko`;
@@ -36,7 +36,7 @@ export default function RessourcesElevePage() {
           <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight" style={{ letterSpacing: "-0.03em" }}>
             Ressources
           </h1>
-          <p className="muted text-[14px] mt-1">Les PDF de la formation : procédures, checklists, modèles. Ouvre-les quand une étape le demande.</p>
+          <p className="muted text-[14px] mt-1">Les PDF complémentaires : procédures, checklists, modèles. Ouvre-les quand une étape le demande.</p>
         </div>
         <div className="flex items-center gap-2">
           {data.resources.length > 4 && <input className="input !h-[34px] w-[220px] max-w-full text-[13px]" placeholder="Rechercher…" value={query} onChange={(e) => setQuery(e.target.value)} />}

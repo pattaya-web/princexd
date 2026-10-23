@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Scale X · Le trafic organique avec des comptes 100 % IA</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #141a1f; font-size: 11pt; line-height: 1.5; }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 0; }
+  p { margin: 0 0 8pt; }
+  a { color: #0b63c4; }
+  .kicker { font-family: "Segoe UI", Arial, sans-serif; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #0b63c4; font-weight: 700; margin: 0 0 6pt; }
+
+  /* Couverture */
+  .cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .brand { font-weight: 800; font-size: 13pt; letter-spacing: 0.04em; margin-bottom: 40pt; }
+  .cover .brand span { color: #0b63c4; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 0 0 14pt; }
+  .cover .sub { font-size: 14pt; color: #4a5560; font-family: Georgia, serif; margin-bottom: 28pt; }
+  .cover .meta { font-size: 10pt; color: #4a5560; margin-top: 24pt; }
+  .cover ul { margin: 0; padding-left: 18pt; }
+  .cover li { margin: 3pt 0; }
+  .cover .foot { margin-top: auto; font-size: 9pt; color: #7a858f; border-top: 1px solid #e3e7ea; padding-top: 10pt; }
+
+  /* Chapitres */
+  .chapter { page-break-before: always; }
+  .chapter.first { page-break-before: auto; }
+  h2 { font-size: 22pt; margin: 0 0 6pt; line-height: 1.15; }
+  h2 .num { display: inline-block; color: #0b63c4; margin-right: 8pt; font-size: 16pt; vertical-align: 6pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; }
+  .lead { font-size: 12pt; color: #4a5560; margin: 0 0 14pt; }
+  h3 { font-size: 15pt; margin: 18pt 0 6pt; }
+  h4 { font-size: 12pt; margin: 0 0 3pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  strong { font-weight: 700; }
+
+  /* Encadrés */
+  .note { border-left: 3px solid #0b63c4; background: #eef4fb; padding: 8pt 11pt; margin: 10pt 0; border-radius: 3px; page-break-inside: avoid; }
+  .note b { display: block; color: #0b63c4; margin-bottom: 2pt; }
+  .note.ok { border-color: #178a4c; background: #ecf7f0; } .note.ok b { color: #178a4c; }
+  .note.warn { border-color: #d98a0e; background: #fff6e8; } .note.warn b { color: #b86f00; }
+  .note.danger { border-color: #c9302c; background: #fdeeee; } .note.danger b { color: #c9302c; }
+  .claude { border: 1px solid #c9c3f5; background: #f4f2ff; padding: 8pt 11pt; margin: 10pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .claude b { display: block; color: #5b5ce6; margin-bottom: 2pt; }
+  .done { border: 1px solid #b7e0c5; background: #ecf7f0; padding: 8pt 11pt; margin: 12pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .done b { display: block; color: #178a4c; margin-bottom: 2pt; }
+
+  /* Étapes */
+  .step { display: flex; gap: 10pt; margin: 10pt 0; page-break-inside: avoid; }
+  .step .n { flex: 0 0 24pt; height: 24pt; border-radius: 5px; background: #0b63c4; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 11pt; }
+  .step .body { flex: 1; min-width: 0; }
+
+  /* Code et prompts */
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 9.5pt; line-height: 1.45; margin: 6pt 0 10pt; padding: 8pt 10pt; border-radius: 4px; page-break-inside: avoid; }
+  pre.cmd { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; border: 1px solid #e1e5e9; }
+  pre.prompt { font-family: "Segoe UI", Arial, sans-serif; background: #fbf7ec; border: 1px solid #ecdfbd; font-size: 10pt; }
+  pre.prompt::before { content: "PROMPT À COPIER"; display: block; font-size: 7.5pt; letter-spacing: 0.16em; color: #9a7b2c; font-weight: 700; margin-bottom: 4pt; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; padding: 0 3pt; border-radius: 3px; font-size: 9.5pt; }
+
+  /* Checklist et tableaux */
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { padding-left: 20pt; position: relative; margin: 4pt 0; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; top: -1pt; font-size: 12pt; color: #0b63c4; }
+  table.t { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+  table.t th, table.t td { border: 1px solid #dfe3e7; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  table.t th { background: #f3f5f7; font-weight: 700; }
+  .cols { display: flex; gap: 14pt; } .cols > div { flex: 1; min-width: 0; }
+  hr { border: 0; border-top: 1px solid #e3e7ea; margin: 14pt 0; }
+  .muted { color: #6b7680; }
+  .small { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="brand">SCALE <span>X</span> · EDUCATION</div>
+  <p class="kicker">Guide 11 · Bonus · Organique</p>
+  <h1>Le trafic organique avec des comptes 100 % IA</h1>
+  <p class="sub">Un personnage qui n'existe pas, deux vidéos par jour, zéro euro de pub. Des dizaines de milliers de vues, et le produit qui arrive à la vidéo 10.</p>
+  <p class="kicker">À la fin de ce guide, tu sauras</p>
+  <ul>
+    <li>Créer un personnage IA cohérent avec GPT Image 2, l'animer avec Seedance 2.5 et le garder identique de vidéo en vidéo avec Higgsfield Genjutsu.</li>
+    <li>Tenir une cadence de 2 à 3 vidéos par jour sur TikTok, Instagram et YouTube Shorts, avec des hooks qui prennent dans ta niche.</li>
+    <li>Amener le produit sans casser la confiance, mesurer ce qui marche et décliner les vidéos qui décollent.</li>
+  </ul>
+  <p class="meta">Temps de lecture : 40 min · Temps de mise en pratique : 1 h pour le personnage, puis 30 à 45 min par jour</p>
+  <div class="foot">Scale X · Accompagnement e-commerce + IA · Mady · Version octobre 2026. Bloqué ? Demande d'abord à Claude. Mady, c'est pour les urgences.</div>
+</header>
+
+<section class="chapter first">
+  <h2><span class="num">01</span>Pourquoi des comptes 100 % IA</h2>
+  <p class="lead">Meta Ads coûte 50 € par jour. L'organique coûte du temps et des crédits de génération. Pour un budget serré, ou en parallèle des pubs, c'est le deuxième moteur de trafic.</p>
+
+  <h3>Ce que ça donne chez Mady</h3>
+  <table class="t">
+    <tr><th>Compte</th><th>Personnage</th><th>Résultat</th></tr>
+    <tr><td>Influenceuse IA</td><td>Jeune femme, lifestyle, produit beauté</td><td>30 000 à 68 000 vues par vidéo</td></tr>
+    <tr><td>Persona « sage »</td><td>Homme âgé, remèdes et conseils de vie</td><td>jusqu'à 99 600 vues</td></tr>
+    <tr><td>Experte capillaire</td><td>Coiffeuse de 68 ans dans son salon</td><td>jusqu'à 348 000 vues</td></tr>
+  </table>
+  <p><strong>Aucune de ces personnes n'existe.</strong> Seedance 2.5 pour la vidéo, Higgsfield Genjutsu pour la cohérence du visage. Zéro euro de pub. Le trafic va vers la boutique par le lien en bio, et le produit n'apparaît qu'après une dizaine de vidéos.</p>
+
+  <h3>Pourquoi ça marche</h3>
+  <ul>
+    <li><strong>L'algorithme ne sait pas que c'est de l'IA.</strong> Il mesure la rétention et les commentaires. Si les gens restent 15 secondes et répondent, la vidéo est poussée.</li>
+    <li><strong>Un personnage attache.</strong> Le public revient pour la coiffeuse, pas pour le shampoing. Une page de marque qui poste des pubs ne crée aucun lien.</li>
+    <li><strong>Le volume est possible.</strong> Un humain filme 2 vidéos par semaine. Un personnage IA en sort 3 par jour. Et l'organique, c'est un jeu de volume.</li>
+    <li><strong>Ça se duplique.</strong> Un personnage qui marche sur TikTok marche sur Instagram et YouTube Shorts avec les mêmes vidéos.</li>
+  </ul>
+
+  <h3>Ce que ce n'est pas</h3>
+  <div class="note warn"><b>Pas un raccourci</b>Les 10 premières vidéos font 200 vues. C'est normal. Le compte décolle entre la vidéo 15 et la vidéo 40, quand un hook prend. Si tu arrêtes à 8 vidéos, tu n'as rien testé. Le minimum pour juger : 30 vidéos.</div>
+  <p>Ce n'est pas non plus un remplaçant de Meta Ads quand tu as le budget. Les deux ensemble : les pubs pour la vitesse, l'organique pour le volume gratuit et la preuve sociale (les commentaires sous tes vidéos rassurent les gens qui viennent de la pub).</p>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as choisi : organique seul (budget pub serré) ou organique en parallèle de Meta Ads. Et tu as accepté les 30 vidéos minimum.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">02</span>La recette en 4 points</h2>
+  <p class="lead">Quatre règles, pas une de plus. Chaque compte qui a marché les respecte toutes. Chaque compte qui a raté en a cassé une.</p>
+
+  <div class="step"><div class="n">1</div><div class="body"><h4>Un personnage, un seul</h4><p>Un visage, un âge, un style, un décor. Le public s'attache à une personne. Un compte qui change de visage toutes les trois vidéos n'a pas de public, il a des vues isolées. Tu choisis le personnage une fois et tu le gardes 6 mois.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Une niche, un angle</h4><p>Remèdes de grand-mère, cheveux après 50 ans, voyage en van, sommeil, douleurs de dos. Le personnage incarne ta niche : la coiffeuse parle cheveux, le sage parle santé naturelle. Il ne parle jamais d'autre chose. Ton produit doit être évident dans cette niche (une coiffeuse vend un soin capillaire, pas un coussin).</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Cohérence : Genjutsu</h4><p>Même visage d'une vidéo à l'autre. Seedance 2.5 anime chaque scène à partir de l'image du personnage. Higgsfield Genjutsu (vidéo vers vidéo) garde le visage, la tenue et la voix quand tu veux décliner une vraie prise. Sans cohérence, le public ne reconnaît pas « sa » coiffeuse.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Volume : 2 à 3 vidéos par jour</h4><p>Hook en 2 secondes, 15 à 30 secondes, sous-titres. Le produit arrive à la vidéo 10, pas avant. Les 9 premières donnent de la valeur : conseils, erreurs à éviter, « ce que personne ne vous dit ». Le compte doit avoir un public avant d'avoir quelque chose à vendre.</p></div></div>
+
+  <h3>Choisir ta niche et ton personnage</h3>
+  <table class="t">
+    <tr><th>Produit</th><th>Niche du compte</th><th>Personnage qui marche</th></tr>
+    <tr><td>Soin capillaire, brosse, sérum</td><td>Cheveux après 40 / 50 ans</td><td>Coiffeuse expérimentée dans son salon</td></tr>
+    <tr><td>Complément, tisane, patch</td><td>Remèdes naturels, bien-être</td><td>« Sage » ou grand-mère, cuisine ou jardin</td></tr>
+    <tr><td>Accessoire sport, fitness</td><td>Remise en forme après 30 ans</td><td>Coach de 35 ans, salle de sport ou parc</td></tr>
+    <tr><td>Gadget maison, cuisine</td><td>Astuces maison, organisation</td><td>Mère de famille ou homme bricoleur, cuisine réelle</td></tr>
+    <tr><td>Bijou, mode</td><td>Style au quotidien, « outfit du jour »</td><td>Femme de 25 à 35 ans, chambre lumineuse, miroir</td></tr>
+    <tr><td>Produit bébé</td><td>Jeune parent, nuits, routines</td><td>Jeune mère ou père, salon, canapé</td></tr>
+  </table>
+  <div class="note ok"><b>Le test du personnage</b>Avant de générer : écris en une phrase « [Prénom], [âge] ans, [métier ou rôle], parle de [niche] depuis [décor] ». Si tu n'arrives pas à écrire cette phrase, ton personnage est flou et tes vidéos le seront aussi.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Ta phrase de personnage est écrite, ta niche est choisie et ton produit y est évident.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">03</span>Créer le personnage avec GPT Image 2</h2>
+  <p class="lead">Une seule image de référence, très précise, générée une fois. Tout le reste part d'elle.</p>
+
+  <h3>Le prompt de Mady (experte capillaire)</h3>
+  <pre class="prompt">Realistic phone photo of a 68-year-old woman with long silver hair, red rectangular glasses, pink blouse and pink apron, warm smile, in a small hair salon with wooden ceiling, amber bottles on shelves, pendant bulbs. Front camera, natural light, slight grain, 9:16.</pre>
+  <p>Regarde ce que le prompt fixe : l'âge précis, la coiffure, un accessoire reconnaissable (les lunettes rouges), la tenue (blouse et tablier roses), le décor avec des détails (plafond bois, bouteilles ambrées, ampoules suspendues), le rendu (photo de téléphone, caméra frontale, lumière naturelle, léger grain), le format 9:16. Chaque détail est une ancre que tu réutiliseras.</p>
+
+  <h3>Le gabarit à adapter à ta niche</h3>
+  <pre class="prompt">Realistic phone photo of a [ÂGE]-year-old [woman/man] with [COIFFURE PRÉCISE : couleur, longueur], [ACCESSOIRE RECONNAISSABLE : lunettes, bijou, casquette], wearing [TENUE : 2 pièces, couleurs], [EXPRESSION : warm smile / calm serious look], in [DÉCOR PRÉCIS : lieu + 3 détails visibles]. Front camera, natural [window/indoor] light, slight grain, no makeup retouching, realistic skin texture, 9:16.</pre>
+
+  <h3>La procédure</h3>
+  <ol>
+    <li>Ouvre Higgsfield (modèle GPT Image 2) ou le Studio IA de la plateforme, onglet Image, modèle GPT Image 2.</li>
+    <li>Colle le prompt, ratio 9:16. Génère 4 variantes.</li>
+    <li>Choisis celle dont le visage est le plus « normal » : pas trop beau, pas trop lisse. Les visages crédibles font plus de vues que les visages parfaits.</li>
+    <li>Génère ensuite 3 autres vues du MÊME personnage en mettant cette image en référence : profil, en pied, en train de parler. Prompt : <code>Same person as the reference image, identical face, glasses, hair and outfit. [nouvelle pose]. Same salon, same light, 9:16.</code></li>
+    <li>Range les 4 images dans un dossier « PERSONNAGE ». C'est ta banque de références pour Genjutsu (jusqu'à 30 images de référence acceptées).</li>
+  </ol>
+  <div class="note warn"><b>Les pièges</b>Un visage de célébrité (refusé par les modèles et par les plateformes). Des mains visibles dans l'image de référence (souvent ratées, elles se propagent). Un décor trop vide (rien à reconnaître). Un texte dans l'image (illisible, à proscrire).</div>
+
+  <div class="claude"><b>Demande à Claude</b>« Voici ma niche : [X], mon produit : [Y], ma cible : [Z]. Propose-moi 3 personnages différents (âge, métier, décor, accessoire reconnaissable) qui seraient crédibles pour parler de cette niche, et écris pour chacun le prompt GPT Image 2 en anglais sur le gabarit suivant : [colle le gabarit]. »</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as 4 images cohérentes de ton personnage dans un dossier, et tu peux le décrire en une phrase.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">04</span>La vidéo avec Seedance 2.5</h2>
+  <p class="lead">Seedance anime ton image en gardant le personnage identique, avec un mouvement de caméra et un lip sync propres. Une vidéo = une image de départ + un prompt + une ligne de dialogue.</p>
+
+  <h3>Le prompt de Mady (vidéo 1, la coiffeuse)</h3>
+  <pre class="prompt">Keep the character identical to the reference. She holds a glass bowl of coffee grounds toward the camera, speaks directly to the lens with lively hand gestures, then points at her own hair. Static phone camera, salon light, lip sync, natural blinking, 10 seconds, 9:16.</pre>
+
+  <h3>La déclinaison (même personnage, nouveau décor)</h3>
+  <pre class="prompt">Keep the character identical to the reference. New scene: she stands in a supermarket aisle holding two white shampoo bottles, looks skeptical then shakes her head at the camera. Handheld phone camera, store fluorescent light, 8 seconds, 9:16.</pre>
+
+  <h3>Le gabarit vidéo</h3>
+  <pre class="prompt">Keep the character identical to the reference (face, glasses, hair, outfit). [SCÈNE : où elle est, ce qu'elle tient]. She [ACTION 1 : geste vers la caméra], speaks directly to the lens with [natural / lively] hand gestures, then [ACTION 2 : montre, pointe, applique]. [CAMÉRA : static phone camera / handheld phone camera, slight shake], [LUMIÈRE du lieu], lip sync, natural blinking, [8-10] seconds, 9:16.</pre>
+
+  <h3>Les règles d'un bon prompt vidéo</h3>
+  <ul>
+    <li><strong>Une scène par clip.</strong> Pas de changement de lieu dans le même prompt. Un clip = un lieu, une action, 8 à 10 secondes.</li>
+    <li><strong>Deux actions maximum.</strong> « Elle montre le bol, puis pointe ses cheveux. » Trois actions, le modèle en rate une.</li>
+    <li><strong>Toujours « keep the character identical to the reference ».</strong> C'est la phrase qui tient le personnage.</li>
+    <li><strong>Caméra de téléphone.</strong> « Static phone camera » ou « handheld phone camera ». Pas de « cinematic drone shot » : ça sent la pub.</li>
+    <li><strong>Lip sync + dialogue.</strong> Dans le Studio IA ou Higgsfield, tu colles la ligne de dialogue en français dans le champ prévu. 20 à 25 mots pour 10 secondes.</li>
+  </ul>
+
+  <h3>Assembler une vidéo de 20 à 30 secondes</h3>
+  <ol>
+    <li>Clip 1 (hook, 8 s) : gros plan, le personnage parle à la caméra, première phrase choc.</li>
+    <li>Clip 2 (contenu, 10 s) : le conseil ou l'erreur, avec un geste qui montre.</li>
+    <li>Clip 3 (chute, 8 s) : la conclusion et l'appel : « commente OUI si tu veux la suite ».</li>
+    <li>Montage sur CapCut (gratuit, téléphone) : les 3 clips bout à bout, sous-titres automatiques en gros, un son tendance bas en fond, export 1080×1920.</li>
+  </ol>
+  <div class="note"><b>Texte à l'écran et voix</b>Le texte à l'écran (sous-titres) et la voix finale se posent au montage. Si le lip sync Seedance n'est pas propre, tu gardes la vidéo muette avec sous-titres et une voix off générée (ElevenLabs ou la voix de CapCut). Beaucoup de comptes qui marchent sont en voix off.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as produit ta première vidéo de 20 à 30 secondes, 3 clips, sous-titrée, avec ton personnage identique sur les 3.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">05</span>Où générer : Higgsfield ou le Studio IA</h2>
+  <p class="lead">Deux options. La première pour commencer sans rien installer, la deuxième dès que tu produis en volume.</p>
+
+  <table class="t">
+    <tr><th></th><th>Option 1 · Higgsfield</th><th>Option 2 · Studio IA de la plateforme (clé KIE)</th></tr>
+    <tr><td>Pour qui</td><td>Pour commencer, les 30 premières vidéos</td><td>Dès 50 vidéos par mois</td></tr>
+    <tr><td>Ce que c'est</td><td>Plateforme tout-en-un : GPT Image 2, Seedance, Genjutsu au même endroit, zéro installation</td><td>Les mêmes modèles via l'API KIE, dans ton Studio IA personnel (Scale X → Studio IA), génération en lot</td></tr>
+    <tr><td>Coût</td><td>Abonnement mensuel, plus cher par vidéo</td><td>Prix API : quelques centimes l'image, moins d'un euro le clip Seedance. Tu recharges tes crédits KIE.</td></tr>
+    <tr><td>Genjutsu</td><td>Oui (vidéo vers vidéo)</td><td>Non pour l'instant : image et vidéo seulement</td></tr>
+    <tr><td>Ouverture</td><td>Tout de suite</td><td>Mady t'ouvre l'accès ; tu colles ta clé KIE dans Scale X → Studio IA</td></tr>
+  </table>
+
+  <h3>Le flux dans le Studio IA</h3>
+  <ol>
+    <li>Onglet Image → GPT Image 2 → importe l'image de ton personnage en référence → prompt de la nouvelle scène → 9:16 → génère.</li>
+    <li>Résultat dans la galerie → bouton « réutiliser » → l'image part dans l'onglet Vidéo comme image de départ.</li>
+    <li>Onglet Vidéo → Seedance 2.5 → prompt vidéo + dialogue → 8 à 10 s → génère. 1 à 3 minutes.</li>
+    <li>Télécharge, range dans le dossier du jour (ex. 2026-10-23-video-07).</li>
+  </ol>
+  <p>C'est ce que Mady utilise : 20 clips d'un coup, le soir, pour la semaine. Avec le Studio IA, tu lances les 20 et tu reviens.</p>
+  <div class="note warn"><b>Budget crédits</b>Compte environ 1 € par vidéo finale (1 image + 3 clips) dans le Studio IA, 2 à 4 € sur Higgsfield. 3 vidéos par jour = 30 à 90 € par mois en option 1, 60 à 90 € en option 2 pour 60 à 90 vidéos. C'est le prix d'une journée de Meta Ads.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Ton outil est choisi, ton compte est créé et crédité, et tu as généré une image puis une vidéo dedans.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">06</span>Les hooks qui marchent, et le calendrier</h2>
+  <p class="lead">Le hook, c'est les 2 premières secondes : une phrase dite à la caméra et écrite en gros à l'écran. Si elle ne retient pas, le reste n'existe pas.</p>
+
+  <h3>10 hooks qui prennent (à adapter à ta niche)</h3>
+  <ol>
+    <li>« Arrête de [geste courant de la niche]. Je t'explique pourquoi. » (ex. « Arrête de te laver les cheveux tous les jours. »)</li>
+    <li>« Ce que [profession] ne te dira jamais sur [sujet]. »</li>
+    <li>« J'ai [âge] ans et [résultat visible]. Voilà ce que je fais. »</li>
+    <li>« Si tu as [symptôme ou situation], regarde jusqu'à la fin. »</li>
+    <li>« 3 erreurs que tout le monde fait avec [sujet]. La deuxième, tu la fais. »</li>
+    <li>« On m'a demandé 200 fois comment [résultat]. Voilà. »</li>
+    <li>« Le produit à 3 € du supermarché contre [solution]. » (comparaison)</li>
+    <li>« Ma mère faisait ça. J'ai compris pourquoi à 60 ans. »</li>
+    <li>« Tu veux [résultat] en 30 jours ? Pas de miracle, une routine. »</li>
+    <li>« Je vais me faire détester par [industrie], mais… »</li>
+  </ol>
+  <p>Règle : le hook parle au spectateur (« tu »), nomme sa situation, promet quelque chose dans la vidéo. Il ne nomme jamais le produit avant la vidéo 10.</p>
+
+  <h3>Le calendrier de publication</h3>
+  <table class="t">
+    <tr><th>Plateforme</th><th>Fréquence</th><th>Heures (France)</th><th>Particularités</th></tr>
+    <tr><td>TikTok</td><td>2 à 3 par jour</td><td>7 h, 12 h, 19 h</td><td>Hashtags : 3 à 5, niche + large (#cheveux #coiffure #astucebeaute). Légende courte avec une question.</td></tr>
+    <tr><td>Instagram Reels</td><td>1 à 2 par jour</td><td>12 h, 20 h</td><td>Mêmes vidéos. Légende plus longue, 5 hashtags. Réponds aux commentaires dans l'heure.</td></tr>
+    <tr><td>YouTube Shorts</td><td>1 par jour</td><td>17 h</td><td>Mêmes vidéos. Titre = le hook. Le Shorts vit plus longtemps : les vues arrivent sur 2 semaines.</td></tr>
+  </table>
+  <ul>
+    <li><strong>Une vidéo, trois plateformes.</strong> Tu ne produis pas trois fois. Enlève le filigrane TikTok (exporte depuis CapCut, pas depuis TikTok).</li>
+    <li><strong>Légende</strong> : une phrase qui complète le hook + une question pour faire commenter. Pas de lien dans la légende (TikTok n'en veut pas), le lien est en bio.</li>
+    <li><strong>Réponds à tout</strong> pendant la première heure : chaque réponse est un signal. Réponds en vidéo aux meilleures questions (c'est ta vidéo du lendemain).</li>
+    <li><strong>Programme</strong> : TikTok Studio, Meta Business Suite et YouTube Studio permettent de programmer la semaine le dimanche soir.</li>
+  </ul>
+
+  <h3>Les 10 premières vidéos : que de la valeur</h3>
+  <table class="t">
+    <tr><th>Vidéo</th><th>Type</th><th>Exemple (niche cheveux)</th></tr>
+    <tr><td>1 à 3</td><td>Erreur courante</td><td>« L'erreur que tu fais sous la douche »</td></tr>
+    <tr><td>4 à 6</td><td>Conseil concret</td><td>« La bonne température de l'eau, et pourquoi »</td></tr>
+    <tr><td>7 à 9</td><td>Histoire / avant-après personnel</td><td>« Mes cheveux à 60 ans vs aujourd'hui »</td></tr>
+    <tr><td>10</td><td>Première mention du produit</td><td>« Ce que j'utilise depuis 2 ans, lien en bio »</td></tr>
+  </table>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as 10 hooks écrits pour ta niche, un calendrier de 7 jours programmé, et le lien en bio pointe vers ta boutique.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">07</span>Amener le produit sans casser la confiance</h2>
+  <p class="lead">Le public t'a suivi pour les conseils. Le produit doit arriver comme un conseil de plus, pas comme une pub.</p>
+
+  <h3>Le rythme</h3>
+  <ul>
+    <li><strong>Vidéos 1 à 9</strong> : zéro produit. Même pas en arrière-plan.</li>
+    <li><strong>Vidéo 10</strong> : le produit en passant. « Depuis que j'utilise ça [montre], je… » Pas de prix, pas de lien dit à voix haute. Lien en bio.</li>
+    <li><strong>Ensuite, 1 vidéo sur 4</strong> parle du produit. Les 3 autres restent de la valeur.</li>
+    <li><strong>Jamais de vidéo 100 % vente</strong> (« achète maintenant »). Le produit est toujours dans une histoire ou un conseil.</li>
+  </ul>
+
+  <h3>Les formats qui vendent en organique</h3>
+  <ol>
+    <li><strong>La routine</strong> : « Ma routine du soir en 30 s », le produit est une des 4 étapes.</li>
+    <li><strong>La réponse à un commentaire</strong> : « Vous m'avez demandé ce que j'utilise : c'est ça. »</li>
+    <li><strong>La comparaison</strong> : « Le produit du supermarché vs celui-là. »</li>
+    <li><strong>L'avant / après</strong> : 30 jours de routine, résultat montré, sans promesse chiffrée.</li>
+    <li><strong>L'unboxing</strong> : « Ma commande est arrivée » (prompt Seedance : mains qui ouvrent un colis, produit identique à la référence).</li>
+  </ol>
+
+  <h3>Le lien en bio et le code promo</h3>
+  <ul>
+    <li>Lien en bio direct vers la page produit (pas la page d'accueil). Ajoute <code>?utm_source=tiktok&amp;utm_medium=organic</code> à la fin pour voir dans Shopify d'où viennent les ventes.</li>
+    <li>Code promo au nom du personnage (ex. <code>MARTINE10</code>) : il mesure les ventes qui viennent du compte, et il donne une raison d'acheter maintenant.</li>
+    <li>Dans la bio : une phrase de la niche + « mon produit préféré ici ↓ ». Pas « boutique officielle ».</li>
+  </ul>
+
+  <div class="note danger"><b>Ce qu'on ne fait pas</b>Pas de promesse de santé (« guérit », « soigne », « fait repousser »). Pas de faux avant / après avec le produit. Pas de « 90 % des femmes… » inventé. Pas de visage de vraie personne sans son accord. Ça fait fermer le compte, et ça peut coûter bien plus.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Ta vidéo 10 est publiée, ton lien en bio pointe sur la page produit avec les UTM, ton code promo existe dans Shopify.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">08</span>Mesurer, décliner, et les règles des plateformes</h2>
+  <p class="lead">Trois chiffres par vidéo, un geste quand une vidéo prend, et les règles qui évitent de tout perdre.</p>
+
+  <h3>Les trois chiffres</h3>
+  <table class="t">
+    <tr><th>Chiffre</th><th>Où</th><th>Bon</th><th>Lecture</th></tr>
+    <tr><td>Vues à 48 h</td><td>TikTok Studio / Insights</td><td>&gt; 3 000 après 20 vidéos</td><td>Le hook et le sujet intéressent</td></tr>
+    <tr><td>Rétention (durée de visionnage moyenne / durée)</td><td>Analyses de la vidéo</td><td>&gt; 50 %</td><td>La vidéo tient. Sous 30 % : le hook promet quelque chose que la vidéo ne donne pas vite.</td></tr>
+    <tr><td>Commentaires pour 1 000 vues</td><td>Analyses</td><td>&gt; 5</td><td>Le sujet fait réagir. C'est le meilleur signal de niche.</td></tr>
+  </table>
+
+  <h3>Quand une vidéo prend</h3>
+  <p>Une vidéo fait 5 fois les vues habituelles ? Tu ne repars pas de zéro. Tu <strong>déclines le hook</strong> :</p>
+  <ol>
+    <li>Même hook, mot pour mot, nouvelle scène (prompt Seedance avec un autre décor).</li>
+    <li>Même hook, suite : « Partie 2 », « la deuxième erreur ».</li>
+    <li>Même sujet, hook inversé (question → affirmation).</li>
+    <li>Réponse en vidéo aux 3 commentaires les plus likés.</li>
+    <li>La version produit : même hook, le produit en réponse à la vidéo 10+.</li>
+  </ol>
+  <p>Cinq vidéos en deux jours sur ce qui marche. C'est comme ça qu'un compte passe de 300 à 30 000 vues.</p>
+
+  <h3>Les règles des plateformes</h3>
+  <ul>
+    <li><strong>Mention du contenu IA</strong> : TikTok, Instagram et YouTube demandent de signaler les contenus générés ou modifiés par IA réalistes. Coche l'option « contenu généré par IA » à la publication. Ça n'empêche pas la diffusion ; ne pas le faire peut faire supprimer la vidéo.</li>
+    <li><strong>Pas d'usurpation</strong> : le personnage n'est pas une vraie personne, ne porte pas le nom d'une vraie personne, ne prétend pas avoir un diplôme qu'il n'a pas (« coiffeuse » oui, « dermatologue » non).</li>
+    <li><strong>Pas de promesses santé</strong> : ni dans la vidéo, ni dans la légende, ni dans les commentaires. « J'ai constaté », « chez moi », « ma routine ». Jamais « ça guérit ».</li>
+    <li><strong>Un compte par personnage</strong>, un téléphone ou un navigateur par compte, pas 10 comptes créés en une heure depuis la même IP (shadowban).</li>
+    <li><strong>Pas de lien dans les commentaires</strong>, pas de « DM moi » en masse.</li>
+  </ul>
+
+  <h3>Checklist : les 30 premières vidéos</h3>
+  <ul class="check">
+    <li>Personnage : 4 images de référence, une phrase de description, un prénom.</li>
+    <li>Niche et angle écrits. Produit évident dans la niche.</li>
+    <li>Compte créé sur TikTok, Instagram et YouTube, même nom, même photo (image du personnage), même bio.</li>
+    <li>10 hooks écrits. 30 sujets listés (demande à Claude : « 30 sujets de vidéos de 20 s pour [personnage] dans la niche [X], classés par type : erreur, conseil, histoire »).</li>
+    <li>Outil choisi (Higgsfield ou Studio IA), crédits chargés.</li>
+    <li>Vidéos 1 à 9 : valeur seulement. Vidéo 10 : première mention du produit.</li>
+    <li>2 à 3 publications par jour, programmées le dimanche.</li>
+    <li>Option « contenu IA » cochée à chaque publication.</li>
+    <li>Réponse à tous les commentaires dans l'heure.</li>
+    <li>Tableau : date, hook, vues 48 h, rétention, commentaires, « à décliner ? ».</li>
+    <li>Lien en bio avec UTM, code promo au nom du personnage.</li>
+    <li>À la vidéo 30 : lecture avec Mady (quels hooks, quels sujets, quelle suite).</li>
+  </ul>
+
+  <div class="claude"><b>Demande à Claude</b>« Voici mon tableau des 30 premières vidéos (hook, vues, rétention, commentaires). Dis-moi quels types de hooks et quels sujets ont le mieux marché, propose-moi 15 nouveaux sujets dans la même veine, et écris les prompts Seedance pour les 5 premiers avec mon personnage : [description]. »</div>
+
+  <div class="done"><b>✅ Fait quand</b>30 vidéos sont publiées, ton tableau est rempli, et tu as décliné au moins une vidéo qui a pris.</div>
+</section>
+
+</body>
+</html>

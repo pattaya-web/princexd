@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Scale X · Trouver un produit qui se vend déjà avec BrandSearch</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #141a1f; font-size: 11pt; line-height: 1.5; }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 0; }
+  p { margin: 0 0 8pt; }
+  a { color: #0b63c4; }
+  .kicker { font-family: "Segoe UI", Arial, sans-serif; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #0b63c4; font-weight: 700; margin: 0 0 6pt; }
+  .cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .brand { font-weight: 800; font-size: 13pt; letter-spacing: 0.04em; margin-bottom: 40pt; }
+  .cover .brand span { color: #0b63c4; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 0 0 14pt; }
+  .cover .sub { font-size: 14pt; color: #4a5560; font-family: Georgia, serif; margin-bottom: 28pt; }
+  .cover .meta { font-size: 10pt; color: #4a5560; margin-top: 24pt; }
+  .cover ul { margin: 0; padding-left: 18pt; }
+  .cover li { margin: 3pt 0; }
+  .cover .foot { margin-top: auto; font-size: 9pt; color: #7a858f; border-top: 1px solid #e3e7ea; padding-top: 10pt; }
+  .chapter { page-break-before: always; }
+  .chapter.first { page-break-before: auto; }
+  h2 { font-size: 22pt; margin: 0 0 6pt; line-height: 1.15; }
+  h2 .num { display: inline-block; color: #0b63c4; margin-right: 8pt; font-size: 16pt; vertical-align: 6pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; }
+  .lead { font-size: 12pt; color: #4a5560; margin: 0 0 14pt; }
+  h3 { font-size: 15pt; margin: 18pt 0 6pt; }
+  h4 { font-size: 12pt; margin: 0 0 3pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  strong { font-weight: 700; }
+  .note { border-left: 3px solid #0b63c4; background: #eef4fb; padding: 8pt 11pt; margin: 10pt 0; border-radius: 3px; page-break-inside: avoid; }
+  .note b { display: block; color: #0b63c4; margin-bottom: 2pt; }
+  .note.ok { border-color: #178a4c; background: #ecf7f0; } .note.ok b { color: #178a4c; }
+  .note.warn { border-color: #d98a0e; background: #fff6e8; } .note.warn b { color: #b86f00; }
+  .note.danger { border-color: #c9302c; background: #fdeeee; } .note.danger b { color: #c9302c; }
+  .claude { border: 1px solid #c9c3f5; background: #f4f2ff; padding: 8pt 11pt; margin: 10pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .claude b { display: block; color: #5b5ce6; margin-bottom: 2pt; }
+  .done { border: 1px solid #b7e0c5; background: #ecf7f0; padding: 8pt 11pt; margin: 12pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .done b { display: block; color: #178a4c; margin-bottom: 2pt; }
+  .step { display: flex; gap: 10pt; margin: 10pt 0; page-break-inside: avoid; }
+  .step .n { flex: 0 0 24pt; height: 24pt; border-radius: 5px; background: #0b63c4; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 11pt; }
+  .step .body { flex: 1; min-width: 0; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 9.5pt; line-height: 1.45; margin: 6pt 0 10pt; padding: 8pt 10pt; border-radius: 4px; page-break-inside: avoid; }
+  pre.cmd { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; border: 1px solid #e1e5e9; }
+  pre.prompt { font-family: "Segoe UI", Arial, sans-serif; background: #fbf7ec; border: 1px solid #ecdfbd; font-size: 10pt; }
+  pre.prompt::before { content: "PROMPT À COPIER"; display: block; font-size: 7.5pt; letter-spacing: 0.16em; color: #9a7b2c; font-weight: 700; margin-bottom: 4pt; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; padding: 0 3pt; border-radius: 3px; font-size: 9.5pt; }
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { padding-left: 20pt; position: relative; margin: 4pt 0; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; top: -1pt; font-size: 12pt; color: #0b63c4; }
+  table.t { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+  table.t th, table.t td { border: 1px solid #dfe3e7; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  table.t th { background: #f3f5f7; font-weight: 700; }
+  .cols { display: flex; gap: 14pt; } .cols > div { flex: 1; min-width: 0; }
+  hr { border: 0; border-top: 1px solid #e3e7ea; margin: 14pt 0; }
+  .muted { color: #6b7680; }
+  .small { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="brand">SCALE <span>X</span> · EDUCATION</div>
+  <p class="kicker">Guide 02 · Produit</p>
+  <h1>Trouver un produit qui se vend déjà avec BrandSearch</h1>
+  <p class="sub">Ma recherche produit, c'est de l'espionnage, pas de l'invention. Tu regardes ce que les marques poussent en pub depuis 30 jours, tu filtres avec 4 critères, tu sors 3 produits, Mady valide.</p>
+  <p class="kicker">À la fin de ce guide, tu sauras</p>
+  <ul>
+    <li>Utiliser BrandSearch (brandsearch.co) pour repérer les marques qui scalent et leurs produits qui portent.</li>
+    <li>Juger un produit en 5 minutes avec les 4 critères et un calcul de marge honnête.</li>
+    <li>Envoyer à Mady un message de 3 produits qu'il peut valider sans te reposer de question.</li>
+  </ul>
+  <p class="meta">Temps de lecture : 30 min · Temps de mise en pratique : 1 à 2 h</p>
+  <div class="foot">Scale X · Accompagnement e-commerce + IA · Mady · Version octobre 2026. Bloqué ? Demande d'abord à Claude. Mady, c'est pour les urgences.</div>
+</header>
+
+<section class="chapter first">
+  <h2><span class="num">01</span>Espionner, pas inventer</h2>
+  <p class="lead">Un produit qu'une marque pousse en pub depuis 30 jours est déjà validé. Elle a payé le test à ta place. Ton travail, c'est de le trouver.</p>
+
+  <p>Les débutants cherchent « une idée ». Ils veulent un produit que personne ne vend, une niche vierge, un truc génial. Résultat : ils passent 3 semaines à hésiter, puis ils lancent un produit que personne ne connaît et ils paient Meta pour éduquer un marché. Ça coûte des dizaines de milliers d'euros, et ça ne marche presque jamais.</p>
+  <p>Moi, je fais l'inverse. Je regarde ce qui tourne. Une marque qui dépense en pub tous les jours depuis 30, 60, 90 jours sur le même produit ne le fait pas par passion : elle le fait parce que ça rapporte. Le marché a répondu. Le produit est validé. Il me reste à faire mieux sur l'angle, la page, les créatives, ou simplement à le vendre sur un marché où elle n'est pas encore.</p>
+
+  <div class="note">
+    <b>La règle des 30 jours</b>
+    Une pub qui tourne depuis moins de 7 jours, c'est un test : la marque ne sait pas encore. Une pub qui tourne depuis 30 jours ou plus, c'est une pub rentable : personne ne paie 30 jours de pub à perte. C'est ton signal n°1, et BrandSearch te le donne sur chaque pub.
+  </div>
+
+  <h3>Ce que tu copies et ce que tu ne copies pas</h3>
+  <p>Tu récupères les mécaniques : le produit, le prix, l'angle, la structure de la page, le type de créative qui marche. Tu ne copies pas la marque : pas son nom, pas son logo, pas ses textes mot pour mot, pas ses photos. D'abord parce que c'est illégal, ensuite parce qu'une copie ne bat jamais l'original. Tu prends ce qui est prouvé, tu construis ta version.</p>
+
+  <h3>Combien de temps ça prend</h3>
+  <p>1 à 2 heures pour sortir 3 produits sérieux. Pas une semaine. Si tu y passes plus de 2 heures, c'est que tu cherches le produit parfait : il n'existe pas. Tu cherches un produit qui passe les 4 critères (chapitre 04). Dès que tu en as 3, tu envoies à Mady.</p>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as compris que tu cherches des preuves (pubs actives depuis 30 jours), pas des idées, et tu as bloqué 2 heures pour la recherche.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">02</span>Prise en main de BrandSearch</h2>
+  <p class="lead">BrandSearch (brandsearch.co) est l'outil d'intelligence e-commerce que j'utilise pour toutes mes recherches. Plan Starter, 63 $ par mois (environ 58 €). Voilà comment il est organisé et où cliquer.</p>
+
+  <h3>Les quatre écrans qui comptent</h3>
+  <table class="t">
+    <tr><th style="width:24%">Écran</th><th>Ce que tu y vois</th><th style="width:28%">Ce que tu y cherches</th></tr>
+    <tr><td><strong>Marques</strong></td><td>Les boutiques Shopify du monde entier, avec leur CA estimé, leur nombre de pubs actives, leur croissance, leur pays, leur niche.</td><td>Celles qui scalent : CA en hausse, beaucoup de pubs actives.</td></tr>
+    <tr><td><strong>Pubs</strong> (Meta et TikTok)</td><td>Les publicités actives, avec la marque derrière, la date de lancement, la durée, le format, et la créative téléchargeable.</td><td>Les pubs qui tournent depuis 30 jours et plus.</td></tr>
+    <tr><td><strong>Produits</strong></td><td>Les produits des marques : prix, date d'ajout, bestsellers, nombre de pubs qui les poussent.</td><td>Les bestsellers et les nouveautés poussées en pub.</td></tr>
+    <tr><td><strong>Fiche marque</strong></td><td>Tout sur une marque : CA par jour, dépense pub, pubs actives, produits, landing pages, emails envoyés.</td><td>La preuve chiffrée que le produit rapporte.</td></tr>
+  </table>
+
+  <h3>Les filtres que tu utilises à chaque fois</h3>
+  <ul>
+    <li><strong>Pays</strong> : tu choisis le marché que tu veux. Tu vois ce qui tourne aux États-Unis, en France, en Allemagne. Un produit qui cartonne aux US et qu'aucune marque ne pousse en France, c'est une opportunité.</li>
+    <li><strong>Pubs actives</strong> : le nombre de pubs qu'une marque fait tourner en ce moment. « 89 of 101 ads » veut dire 89 pubs actives sur 101 créées. C'est le volume.</li>
+    <li><strong>Durée</strong> : depuis combien de jours une pub tourne. « 69 jours », c'est une pub rentable. C'est le signal n°1.</li>
+    <li><strong>Niche</strong> : beauté, maison, animaux, fitness, bijoux, bébé, voiture… Choisis une niche que tu comprends.</li>
+    <li><strong>Dépense estimée</strong> : combien la marque a mis en pub. 3,5 M€ dépensés en Europe, c'est la preuve que c'est rentable.</li>
+  </ul>
+
+  <h3>Les presets « winners »</h3>
+  <p>BrandSearch a des filtres déjà réglés pour aller vite. Ce sont les gagnants déjà triés : utilise-les avant de bricoler tes propres filtres.</p>
+  <table class="t">
+    <tr><th style="width:28%">Preset</th><th>Ce qu'il montre</th></tr>
+    <tr><td><strong>Winner Q4</strong></td><td>Les produits qui ont explosé sur la saison la plus forte de l'année (octobre à décembre). Parfait si tu lances avant les fêtes.</td></tr>
+    <tr><td><strong>New pages</strong></td><td>Les pages produit ajoutées récemment par des marques qui scalent : les produits qu'elles sont en train de tester ou de lancer.</td></tr>
+    <tr><td><strong>Advertorial hooks</strong></td><td>Les pubs qui utilisent des hooks de type article (« 5 raisons… », « ce que les dermatologues ne disent pas »). Une mine d'angles.</td></tr>
+    <tr><td><strong>Top EU spend</strong></td><td>Les marques qui dépensent le plus en Europe. Si tu vends en France, c'est ici que tu regardes.</td></tr>
+  </table>
+
+  <div class="note ok">
+    <b>Télécharge les créatives</b>
+    Chaque pub est visible et téléchargeable : le hook, le format, l'angle, l'offre. Tu te constitues un dossier « références » par produit. Il te servira à l'étape créatives (guide 07) pour écrire tes prompts.
+  </div>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    Si l'interface a changé depuis ce guide : « Je suis sur brandsearch.co, je veux filtrer les pubs Meta actives depuis plus de 30 jours en France dans la niche beauté. Voici une capture de l'écran. Dis-moi où cliquer. » Avec l'extension Claude pour Chrome, il peut même appliquer les filtres à ta place.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu es connecté à BrandSearch, tu as appliqué un preset winner avec le filtre pays, et tu as téléchargé une première créative dans un dossier « références ».</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">03</span>Analyser une marque : chiffres, pubs, produits</h2>
+  <p class="lead">Quand une pub t'intéresse, tu ouvres la fiche de la marque. En 5 minutes, tu sais si elle scale, combien elle dépense, ce qui porte son chiffre d'affaires, et comment elle vend.</p>
+
+  <div class="step"><div class="n">1</div><div class="body"><h4>Le chiffre d'affaires estimé</h4><p>BrandSearch estime le CA par jour et son évolution. Exemple d'une marque que j'ai analysée : environ 98 900 $ par jour, +119 % sur 6 mois. Ça te dit si la marque scale ou si elle décline. Une marque en hausse sur 6 mois a un produit et une méthode qui marchent maintenant, pas l'an dernier.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>La dépense pub</h4><p>Le nombre de pubs actives et la dépense estimée. 365 pubs actives et 3,5 M€ dépensés en Europe, c'est une marque qui a prouvé la rentabilité de son produit des milliers de fois. Plus la dépense est grosse et ancienne, plus le produit est sûr.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Les bestsellers</h4><p>Les produits qui portent la marque, et ceux ajoutés cette semaine. Un bestseller poussé en pub depuis des mois, c'est ton candidat n°1. Un produit ajouté cette semaine avec déjà 10 pubs, c'est un lancement que la marque croit rentable : à surveiller.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Les landing pages et les emails</h4><p>Tu vois les pages qui convertissent (la structure, les sections, l'offre, le bundle, la garantie) et les emails envoyés aux clients (les séquences, les promos, les relances). C'est ta référence pour le guide 05 (page produit). Note la structure de leur page : elle te servira.</p></div></div>
+
+  <h3>Ce que tu notes pour chaque marque intéressante</h3>
+  <table class="t">
+    <tr><th style="width:36%">Donnée</th><th>Exemple</th></tr>
+    <tr><td>Nom et pays de la marque</td><td>Marque X, États-Unis</td></tr>
+    <tr><td>CA estimé par jour et tendance 6 mois</td><td>12 000 $/jour, +40 %</td></tr>
+    <tr><td>Pubs actives / durée de la plus ancienne</td><td>54 actives, la plus ancienne depuis 97 jours</td></tr>
+    <tr><td>Produit poussé et son prix de vente</td><td>Brosse X, 49,90 €</td></tr>
+    <tr><td>Angle principal des pubs</td><td>Avant / après, douleur « cheveux cassants »</td></tr>
+    <tr><td>Offre</td><td>Bundle 2 pour 79 €, livraison offerte, garantie 30 jours</td></tr>
+    <tr><td>Présente en France ?</td><td>Non : opportunité</td></tr>
+  </table>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    Colle-lui ce que tu as relevé et demande une analyse structurée. Le prompt complet est au chapitre 07.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as rempli ce tableau pour au moins 5 marques, et tu sais pour chacune si elle scale ou pas.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">04</span>Les 4 critères d'un produit qui passe</h2>
+  <p class="lead">Un produit passe si c'est oui aux quatre. Un seul non, tu passes au suivant. Pas de « oui mais ». Ça te sauve des semaines.</p>
+
+  <div class="step"><div class="n">1</div><div class="body"><h4>Il résout un problème visible</h4><p>Le client doit reconnaître son problème en une seconde : des cheveux qui cassent, un dos qui fait mal au bureau, un chat qui met de la litière partout, une peau qui marque. Un produit « sympa » ou « déco » n'a pas de problème derrière : il se vend mal en pub, parce que la pub doit créer l'envie au lieu de répondre à un besoin. Un problème visible, c'est un hook facile et un angle évident.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Il se montre en 3 secondes en vidéo</h4><p>Sur Meta et TikTok, tu as 3 secondes pour arrêter le scroll. Un produit qui se démontre (on l'applique, on le branche, on le plie, on voit le résultat) donne des créatives qui marchent toutes seules. Un produit abstrait (un complément, un service, un logiciel) demande une explication : trop long. Test simple : peux-tu filmer avec ton téléphone un geste de 3 secondes qui montre ce que fait le produit ? Si non, suivant.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Au moins 3x de marge</h4><p>Ton prix de vente doit faire au moins 3 fois ton coût produit livré. Pourquoi 3x ? Parce que la pub va manger environ 30 % du prix de vente, les frais Shopify et paiement environ 4 %, et il te faut de la marge pour les retours, les erreurs et pour vivre. Le calcul détaillé est au chapitre 05. À 2x, tu travailles pour Meta. À 3x, tu gagnes ta vie. À 4x ou 5x, tu scales.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Prix de vente entre 40 et 80 €</h4><p>En dessous de 40 €, la pub coûte trop cher par rapport au panier : un coût par achat de 20 € sur un produit à 29 € ne laisse rien. Au-dessus de 80 €, le client hésite, il compare, il ne prend pas la décision sur une pub Meta en 30 secondes. Entre 40 et 80 €, c'est l'achat impulsif qui laisse de la marge. Si le produit seul vaut 30 €, pense bundle : 2 unités à 54 €, ou produit + accessoire.</p></div></div>
+
+  <table class="t">
+    <tr><th>Critère</th><th style="width:20%">Produit A</th><th style="width:20%">Produit B</th><th style="width:20%">Produit C</th></tr>
+    <tr><td>Problème visible</td><td>Oui</td><td>Oui</td><td>Non (déco)</td></tr>
+    <tr><td>Se montre en 3 s</td><td>Oui</td><td>Non (complément)</td><td>Oui</td></tr>
+    <tr><td>Marge 3x ou plus</td><td>Oui (4,1x)</td><td>Oui</td><td>Oui</td></tr>
+    <tr><td>Prix 40 à 80 €</td><td>Oui (49 €)</td><td>Oui</td><td>Non (24 €)</td></tr>
+    <tr><td><strong>Verdict</strong></td><td><strong>Passe</strong></td><td>Suivant</td><td>Suivant</td></tr>
+  </table>
+
+  <div class="note warn">
+    <b>Le piège de l'affect</b>
+    Tu vas tomber amoureux d'un produit. Tu vas vouloir le faire passer quand même. Non. Si c'est non à un critère, c'est non. Le marché se fiche de ton affect. Le prochain produit qui passe les 4 critères est à 10 minutes de recherche.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as passé au moins 10 produits au crible des 4 critères, dans un tableau, et il t'en reste au moins 3 qui passent.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">05</span>Calculer la marge sans se mentir</h2>
+  <p class="lead">La marge, c'est ce qui reste quand tout le monde a été payé : le fournisseur, le transporteur, Meta, Shopify, la banque. Voilà le calcul que je fais pour chaque produit, en 2 minutes.</p>
+
+  <h3>Les cinq lignes du calcul</h3>
+  <table class="t">
+    <tr><th style="width:34%">Ligne</th><th>Comment tu la trouves</th><th style="width:22%">Exemple (prix de vente 49 €)</th></tr>
+    <tr><td>Prix de vente TTC</td><td>Le prix affiché sur ta boutique, dans la fourchette 40 à 80 €.</td><td>49,00 €</td></tr>
+    <tr><td>Coût produit</td><td>Prix fournisseur sur AliExpress (cherche le produit en photo) ou via un agent de sourcing. Prends le prix pour 1 unité livrée en France, pas le prix en gros.</td><td>8,50 €</td></tr>
+    <tr><td>Livraison</td><td>Incluse dans le prix AliExpress « livraison standard » ou facturée par l'agent. Compte 2 à 5 € si ce n'est pas inclus.</td><td>3,00 €</td></tr>
+    <tr><td>Pub (environ 30 %)</td><td>Ce que Meta va te coûter par achat, en moyenne, une fois la campagne stable. 30 % du prix de vente est une hypothèse réaliste au lancement.</td><td>14,70 €</td></tr>
+    <tr><td>Frais Shopify et paiement (environ 4 %)</td><td>Commission Shopify Payments (environ 1,5 à 2 % + 0,25 €) plus l'abonnement ramené à la commande, plus PayPal si utilisé. 4 % couvre tout.</td><td>1,96 €</td></tr>
+    <tr><td><strong>Marge nette par vente</strong></td><td>Prix de vente moins tout le reste.</td><td><strong>20,84 €</strong></td></tr>
+  </table>
+
+  <p>Sur cet exemple, le coût produit livré est de 11,50 € pour un prix de vente de 49 € : c'est 4,3x. Le critère « 3x minimum » est largement passé. À 1 000 € de CA par jour, soit environ 20 commandes, tu gardes environ 420 € par jour avant impôts. C'est ça, l'objectif des 60 jours.</p>
+
+  <h3>Le même calcul avec un produit à 2x</h3>
+  <p>Prix de vente 39 €, coût livré 19 €. Pub 11,70 €, frais 1,56 €. Marge : 6,74 €. Une commande sur six qui revient en retour, et tu es à zéro. C'est pour ça que le 3x n'est pas négociable.</p>
+
+  <div class="note">
+    <b>La TVA</b>
+    Si tu es en micro-entreprise sous le seuil de franchise, tu n'encaisses pas de TVA et tu n'en déduis pas : le calcul ci-dessus est bon tel quel. Si tu es assujetti, retire 20 % de TVA du prix de vente avant de calculer (49 € TTC = 40,83 € HT). Le guide 03 détaille le statut.
+  </div>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Calcule ma marge nette par vente : prix de vente [49] €, coût produit [8,50] €, livraison [3] €, pub estimée à 30 %, frais Shopify et paiement à 4 %. Donne-moi le multiplicateur (prix de vente divisé par coût livré), la marge en euros et en pourcentage, et le nombre de ventes par jour pour atteindre 1 000 € de chiffre d'affaires. Puis refais le calcul si je passe en bundle de 2 à [79] € avec un coût livré de [20] €. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as la marge nette en euros, par vente, pour chacun de tes 3 produits, avec le multiplicateur, et les trois sont à 3x ou plus.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">06</span>Les niches à éviter</h2>
+  <p class="lead">Certaines catégories passent les 4 critères sur le papier et te coulent en pratique : compte bloqué, retours en masse, procès. Tu les évites, point.</p>
+
+  <table class="t">
+    <tr><th style="width:28%">Niche</th><th>Pourquoi tu l'évites</th></tr>
+    <tr><td><strong>Santé et médical</strong></td><td>Compléments, « soigne », « guérit », perte de poids, douleurs chroniques. Meta refuse les pubs avec des allégations de santé et bloque les comptes. En France, une promesse médicale sans preuve, c'est de la publicité trompeuse. Un produit de confort (coussin, bouillotte, masseur) passe si tu ne promets rien de médical.</td></tr>
+    <tr><td><strong>Électronique fragile</strong></td><td>Écouteurs, gadgets avec batterie, écrans. Taux de panne élevé, retours, SAV, normes CE à vérifier, et des géants qui vendent moins cher. Tu vas passer ta vie à rembourser.</td></tr>
+    <tr><td><strong>Vêtements et tout ce qui a une taille</strong></td><td>Chaussures, leggings, soutiens-gorge. 30 à 40 % de retours pour mauvaise taille. Sauf si le produit est taille unique ou extensible (bonnet, chaussettes de compression taille unique).</td></tr>
+    <tr><td><strong>Produits saisonniers lancés trop tard</strong></td><td>Décoration de Noël le 10 décembre, piscine en août, chauffage en mars. Le délai fournisseur te fait livrer après la saison. Lance une saison au moins 6 semaines avant son pic.</td></tr>
+    <tr><td><strong>Marques déposées et licences</strong></td><td>Tout ce qui porte un logo, un personnage, un nom de marque (Disney, Nike, Pokémon, clubs de foot). Contrefaçon : boutique fermée, compte Meta fermé, poursuites. Même si AliExpress en vend.</td></tr>
+    <tr><td><strong>Produits dangereux ou réglementés</strong></td><td>Couteaux, lasers, cigarettes électroniques, jouets pour bébés sans norme, cosmétiques sans liste INCI. Meta refuse, la douane bloque, la responsabilité est sur toi.</td></tr>
+    <tr><td><strong>Trop gros ou trop lourd</strong></td><td>Meubles, appareils de fitness lourds. La livraison mange la marge et casse le 3x.</td></tr>
+  </table>
+
+  <h3>Les niches qui marchent, encore et encore</h3>
+  <ul>
+    <li><strong>Beauté et soin</strong> (sans promesse médicale) : outils, accessoires, routines. Problème visible, démonstration facile.</li>
+    <li><strong>Maison et cuisine</strong> : rangement, nettoyage, gain de temps. Avant / après parfait.</li>
+    <li><strong>Animaux</strong> : chats et chiens. Les propriétaires achètent sans compter, et un chat en vidéo arrête le scroll.</li>
+    <li><strong>Bébé et parents</strong> : confort, sommeil, organisation. Des acheteurs qui cherchent des solutions.</li>
+    <li><strong>Bijoux et accessoires</strong> : prix psychologique, cadeau, marge énorme. Demande de très bons médias (guide 06).</li>
+    <li><strong>Voiture et moto</strong> : accessoires malins, démonstration simple.</li>
+  </ul>
+
+  <div class="note danger">
+    <b>Une seule règle pour trancher</b>
+    Si tu dois te demander « est-ce que j'ai le droit ? », c'est non. Le produit suivant est à 10 minutes.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Aucun de tes 3 produits n'est dans une niche de la liste rouge, et tu peux dire laquelle des niches vertes il occupe.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">07</span>La méthode pas à pas : 3 produits en 1 à 2 heures</h2>
+  <p class="lead">Voilà exactement ce que tu fais, dans l'ordre, chrono en main. À la fin, tu as un message prêt pour Mady.</p>
+
+  <div class="step"><div class="n">1</div><div class="body"><h4>Choisis ton marché et ta niche (5 min)</h4><p>Marché : France, sauf si tu parles une autre langue couramment. Niche : une que tu comprends (tu es client toi-même, ou quelqu'un de proche l'est). Note-les.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Ouvre les presets winners (15 min)</h4><p>Dans BrandSearch, lance « Top EU spend » puis « Winner Q4 » puis « New pages », avec ta niche. Pour chaque preset, note les 5 marques qui reviennent. Tu dois avoir 10 à 15 marques.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Filtre les pubs actives depuis 30 jours (15 min)</h4><p>Écran Pubs, filtre pays + niche + durée 30 jours et plus. Trie par durée. Les pubs qui tournent depuis 60, 90, 120 jours : ouvre-les. Note le produit, la marque, le hook. Tu dois avoir 10 produits candidats.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Ouvre les fiches marques (20 min)</h4><p>Pour chaque produit candidat : CA estimé et tendance, pubs actives, bestsellers, prix de vente, offre, présence en France. Remplis le tableau du chapitre 03.</p></div></div>
+  <div class="step"><div class="n">5</div><div class="body"><h4>Passe les 4 critères (15 min)</h4><p>Problème visible ? Se montre en 3 s ? Prix de vente 40 à 80 € ? Puis cherche le coût produit sur AliExpress (recherche par image) et calcule le multiplicateur. Élimine sans pitié. Garde ceux qui passent.</p></div></div>
+  <div class="step"><div class="n">6</div><div class="body"><h4>Vérifie la liste rouge (5 min)</h4><p>Aucune niche interdite, aucune marque déposée, aucun risque réglementaire.</p></div></div>
+  <div class="step"><div class="n">7</div><div class="body"><h4>Télécharge 3 créatives par produit (10 min)</h4><p>Les pubs les plus anciennes de chaque produit. Dossier « références / produit X ». Elles serviront pour tes prompts.</p></div></div>
+  <div class="step"><div class="n">8</div><div class="body"><h4>Rédige le message pour Mady (10 min)</h4><p>Le modèle exact est au chapitre 08. Un seul message, 3 produits, toutes les infos. Tu l'envoies sur WhatsApp et tu coches l'étape 7 de « Mes étapes ».</p></div></div>
+
+  <h3>Le prompt pour que Claude analyse une marque ou un produit</h3>
+  <pre class="prompt">Tu es un expert e-commerce spécialisé dans l'analyse de marques DTC qui scalent avec Meta Ads. Je veux savoir si ce produit est un bon candidat pour ma boutique.
+
+Marque : [nom, pays, site]
+Produit : [nom, description, lien de la page produit]
+Prix de vente du concurrent : [prix]
+Preuve : [nombre de pubs actives, durée de la plus ancienne, CA estimé par jour, tendance sur 6 mois]
+Angle principal de leurs pubs : [résumé des 2 ou 3 hooks vus]
+Offre : [bundle, garantie, livraison]
+Coût produit trouvé sur AliExpress : [prix livré]
+Mon marché : [France]. Ma cible probable : [qui achète].
+
+Analyse en 6 points, sans complaisance :
+1. Les 4 critères (problème visible, se montre en 3 s en vidéo, marge 3x ou plus, prix 40 à 80 €) : oui ou non pour chacun, avec la raison.
+2. La marge nette par vente avec pub à 30 % et frais à 4 %, et le multiplicateur.
+3. Les risques : niche réglementée, promesse santé, taille, fragilité, marque déposée, saisonnalité.
+4. Pourquoi ce produit marche chez eux (douleur, désir, mécanisme de preuve).
+5. 3 angles que je pourrais prendre pour faire différent ou mieux sur le marché français.
+6. Verdict : GO, GO sous condition (laquelle), ou NO GO. Une phrase.</pre>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as 3 produits qui passent les 4 critères, un dossier de références par produit, et un message prêt pour Mady.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">08</span>Le message à envoyer à Mady</h2>
+  <p class="lead">Un seul message WhatsApp, avec les 3 produits et toutes les infos. Si je dois te poser une question pour comprendre, le message est raté. Voilà le modèle exact.</p>
+
+  <pre class="prompt">Salut Mady, voici mes 3 produits (BrandSearch, marché France, niche [niche]).
+
+PRODUIT 1 : [nom simple du produit]
+• Concurrent : [lien de la page produit du concurrent]
+• Prix de vente du concurrent : [prix] → prix que je vise : [prix]
+• Preuve : [X] pubs actives, la plus ancienne depuis [X] jours, CA estimé [X] $/jour, tendance [+X %] sur 6 mois
+• Coût produit livré (AliExpress / agent) : [prix] → multiplicateur [X]x, marge nette estimée [X] € par vente
+• Pourquoi il marche : [la douleur ou le désir, en une phrase]
+• Angle que je prendrais : [une phrase]
+• Présent en France ? [oui / non / peu]
+
+PRODUIT 2 : …
+PRODUIT 3 : …
+
+Mon préféré : le [1 / 2 / 3], parce que [une phrase].
+Dispo pour le call de validation : [2 créneaux].</pre>
+
+  <h3>Ce que je regarde dans ton message</h3>
+  <ul>
+    <li><strong>La preuve.</strong> Si tu n'as pas la durée des pubs et le CA estimé, je ne peux pas valider. C'est le cœur.</li>
+    <li><strong>La marge.</strong> Un multiplicateur sous 3x, je refuse direct.</li>
+    <li><strong>Ton angle.</strong> Ce n'est pas obligatoire d'avoir le bon, mais avoir réfléchi à un angle me dit que tu as compris le produit.</li>
+    <li><strong>Ton préféré.</strong> Tu dois choisir. Je te dirai si je suis d'accord, mais c'est toi qui vas vendre ce produit pendant 60 jours.</li>
+  </ul>
+
+  <div class="note warn">
+    <b>Ce qui fait perdre du temps</b>
+    Un lien AliExpress au lieu du lien concurrent (je veux la marque qui vend, pas le fournisseur). Un « ça a l'air bien » sans chiffre. Trois messages au lieu d'un. Un produit à 24 € sans idée de bundle.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Le message est envoyé, en un seul bloc, et tu as coché l'étape 7 dans « Mes étapes ».</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">09</span>Le call de validation</h2>
+  <p class="lead">Après ton message, on fait un appel de 20 à 30 minutes. On sort du call avec quatre décisions prises. Voilà ce qui s'y passe, pour que tu arrives préparé.</p>
+
+  <div class="step"><div class="n">1</div><div class="body"><h4>Le produit</h4><p>Je challenge tes preuves et ta marge. On choisit un produit, un seul. Si aucun des trois ne passe, on en cherche un ensemble, en direct sur BrandSearch, et tu repars avec un produit quand même.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Le positionnement</h4><p>À qui on vend, précisément : une femme de 35 ans qui a des cheveux cassants après une coloration, pas « les femmes ». Quel est le résultat qu'elle veut. Quelle est l'alternative qu'elle utilise aujourd'hui et pourquoi elle n'en est pas contente. C'est ça qui décide de la page et des créatives.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Le prix et l'offre</h4><p>Prix unitaire, bundle (2 ou 3 unités avec une remise, le bundle 2 présélectionné), cadeau offert, livraison offerte, garantie 30 jours satisfait ou remboursé. On fixe les chiffres : prix barré, prix promo, pourcentage de remise.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>L'angle marketing et le nom de marque</h4><p>L'angle n°1 pour le lancement (celui des créatives et du haut de page) et deux angles de secours. Un nom de marque : court, prononçable, disponible en .com ou .fr, sans marque déposée dessus. Tu vérifies la disponibilité du domaine pendant le call.</p></div></div>
+
+  <h3>Ce que tu apportes au call</h3>
+  <ul class="check">
+    <li>Ton message des 3 produits, envoyé la veille au plus tard.</li>
+    <li>Les fiches BrandSearch ouvertes dans ton navigateur.</li>
+    <li>Le dossier de créatives de référence.</li>
+    <li>Deux ou trois idées de nom de marque, avec le domaine vérifié.</li>
+    <li>Ton adresse xxx.myshopify.com (étape 3) : on en aura besoin juste après pour générer ta boutique.</li>
+  </ul>
+
+  <h3>Ce que tu fais juste après le call</h3>
+  <p>Tu coches l'étape 8. Tu vas sur Démarrage, section 09, et tu demandes ta boutique à Mady avec ton adresse myshopify, ton produit, les liens concurrents et le nom de marque. Pendant que la boutique se génère, tu attaques le guide 03 (réglages Shopify) et le guide 07 (créatives). Pas de temps mort.</p>
+
+  <div class="note ok">
+    <b>Tu as maintenant le produit</b>
+    Le plus dur n'est pas de trouver le produit : c'est d'accepter qu'il est bon et d'avancer sans le remettre en question pendant 60 jours. Le marché tranchera à J+3 avec des chiffres. Pas toi la nuit à 2 h du matin.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Le call est fait, tu as un produit, un positionnement, un prix avec bundle, un angle et un nom de marque notés noir sur blanc, et la demande de boutique est envoyée.</div>
+</section>
+
+</body>
+</html>

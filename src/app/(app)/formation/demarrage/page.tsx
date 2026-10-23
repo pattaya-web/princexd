@@ -59,14 +59,28 @@ function Cmd({ text }: { text: string }) {
   );
 }
 
-function Step({ step, index }: { step: GuideStep; index: number }) {
+function Step({ step, index, done, onToggle }: { step: GuideStep; index: number; done: boolean; onToggle: () => void }) {
   return (
-    <div className="flex gap-3.5 py-4 border-b last:border-b-0" style={{ borderColor: "var(--border)" }}>
-      <div className="shrink-0 w-[30px] h-[30px] rounded-md flex items-center justify-center text-[13px] font-bold" style={{ background: "var(--accent)", color: "var(--accent-on)" }}>
-        {index}
-      </div>
+    <div className="flex gap-3.5 py-4 border-b last:border-b-0" style={{ borderColor: "var(--border)", opacity: done ? 0.68 : 1 }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={done ? "Décocher" : "Marquer comme faite"}
+        title={done ? "Fait. Clique pour décocher." : "Clique quand c'est fait."}
+        className="shrink-0 w-[30px] h-[30px] rounded-md flex items-center justify-center text-[13px] font-bold transition-colors"
+        style={{ background: done ? "var(--good)" : "var(--accent)", color: "var(--accent-on)" }}
+      >
+        {done ? "✓" : index}
+      </button>
       <div className="min-w-0 flex-1 flex flex-col gap-2.5">
-        <div className="text-[15.5px] font-semibold leading-snug">{step.title}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[15.5px] font-semibold leading-snug" style={{ textDecoration: done ? "line-through" : "none" }}>
+            {step.title}
+          </span>
+          <button type="button" onClick={onToggle} className="text-[12px] font-medium hover:underline" style={{ color: done ? "var(--good)" : "var(--accent)" }}>
+            {done ? "Fait" : "Marquer fait"}
+          </button>
+        </div>
         <Annex text={step.text} className="!text-[13.5px]" />
         {step.cmds?.map((c) => (
           <Cmd key={c} text={c} />
@@ -82,11 +96,20 @@ function Step({ step, index }: { step: GuideStep; index: number }) {
   );
 }
 
-function Section({ s, os, setOs }: { s: GuideSection; os: "windows" | "mac"; setOs: (v: "windows" | "mac") => void }) {
+function Section({ s, os, setOs, done, onToggle }: { s: GuideSection; os: "windows" | "mac"; setOs: (v: "windows" | "mac") => void; done: Set<string>; onToggle: (key: string, done: boolean) => void }) {
   const steps = s.os ? s.os[os] : (s.steps ?? []);
+  const keyOf = (i: number) => `${s.id}:${s.os ? os : ""}:${i}`;
+  const doneCount = steps.filter((_, i) => done.has(keyOf(i))).length;
   return (
     <section id={s.id} className="card p-5 scroll-mt-4">
-      <SectionLabel n={s.n} title={s.title} />
+      <div className="flex items-center justify-between gap-3">
+        <SectionLabel n={s.n} title={s.title} />
+        {steps.length > 0 && (
+          <span className={`label-xs num ${doneCount === steps.length ? "" : "dim"}`} style={doneCount === steps.length ? { color: "var(--good)" } : undefined}>
+            {doneCount} / {steps.length} {doneCount === steps.length ? "✓" : ""}
+          </span>
+        )}
+      </div>
       <h2 className="text-[22px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.02em" }}>
         {s.title}
       </h2>
@@ -126,7 +149,7 @@ function Section({ s, os, setOs }: { s: GuideSection; os: "windows" | "mac"; set
       {steps.length > 0 && (
         <div className="mt-2">
           {steps.map((st, i) => (
-            <Step key={st.title} step={st} index={i + 1} />
+            <Step key={st.title} step={st} index={i + 1} done={done.has(keyOf(i))} onToggle={() => onToggle(keyOf(i), !done.has(keyOf(i)))} />
           ))}
         </div>
       )}
@@ -172,6 +195,23 @@ export default function DemarragePage() {
     if (typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent)) setOs("mac");
   }, [load]);
 
+  const toggleGuide = async (key: string, done: boolean) => {
+    if (!data?.student) {
+      toast("Tu es admin : les coches sont celles des élèves.");
+      return;
+    }
+    // Optimiste : la coche répond tout de suite, le serveur confirme.
+    setData((d) => (d ? { ...d, guideDone: done ? [...d.guideDone, key] : d.guideDone.filter((k) => k !== key) } : d));
+    try {
+      const r = await api<{ preview: boolean; guideDone: string[] }>("/api/formation/demarrage", { method: "PATCH", body: JSON.stringify({ key, done }) });
+      if (r.preview) toast("Aperçu : la progression de l'élève n'est pas modifiée.");
+      else setData((d) => (d ? { ...d, guideDone: r.guideDone } : d));
+    } catch (e) {
+      toast((e as Error).message, "err");
+      await load();
+    }
+  };
+
   const askShop = async () => {
     setSending(true);
     try {
@@ -191,6 +231,7 @@ export default function DemarragePage() {
 
   const name = data.student?.firstName ?? "Mady";
   const wa = waHelpLink(data.whatsapp, name);
+  const guideDone = new Set(data.guideDone);
   const fmt = (iso: string) => new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }).format(new Date(iso));
 
   return (
@@ -202,7 +243,7 @@ export default function DemarragePage() {
         <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.03em" }}>
           Commence ici.
         </h1>
-        <p className="muted text-[14px] mt-1 max-w-[62ch]">Tout ce qu&apos;il faut faire avant ton premier call, dans l&apos;ordre : le formulaire, les outils, l&apos;installation, ta boutique. Tu avances seul, Claude t&apos;aide, Mady valide.</p>
+        <p className="muted text-[14px] mt-1 max-w-[62ch]">Tout ce qu&apos;il faut faire avant ton premier call, dans l&apos;ordre : le formulaire, les outils, l&apos;installation, ta boutique. Coche chaque étape quand elle est faite (clique sur son numéro). Tu avances seul, Claude t&apos;aide, Mady valide.</p>
         {data.preview && <div className="badge badge-warn w-fit !text-[11.5px] mt-3">Aperçu : tu vois Scale X comme {data.student?.name}. Rien n&apos;est enregistré.</div>}
         {data.isAdmin && !data.student && (
           <div className="flex flex-wrap gap-2 mt-3">
@@ -242,7 +283,7 @@ export default function DemarragePage() {
       </nav>
 
       {GUIDE_SECTIONS.map((s) => (
-        <Section key={s.id} s={s} os={os} setOs={setOs} />
+        <Section key={s.id} s={s} os={os} setOs={setOs} done={guideDone} onToggle={(k, d) => void toggleGuide(k, d)} />
       ))}
 
       {/* 09 / Demande ta boutique */}

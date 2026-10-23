@@ -103,7 +103,7 @@ export default function FormationPage() {
   };
 
   if (error) return <ErrorNote>{error}</ErrorNote>;
-  if (!data) return <Spinner label="Chargement de ta formation…" />;
+  if (!data) return <Spinner label="Chargement…" />;
 
   return (
     <div className="flex flex-col gap-5">
@@ -160,7 +160,7 @@ export default function FormationPage() {
             ) : undefined
           }
         >
-          {data.isAdmin ? "Aucun module pour l'instant." : "Ta formation arrive bientôt : aucun module n'est encore disponible."}
+          {data.isAdmin ? "Aucun module pour l'instant." : "Les vidéos arrivent plus tard : pour l'instant tout est dans les guides PDF (Education)."}
         </Empty>
       ) : (
         <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)] items-start">

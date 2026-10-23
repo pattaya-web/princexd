@@ -491,12 +491,12 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     ],
   },
   {
-    section: "Formation",
+    section: "Education",
     items: [
       { href: "/formation", label: "Plateforme élèves", icon: "▶" },
       { href: "/formation/modules", label: "Modules vidéo", icon: "▤" },
       { href: "/formation/eleves", label: "Accès élèves", icon: "⚿" },
-      { href: "/formation/ressources", label: "Ressources formation", icon: "▣" },
+      { href: "/formation/ressources", label: "Ressources (PDF)", icon: "▣" },
       { href: "/formation/parcours", label: "Parcours & étapes", icon: "☑" },
     ],
   },
@@ -716,7 +716,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               items: [
                 { href: "/formation", label: "Tableau de bord", icon: "◈" },
                 { href: "/formation/demarrage", label: "Démarrage", icon: "⚑" },
-                { href: "/formation/cours", label: "Formation", icon: "▶" },
+                { href: "/formation/education", label: "Education", icon: "🎓" },
                 { href: "/formation/etapes", label: "Mes étapes", icon: "☑" },
                 { href: "/formation/creatives", label: "Créatives", icon: "✦" },
                 { href: "/formation/studio", label: "Studio IA", icon: "◐" },

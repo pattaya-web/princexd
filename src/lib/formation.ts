@@ -95,6 +95,8 @@ export interface StudentAccessRow {
   portalLastSeenAt: string;
   /** Modules publies marques « terminé ». */
   completed: number;
+  /** Guides PDF (Education) marques terminés. */
+  lessonsDone: number;
   /** Etapes du parcours (communes publiees + assignees) faites / total. */
   stepsDone: number;
   stepsTotal: number;
@@ -128,5 +130,6 @@ export function toAccessRow(s: Student, published: Set<string>, publishedSteps: 
     portalAccess: Boolean(s.portalAccess),
     portalLastSeenAt: s.portalLastSeenAt ?? "",
     completed: (s.completedModules ?? []).filter((id) => published.has(id)).length,
+    lessonsDone: (s.completedLessons ?? []).length,
   };
 }

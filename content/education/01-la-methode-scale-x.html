@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Scale X · La méthode Scale X</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #141a1f; font-size: 11pt; line-height: 1.5; }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 0; }
+  p { margin: 0 0 8pt; }
+  a { color: #0b63c4; }
+  .kicker { font-family: "Segoe UI", Arial, sans-serif; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #0b63c4; font-weight: 700; margin: 0 0 6pt; }
+  .cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .brand { font-weight: 800; font-size: 13pt; letter-spacing: 0.04em; margin-bottom: 40pt; }
+  .cover .brand span { color: #0b63c4; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 0 0 14pt; }
+  .cover .sub { font-size: 14pt; color: #4a5560; font-family: Georgia, serif; margin-bottom: 28pt; }
+  .cover .meta { font-size: 10pt; color: #4a5560; margin-top: 24pt; }
+  .cover ul { margin: 0; padding-left: 18pt; }
+  .cover li { margin: 3pt 0; }
+  .cover .foot { margin-top: auto; font-size: 9pt; color: #7a858f; border-top: 1px solid #e3e7ea; padding-top: 10pt; }
+  .chapter { page-break-before: always; }
+  .chapter.first { page-break-before: auto; }
+  h2 { font-size: 22pt; margin: 0 0 6pt; line-height: 1.15; }
+  h2 .num { display: inline-block; color: #0b63c4; margin-right: 8pt; font-size: 16pt; vertical-align: 6pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; }
+  .lead { font-size: 12pt; color: #4a5560; margin: 0 0 14pt; }
+  h3 { font-size: 15pt; margin: 18pt 0 6pt; }
+  h4 { font-size: 12pt; margin: 0 0 3pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  strong { font-weight: 700; }
+  .note { border-left: 3px solid #0b63c4; background: #eef4fb; padding: 8pt 11pt; margin: 10pt 0; border-radius: 3px; page-break-inside: avoid; }
+  .note b { display: block; color: #0b63c4; margin-bottom: 2pt; }
+  .note.ok { border-color: #178a4c; background: #ecf7f0; } .note.ok b { color: #178a4c; }
+  .note.warn { border-color: #d98a0e; background: #fff6e8; } .note.warn b { color: #b86f00; }
+  .note.danger { border-color: #c9302c; background: #fdeeee; } .note.danger b { color: #c9302c; }
+  .claude { border: 1px solid #c9c3f5; background: #f4f2ff; padding: 8pt 11pt; margin: 10pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .claude b { display: block; color: #5b5ce6; margin-bottom: 2pt; }
+  .done { border: 1px solid #b7e0c5; background: #ecf7f0; padding: 8pt 11pt; margin: 12pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .done b { display: block; color: #178a4c; margin-bottom: 2pt; }
+  .step { display: flex; gap: 10pt; margin: 10pt 0; page-break-inside: avoid; }
+  .step .n { flex: 0 0 24pt; height: 24pt; border-radius: 5px; background: #0b63c4; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 11pt; }
+  .step .body { flex: 1; min-width: 0; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 9.5pt; line-height: 1.45; margin: 6pt 0 10pt; padding: 8pt 10pt; border-radius: 4px; page-break-inside: avoid; }
+  pre.cmd { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; border: 1px solid #e1e5e9; }
+  pre.prompt { font-family: "Segoe UI", Arial, sans-serif; background: #fbf7ec; border: 1px solid #ecdfbd; font-size: 10pt; }
+  pre.prompt::before { content: "PROMPT À COPIER"; display: block; font-size: 7.5pt; letter-spacing: 0.16em; color: #9a7b2c; font-weight: 700; margin-bottom: 4pt; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; padding: 0 3pt; border-radius: 3px; font-size: 9.5pt; }
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { padding-left: 20pt; position: relative; margin: 4pt 0; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; top: -1pt; font-size: 12pt; color: #0b63c4; }
+  table.t { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+  table.t th, table.t td { border: 1px solid #dfe3e7; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  table.t th { background: #f3f5f7; font-weight: 700; }
+  .cols { display: flex; gap: 14pt; } .cols > div { flex: 1; min-width: 0; }
+  hr { border: 0; border-top: 1px solid #e3e7ea; margin: 14pt 0; }
+  .muted { color: #6b7680; }
+  .small { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="brand">SCALE <span>X</span> · EDUCATION</div>
+  <p class="kicker">Guide 01 · Fondations</p>
+  <h1>La méthode Scale X</h1>
+  <p class="sub">Le système complet en six étapes, le rythme, les règles de l'accompagnement et la carte de ta plateforme. À lire en entier avant de toucher à quoi que ce soit.</p>
+  <p class="kicker">À la fin de ce guide, tu sauras</p>
+  <ul>
+    <li>Ce que tu vas faire pendant 60 jours, dans quel ordre, et pourquoi cet ordre.</li>
+    <li>Combien ça coûte chaque mois, outil par outil, et où va chaque euro.</li>
+    <li>Comment utiliser la plateforme, cocher tes étapes, et quand (ne pas) écrire à Mady.</li>
+  </ul>
+  <p class="meta">Temps de lecture : 35 min · Temps de mise en pratique : 60 jours, 2 à 3 h par jour</p>
+  <div class="foot">Scale X · Accompagnement e-commerce + IA · Mady · Version octobre 2026. Bloqué ? Demande d'abord à Claude. Mady, c'est pour les urgences.</div>
+</header>
+
+<section class="chapter first">
+  <h2><span class="num">01</span>Le système en six étapes</h2>
+  <p class="lead">Six étapes, rien de plus. Elles n'ont pas changé en 6 ans. Ce qui a changé, c'est la vitesse : tout ça tenait en 3 semaines, aujourd'hui en 3 jours.</p>
+
+  <p>Je ne vais pas te vendre un secret. Il n'y en a pas. Il y a un enchaînement, toujours le même, que j'applique depuis 6 ans et qui a généré plus d'1 M€ sur Shopify. Une seule de mes boutiques a fait 845 000 $ de ventes sur 12 mois, 13 600 commandes, panier moyen 62 $. Le système que tu vas appliquer, c'est exactement celui-là. Pas une version allégée.</p>
+
+  <table class="t">
+    <tr><th style="width:8%">N°</th><th style="width:22%">Étape</th><th>Ce que tu fais</th><th style="width:18%">Temps</th></tr>
+    <tr><td>1</td><td><strong>Produit</strong></td><td>Tu trouves un produit que des marques vendent déjà, avec de la pub active depuis 30 jours. Outil : BrandSearch.</td><td>1 à 2 h</td></tr>
+    <tr><td>2</td><td><strong>Boutique</strong></td><td>Mady génère ta boutique sur le thème Aesthetic Lab. Tu la complètes : réglages Shopify, textes, médias. Avec Claude Code tu modifies ce que tu veux en français, zéro ligne de code.</td><td>2 à 3 h après génération</td></tr>
+    <tr><td>3</td><td><strong>Page produit</strong></td><td>11 sections dans le bon ordre : preuve, promesse, bundle, garanties, comparatif, avis, FAQ. Chaque section répond à une objection.</td><td>1 après-midi</td></tr>
+    <tr><td>4</td><td><strong>Créatives IA</strong></td><td>Image avec GPT Image 2, puis vidéo avec Seedance 2.5, puis variations. 10 créatives par semaine, sans tournage.</td><td>20 min par créative</td></tr>
+    <tr><td>5</td><td><strong>Lancement</strong></td><td>Une campagne Meta Ads CBO à 50 €/jour, un seul ad set large, 5 à 8 créatives, 3 jours sans toucher.</td><td>3 jours de test</td></tr>
+    <tr><td>6</td><td><strong>Scale</strong></td><td>Tu lis CTR, CPC, ROAS. Tu coupes ou tu montes le budget de 20 à 30 %, et tu refais des créatives.</td><td>Chaque semaine</td></tr>
+  </table>
+
+  <h3>Pourquoi cet ordre et pas un autre</h3>
+  <p>Parce que chaque étape protège la suivante. Un produit déjà validé par le marché te sauve des semaines de pub pour rien. Une page produit qui lève les objections te sauve du trafic gaspillé. Des créatives nombreuses te sauvent d'un lancement qui ne décolle pas. Les gens qui échouent en e-commerce ne sautent pas une étape par bêtise : ils la sautent parce qu'ils ont envie d'aller vite. Sauf que la vitesse, ce n'est pas sauter des étapes. C'est les faire vite.</p>
+
+  <div class="note">
+    <b>Ce que tu n'as plus à faire</b>
+    Il y a 3 ans il fallait un designer, un monteur, un développeur, un média buyer. Aujourd'hui il faut toi, Claude Code et trois modèles d'IA. Une boutique et une créative dans la journée, au lieu d'une semaine et d'un tournage.
+  </div>
+
+  <h3>La boucle, une fois lancé</h3>
+  <p>Produit → créatives → 3 jours → chiffres → on coupe ou on scale → créatives. C'est la même boucle, chaque semaine, depuis 6 ans. Quand tu l'auras faite une fois en entier, tu sauras tout ce qu'il y a à savoir. Le reste, c'est de la répétition et de la précision.</p>
+
+  <div class="done"><b>✅ Fait quand</b>Tu peux citer les 6 étapes dans l'ordre, de tête, et dire en une phrase ce que chacune protège.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">02</span>Le rythme : 60 jours, 2 à 3 h par jour</h2>
+  <p class="lead">L'objectif de l'accompagnement est clair : 1 000 € de chiffre d'affaires par jour en 60 jours. Voilà à quoi ressemblent ces 60 jours.</p>
+
+  <p>Je te demande 2 à 3 heures par jour. Pas 10. Pas « quand j'ai le temps ». Deux à trois heures, tous les jours, pendant 60 jours. C'est le prérequis. Si tu ne peux pas, dis-le maintenant, on décale le départ plutôt que de rater le lancement.</p>
+
+  <table class="t">
+    <tr><th style="width:18%">Période</th><th>Ce que tu fais</th><th style="width:30%">Résultat attendu</th></tr>
+    <tr><td>Jours 1 à 3</td><td>Formulaire d'onboarding, installation des outils (page Démarrage), ouverture Shopify, BrandSearch, compte Meta Business. Lecture des guides Fondations.</td><td>Ordinateur prêt, comptes ouverts, capture du contrôle final envoyée.</td></tr>
+    <tr><td>Jours 4 à 7</td><td>Recherche produit sur BrandSearch. 3 produits envoyés à Mady. Call de validation.</td><td>Un produit validé, un prix, un angle, un nom de marque.</td></tr>
+    <tr><td>Jours 8 à 12</td><td>Demande de boutique à Mady. Réglages Shopify (paiements, livraison, taxes, politiques). Relecture des textes, médias de la boutique.</td><td>Tu peux acheter sur ta boutique depuis ton téléphone.</td></tr>
+    <tr><td>Jours 13 à 17</td><td>Créatives : angles, prompts, images GPT Image 2, vidéos Seedance 2.5. Pixel Meta et Conversions API.</td><td>3 vidéos + 3 images exportées. Les 5 événements Pixel remontent.</td></tr>
+    <tr><td>Jours 18 à 21</td><td>Première campagne Meta Ads. 3 jours sans toucher.</td><td>Des chiffres réels : CTR, CPC, ROAS.</td></tr>
+    <tr><td>Jours 22 à 60</td><td>La boucle : on lit, on coupe ou on scale, on refait des créatives. Chaque semaine.</td><td>Montée progressive du budget tant que le ROAS tient.</td></tr>
+  </table>
+
+  <h3>À quoi ressemble une journée type</h3>
+  <ul>
+    <li><strong>30 min</strong> : tu lis tes chiffres (Shopify et Gestionnaire de publicités) et tu coches tes étapes sur la plateforme.</li>
+    <li><strong>60 à 90 min</strong> : la tâche du jour (créatives, page, réglage, recherche). Une seule tâche, finie.</li>
+    <li><strong>30 min</strong> : tu bloques sur quelque chose ? Tu le règles avec Claude. Tu notes ce que tu as fait.</li>
+  </ul>
+
+  <div class="note warn">
+    <b>Le piège du « je prépare »</b>
+    Passer trois semaines à « préparer » sans lancer, c'est l'erreur n°1. Une première version moche qui tourne vaut plus qu'une version parfaite qui n'existe pas. Tu lances, tu récupères des données réelles, tu améliores.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as bloqué 2 à 3 h par jour dans ton agenda pour les 60 prochains jours, avec une heure fixe.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">03</span>Les règles de l'accompagnement</h2>
+  <p class="lead">Quatre règles. Elles ne sont pas négociables, parce qu'elles sont ce qui fait que les élèves qui réussissent réussissent.</p>
+
+  <h3>Règle 1 : Claude d'abord, Mady en urgence</h3>
+  <p>Tu ne bloques jamais seul. Mais tu ne m'écris pas en premier non plus. Avant d'envoyer un message à Mady, tu poses la question à Claude. Il règle 80 % des problèmes en direct : une commande qui ne passe pas, un réglage Shopify, un texte à réécrire, un Pixel qui ne remonte pas. Tu lui colles la capture d'écran, tu lui expliques ce que tu voulais faire, il te guide.</p>
+  <p>Pourquoi ? Parce que si tu m'écris pour chaque blocage, tu attends ma réponse, tu perds une demi-journée, et tu n'apprends pas à t'en sortir. Avec Claude tu avances tout de suite, à n'importe quelle heure, et tu deviens autonome. C'est ça, le but.</p>
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Je lance une boutique Shopify de [produit] pour [cible]. Je suis sur [Windows / Mac], je ne sais pas coder. Voici une capture de l'erreur que j'ai dans [outil]. Explique-moi ce qui se passe en deux phrases et donne-moi la commande exacte ou le clic exact pour régler ça. »
+  </div>
+  <p>Mady, c'est pour : une validation (produit, boutique avant lancement, chiffres à J+3), une urgence réelle (boutique en panne pendant une campagne, compte publicitaire bloqué), ou quand Claude a échoué deux fois sur le même problème. Dans ce cas, tu envoies la capture complète, ce que tu as déjà essayé avec Claude, et ce que tu attends de moi.</p>
+
+  <h3>Règle 2 : tu coches tes étapes</h3>
+  <p>Sur la plateforme, « Mes étapes » liste les 13 étapes de la méthode. Chaque étape a un critère « Fait quand ». Quand le critère est rempli, tu coches. Pas avant. C'est comme ça que je suis ton avancement sans te demander où tu en es : je vois tes coches, je vois ta dernière connexion, je sais si tu avances ou si tu bloques. Un élève qui ne coche rien pendant 4 jours, je sais qu'il y a un problème.</p>
+
+  <h3>Règle 3 : 3 à 5 appels par semaine, avec moi directement</h3>
+  <p>Tu réserves tes appels depuis la page « Réserver un appel ». Un appel sert à valider, décider, débloquer. Il ne sert pas à faire à ta place. Tu viens avec ton objectif, ce que tu as fait, ce qui bloque, et tes chiffres. Plus tu es précis, plus l'appel est utile. Un appel sans préparation, c'est 30 minutes perdues pour nous deux.</p>
+
+  <h3>Règle 4 : tu lances, tu ne peaufines pas</h3>
+  <p>Pas de perfection. On teste vite et on garde ce qui marche. Une créative moyenne qui tourne te donne des données. Une créative parfaite dans un dossier ne te donne rien. Le seul juge, c'est le ROAS. Pas ton goût, pas celui de ta copine, pas le mien.</p>
+
+  <ul class="check">
+    <li>J'ai compris que je demande à Claude avant d'écrire à Mady.</li>
+    <li>J'ai installé l'extension Claude pour Chrome et pris Claude Max (page Démarrage, section 07).</li>
+    <li>Je coche mes étapes dès qu'un critère « Fait quand » est rempli.</li>
+    <li>J'ai réservé mon premier appel depuis la plateforme.</li>
+  </ul>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as posé ta première question à Claude avec une capture, et tu as obtenu une réponse qui a réglé le problème.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">04</span>Les outils et ce qu'ils coûtent</h2>
+  <p class="lead">Tu paies chaque outil toi-même. Voilà la liste complète, avec le prix réel, pour que tu saches où va chaque euro et pourquoi.</p>
+
+  <table class="t">
+    <tr><th style="width:22%">Outil</th><th>À quoi il sert</th><th style="width:22%">Coût</th></tr>
+    <tr><td><strong>Shopify</strong></td><td>Ta boutique : produits, paiement, livraison, commandes. Passe par le lien de Mady.</td><td>1 € par mois les premiers mois, puis environ 32 €/mois (plan Basic)</td></tr>
+    <tr><td><strong>BrandSearch</strong> (brandsearch.co)</td><td>Recherche produit : les marques qui scalent, leurs pubs actives, leurs bestsellers, leurs pages.</td><td>Plan Starter : 63 $ par mois (environ 58 €)</td></tr>
+    <tr><td><strong>Claude Max</strong></td><td>Claude Code (construction et modification de la boutique), extension Chrome (réglages à ta place), tous tes prompts.</td><td>Environ 90 € par mois. Pro peut dépanner mais tu tapes la limite vite.</td></tr>
+    <tr><td><strong>KIE</strong> (kie.ai)</td><td>Les modèles d'IA du Studio IA : GPT Image 2, Seedance 2.5, Kling, Veo. Tu paies à l'usage, en crédits.</td><td>Une image : quelques centimes. Une vidéo de 10 s : 1 à 2 €. Compte 20 à 30 € pour tes premières créatives.</td></tr>
+    <tr><td><strong>Higgsfield</strong> (option)</td><td>Plateforme tout-en-un : mêmes modèles, zéro installation, plus cher par génération. Utile pour commencer, et pour Genjutsu (vidéo vers vidéo).</td><td>Abonnement mensuel selon le plan, à partir d'une dizaine d'euros.</td></tr>
+    <tr><td><strong>Meta Ads</strong></td><td>Ton trafic. Une campagne de test à 50 € par jour.</td><td>50 €/jour pendant 3 jours de test, puis selon les résultats.</td></tr>
+    <tr><td><strong>Nom de domaine</strong></td><td>Ton adresse (tamarque.com) à la place de xxx.myshopify.com.</td><td>Environ 15 € par an, dans Shopify.</td></tr>
+    <tr><td><strong>Visual Studio Code</strong>, <strong>Chrome Remote Desktop</strong></td><td>L'éditeur où tourne Claude Code ; la prise en main de ton écran par Mady si besoin.</td><td>Gratuits</td></tr>
+  </table>
+
+  <h3>Le budget de départ, sans se mentir</h3>
+  <p>Outils : environ 150 € par mois (Shopify + BrandSearch + Claude Max) plus 20 à 30 € de crédits KIE. Pub : 150 € pour les 3 jours de test, puis tu montes seulement si le ROAS tient. Produit : tu ne stockes rien, tu commandes au fournisseur après la vente. Donc ton vrai budget de lancement, c'est environ 350 € le premier mois. Si tu n'as pas ça, on fait l'organique (vidéos IA sans pub) le temps de constituer le budget : c'est une option du programme, pas une impasse.</p>
+
+  <div class="note warn">
+    <b>Un jour sans outil = un jour de retard</b>
+    Chaque jour où tu n'as pas installé Claude, pas ouvert Shopify, pas pris BrandSearch, c'est un jour de retard sur ton lancement. Installe tout dans les 48 h.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Shopify, BrandSearch, Claude Max et un compte KIE sont ouverts et payés, et tu as noté les montants dans un tableau de suivi.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">05</span>La carte de ta plateforme</h2>
+  <p class="lead">Scale X, ta plateforme, est faite pour que tu avances seul. Chaque page a un rôle précis. Voilà où aller pour quoi.</p>
+
+  <table class="t">
+    <tr><th style="width:24%">Page</th><th>Ce qu'elle contient</th><th style="width:26%">Quand y aller</th></tr>
+    <tr><td><strong>Tableau de bord</strong></td><td>Où tu en es : Education, prochaines étapes, accompagnement, formulaire, ressources.</td><td>Chaque jour, en premier.</td></tr>
+    <tr><td><strong>Démarrage</strong></td><td>Le message de bienvenue avec tous les liens, le guide d'installation (Windows et Mac), les réglages Shopify, le thème Aesthetic Lab, le Pixel Meta, « travailler avec Claude », et le bouton « Demande ta boutique à Mady ». Chaque étape du guide se coche.</td><td>Les 3 premiers jours, puis à chaque réglage technique.</td></tr>
+    <tr><td><strong>Education</strong></td><td>Les guides PDF, dans l'ordre, dont celui-ci. Tu coches chaque guide lu.</td><td>Avant chaque étape du parcours.</td></tr>
+    <tr><td><strong>Mes étapes</strong></td><td>Les 13 étapes de la méthode avec leur consigne et leur critère « Fait quand », plus les étapes que Mady t'assigne après un appel.</td><td>Pour cocher, et pour savoir quoi faire ensuite.</td></tr>
+    <tr><td><strong>Créatives</strong></td><td>La boutique exemple, des créatives qui marchent, la méthode, et 7 prompts à copier dans Claude ou GPT (angles, images, statiques, scripts UGC, vidéo IA, avant / après, plan de test).</td><td>À partir de l'étape créatives.</td></tr>
+    <tr><td><strong>Studio IA</strong></td><td>Ton studio de génération : images et vidéos, sur ta clé KIE, résultats visibles de toi seul. Mady l'ouvre après l'étape créatives.</td><td>Pour générer tes médias et tes créatives.</td></tr>
+    <tr><td><strong>Ressources</strong></td><td>Les PDF complémentaires : procédures, checklists, modèles.</td><td>Quand un guide y renvoie.</td></tr>
+    <tr><td><strong>Réserver un appel</strong></td><td>Le lien de réservation avec Mady, et le WhatsApp pour les urgences.</td><td>3 à 5 fois par semaine.</td></tr>
+  </table>
+
+  <div class="note ok">
+    <b>Comment on t'identifie</b>
+    Tu te connectes avec ton identifiant seul (prenom.nom), pas de mot de passe. Ne le partage pas : ce que tu vois sur la plateforme (ta progression, ton Studio) t'est personnel.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as ouvert chacune des 8 pages une fois, et tu sais où retrouver le guide d'installation, les prompts et le bouton de réservation sans chercher.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">06</span>Les 13 étapes, une par une</h2>
+  <p class="lead">Voilà la marche à suivre complète, telle qu'elle apparaît dans « Mes étapes ». Pour chaque étape : ce qu'il faut faire, et le critère exact qui te permet de la cocher.</p>
+
+  <div class="step"><div class="n">1</div><div class="body"><h4>Remplis le formulaire d'onboarding (5 min)</h4><p>Ta situation, ton objectif, pourquoi tu as choisi Mady. C'est avec ça que ton accompagnement est préparé sur mesure. <strong>Fait quand :</strong> tu as vu la page de confirmation du formulaire.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Installe les outils sur ton ordinateur (30 min)</h4><p>Page Démarrage, sections 01 à 03 : Git, Node.js, Shopify CLI, Claude Code, connexion à ta boutique. Claude Max et l'extension Chrome. <strong>Fait quand :</strong> les 5 commandes du contrôle final répondent sans erreur et tu as envoyé la capture à Mady.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Ouvre ta boutique Shopify (1 €) et note son adresse</h4><p>Lien de Mady, plan Basic, puis Paramètres &gt; Domaines pour noter xxx.myshopify.com. <strong>Fait quand :</strong> tu peux ouvrir l'admin Shopify et tu as noté ton adresse myshopify.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Prends BrandSearch, plan Starter</h4><p>63 $ par mois. L'outil de recherche produit. <strong>Fait quand :</strong> tu es connecté et tu vois le tableau de bord.</p></div></div>
+  <div class="step"><div class="n">5</div><div class="body"><h4>Crée ton compte Meta Business et ton compte publicitaire</h4><p>Portefeuille Business, compte publicitaire avec carte, page Facebook, Instagram de marque relié, accès partenaire à Mady. <strong>Fait quand :</strong> le compte publicitaire est vérifié, la carte ajoutée, et Mady a l'accès.</p></div></div>
+  <div class="step"><div class="n">6</div><div class="body"><h4>Lis les guides Fondations (Education)</h4><p>Dans l'ordre : méthode, recherche produit, boutique, créatives, Meta Ads. <strong>Fait quand :</strong> tous les guides Fondations sont cochés.</p></div></div>
+  <div class="step"><div class="n">7</div><div class="body"><h4>Trouve 3 produits avec BrandSearch et envoie-les à Mady</h4><p>Pour chaque produit : lien du concurrent, prix de vente, preuve (pubs actives, avis, tendance), pourquoi il marche. Un seul message WhatsApp. <strong>Fait quand :</strong> Mady t'a répondu sur tes 3 produits.</p></div></div>
+  <div class="step"><div class="n">8</div><div class="body"><h4>Valide ton produit avec Mady (call)</h4><p>Positionnement, prix, angle marketing, nom de marque. <strong>Fait quand :</strong> le produit est validé et tu as ton nom de marque.</p></div></div>
+  <div class="step"><div class="n">9</div><div class="body"><h4>Demande ta boutique à Mady, puis vérifie et complète</h4><p>Démarrage, section 09. Mady génère produits, collection, pages, thème Aesthetic Lab. Toi : relecture, logo, politiques, Shopify Payments, commande test. <strong>Fait quand :</strong> tu peux acheter sur ta boutique depuis ton téléphone.</p></div></div>
+  <div class="step"><div class="n">10</div><div class="body"><h4>Crée tes créatives avec l'IA</h4><p>Page Créatives : angles → prompts → images et vidéos. Objectif 3 vidéos + 3 images par produit, en 9:16 et 4:5. <strong>Fait quand :</strong> 6 créatives exportées dans un dossier.</p></div></div>
+  <div class="step"><div class="n">11</div><div class="body"><h4>Installe le Pixel Meta et la Conversions API</h4><p>Démarrage, section 06 : application Facebook &amp; Instagram, partage de données Maximal, test des événements. <strong>Fait quand :</strong> PageView, ViewContent, AddToCart, InitiateCheckout et Purchase remontent, avec Navigateur ET Serveur.</p></div></div>
+  <div class="step"><div class="n">12</div><div class="body"><h4>Lance ta première campagne Meta Ads</h4><p>CBO 50 €/jour, un ad set large, 5 à 8 créatives, lancement à minuit, 3 jours sans toucher. <strong>Fait quand :</strong> la campagne est active et dépense.</p></div></div>
+  <div class="step"><div class="n">13</div><div class="body"><h4>Analyse à J+3 et fais le point avec Mady</h4><p>Dépense, CPM, CTR, CPC, coût par achat, ROAS. Un appel : on coupe, on garde ou on scale. <strong>Fait quand :</strong> le call J+3 est fait.</p></div></div>
+
+  <div class="note">
+    <b>Les étapes assignées</b>
+    Après chaque appel, Mady peut t'assigner des étapes personnelles (« Envoie-moi tes 3 produits avant vendredi »). Elles apparaissent en haut de « Mes étapes », avec le badge « assignée par Mady ». Même logique : tu coches quand c'est fait.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu sais, pour chaque étape, quel critère te donne le droit de la cocher, et tu as coché celles déjà faites.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">07</span>Les erreurs classiques, et comment les éviter</h2>
+  <p class="lead">En 6 ans j'ai vu les mêmes erreurs des dizaines de fois. Elles ne viennent pas d'un manque d'intelligence. Elles viennent d'un manque de méthode. Les voilà.</p>
+
+  <table class="t">
+    <tr><th style="width:34%">L'erreur</th><th>Pourquoi ça coule</th><th style="width:30%">Ce qu'on fait à la place</th></tr>
+    <tr><td>Inventer un produit « que personne ne vend »</td><td>Si personne ne le vend, c'est en général qu'il ne se vend pas. Tu dois éduquer un marché, ça coûte des dizaines de milliers d'euros.</td><td>BrandSearch : un produit avec de la pub active depuis 30 jours.</td></tr>
+    <tr><td>Passer 3 semaines sur le design</td><td>Le client achète une promesse et une preuve, pas une police de caractères.</td><td>Thème Aesthetic Lab généré, page produit en 11 sections, on lance.</td></tr>
+    <tr><td>Lancer avec 1 ou 2 créatives</td><td>Meta ne peut pas apprendre. Tu conclus « le produit ne marche pas » alors que c'est la créative.</td><td>5 à 8 créatives dès le premier lancement, 10 par semaine ensuite.</td></tr>
+    <tr><td>Toucher à la campagne le deuxième jour</td><td>Chaque modification remet l'apprentissage à zéro.</td><td>3 jours sans toucher. Point.</td></tr>
+    <tr><td>Regarder les ventes au lieu des métriques</td><td>Zéro vente le jour 1 ne veut rien dire. Un CTR à 0,6 % veut dire beaucoup.</td><td>CTR, CPC, ROAS, dans cet ordre, à J+3.</td></tr>
+    <tr><td>Un Pixel pas vérifié</td><td>Meta ne sait pas qui achète, tes pubs n'optimisent rien, tes chiffres sont faux.</td><td>Test des événements avant la première campagne, Navigateur et Serveur.</td></tr>
+    <tr><td>Une boutique qui ne peut pas encaisser</td><td>Shopify Payments non validé, pas de livraison configurée : le client ne peut pas payer, tu paies la pub pour rien.</td><td>Commande test de bout en bout depuis le téléphone avant tout lancement.</td></tr>
+    <tr><td>Écrire à Mady à chaque blocage</td><td>Tu attends, tu perds une demi-journée, tu n'apprends rien.</td><td>Claude d'abord, avec la capture. Mady en urgence.</td></tr>
+    <tr><td>Changer de produit au bout de 3 jours sans données</td><td>Tu repars de zéro à chaque fois et tu ne finis jamais une boucle.</td><td>On change de produit seulement si ROAS &lt; 1 après de vraies créatives et une vraie page.</td></tr>
+  </table>
+
+  <div class="note danger">
+    <b>Ce que je ne tolère pas</b>
+    Publier le thème principal sans consigne, lancer une pub sans Pixel vérifié, mettre des faux avis médicaux ou des promesses de santé. Ces trois-là te font perdre ton compte, ta boutique ou les deux.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as relu la liste et identifié celle de ces erreurs que tu aurais faite naturellement. Note-la quelque part : c'est celle à surveiller.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">08</span>Le mindset qui fait la différence</h2>
+  <p class="lead">Les étapes, tout le monde peut les lire. Ce qui sépare ceux qui arrivent à 1 000 €/jour de ceux qui abandonnent au jour 20, c'est trois idées simples qu'ils appliquent vraiment.</p>
+
+  <h3>1. Tester vite bat réfléchir longtemps</h3>
+  <p>Tu ne peux pas savoir si une créative marche en la regardant. Tu ne peux pas savoir si un prix est bon en y pensant. Seul le marché te répond, et il te répond en 3 jours pour 150 €. Toute heure passée à débattre d'un détail au lieu de le tester est une heure perdue. Si tu hésites entre deux hooks, tu lances les deux.</p>
+
+  <h3>2. Pas de perfection</h3>
+  <p>Une créative s'épuise en 1 à 2 semaines. Elle n'a pas besoin d'être parfaite, elle a besoin d'exister et d'être suivie par la suivante. Il en faut 10 par semaine. Si tu passes 3 heures sur une vidéo, tu as perdu : tu dois passer 20 minutes et en faire 9 autres. Même chose pour la boutique : elle sera modifiée 50 fois. La version du jour 10 n'a pas à ressembler à celle du jour 60.</p>
+
+  <h3>3. Le ROAS est le seul juge</h3>
+  <p>Ton avis sur ta pub ne compte pas. Le mien non plus. Le ROAS, c'est le chiffre d'affaires généré pour 1 € dépensé. Au-dessus de 2, on scale. Entre 1 et 2, on refait des créatives ou la page. Sous 1, on coupe et on passe au produit suivant. Tout le reste, c'est de la conversation.</p>
+
+  <div class="note ok">
+    <b>Ce que ça change, concrètement</b>
+    Une boutique Shopify se gère depuis un téléphone. Les commandes tombent la nuit, le dimanche, en vol. Une fois lancé, le système tourne sans toi. Mais il ne se lance pas sans toi. Les 60 premiers jours, c'est toi qui pousses.
+  </div>
+
+  <h3>Ce que je te demande, en une phrase</h3>
+  <p>Fais les étapes dans l'ordre, coche-les, lance avant d'être prêt, lis les chiffres, et refais des créatives. Depuis 6 ans, c'est tout ce que je fais.</p>
+
+  <ul class="check">
+    <li>J'ai lu ce guide en entier.</li>
+    <li>J'ai coché « La méthode Scale X » dans Education.</li>
+    <li>J'ouvre le guide 02 : Trouver un produit qui se vend déjà avec BrandSearch.</li>
+  </ul>
+
+  <div class="done"><b>✅ Fait quand</b>Le guide est coché dans Education, tes 2 à 3 heures quotidiennes sont dans l'agenda, et la page Démarrage est ouverte pour l'installation.</div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Scale X · {{TITRE}}</title>
+<!--
+  GABARIT DES GUIDES PDF « EDUCATION » (Scale X).
+
+  Un guide = une copie de ce fichier, renommée NN-slug.html dans content/education/.
+  `node scripts/build-education.mjs` transforme chaque guide en PDF (Edge headless)
+  dans public/formation/education/NN-slug.pdf. Le manifeste (titre, résumé,
+  durée) vit dans src/lib/formation-education.ts.
+
+  Briques disponibles (classes CSS) :
+    <header class="cover">       page de couverture : kicker, h1, sous-titre, « À la fin tu sauras », durée
+    <section class="chapter">    un chapitre ; commence par <h2><span class="num">01</span> Titre</h2>
+    <div class="note info|ok|warn|danger"><b>Titre</b>texte</div>   encadré coloré
+    <div class="step"><div class="n">1</div><div class="body"><h4>Titre</h4>…</div></div>   étape numérotée
+    <pre class="cmd">commande</pre>                          commande à copier
+    <pre class="prompt">prompt à coller dans Claude / GPT</pre>   prompt (fond crème)
+    <ul class="check"><li>…</li></ul>                        checklist à cocher (☐)
+    <table class="t">…</table>                              tableau
+    <div class="claude"><b>Demande à Claude</b>texte</div>   quand demander à Claude, avec un exemple de message
+    <div class="done"><b>✅ Fait quand</b>critère</div>      critère de fin de chapitre
+    <div class="cols"><div>…</div><div>…</div></div>         deux colonnes
+    <p class="kicker">PETIT TITRE EN CAPITALES</p>
+-->
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #141a1f; font-size: 11pt; line-height: 1.5; }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 0; }
+  p { margin: 0 0 8pt; }
+  a { color: #0b63c4; }
+  .kicker { font-family: "Segoe UI", Arial, sans-serif; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #0b63c4; font-weight: 700; margin: 0 0 6pt; }
+
+  /* Couverture */
+  .cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .brand { font-weight: 800; font-size: 13pt; letter-spacing: 0.04em; margin-bottom: 40pt; }
+  .cover .brand span { color: #0b63c4; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 0 0 14pt; }
+  .cover .sub { font-size: 14pt; color: #4a5560; font-family: Georgia, serif; margin-bottom: 28pt; }
+  .cover .meta { font-size: 10pt; color: #4a5560; margin-top: 24pt; }
+  .cover ul { margin: 0; padding-left: 18pt; }
+  .cover li { margin: 3pt 0; }
+  .cover .foot { margin-top: auto; font-size: 9pt; color: #7a858f; border-top: 1px solid #e3e7ea; padding-top: 10pt; }
+
+  /* Chapitres */
+  .chapter { page-break-before: always; }
+  .chapter.first { page-break-before: auto; }
+  h2 { font-size: 22pt; margin: 0 0 6pt; line-height: 1.15; }
+  h2 .num { display: inline-block; color: #0b63c4; margin-right: 8pt; font-size: 16pt; vertical-align: 6pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; }
+  .lead { font-size: 12pt; color: #4a5560; margin: 0 0 14pt; }
+  h3 { font-size: 15pt; margin: 18pt 0 6pt; }
+  h4 { font-size: 12pt; margin: 0 0 3pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  strong { font-weight: 700; }
+
+  /* Encadrés */
+  .note { border-left: 3px solid #0b63c4; background: #eef4fb; padding: 8pt 11pt; margin: 10pt 0; border-radius: 3px; page-break-inside: avoid; }
+  .note b { display: block; color: #0b63c4; margin-bottom: 2pt; }
+  .note.ok { border-color: #178a4c; background: #ecf7f0; } .note.ok b { color: #178a4c; }
+  .note.warn { border-color: #d98a0e; background: #fff6e8; } .note.warn b { color: #b86f00; }
+  .note.danger { border-color: #c9302c; background: #fdeeee; } .note.danger b { color: #c9302c; }
+  .claude { border: 1px solid #c9c3f5; background: #f4f2ff; padding: 8pt 11pt; margin: 10pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .claude b { display: block; color: #5b5ce6; margin-bottom: 2pt; }
+  .done { border: 1px solid #b7e0c5; background: #ecf7f0; padding: 8pt 11pt; margin: 12pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .done b { display: block; color: #178a4c; margin-bottom: 2pt; }
+
+  /* Étapes */
+  .step { display: flex; gap: 10pt; margin: 10pt 0; page-break-inside: avoid; }
+  .step .n { flex: 0 0 24pt; height: 24pt; border-radius: 5px; background: #0b63c4; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 11pt; }
+  .step .body { flex: 1; min-width: 0; }
+
+  /* Code et prompts */
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 9.5pt; line-height: 1.45; margin: 6pt 0 10pt; padding: 8pt 10pt; border-radius: 4px; page-break-inside: avoid; }
+  pre.cmd { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; border: 1px solid #e1e5e9; }
+  pre.prompt { font-family: "Segoe UI", Arial, sans-serif; background: #fbf7ec; border: 1px solid #ecdfbd; font-size: 10pt; }
+  pre.prompt::before { content: "PROMPT À COPIER"; display: block; font-size: 7.5pt; letter-spacing: 0.16em; color: #9a7b2c; font-weight: 700; margin-bottom: 4pt; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; padding: 0 3pt; border-radius: 3px; font-size: 9.5pt; }
+
+  /* Checklist et tableaux */
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { padding-left: 20pt; position: relative; margin: 4pt 0; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; top: -1pt; font-size: 12pt; color: #0b63c4; }
+  table.t { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+  table.t th, table.t td { border: 1px solid #dfe3e7; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  table.t th { background: #f3f5f7; font-weight: 700; }
+  .cols { display: flex; gap: 14pt; } .cols > div { flex: 1; min-width: 0; }
+  hr { border: 0; border-top: 1px solid #e3e7ea; margin: 14pt 0; }
+  .muted { color: #6b7680; }
+  .small { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="brand">SCALE <span>X</span> · EDUCATION</div>
+  <p class="kicker">Guide {{NUMERO}} · {{THEME}}</p>
+  <h1>{{TITRE}}</h1>
+  <p class="sub">{{SOUS_TITRE}}</p>
+  <p class="kicker">À la fin de ce guide, tu sauras</p>
+  <ul>
+    <li>{{OBJECTIF_1}}</li>
+    <li>{{OBJECTIF_2}}</li>
+    <li>{{OBJECTIF_3}}</li>
+  </ul>
+  <p class="meta">Temps de lecture : {{DUREE}} · Temps de mise en pratique : {{PRATIQUE}}</p>
+  <div class="foot">Scale X · Accompagnement e-commerce + IA · Mady · Version octobre 2026. Bloqué ? Demande d'abord à Claude. Mady, c'est pour les urgences.</div>
+</header>
+
+<section class="chapter first">
+  <h2><span class="num">01</span>Titre du chapitre</h2>
+  <p class="lead">Une phrase qui dit ce qu'on fait dans ce chapitre et pourquoi.</p>
+  <p>Contenu…</p>
+  <div class="done"><b>✅ Fait quand</b>Critère concret et vérifiable.</div>
+</section>
+
+</body>
+</html>

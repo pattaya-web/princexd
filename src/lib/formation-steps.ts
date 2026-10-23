@@ -32,74 +32,99 @@ export function portalSettings(settings: Pick<Settings, "studentPortal" | "sales
 
 type Seed = Pick<CourseStep, "title" | "detail" | "link">;
 
-const SEED: Seed[] = [
+type SeedV2 = Seed & { /** Ancien titre (version 1), pour retrouver l'étape déjà en base. */ was: RegExp };
+
+const SEED: SeedV2[] = [
   {
-    title: "Remplis le formulaire d'onboarding",
-    detail: "5 minutes. C'est ce qui permet à Mady de préparer ton accompagnement : ta situation, ton objectif, pourquoi tu l'as choisi. On ne démarre pas sans.",
+    was: /formulaire d'onboarding/i,
+    title: "Remplis le formulaire d'onboarding (5 min)",
+    detail:
+      "Clique sur « Ouvrir le lien » et réponds aux questions : ta situation, ton objectif, pourquoi tu as choisi Mady. C'est avec ça qu'il prépare ton accompagnement.\n\n✅ Fait quand : tu as vu la page de confirmation du formulaire.",
     link: "{{formulaire}}",
   },
   {
-    title: "Installe les outils de travail",
+    was: /installe les outils/i,
+    title: "Installe les outils sur ton ordinateur (30 min)",
     detail:
-      "Suis la page Démarrage : message de bienvenue avec tous les liens, guide pas à pas pour installer Claude Code et connecter Shopify (Windows et Mac), installation du thème.\n- Visual Studio Code (gratuit) : https://code.visualstudio.com\n- Claude Pro Max (90 €/mois) : {{claude}}\n- Chrome Remote Desktop (gratuit) : https://remotedesktop.google.com/access , pour que Mady prenne la main sur ton écran quand tu bloques\n\nTout doit être installé avant ton premier call.",
+      "Page Démarrage, sections 01 à 03 : Git, Node.js, Shopify CLI, Claude Code, connexion à ta boutique. Prends Claude Max ({{claude}}) et installe l'extension Claude pour Chrome (section 07). Coche chaque étape du guide au fur et à mesure.\n\n✅ Fait quand : les 5 commandes du contrôle final (section 08) répondent sans erreur et tu as envoyé la capture à Mady.",
     link: "/formation/demarrage",
   },
   {
-    title: "Ouvre ta boutique Shopify (1 €)",
-    detail: "Passe par le lien de Mady pour avoir les premiers mois à 1 €. Choisis le plan de base, note bien l'adresse de ta boutique (xxx.myshopify.com) : tu en auras besoin pour la génération.",
+    was: /boutique shopify/i,
+    title: "Ouvre ta boutique Shopify (1 €) et note son adresse",
+    detail:
+      "Passe par le lien de Mady pour avoir les premiers mois à 1 €. Choisis le plan Basic. Puis Paramètres > Domaines : note ton adresse xxx.myshopify.com, tu en auras besoin pour la génération de ta boutique.\n\n✅ Fait quand : tu peux ouvrir l'admin Shopify et tu as noté ton adresse myshopify.",
     link: "{{shopify}}",
   },
   {
-    title: "Prends BrainSearch, plan Starter",
-    detail: "63 $/mois. C'est l'outil de recherche produit : on s'en sert dès la première semaine pour trouver les produits qui se vendent déjà.",
+    was: /br(ai|a)ndsearch, plan starter|brainsearch, plan/i,
+    title: "Prends BrandSearch, plan Starter",
+    detail:
+      "63 $/mois. C'est l'outil de recherche produit : il montre les produits qui se vendent déjà, les pubs qui tournent et les boutiques qui scalent. On s'en sert dès la première semaine.\n\n✅ Fait quand : tu es connecté à BrandSearch et tu vois le tableau de bord.",
     link: "{{brainsearch}}",
   },
   {
-    title: "Crée ton compte Meta Business et ton Gestionnaire de publicités",
+    was: /meta business/i,
+    title: "Crée ton compte Meta Business et ton compte publicitaire",
     detail:
-      "- Crée un portefeuille Meta Business sur business.facebook.com\n- Crée un compte publicitaire, ajoute ta carte bancaire et vérifie-le\n- Crée une page Facebook et relie ton compte Instagram de marque\n- Donne l'accès à Mady (partenaire) quand il te le demandera",
+      "- Crée un portefeuille Meta Business sur business.facebook.com\n- Crée un compte publicitaire, ajoute ta carte bancaire et vérifie-le\n- Crée une page Facebook et relie ton compte Instagram de marque\n- Donne l'accès à Mady (partenaire) quand il te le demandera\n\n✅ Fait quand : le compte publicitaire est vérifié, la carte est ajoutée et Mady a l'accès partenaire.",
     link: "https://business.facebook.com",
   },
   {
-    title: "Regarde les modules Fondations de la formation",
-    detail: "Les premiers modules, dans l'ordre. Coche chaque module quand il est terminé : c'est comme ça que Mady suit ton avancement.",
-    link: "/formation/cours",
-  },
-  {
-    title: "Trouve 3 produits avec BrainSearch et envoie-les à Mady",
-    detail: "Applique la méthode du module recherche produit. Pour chaque produit : lien du concurrent, prix de vente, pourquoi il marche. Envoie les 3 à Mady sur WhatsApp, il valide avec toi.",
-    link: "",
-  },
-  {
-    title: "Valide ton produit avec Mady",
-    detail: "Un call de validation : positionnement, prix, angle marketing. C'est à partir de là que la boutique se construit.",
-    link: "",
-  },
-  {
-    title: "Ta boutique est générée : vérifie et complète",
+    was: /modules fondations|guides fondations/i,
+    title: "Lis les guides Fondations (Education)",
     detail:
-      "Mady génère ta boutique avec Claude Code à partir de son template. Ensuite, à toi :\n- vérifier les textes de la page d'accueil et de la fiche produit\n- ajouter logo, nom de marque, mentions légales, politique de retour\n- activer Shopify Payments et faire une commande test",
+      "Les guides PDF, dans l'ordre : la méthode, la recherche produit, la boutique, les créatives, Meta Ads. Lis-les en entier, coche chaque guide quand c'est fait : c'est comme ça que Mady suit ton avancement.\n\n✅ Fait quand : tous les guides Fondations sont cochés.",
+    link: "/formation/education",
+  },
+  {
+    was: /trouve 3 produits/i,
+    title: "Trouve 3 produits avec BrandSearch et envoie-les à Mady",
+    detail:
+      "Applique le guide Recherche produit. Pour chaque produit : lien du concurrent, prix de vente, pourquoi il marche (pubs actives, avis, tendance). Envoie les 3 à Mady sur WhatsApp, en un seul message.\n\n✅ Fait quand : Mady t'a répondu sur tes 3 produits.",
     link: "",
   },
   {
+    was: /valide ton produit/i,
+    title: "Valide ton produit avec Mady (call)",
+    detail:
+      "Réserve un call de validation : positionnement, prix, angle marketing, nom de marque. C'est à partir de là que la boutique se construit.\n\n✅ Fait quand : le produit est validé et tu as ton nom de marque.",
+    link: "/formation/appel",
+  },
+  {
+    was: /boutique est générée|boutique est generee/i,
+    title: "Demande ta boutique à Mady, puis vérifie et complète",
+    detail:
+      "Page Démarrage, section 09 : donne ton adresse myshopify et ton produit. Mady génère la boutique (produits, collection, pages, thème Aesthetic Lab). Ensuite, à toi :\n- relire l'accueil et la fiche produit\n- ajouter logo, nom de marque, politiques\n- activer Shopify Payments et faire une commande test (Démarrage, section 04)\n\n✅ Fait quand : tu peux acheter sur ta boutique depuis ton téléphone.",
+    link: "/formation/demarrage#boutique",
+  },
+  {
+    was: /cr[ée]e tes cr[ée]atives/i,
     title: "Crée tes créatives avec l'IA",
-    detail: "Page Créatives : la boutique exemple, des créatives qui marchent et les prompts à copier dans Claude ou GPT. 3 vidéos UGC et 3 images par produit, avec les prompts donnés dans le module créatives. Pas de perfection : on teste vite et on garde ce qui marche.",
+    detail:
+      "Page Créatives : angles → prompts (Claude ou GPT) → images et vidéos (Higgsfield ou Studio IA). Objectif : 3 vidéos + 3 images par produit, formats 9:16 et 4:5. Pas de perfection, on teste vite.\n\n✅ Fait quand : 6 créatives exportées dans un dossier, prêtes à envoyer.",
     link: "/formation/creatives",
   },
   {
+    was: /pixel meta/i,
     title: "Installe le Pixel Meta et la Conversions API",
-    detail: "Dans Shopify : canal Facebook & Instagram, connecte ton compte Meta, active le partage de données « maximal ». Vérifie que le Pixel remonte bien une vue de page et un ajout au panier.",
-    link: "",
+    detail:
+      "Page Démarrage, section 06 : application Facebook & Instagram dans Shopify, partage de données « Maximal », test des événements.\n\n✅ Fait quand : PageView, ViewContent, AddToCart, InitiateCheckout et Purchase apparaissent dans « Tester les événements », avec Navigateur ET Serveur.",
+    link: "/formation/demarrage#pixel",
   },
   {
+    was: /premi[èe]re campagne/i,
     title: "Lance ta première campagne Meta Ads",
-    detail: "Campagne de test selon la structure du module Meta Ads (budget, audiences larges, 3 à 6 créatives). Lancement à minuit, on ne touche à rien pendant 3 jours.",
+    detail:
+      "Suis le guide Meta Ads : campagne de test, audiences larges, 3 à 6 créatives, budget quotidien fixé avec Mady. Lancement à minuit, on ne touche à rien pendant 3 jours.\n\n✅ Fait quand : la campagne est active et dépense.",
     link: "",
   },
   {
-    title: "Analyse à J+3 et point avec Mady",
-    detail: "Récupère les chiffres (dépense, CPM, CTR, coût par achat) et réserve un call : on coupe, on scale ou on change de créative.",
-    link: "",
+    was: /j\+3/i,
+    title: "Analyse à J+3 et fais le point avec Mady",
+    detail:
+      "Récupère dépense, CPM, CTR, coût par achat (guide Analyse). Réserve un call : on coupe, on garde ou on scale, et on prépare la suite.\n\n✅ Fait quand : le call J+3 est fait.",
+    link: "/formation/appel",
   },
 ];
 
@@ -109,32 +134,35 @@ export function ensureCourseSteps(db: DB): boolean {
   if (db.settings.courseStepsSeededAt) return false;
   if (!db.courseSteps.length) {
     const now = new Date().toISOString();
-    db.courseSteps = SEED.map((s, i) => ({ id: newId(), ...s, order: i, published: true, createdAt: now, updatedAt: now }));
+    db.courseSteps = SEED.map(({ was: _was, ...s }, i) => ({ id: newId(), ...s, order: i, published: true, createdAt: now, updatedAt: now }));
   }
   db.settings.courseStepsSeededAt = new Date().toISOString();
+  db.settings.courseStepsSeedVersion = SEED_VERSION;
   return true;
 }
 
+/** Version du texte des étapes par défaut. Monter ce numéro réécrit les étapes déjà en base (ids conservés). */
+const SEED_VERSION = 2;
+
 /**
- * Relie les étapes déjà en base aux pages de la plateforme quand leur lien
- * est vide (Démarrage, Créatives). Idempotent : vrai seulement s'il y a eu
- * une écriture.
+ * Met à jour les étapes déjà en base vers la dernière version du texte par
+ * défaut (étapes plus claires, BrandSearch, Education) : chaque étape est
+ * retrouvée par son ancien titre, son id (donc les coches des élèves) est
+ * conservé. Une seule fois par version. Vrai s'il y a eu écriture.
  */
 export function ensureGuideStepLink(db: DB): boolean {
-  const links: [RegExp, string][] = [
-    [/installe les outils/i, "/formation/demarrage"],
-    [/crée tes créatives/i, "/formation/creatives"],
-  ];
-  let changed = false;
-  for (const [re, link] of links) {
-    const step = (db.courseSteps ?? []).find((s) => re.test(s.title));
-    if (step && !step.link.trim()) {
-      step.link = link;
-      step.updatedAt = new Date().toISOString();
-      changed = true;
-    }
+  if ((db.settings.courseStepsSeedVersion ?? 1) >= SEED_VERSION) return false;
+  const now = new Date().toISOString();
+  for (const seed of SEED) {
+    const step = (db.courseSteps ?? []).find((s) => seed.was.test(s.title) || s.title === seed.title);
+    if (!step) continue;
+    step.title = seed.title;
+    step.detail = seed.detail;
+    step.link = seed.link;
+    step.updatedAt = now;
   }
-  return changed;
+  db.settings.courseStepsSeedVersion = SEED_VERSION;
+  return true;
 }
 
 export const sortSteps = <T extends Pick<CourseStep, "order" | "createdAt">>(steps: T[]): T[] =>
@@ -143,7 +171,7 @@ export const sortSteps = <T extends Pick<CourseStep, "order" | "createdAt">>(ste
 /** Remplace les balises d'onboarding d'un lien d'étape ({{formulaire}}, {{shopify}}, {{claude}}, {{brainsearch}}). */
 export function resolveStepLink(link: string, settings: Pick<Settings, "studentOnboarding">): string {
   const cfg = onboardingSettings(settings);
-  const map: Record<string, string> = { formulaire: cfg.formUrl, shopify: cfg.shopifyUrl, claude: cfg.claudeUrl, brainsearch: cfg.brainsearchUrl };
+  const map: Record<string, string> = { formulaire: cfg.formUrl, shopify: cfg.shopifyUrl, claude: cfg.claudeUrl, brainsearch: cfg.brainsearchUrl, brandsearch: cfg.brainsearchUrl };
   return (link ?? "").replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k: string) => map[k.toLowerCase()] ?? "").trim();
 }
 

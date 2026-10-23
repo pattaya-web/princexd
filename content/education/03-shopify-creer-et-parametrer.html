@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Scale X · Créer et paramétrer ta boutique Shopify</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #141a1f; font-size: 11pt; line-height: 1.5; }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 0; }
+  p { margin: 0 0 8pt; }
+  a { color: #0b63c4; }
+  .kicker { font-family: "Segoe UI", Arial, sans-serif; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #0b63c4; font-weight: 700; margin: 0 0 6pt; }
+  .cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .brand { font-weight: 800; font-size: 13pt; letter-spacing: 0.04em; margin-bottom: 40pt; }
+  .cover .brand span { color: #0b63c4; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 0 0 14pt; }
+  .cover .sub { font-size: 14pt; color: #4a5560; font-family: Georgia, serif; margin-bottom: 28pt; }
+  .cover .meta { font-size: 10pt; color: #4a5560; margin-top: 24pt; }
+  .cover ul { margin: 0; padding-left: 18pt; }
+  .cover li { margin: 3pt 0; }
+  .cover .foot { margin-top: auto; font-size: 9pt; color: #7a858f; border-top: 1px solid #e3e7ea; padding-top: 10pt; }
+  .chapter { page-break-before: always; }
+  .chapter.first { page-break-before: auto; }
+  h2 { font-size: 22pt; margin: 0 0 6pt; line-height: 1.15; }
+  h2 .num { display: inline-block; color: #0b63c4; margin-right: 8pt; font-size: 16pt; vertical-align: 6pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; }
+  .lead { font-size: 12pt; color: #4a5560; margin: 0 0 14pt; }
+  h3 { font-size: 15pt; margin: 18pt 0 6pt; }
+  h4 { font-size: 12pt; margin: 0 0 3pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  strong { font-weight: 700; }
+  .note { border-left: 3px solid #0b63c4; background: #eef4fb; padding: 8pt 11pt; margin: 10pt 0; border-radius: 3px; page-break-inside: avoid; }
+  .note b { display: block; color: #0b63c4; margin-bottom: 2pt; }
+  .note.ok { border-color: #178a4c; background: #ecf7f0; } .note.ok b { color: #178a4c; }
+  .note.warn { border-color: #d98a0e; background: #fff6e8; } .note.warn b { color: #b86f00; }
+  .note.danger { border-color: #c9302c; background: #fdeeee; } .note.danger b { color: #c9302c; }
+  .claude { border: 1px solid #c9c3f5; background: #f4f2ff; padding: 8pt 11pt; margin: 10pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .claude b { display: block; color: #5b5ce6; margin-bottom: 2pt; }
+  .done { border: 1px solid #b7e0c5; background: #ecf7f0; padding: 8pt 11pt; margin: 12pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .done b { display: block; color: #178a4c; margin-bottom: 2pt; }
+  .step { display: flex; gap: 10pt; margin: 10pt 0; page-break-inside: avoid; }
+  .step .n { flex: 0 0 24pt; height: 24pt; border-radius: 5px; background: #0b63c4; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 11pt; }
+  .step .body { flex: 1; min-width: 0; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 9.5pt; line-height: 1.45; margin: 6pt 0 10pt; padding: 8pt 10pt; border-radius: 4px; page-break-inside: avoid; }
+  pre.cmd { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; border: 1px solid #e1e5e9; }
+  pre.prompt { font-family: "Segoe UI", Arial, sans-serif; background: #fbf7ec; border: 1px solid #ecdfbd; font-size: 10pt; }
+  pre.prompt::before { content: "PROMPT À COPIER"; display: block; font-size: 7.5pt; letter-spacing: 0.16em; color: #9a7b2c; font-weight: 700; margin-bottom: 4pt; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; padding: 0 3pt; border-radius: 3px; font-size: 9.5pt; }
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { padding-left: 20pt; position: relative; margin: 4pt 0; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; top: -1pt; font-size: 12pt; color: #0b63c4; }
+  table.t { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+  table.t th, table.t td { border: 1px solid #dfe3e7; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  table.t th { background: #f3f5f7; font-weight: 700; }
+  .cols { display: flex; gap: 14pt; } .cols > div { flex: 1; min-width: 0; }
+  hr { border: 0; border-top: 1px solid #e3e7ea; margin: 14pt 0; }
+  .muted { color: #6b7680; }
+  .small { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="brand">SCALE <span>X</span> · EDUCATION</div>
+  <p class="kicker">Guide 03 · Boutique</p>
+  <h1>Créer et paramétrer ta boutique Shopify</h1>
+  <p class="sub">Tous les réglages, dans l'ordre des menus, pour qu'un client puisse payer et être livré. Sans ça, ta pub paie du trafic vers une boutique qui ne peut pas encaisser.</p>
+  <p class="kicker">À la fin de ce guide, tu sauras</p>
+  <ul>
+    <li>Ouvrir ta boutique à 1 €, trouver ton adresse myshopify et choisir le bon plan.</li>
+    <li>Régler paiements, livraison, taxes, politiques, checkout, domaine, menu par menu.</li>
+    <li>Faire une commande test de bout en bout depuis ton téléphone et dire « ma boutique peut encaisser ».</li>
+  </ul>
+  <p class="meta">Temps de lecture : 40 min · Temps de mise en pratique : 2 à 3 h, une seule fois</p>
+  <div class="foot">Scale X · Accompagnement e-commerce + IA · Mady · Version octobre 2026. Bloqué ? Demande d'abord à Claude. Mady, c'est pour les urgences.</div>
+</header>
+
+<section class="chapter first">
+  <h2><span class="num">01</span>Ouvrir la boutique et choisir le plan</h2>
+  <p class="lead">Dix minutes. Tu ouvres ta boutique par le lien de Mady, tu choisis le plan Basic, tu notes ton adresse. Tout le reste part de là.</p>
+
+  <div class="step"><div class="n">1</div><div class="body"><h4>Passe par le lien de Mady</h4><p>Le lien est dans ton message de bienvenue et sur la page Démarrage (bloc 00, « Shopify, 1 € les premiers mois »). Il te donne les premiers mois à 1 € par mois. Crée ton compte avec une adresse e-mail que tu lis tous les jours : Shopify t'enverra chaque commande dessus. Nom de boutique : mets ton nom de marque si tu l'as déjà, sinon n'importe quoi, ça se change en 10 secondes.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Réponds vite au questionnaire</h4><p>Shopify te pose des questions (« que vendez-vous », « où »). Ça ne change rien. Réponds en 30 secondes ou passe.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Choisis le plan Basic</h4><p>Paramètres &gt; Forfait. Le plan Basic (environ 32 € par mois après la période à 1 €) suffit jusqu'à plusieurs milliers d'euros par jour. Les plans supérieurs réduisent les frais de paiement mais ne valent le coup qu'à partir de 10 000 € de CA par mois. Il faut choisir un forfait pour retirer le mot de passe de la boutique (chapitre 10). Fais-le maintenant.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Note ton adresse myshopify</h4><p>Paramètres &gt; Domaines. L'adresse se termine par <code>.myshopify.com</code>, par exemple <code>ma-marque-3f2a.myshopify.com</code>. Note-la dans tes notes : tu la donnes à Mady pour générer la boutique (Démarrage, section 09), tu l'utilises dans Shopify CLI, et dans la plupart des réglages ci-dessous.</p></div></div>
+
+  <table class="t">
+    <tr><th style="width:30%">Plan</th><th>Prix</th><th>Pour qui</th></tr>
+    <tr><td><strong>Basic</strong></td><td>1 € les premiers mois, puis environ 32 €/mois</td><td>Toi, maintenant, et jusqu'à 10 000 €/mois de CA.</td></tr>
+    <tr><td>Shopify</td><td>environ 92 €/mois</td><td>Au-delà de 10 000 €/mois : frais de paiement plus bas.</td></tr>
+    <tr><td>Advanced</td><td>environ 384 €/mois</td><td>Plusieurs boutiques, gros volume. Pas avant des mois.</td></tr>
+  </table>
+
+  <div class="note warn">
+    <b>Un seul compte, une seule boutique</b>
+    N'ouvre pas trois boutiques « pour tester trois produits ». Une boutique, un produit, un lancement. Tu changes de produit dans la même boutique si le premier ne passe pas J+3.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu es sur le plan Basic, tu peux ouvrir l'admin Shopify, et ton adresse xxx.myshopify.com est notée.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">02</span>Général, langues et notifications</h2>
+  <p class="lead">Les réglages de base. Cinq minutes, et ils conditionnent tout : la devise, le fuseau horaire des rapports, la langue du checkout.</p>
+
+  <h3>Paramètres &gt; Général</h3>
+  <ul class="check">
+    <li><strong>Nom de la boutique</strong> : ton nom de marque, exactement comme sur le logo.</li>
+    <li><strong>E-mail de la boutique</strong> : l'adresse qui reçoit les commandes. <strong>E-mail de l'expéditeur</strong> : celle que voient tes clients (idéalement contact@tamarque.com une fois le domaine pris, sinon ton Gmail pour l'instant).</li>
+    <li><strong>Adresse de facturation</strong> : ton adresse réelle (micro-entreprise ou société). Elle apparaîtra sur les factures et les mentions légales.</li>
+    <li><strong>Devise de la boutique</strong> : EUR. Ça ne se change plus après la première vente : vérifie-le maintenant.</li>
+    <li><strong>Fuseau horaire</strong> : (GMT+01:00) Paris. Sinon tes rapports et tes campagnes Meta ne parlent pas de la même journée.</li>
+    <li><strong>Unités</strong> : système métrique, kilogrammes.</li>
+    <li><strong>Préfixe des commandes</strong> : laisse « # ».</li>
+  </ul>
+
+  <h3>Paramètres &gt; Langues</h3>
+  <p>Langue par défaut : français (ou la langue de ton marché). Le thème Aesthetic Lab est livré en français par le générateur. Si tu vises les États-Unis, on passe la boutique en anglais au moment de la génération : dis-le à Mady dans ta demande de boutique.</p>
+
+  <h3>Paramètres &gt; Notifications</h3>
+  <p>Shopify envoie automatiquement les e-mails de confirmation de commande, d'expédition et de remboursement. Ils sont corrects par défaut. Deux choses à faire :</p>
+  <ul>
+    <li>Ouvre « Confirmation de commande », clique « Aperçu », vérifie que le logo et le nom de marque apparaissent (Personnaliser les modèles d'e-mail : logo, couleur d'accent).</li>
+    <li>Dans « Notifications du personnel », vérifie que ton e-mail reçoit « Nouvelle commande ». Tu veux le savoir à la seconde.</li>
+  </ul>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    Avec l'extension Claude pour Chrome ouverte sur ton admin : « Va dans Paramètres &gt; Général de ma boutique Shopify, mets la devise en EUR, le fuseau horaire sur Paris, le nom de boutique [marque], et dis-moi ce que tu as changé. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Devise EUR, fuseau Paris, langue française, e-mail de commande reçu sur ton adresse, logo dans l'aperçu de l'e-mail de confirmation.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">03</span>Les moyens de paiement</h2>
+  <p class="lead">Le réglage le plus important de ce guide. Sans moyen de paiement validé, aucune commande ne passe. Et Shopify Payments met parfois plusieurs jours à être vérifié : commence aujourd'hui.</p>
+
+  <h3>Paramètres &gt; Paiements</h3>
+
+  <div class="step"><div class="n">1</div><div class="body"><h4>Active Shopify Payments</h4><p>Clique « Activer Shopify Payments ». C'est la passerelle intégrée : carte bancaire, Apple Pay, Google Pay, sans compte tiers. Prépare : ta pièce d'identité, ton adresse, ton numéro SIRET (micro-entreprise ou société), ton IBAN, et la description de ton activité (« vente en ligne de [catégorie] »). Remplis tout, sans approximation : un nom qui ne correspond pas à l'IBAN bloque la vérification.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Statut : micro-entreprise ou société</h4><p>Type d'entreprise : « Entreprise individuelle » si tu es en micro-entreprise (auto-entrepreneur), « SAS / SASU / SARL » si tu as une société. Il te faut un SIRET dans les deux cas. Pas de SIRET ? Lis le chapitre 11 : la micro-entreprise se crée en ligne en 15 minutes et le SIRET arrive sous 1 à 2 semaines. Tu peux ouvrir la boutique en attendant, mais pas encaisser.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Ajoute PayPal</h4><p>Dans la même page, « PayPal » : connecte un compte PayPal Business (gratuit, création sur paypal.com/business avec ton SIRET). Une partie des clients français ne paie qu'avec PayPal. Ne pas l'avoir, c'est perdre 10 à 15 % des ventes.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Capture des paiements : automatique</h4><p>Paramètres &gt; Paiements &gt; « Capture des paiements » : « Automatiquement au moment du paiement ». Sinon tu dois capturer chaque commande à la main, et tu oublies.</p></div></div>
+  <div class="step"><div class="n">5</div><div class="body"><h4>Versements</h4><p>Dans Shopify Payments &gt; « Versements » : calendrier quotidien, compte bancaire vérifié. Le premier versement arrive sous quelques jours après la première vente, les suivants tous les jours ouvrés.</p></div></div>
+
+  <h3>Tester sans vraie carte : la passerelle fictive</h3>
+  <p>Tant que Shopify Payments est « en cours de vérification », tu peux tester le checkout avec la passerelle fictive (« Bogus Gateway ») : Paramètres &gt; Paiements &gt; « Ajouter des modes de paiement manuels » ne la contient pas ; il faut aller dans Paramètres &gt; Paiements &gt; tout en bas « Fournisseurs de paiement tiers » &gt; « (for testing) Bogus Gateway ». Active-la, fais ta commande test avec le numéro de carte <code>1</code> (succès), puis désactive-la avant le lancement.</p>
+
+  <table class="t">
+    <tr><th style="width:32%">Moyen</th><th>Frais (ordre de grandeur, plan Basic)</th><th>Obligatoire ?</th></tr>
+    <tr><td>Shopify Payments (CB, Apple Pay, Google Pay)</td><td>environ 1,9 % + 0,25 € par transaction, cartes UE</td><td>Oui</td></tr>
+    <tr><td>PayPal</td><td>environ 2,9 % + 0,35 €</td><td>Oui</td></tr>
+    <tr><td>Paiement en 3 fois (Alma, Klarna)</td><td>3 à 6 %</td><td>Plus tard, sur les paniers au-dessus de 80 €</td></tr>
+    <tr><td>Passerelle fictive Bogus</td><td>0</td><td>Pour tester, puis à désactiver</td></tr>
+  </table>
+
+  <div class="note danger">
+    <b>Avant le lancement</b>
+    Shopify Payments doit afficher « Actif », pas « En cours de vérification ». Si à J-2 du lancement ce n'est toujours pas actif, c'est une urgence : écris à Mady avec une capture du statut.
+  </div>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Shopify Payments me demande [document / information], voici la capture. Qu'est-ce que je dois fournir exactement, en tant que micro-entrepreneur en France, et où je le trouve ? »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Shopify Payments est « Actif », PayPal est connecté, la capture est automatique, et la passerelle fictive est désactivée (ou activée uniquement le temps du test).</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">04</span>Expédition et livraison</h2>
+  <p class="lead">Un seul tarif, simple, lisible. Le client doit voir « Livraison offerte » ou « 4,90 € » et rien d'autre. Pas de calcul au poids, pas de cinq options.</p>
+
+  <h3>Paramètres &gt; Expédition et livraison</h3>
+
+  <div class="step"><div class="n">1</div><div class="body"><h4>Supprime les tarifs par défaut</h4><p>Ouvre « Tarifs généraux » (le profil « Général »). Shopify a créé des zones et des tarifs automatiques (« Domestique », « International », tarifs au poids). Supprime tout ce qui ne te concerne pas. Tu repars propre.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Crée la zone France</h4><p>« Créer une zone » &gt; nom « France » &gt; coche France (et Monaco si tu veux). Ajoute un tarif : nom « Livraison standard (5 à 10 jours) », prix 0 € si tu offres la livraison, ou 4,90 € sinon. Délai de transit : 5 à 10 jours ouvrés (c'est le vrai délai en dropshipping depuis un fournisseur, ne mens pas dessus).</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Choisis : offerte ou payante</h4><p>Livraison offerte : tu la mets dans le prix (49 € au lieu de 44 €) et tu l'affiches partout comme argument. C'est ce que je fais. Alternative : 4,90 € de frais, et livraison offerte à partir de 60 € pour pousser le bundle. Les deux marchent. Choisis une fois, et aligne la page produit dessus.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Zone Europe (optionnel)</h4><p>Belgique, Suisse, Luxembourg : les francophones. Même tarif ou 6,90 €. Attention à la Suisse (hors UE : douane) : ajoute-la seulement quand le reste tourne.</p></div></div>
+  <div class="step"><div class="n">5</div><div class="body"><h4>Lieu d'expédition</h4><p>Paramètres &gt; Emplacements : un seul emplacement, ton adresse. Le fournisseur expédie de Chine ou d'Europe, mais Shopify a besoin d'un lieu pour les stocks. Laisse « Suivre la quantité » désactivé sur les produits (chapitre 09) pour ne jamais être « en rupture ».</p></div></div>
+
+  <table class="t">
+    <tr><th style="width:26%">Zone</th><th>Tarif</th><th>Délai affiché</th></tr>
+    <tr><td>France</td><td>Livraison standard offerte (0 €), ou 4,90 €</td><td>5 à 10 jours ouvrés</td></tr>
+    <tr><td>Belgique, Luxembourg</td><td>Offerte ou 6,90 €</td><td>6 à 12 jours ouvrés</td></tr>
+    <tr><td>Reste du monde</td><td>Aucune zone : on ne vend pas</td><td></td></tr>
+  </table>
+
+  <div class="note warn">
+    <b>Le délai, c'est ta politique de retour</b>
+    Si tu affiches 2 à 3 jours et que tu livres en 9, tu vas te prendre des litiges PayPal et des rétrofacturations. Affiche le vrai délai sur la page produit, dans l'e-mail de confirmation et dans la politique de livraison.
+  </div>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    Avec l'extension Chrome sur Paramètres &gt; Expédition : « Supprime tous les tarifs par défaut, crée une zone France avec un tarif « Livraison standard (5 à 10 jours) » à 0 €, et montre-moi le résultat avant de sauvegarder. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Une zone France, un seul tarif, le délai réel, aucun tarif par défaut restant. Au checkout, un client français voit une seule option de livraison.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">05</span>Taxes et TVA</h2>
+  <p class="lead">Deux cas, un réglage chacun. L'erreur classique, c'est d'afficher des prix hors taxes : le client découvre 20 % de plus au paiement et s'en va.</p>
+
+  <h3>Paramètres &gt; Taxes et droits de douane</h3>
+
+  <h4>Cas 1 : micro-entreprise en franchise de TVA (le cas le plus fréquent au départ)</h4>
+  <p>Sous le seuil de franchise (environ 85 000 € de CA par an pour la vente de marchandises en 2026, vérifie le montant en vigueur), tu ne factures pas de TVA. Réglage : région « France » &gt; taxe à 0 %. Coche quand même « Inclure les taxes dans les prix » pour que l'affichage soit stable le jour où tu passes assujetti. Mention obligatoire sur tes factures : « TVA non applicable, art. 293 B du CGI » (tu la mets dans le pied de page des factures, Paramètres &gt; Notifications, ou via une app de facturation).</p>
+
+  <h4>Cas 2 : assujetti à la TVA (société, ou micro au-dessus du seuil)</h4>
+  <p>Région « France » &gt; TVA 20 % (Shopify la calcule automatiquement par pays de l'UE au-delà de 10 000 € de ventes intra-UE par an, laisse « Collecter automatiquement » si proposé). Coche « Inclure les taxes dans les prix » : ton prix affiché est TTC, Shopify décompose la TVA dans la commande. Tes 49 € affichés contiennent 8,17 € de TVA.</p>
+
+  <table class="t">
+    <tr><th style="width:30%">Réglage</th><th>Micro en franchise</th><th>Assujetti</th></tr>
+    <tr><td>Taux France</td><td>0 %</td><td>20 %</td></tr>
+    <tr><td>Inclure les taxes dans les prix</td><td>Coché</td><td>Coché</td></tr>
+    <tr><td>Taxes sur la livraison</td><td>Non</td><td>Oui</td></tr>
+    <tr><td>Mention sur facture</td><td>« TVA non applicable, art. 293 B du CGI »</td><td>Numéro de TVA intracom</td></tr>
+  </table>
+
+  <div class="note">
+    <b>Les droits de douane</b>
+    En dropshipping depuis la Chine, les colis sous 150 € passent généralement en « import one-stop shop » via le fournisseur ou AliExpress, qui collecte la TVA à l'import. Ne coche pas « Collecter les droits à l'achat » : ça ajoute une ligne au checkout et fait fuir.
+  </div>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Je suis micro-entrepreneur en France en franchise de TVA, je vends des produits physiques à des particuliers français depuis Shopify. Dis-moi exactement quoi mettre dans Paramètres &gt; Taxes, et quelle mention je dois mettre sur mes factures. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Le taux est réglé selon ton statut, « Inclure les taxes dans les prix » est coché, et un article test à 49 € s'affiche 49 € au checkout, pas 58,80 €.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">06</span>Les politiques légales</h2>
+  <p class="lead">Obligatoires en France, et rassurantes pour le client. Shopify les génère en un clic. Tu lis, tu adaptes trois chiffres, c'est fait.</p>
+
+  <h3>Paramètres &gt; Politiques</h3>
+  <p>Pour chaque politique, clique « Insérer un modèle », puis adapte. Elles sont automatiquement ajoutées au menu du pied de page du thème Aesthetic Lab.</p>
+
+  <table class="t">
+    <tr><th style="width:30%">Politique</th><th>Ce que tu vérifies ou modifies</th></tr>
+    <tr><td><strong>Politique de remboursement</strong></td><td>Délai de rétractation : 14 jours minimum (loi française, à partir de la réception). Je mets 30 jours « satisfait ou remboursé » : c'est un argument de vente, et en pratique peu de gens retournent. Précise : produit non utilisé, dans son emballage, frais de retour à la charge du client sauf défaut.</td></tr>
+    <tr><td><strong>Politique de confidentialité</strong></td><td>Le modèle Shopify est conforme RGPD. Ajoute une phrase sur le Pixel Meta : « Nous utilisons le pixel Meta à des fins publicitaires ». Mets ton e-mail de contact.</td></tr>
+    <tr><td><strong>Conditions générales de vente</strong></td><td>Modèle Shopify. Vérifie : délai de livraison (5 à 10 jours ouvrés), prix TTC, moyens de paiement, droit applicable (français).</td></tr>
+    <tr><td><strong>Politique d'expédition</strong></td><td>Délai de préparation (1 à 3 jours) + transit (5 à 10 jours). Suivi envoyé par e-mail. Zones livrées.</td></tr>
+    <tr><td><strong>Mentions légales</strong></td><td>Obligatoires : nom ou raison sociale, adresse, SIRET, e-mail, hébergeur (Shopify International Ltd, Dublin), directeur de publication (toi). Le modèle Shopify est vide : écris-les (ou demande à Claude).</td></tr>
+    <tr><td><strong>Coordonnées</strong></td><td>E-mail de contact, délai de réponse (« sous 24 h ouvrées »).</td></tr>
+  </table>
+
+  <pre class="prompt">Rédige les mentions légales d'une boutique Shopify française pour une micro-entreprise. Nom commercial : [marque]. Exploitant : [prénom nom], entrepreneur individuel, SIRET [numéro], adresse [adresse], e-mail [contact@…]. Hébergeur : Shopify International Limited, Victoria Buildings, 2nd floor, 1-2 Haddington Road, Dublin 4, D04 XN32, Irlande. Directeur de publication : [prénom nom]. TVA non applicable, art. 293 B du CGI. Ajoute une section « Propriété intellectuelle » et une section « Médiation de la consommation » avec la mention de l'obligation de proposer un médiateur. Format : titres courts, phrases simples, prêt à coller.</pre>
+
+  <div class="note warn">
+    <b>Ce que tu n'écris jamais</b>
+    Pas de promesse de santé, pas de « garanti sans effet secondaire », pas de faux délai. Les politiques sont lues par les clients mécontents et par PayPal en cas de litige. Elles doivent dire la vérité.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Les 6 politiques sont remplies, le délai de retour est à 14 jours ou plus, les mentions légales contiennent ton SIRET, et les liens apparaissent dans le pied de page de la boutique.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">07</span>Checkout, comptes clients et panier abandonné</h2>
+  <p class="lead">Le checkout, c'est là où l'argent passe ou ne passe pas. Chaque champ en trop coûte des ventes. Voilà les réglages qui convertissent.</p>
+
+  <h3>Paramètres &gt; Paiement (checkout)</h3>
+  <ul class="check">
+    <li><strong>Comptes clients</strong> : « Facultatif » ou « Désactivé ». Jamais « Obligatoire » : personne ne crée un compte pour une première commande à 49 €.</li>
+    <li><strong>Méthode de contact</strong> : e-mail. Le numéro de téléphone en facultatif (utile pour le transporteur, mais ne le rends pas obligatoire).</li>
+    <li><strong>Nom complet</strong> : prénom et nom obligatoires (pour la livraison).</li>
+    <li><strong>Adresse ligne 2</strong>, <strong>nom de l'entreprise</strong> : masqués ou facultatifs.</li>
+    <li><strong>Pourboires</strong> : désactivés.</li>
+    <li><strong>Marketing</strong> : case « Recevoir les offres par e-mail » précochée (autorisé en France pour tes clients, pas pour les simples visiteurs).</li>
+    <li><strong>Après la commande</strong> : « Rediriger vers la page de statut de commande » par défaut, c'est bien.</li>
+  </ul>
+
+  <h3>Panier abandonné</h3>
+  <p>Paramètres &gt; Paiement &gt; « E-mails de panier abandonné » (ou Marketing &gt; Automatisations &gt; « Récupérer un panier abandonné »). Active l'envoi automatique 1 heure après l'abandon, à tous les clients. Entre 5 et 10 % des paniers abandonnés se convertissent avec cet e-mail, gratuitement. Personnalise l'objet : « Tu as oublié quelque chose, [prénom] » et ajoute une ligne « livraison offerte ».</p>
+
+  <h3>Personnaliser l'apparence du checkout</h3>
+  <p>Paramètres &gt; Paiement &gt; « Personnaliser » : ajoute ton logo, la couleur d'accent de ta marque (celle du bouton du thème Aesthetic Lab), une image de fond légère ou rien. Le checkout doit ressembler à ta boutique pour que le client ne se demande pas s'il est au bon endroit.</p>
+
+  <h3>Shop Pay</h3>
+  <p>Laisse Shop Pay activé (dans Paiements &gt; Shopify Payments). C'est le paiement en un clic pour les clients qui ont déjà acheté sur une boutique Shopify : il convertit mieux que tout le reste, et c'est gratuit.</p>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Ouvre Paramètres &gt; Paiement de ma boutique Shopify et règle : comptes clients facultatifs, e-mail obligatoire, téléphone facultatif, nom de l'entreprise masqué, pourboires désactivés, e-mail de panier abandonné activé à 1 heure. Montre-moi une capture de chaque réglage changé. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Un client peut commander sans créer de compte, en remplissant 6 champs maximum, et l'e-mail de panier abandonné est activé avec ton logo.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">08</span>Domaine, préférences et marchés</h2>
+  <p class="lead">Une boutique qui s'appelle xxx.myshopify.com fait fuir. Un domaine coûte 15 € par an. C'est le meilleur investissement de ce guide.</p>
+
+  <h3>Paramètres &gt; Domaines</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Acheter un domaine dans Shopify (le plus simple)</h4><p>« Acheter un nouveau domaine » &gt; tape ton nom de marque &gt; choisis .com (ou .fr si tu ne vends qu'en France). Environ 15 € par an, renouvelé automatiquement, DNS et certificat HTTPS réglés tout seuls. Tu as un e-mail de confirmation à cliquer sous 15 jours, sinon le domaine est suspendu.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Ou connecter un domaine que tu as déjà</h4><p>« Connecter un domaine existant » &gt; suis l'assistant : il te dit quels enregistrements DNS poser chez ton registrar (un enregistrement A vers l'adresse IP de Shopify et un CNAME « www » vers shops.myshopify.com). Ça prend jusqu'à 48 h pour se propager.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Domaine principal et redirection</h4><p>Mets ton domaine en « Domaine principal ». Coche « Rediriger tout le trafic vers ce domaine » : xxx.myshopify.com renvoie vers tamarque.com. Vérifie le cadenas HTTPS dans le navigateur.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Un e-mail à ton nom de domaine</h4><p>contact@tamarque.com fait plus sérieux qu'un Gmail. Shopify ne fournit pas de boîte mail mais permet une redirection (Domaines &gt; ton domaine &gt; « Transfert d'e-mail ») vers ton Gmail. Pour envoyer depuis cette adresse, configure Gmail « Envoyer en tant que », ou prends Google Workspace (environ 6 €/mois) plus tard.</p></div></div>
+
+  <h3>Boutique en ligne &gt; Préférences</h3>
+  <ul class="check">
+    <li><strong>Titre et méta description</strong> : « [Marque] – [promesse en 8 mots] ». C'est ce que Google et les partages affichent.</li>
+    <li><strong>Image de partage sur les réseaux sociaux</strong> : ton visuel héros en 1200 × 630 px.</li>
+    <li><strong>Favicon</strong> : ton logo en carré, 32 × 32 px minimum (demande à Claude de te le découper si besoin).</li>
+    <li><strong>Google Analytics / Pixel Facebook</strong> : ne mets rien ici. Le Pixel passe par l'application Facebook &amp; Instagram (guide 08 et Démarrage section 06), sinon il compte double.</li>
+    <li><strong>Protection par mot de passe</strong> : décoche « Restreindre l'accès » quand tu es prêt à lancer (chapitre 10). Tant que tu construis, laisse-le coché.</li>
+  </ul>
+
+  <h3>Paramètres &gt; Marchés</h3>
+  <p>Un seul marché pour l'instant : France (devise EUR, langue française). Supprime ou désactive « International » si Shopify l'a créé, sinon des visiteurs belges verront des prix convertis bizarrement. Tu ajouteras la Belgique ou les États-Unis quand la France tourne.</p>
+
+  <div class="done"><b>✅ Fait quand</b>tamarque.com ouvre ta boutique avec le cadenas HTTPS, xxx.myshopify.com redirige dessus, et le titre de l'onglet affiche ton nom de marque et ta promesse.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">09</span>Produits, applications et ce qu'il faut éviter</h2>
+  <p class="lead">Mady génère tes produits avec le thème. Il te reste à vérifier trois réglages par produit, et à résister à la tentation d'installer vingt applications.</p>
+
+  <h3>Vérifier chaque produit (Produits &gt; le produit)</h3>
+  <ul class="check">
+    <li><strong>Statut</strong> : « Actif », canal « Boutique en ligne » coché.</li>
+    <li><strong>Prix et prix barré</strong> : le prix barré (« Prix de comparaison ») doit être supérieur au prix, sinon pas de badge « -46 % ».</li>
+    <li><strong>Inventaire</strong> : « Suivre la quantité » décoché. En dropshipping tu n'as pas de stock : un produit « épuisé » par erreur, c'est une campagne qui paie pour rien.</li>
+    <li><strong>Expédition</strong> : « Produit physique » coché, poids approximatif (0,3 kg), pays d'origine renseigné.</li>
+    <li><strong>Variantes</strong> : si plusieurs couleurs, chaque variante a une image. Si une seule, pas de variante.</li>
+    <li><strong>Médias</strong> : ce sont tes photos (guide 06), pas celles du concurrent. Remplace-les avant le lancement.</li>
+    <li><strong>SEO</strong> (en bas) : titre et description de la page, avec le nom du produit et le bénéfice.</li>
+  </ul>
+
+  <h3>Les applications utiles (et suffisantes)</h3>
+  <table class="t">
+    <tr><th style="width:30%">Besoin</th><th>Application</th><th style="width:22%">Prix</th></tr>
+    <tr><td>Pixel Meta + Conversions API</td><td>Facebook &amp; Instagram (par Meta)</td><td>Gratuit</td></tr>
+    <tr><td>Commander chez le fournisseur en un clic</td><td>DSers (AliExpress) ou le portail de ton agent</td><td>Gratuit au départ</td></tr>
+    <tr><td>Avis clients avec photos</td><td>Judge.me ou Loox</td><td>Gratuit / environ 10 €</td></tr>
+    <tr><td>Suivi de colis en marque blanche</td><td>Parcel Panel ou 17TRACK</td><td>Gratuit au départ</td></tr>
+    <tr><td>E-mails marketing</td><td>Shopify Email (inclus)</td><td>Gratuit jusqu'à 10 000 e-mails/mois</td></tr>
+  </table>
+
+  <h3>Les applications à éviter</h3>
+  <ul>
+    <li><strong>Compteurs de visiteurs, pop-ups de « 37 personnes regardent ce produit », faux timers</strong> : ça ralentit la page et ça pue le dropshipping. Le thème Aesthetic Lab a déjà ce qu'il faut (barre d'annonce, compte à rebours propre).</li>
+    <li><strong>Page builders</strong> (constructeurs de pages à 20 à 50 €/mois) : tu as Claude Code. Il fait n'importe quelle section, sur mesure, gratuitement.</li>
+    <li><strong>Apps de « bundle » payantes</strong> : la section bundle est dans le thème.</li>
+    <li><strong>Apps de traduction, de devise, de SEO automatique</strong> : pas maintenant. Un marché, une langue.</li>
+  </ul>
+
+  <div class="note warn">
+    <b>Chaque app ralentit la boutique</b>
+    Une app installée puis supprimée laisse souvent du code dans le thème. Avant d'installer, demande-toi si Claude Code peut faire la même chose dans le thème. Dans 80 % des cas, oui.
+  </div>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    Dans Claude Code, dans ton dossier de thème : « Liste les scripts d'applications tierces encore présents dans theme.liquid et les snippets, dis-moi lesquels correspondent à des apps que je n'utilise plus, et propose-moi de les retirer un par un. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Chaque produit est actif, sans suivi de stock, avec un prix barré et tes propres médias ; et tu n'as pas plus de 4 applications installées.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">10</span>Retirer le mot de passe et faire la commande test</h2>
+  <p class="lead">Le moment de vérité. Tu achètes ton propre produit depuis ton téléphone, de la pub jusqu'à l'e-mail de confirmation. Si une seule étape coince, tu ne lances pas.</p>
+
+  <h3>Retirer le mot de passe</h3>
+  <p>Boutique en ligne &gt; Préférences &gt; « Protection par mot de passe » &gt; décoche « Restreindre l'accès aux visiteurs avec un mot de passe » &gt; Enregistrer. Il faut un forfait choisi (chapitre 01). À partir de là, ta boutique est publique : Meta pourra la lire pour valider le Pixel.</p>
+
+  <h3>La commande test, de bout en bout</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Depuis ton téléphone, en 4G</h4><p>Pas depuis ton ordinateur, pas en Wi-Fi. 80 % de tes clients viendront de Meta sur mobile. Ouvre tamarque.com dans Safari ou Chrome mobile.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Parcours client</h4><p>Page d'accueil → page produit (lis les textes, regarde les images, teste le sélecteur de bundle) → ajoute au panier → panier → « Commander ». Chronomètre : tu dois arriver au paiement en moins de 2 minutes.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Paiement</h4><p>Avec la passerelle fictive : carte numéro <code>1</code>, n'importe quelle date et code. Avec Shopify Payments actif : ta vraie carte, puis tu rembourses la commande depuis l'admin (Commandes &gt; la commande &gt; Rembourser). Les deux méthodes valident la chaîne.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Vérifie les e-mails</h4><p>Tu dois recevoir, en tant que client, la confirmation de commande (avec logo, délai de livraison, politiques), et en tant que marchand, la notification « Nouvelle commande ». Regarde-les sur mobile.</p></div></div>
+  <div class="step"><div class="n">5</div><div class="body"><h4>Vérifie dans l'admin</h4><p>Commandes : la commande apparaît, statut « Payée », livraison « Non traitée », les bons montants, la bonne zone de livraison, la TVA bien décomposée (ou à 0 selon ton statut).</p></div></div>
+  <div class="step"><div class="n">6</div><div class="body"><h4>Nettoie</h4><p>Rembourse ou annule la commande test, archive-la, désactive la passerelle fictive. Ne laisse jamais la Bogus Gateway active : un vrai client pourrait « payer » avec.</p></div></div>
+
+  <h3>La checklist finale : ta boutique peut encaisser</h3>
+  <ul class="check">
+    <li>Plan Basic choisi, mot de passe retiré, domaine en HTTPS.</li>
+    <li>Shopify Payments « Actif », PayPal connecté, capture automatique, passerelle fictive désactivée.</li>
+    <li>Une zone France, un tarif, le vrai délai.</li>
+    <li>Taxes réglées selon ton statut, prix affichés TTC.</li>
+    <li>6 politiques remplies, mentions légales avec SIRET, liens dans le pied de page.</li>
+    <li>Checkout sans compte obligatoire, panier abandonné activé.</li>
+    <li>Produits actifs, sans suivi de stock, prix barré, tes médias.</li>
+    <li>Commande test réussie depuis le téléphone, e-mails reçus des deux côtés.</li>
+    <li>Pixel Meta installé et vérifié (guide 08) : c'est la seule chose qui manque encore avant la pub.</li>
+  </ul>
+
+  <div class="note ok">
+    <b>Tu as fini quand</b>
+    Tu peux acheter un produit sur ta boutique, de ton téléphone, en moins de 2 minutes, et tu reçois l'e-mail de commande. À ce moment-là, et pas avant, tu coches l'étape 9 de « Mes étapes ».
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>La commande test est passée, remboursée, archivée, la passerelle fictive est désactivée, et les 9 lignes de la checklist sont cochées.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">11</span>Le statut juridique en France, en une page</h2>
+  <p class="lead">Tu ne peux pas encaisser sans SIRET. La micro-entreprise se crée en ligne, gratuitement, en 15 minutes. Voilà l'essentiel, sans jargon. Pour le reste, un expert-comptable ou Claude.</p>
+
+  <h3>Micro-entreprise (auto-entrepreneur) : le choix par défaut</h3>
+  <ul>
+    <li><strong>Création</strong> : sur le guichet unique (formalites.entreprises.gouv.fr), activité « Vente à distance sur catalogue général » (code APE 47.91B). Gratuit. Le SIRET arrive par courrier et sur le site de l'INSEE sous 1 à 3 semaines. Lance la démarche le jour 1 de l'accompagnement.</li>
+    <li><strong>Cotisations sociales</strong> : environ 12,3 % du chiffre d'affaires encaissé pour la vente de marchandises (taux 2026 à vérifier sur autoentrepreneur.urssaf.fr). Déclaration mensuelle ou trimestrielle sur le site de l'URSSAF, même à zéro.</li>
+    <li><strong>Impôt sur le revenu</strong> : soit intégré à ta déclaration annuelle avec un abattement de 71 % sur le CA (vente de marchandises), soit le versement libératoire (1 % du CA) si tu y es éligible. L'option se choisit à la création.</li>
+    <li><strong>TVA</strong> : franchise en dessous du seuil (environ 85 000 € de CA annuel pour les ventes). Tu factures sans TVA avec la mention « TVA non applicable, art. 293 B du CGI », et tu ne récupères pas la TVA sur tes achats (outils, pub).</li>
+    <li><strong>Plafond</strong> : 188 700 € de CA par an pour la vente de marchandises. À 1 000 €/jour tu es à 365 000 € : tu passes en société avant d'y arriver. C'est un bon problème, on le réglera ensemble.</li>
+    <li><strong>Compte bancaire</strong> : un compte dédié est obligatoire au-dessus de 10 000 € de CA deux années de suite. Prends-en un dès le départ (banque en ligne pro à 10 €/mois) : ça simplifie Shopify Payments et ta comptabilité.</li>
+  </ul>
+
+  <h3>Société (SASU, EURL) : plus tard</h3>
+  <p>Quand tu dépasses 8 000 à 10 000 € de CA par mois régulièrement, ou quand tu veux déduire tes charges (pub, outils) et récupérer la TVA. Coût de création 200 à 500 €, comptable 100 à 200 €/mois. On en parle en call quand les chiffres sont là, pas avant.</p>
+
+  <h3>Facturation</h3>
+  <p>Chaque commande doit pouvoir donner lieu à une facture : Shopify ne les génère pas nativement en format conforme. Installe « Order Printer » (Shopify, gratuit) ou une app de facturation (Sufio, environ 15 €/mois) quand les commandes arrivent. Mentions obligatoires : tes coordonnées, SIRET, numéro de facture, date, désignation, prix TTC, mention TVA.</p>
+
+  <div class="note warn">
+    <b>Ce que je ne suis pas</b>
+    Je ne suis ni comptable ni juriste. Les chiffres ci-dessus changent chaque année : vérifie les seuils sur urssaf.fr et impots.gouv.fr. Pour une situation particulière (étudiant, salarié, chômage, résident hors France), demande à Claude puis, si besoin, à un expert-comptable.
+  </div>
+
+  <pre class="prompt">Je suis [salarié / étudiant / demandeur d'emploi / autre], résident en France, je veux créer une micro-entreprise pour vendre des produits physiques en ligne via Shopify (vente à distance, code APE 47.91B). Explique-moi en 10 points : la démarche exacte sur le guichet unique, les options à cocher (versement libératoire oui ou non dans mon cas, déclaration mensuelle ou trimestrielle), le taux de cotisations 2026 pour la vente de marchandises, le seuil de franchise de TVA, la mention à mettre sur mes factures, si je dois ouvrir un compte bancaire dédié, et les interactions avec ma situation actuelle ([chômage / salariat / études]). Donne les liens officiels.</pre>
+
+  <div class="done"><b>✅ Fait quand</b>La démarche de création est lancée (ou ton SIRET est déjà obtenu), tu as un compte bancaire pour la boutique, et tu sais quel taux de cotisations et quelle mention TVA s'appliquent à toi.</div>
+</section>
+
+</body>
+</html>

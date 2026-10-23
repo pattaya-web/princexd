@@ -6,6 +6,7 @@ import { sortModules } from "@/lib/formation";
 import { toResourceRow, type CourseResourceRow } from "@/lib/formation-resources";
 import { ensureCourseSteps, ensureGuideStepLink, portalSettings, stepItems, type StepItem } from "@/lib/formation-steps";
 import { onboardingSettings } from "@/lib/onboarding";
+import { lessonProgress } from "@/lib/formation-education";
 import type { StudentPortalSettings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,13 @@ export interface DashboardPayload {
     percent: number;
     /** Module à reprendre : le premier non terminé. */
     resume: { id: string; title: string; summary: string; index: number } | null;
+  };
+  /** Education : les guides PDF (le cours, sans vidéo pour l'instant). */
+  education: {
+    total: number;
+    done: number;
+    percent: number;
+    resume: { id: string; title: string; summary: string; index: number; file: string; order: number } | null;
   };
   steps: {
     total: number;
@@ -79,6 +87,10 @@ export async function GET(req: NextRequest) {
         percent: modules.length ? Math.round((doneModules / modules.length) * 100) : 0,
         resume: resumeModule ? { id: resumeModule.id, title: resumeModule.title, summary: resumeModule.summary, index: resumeIdx } : null,
       },
+      education: (() => {
+        const p = lessonProgress(student?.completedLessons);
+        return { total: p.total, done: p.done, percent: p.percent, resume: p.resume ? { id: p.resume.id, title: p.resume.title, summary: p.resume.summary, index: p.resume.index, file: p.resume.file, order: p.resume.order } : null };
+      })(),
       steps: {
         total: steps.length + tasks.length,
         done: steps.filter((s) => s.done).length + tasks.filter((t) => t.done).length,

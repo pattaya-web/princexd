@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Scale X · La page produit qui convertit</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #141a1f; font-size: 11pt; line-height: 1.5; }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 0; }
+  p { margin: 0 0 8pt; }
+  a { color: #0b63c4; }
+  .kicker { font-family: "Segoe UI", Arial, sans-serif; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #0b63c4; font-weight: 700; margin: 0 0 6pt; }
+
+  /* Couverture */
+  .cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .brand { font-weight: 800; font-size: 13pt; letter-spacing: 0.04em; margin-bottom: 40pt; }
+  .cover .brand span { color: #0b63c4; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 0 0 14pt; }
+  .cover .sub { font-size: 14pt; color: #4a5560; font-family: Georgia, serif; margin-bottom: 28pt; }
+  .cover .meta { font-size: 10pt; color: #4a5560; margin-top: 24pt; }
+  .cover ul { margin: 0; padding-left: 18pt; }
+  .cover li { margin: 3pt 0; }
+  .cover .foot { margin-top: auto; font-size: 9pt; color: #7a858f; border-top: 1px solid #e3e7ea; padding-top: 10pt; }
+
+  /* Chapitres */
+  .chapter { page-break-before: always; }
+  .chapter.first { page-break-before: auto; }
+  h2 { font-size: 22pt; margin: 0 0 6pt; line-height: 1.15; }
+  h2 .num { display: inline-block; color: #0b63c4; margin-right: 8pt; font-size: 16pt; vertical-align: 6pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; }
+  .lead { font-size: 12pt; color: #4a5560; margin: 0 0 14pt; }
+  h3 { font-size: 15pt; margin: 18pt 0 6pt; }
+  h4 { font-size: 12pt; margin: 0 0 3pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  strong { font-weight: 700; }
+
+  /* Encadrés */
+  .note { border-left: 3px solid #0b63c4; background: #eef4fb; padding: 8pt 11pt; margin: 10pt 0; border-radius: 3px; page-break-inside: avoid; }
+  .note b { display: block; color: #0b63c4; margin-bottom: 2pt; }
+  .note.ok { border-color: #178a4c; background: #ecf7f0; } .note.ok b { color: #178a4c; }
+  .note.warn { border-color: #d98a0e; background: #fff6e8; } .note.warn b { color: #b86f00; }
+  .note.danger { border-color: #c9302c; background: #fdeeee; } .note.danger b { color: #c9302c; }
+  .claude { border: 1px solid #c9c3f5; background: #f4f2ff; padding: 8pt 11pt; margin: 10pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .claude b { display: block; color: #5b5ce6; margin-bottom: 2pt; }
+  .done { border: 1px solid #b7e0c5; background: #ecf7f0; padding: 8pt 11pt; margin: 12pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .done b { display: block; color: #178a4c; margin-bottom: 2pt; }
+
+  /* Étapes */
+  .step { display: flex; gap: 10pt; margin: 10pt 0; page-break-inside: avoid; }
+  .step .n { flex: 0 0 24pt; height: 24pt; border-radius: 5px; background: #0b63c4; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 11pt; }
+  .step .body { flex: 1; min-width: 0; }
+
+  /* Code et prompts */
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 9.5pt; line-height: 1.45; margin: 6pt 0 10pt; padding: 8pt 10pt; border-radius: 4px; page-break-inside: avoid; }
+  pre.cmd { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; border: 1px solid #e1e5e9; }
+  pre.prompt { font-family: "Segoe UI", Arial, sans-serif; background: #fbf7ec; border: 1px solid #ecdfbd; font-size: 10pt; }
+  pre.prompt::before { content: "PROMPT À COPIER"; display: block; font-size: 7.5pt; letter-spacing: 0.16em; color: #9a7b2c; font-weight: 700; margin-bottom: 4pt; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; padding: 0 3pt; border-radius: 3px; font-size: 9.5pt; }
+
+  /* Checklist et tableaux */
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { padding-left: 20pt; position: relative; margin: 4pt 0; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; top: -1pt; font-size: 12pt; color: #0b63c4; }
+  table.t { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+  table.t th, table.t td { border: 1px solid #dfe3e7; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  table.t th { background: #f3f5f7; font-weight: 700; }
+  .cols { display: flex; gap: 14pt; } .cols > div { flex: 1; min-width: 0; }
+  hr { border: 0; border-top: 1px solid #e3e7ea; margin: 14pt 0; }
+  .muted { color: #6b7680; }
+  .small { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="brand">SCALE <span>X</span> · EDUCATION</div>
+  <p class="kicker">Guide 05 · Boutique</p>
+  <h1>La page produit qui convertit</h1>
+  <p class="sub">Une section = une objection, dans l'ordre où le client se les pose. L'analyse d'une page à plusieurs millions, les 11 sections détaillées, l'offre, les textes, et les prompts pour que Claude écrive tout.</p>
+  <p class="kicker">À la fin de ce guide, tu sauras</p>
+  <ul>
+    <li>Lire une page produit comme un média buyer : quelle section lève quelle objection, et pourquoi dans cet ordre.</li>
+    <li>Construire ton offre (prix, prix barré, bundle, cadeau, garantie) pour que le client clique sans réfléchir.</li>
+    <li>Faire écrire tous les textes de ta page par Claude à partir de ton produit et de ta cible, puis les relire avec la checklist.</li>
+  </ul>
+  <p class="meta">Temps de lecture : 45 min · Temps de mise en pratique : une après-midi (textes + offre + relecture)</p>
+  <div class="foot">Scale X · Accompagnement e-commerce + IA · Mady · Version octobre 2026. Bloqué ? Demande d'abord à Claude. Mady, c'est pour les urgences.</div>
+</header>
+
+<section class="chapter first">
+  <h2><span class="num">01</span>Une page produit, c'est une conversation avec un client méfiant</h2>
+  <p class="lead">Le client arrive depuis une pub. Il a vu 8 secondes de vidéo. Il ne te connaît pas. Il a cinq questions dans la tête, toujours les mêmes, toujours dans le même ordre. Ta page y répond, dans cet ordre, ou il repart.</p>
+
+  <table class="t">
+    <tr><th>Ce que le client se dit</th><th>La section qui répond</th><th>Où sur la page</th></tr>
+    <tr><td>« Est-ce que ça marche ? »</td><td>Note + nombre d'avis AU-DESSUS du titre, avis en photo, UGC en vidéo, avant / après</td><td>Tout en haut, puis répété au milieu</td></tr>
+    <tr><td>« Est-ce que c'est pour moi ? »</td><td>Promesse en une phrase + 6 bénéfices, visuels proches du client</td><td>Juste sous le prix</td></tr>
+    <tr><td>« Pourquoi pas l'alternative ? »</td><td>Tableau comparatif : nous vs 2 solutions que le client connaît</td><td>Milieu de page</td></tr>
+    <tr><td>« Et si ça ne marche pas ? »</td><td>Garantie 30 jours satisfait ou remboursé, répétée trois fois, FAQ</td><td>Sous le bouton, puis en bas</td></tr>
+    <tr><td>« Pourquoi maintenant ? »</td><td>Timer, bundle avec cadeau, compteur de commandes, livraison offerte aujourd'hui</td><td>Avant même le produit, puis autour du bouton</td></tr>
+  </table>
+
+  <p>Tout le reste (joli design, belle typo, animations) vient après. Une page moche qui répond aux cinq questions vend. Une page magnifique qui n'y répond pas ne vend pas. Avant le design, construis la logique : <strong>chaque section doit lever une objection ou renforcer une preuve.</strong> Si une section ne fait ni l'un ni l'autre, elle dégage.</p>
+
+  <div class="note info"><b>Le rapport avec le guide 04</b>Le prompt maître du guide 04 construit exactement cette structure en 11 sections dans ton thème Aesthetic Lab. Ce guide-ci t'explique le POURQUOI de chaque section et te donne les textes. Lis-le avant de remplacer les placeholders.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu peux citer les cinq objections dans l'ordre, sans regarder le tableau.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">02</span>Analyse d'une page qui fait des millions : Crystal Hair Eraser (bleame.com)</h2>
+  <p class="lead">Ouvre bleame.com sur ton téléphone pendant que tu lis. C'est la page de référence de la méthode : un produit à 50 $, une page qui a généré des dizaines de millions. Chaque élément est à sa place pour une raison.</p>
+
+  <h3>Le haut de la page : c'est là que le client décide</h3>
+  <p>Sur un téléphone, le client voit ça en premier, avant de scroller. Dans l'ordre d'apparition :</p>
+  <ol>
+    <li><strong>Timer + remise avant même le produit.</strong> La barre d'annonce annonce une offre limitée avec un compte à rebours. Le client sait qu'il y a une raison d'agir maintenant avant de savoir ce qu'il achète.</li>
+    <li><strong>Preuve avant le titre : 4.8, 4 969 avis.</strong> Les étoiles et le nombre d'avis sont au-dessus du nom du produit. Première question (« ça marche ? ») réglée avant la lecture du titre.</li>
+    <li><strong>Avis dans la galerie.</strong> Les photos du produit sont mélangées à des photos clients avec étoiles. Le carrousel vend avant que le client lise un mot.</li>
+    <li><strong>Prix barré : 53 $ au lieu de 99 $.</strong> Le prix de référence est crédible (pas 500 $ barrés pour 50 $). La remise est présentée en pourcentage ET en montant.</li>
+    <li><strong>Promesse en une phrase + 6 bénéfices.</strong> Une ligne en gras qui dit le résultat, puis six bénéfices d'une ligne avec une icône : ça se lit en 5 secondes.</li>
+    <li><strong>Bundle 2 packs présélectionné + cadeau.</strong> Trois options, la deuxième est cochée d'avance, marquée « le plus populaire », avec un cadeau offert. Le bouton ne dit pas « Ajouter au panier » mais « Claim offer » (« Profiter de l'offre »).</li>
+    <li><strong>Compteur : offert pour les 137 prochaines commandes.</strong> Une rareté précise, chiffrée, pas « stock limité ».</li>
+    <li><strong>Garanties et paiements sous le bouton.</strong> Livraison offerte, satisfait ou remboursé, logos de paiement. Juste là où le doigt hésite.</li>
+  </ol>
+
+  <h3>Le reste de la page, dans l'ordre</h3>
+  <table class="t">
+    <tr><th>Section</th><th>Objection levée</th><th>Ce qu'il faut retenir</th></tr>
+    <tr><td>FAQ sous le bouton</td><td>« Et si… ? »</td><td>5 questions, celles que le service client reçoit vraiment</td></tr>
+    <tr><td>UGC vidéo</td><td>« Ça marche ? »</td><td>De vraies personnes, téléphone à la main, résultat montré</td></tr>
+    <tr><td>Stats en gros chiffres</td><td>« Ça marche ? » (preuve chiffrée)</td><td>3 chiffres : % de satisfaction, nombre de clients, résultat mesuré</td></tr>
+    <tr><td>Comparatif</td><td>« Pourquoi pas l'alternative ? »</td><td>Nous vs rasoir vs épilation : 5 critères, coches et croix</td></tr>
+    <tr><td>Avis photos</td><td>« Ça marche ? » (encore)</td><td>6 cartes, prénom + initiale, achat vérifié, photos réelles</td></tr>
+    <tr><td>Garantie répétée</td><td>« Et si ça ne marche pas ? »</td><td>Bloc pleine largeur, 30 jours, formulation rassurante</td></tr>
+  </table>
+
+  <div class="note ok"><b>Ce que tu copies, ce que tu ne copies pas</b>Tu copies la STRUCTURE et la LOGIQUE : ordre des sections, preuve avant le titre, bundle présélectionné, garantie répétée. Tu ne copies ni les textes, ni les images, ni le nom. Les mécaniques, pas la marque.</div>
+
+  <div class="claude"><b>Demande à Claude</b>Pour analyser n'importe quelle autre page concurrente (trouvée sur BrandSearch) : colle le lien et demande « Analyse cette page produit section par section : pour chacune, dis-moi quelle objection elle lève, ce qui est bien fait, et ce que je dois reprendre pour ma page de [produit]. » Fais-le sur 3 pages avant d'écrire la tienne.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as ouvert bleame.com sur ton téléphone et retrouvé les 8 éléments du haut de page, dans l'ordre.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">03</span>Les 11 sections, une par une</h2>
+  <p class="lead">Pour chaque section : son rôle, son contenu exact, un exemple de texte en français, et l'erreur qui la tue. Les exemples sont pour un produit fictif, un gommage corps « Peau Nette » à 39 €, pour une femme de 25 à 45 ans gênée par les poils incarnés.</p>
+
+  <h3>1. Barre d'annonce avec compte à rebours</h3>
+  <p><strong>Rôle :</strong> donner une raison d'agir maintenant, avant tout. <strong>Contenu :</strong> une ligne, une offre, un timer qui se termine à minuit (et repart le lendemain).</p>
+  <p><strong>Exemple :</strong> « Livraison offerte aujourd'hui · -46 % sur le pack duo · se termine dans 04:12:37 »</p>
+  <div class="note warn"><b>Erreur à éviter</b>Un timer qui affiche « 00:00:00 » ou qui ne bouge pas. Teste-le. Et pas deux offres dans la barre : une seule.</div>
+
+  <h3>2. Galerie + preuve + titre + prix</h3>
+  <p><strong>Rôle :</strong> régler « ça marche ? » et « combien ? » en 3 secondes. <strong>Contenu :</strong> 5 à 8 images (produit seul, porté, détail, avant / après, avis photo), miniatures sous la grande image, ligne « 4,8/5 · 1 300 avis » AU-DESSUS du titre, titre court, prix barré + prix promo + badge « -46 % ».</p>
+  <p><strong>Exemple :</strong> ★★★★★ 4,8/5 · 1 312 avis vérifiés — « Peau Nette · Gommage anti-poils incarnés » — <s>72 €</s> <strong>39 €</strong> -46 %</p>
+  <div class="note warn"><b>Erreur à éviter</b>Un titre de 15 mots avec des mots-clés SEO. Le titre, c'est le nom du produit + le bénéfice principal en 3 mots. Et un prix barré impossible (199 € barrés pour 39 €) : le client n'y croit pas et doute du reste.</div>
+
+  <h3>3. Promesse en gras + 6 bénéfices</h3>
+  <p><strong>Rôle :</strong> « c'est pour moi ? ». <strong>Contenu :</strong> une phrase en gras qui dit le résultat et pour qui, puis 6 bénéfices d'une ligne, chacun avec une icône.</p>
+  <p><strong>Exemple :</strong> <strong>« Une peau lisse, sans poils incarnés, en 2 minutes sous la douche. »</strong><br>✓ Exfolie sans irriter · ✓ Résultat visible dès la 1re semaine · ✓ Convient aux peaux sensibles · ✓ 2 minutes, 2 fois par semaine · ✓ Sans parfum ni microplastiques · ✓ Un pot = 3 mois</p>
+  <div class="note warn"><b>Erreur à éviter</b>Des caractéristiques à la place des bénéfices (« 200 ml », « cristaux de sucre ») : le client s'en fiche. Un bénéfice dit ce que ÇA CHANGE pour lui.</div>
+
+  <h3>4. Sélecteur de bundle + bouton</h3>
+  <p><strong>Rôle :</strong> monter le panier moyen et pousser à l'action. <strong>Contenu :</strong> 3 cartes (1 / 2 / 3 unités), prix unitaire, prix total, économie en %, option 2 cochée d'avance avec « Le plus populaire » et un cadeau. Bouton : « Profiter de l'offre ».</p>
+  <p><strong>Exemple :</strong> 1 pot · 39 € — <strong>2 pots · 59 € (29,50 €/pot) · -25 % · Le plus populaire · + gant exfoliant offert</strong> — 3 pots · 79 € (26,33 €/pot) · -33 %</p>
+  <div class="note warn"><b>Erreur à éviter</b>Aucune option présélectionnée, ou l'option 1 cochée. Le client choisit ce qui est déjà coché dans 60 % des cas.</div>
+
+  <h3>5. Garanties sous le bouton</h3>
+  <p><strong>Rôle :</strong> lever la dernière hésitation au moment du clic. <strong>Contenu :</strong> trois pictos sur une ligne : livraison offerte, 30 jours satisfait ou remboursé, paiement sécurisé (logos Visa, Mastercard, PayPal, Apple Pay).</p>
+  <div class="note warn"><b>Erreur à éviter</b>Les mettre en bas de page. Elles doivent être à 2 cm du bouton.</div>
+
+  <h3>6. FAQ accordéon</h3>
+  <p><strong>Rôle :</strong> répondre aux « et si… » avant qu'ils bloquent. <strong>Contenu :</strong> 5 questions, une seule ouverte à la fois. Les vraies questions : délai de livraison, peaux sensibles, fréquence d'utilisation, retour, composition.</p>
+  <p><strong>Exemple :</strong> « Combien de temps pour recevoir ma commande ? → Expédiée sous 24 h, livrée en 3 à 5 jours ouvrés en France, suivi par e-mail. »</p>
+  <div class="note warn"><b>Erreur à éviter</b>12 questions dont « Qui sommes-nous ? ». Cinq, celles qui empêchent d'acheter.</div>
+
+  <h3>7. Grille de 4 bénéfices</h3>
+  <p><strong>Rôle :</strong> reformuler la promesse pour celui qui scrolle vite. <strong>Contenu :</strong> 4 cases avec image ou icône, titre de 3 mots, phrase d'une ligne.</p>
+  <p><strong>Exemple :</strong> « Lisse en 2 min » / « Zéro irritation » / « 3 mois par pot » / « Fabriqué en France »</p>
+
+  <h3>8. Trois statistiques en gros chiffres</h3>
+  <p><strong>Rôle :</strong> preuve chiffrée. <strong>Contenu :</strong> 3 chiffres énormes avec une ligne dessous.</p>
+  <p><strong>Exemple :</strong> « 94 % » constatent moins de poils incarnés après 3 semaines (sondage client, 412 réponses) · « 12 000+ » pots vendus · « 4,8/5 » sur 1 312 avis</p>
+  <div class="note danger"><b>Erreur à éviter</b>Inventer un chiffre médical ou une étude. Un sondage client avec le nombre de réponses, oui. « Cliniquement prouvé », non, jamais, sauf si tu as l'étude.</div>
+
+  <h3>9. Tableau comparatif</h3>
+  <p><strong>Rôle :</strong> « pourquoi pas l'alternative ? ». <strong>Contenu :</strong> colonne critères, ta colonne surlignée, 2 colonnes alternatives que le client utilise déjà. 5 lignes, coches vertes et croix rouges.</p>
+  <p><strong>Exemple :</strong> Critères : sans irritation / résultat en 1 semaine / peaux sensibles / prix par mois / sans rendez-vous. Colonnes : Peau Nette · Rasoir · Institut.</p>
+  <div class="note warn"><b>Erreur à éviter</b>Comparer avec une marque concurrente nommée : juridiquement risqué et inutile. Compare avec des catégories (« rasoir », « cire », « institut »).</div>
+
+  <h3>10. Six avis clients en cartes</h3>
+  <p><strong>Rôle :</strong> « ça marche ? », version sociale. <strong>Contenu :</strong> étoiles, titre court, texte de 2 à 4 lignes, prénom + initiale, badge « Achat vérifié », si possible photo. Des profils variés (âge, situation, usage).</p>
+  <p><strong>Exemple :</strong> ★★★★★ « Enfin plus de boutons après le rasage » — « J'ai une peau hyper réactive, j'avais peur. Deux semaines et mes cuisses sont nettes. Je l'utilise le dimanche et le mercredi. » — Camille R. · Achat vérifié</p>
+  <div class="note danger"><b>Erreur à éviter</b>Des avis inventés qui promettent un résultat médical ou miracle. Au lancement, utilise de vrais retours (tes premiers clients, tes testeurs, ta famille qui a essayé) et reformule-les. Jamais d'avis sur une guérison.</div>
+
+  <h3>11. Bloc garantie pleine largeur</h3>
+  <p><strong>Rôle :</strong> dernier filet avant de remonter acheter. <strong>Contenu :</strong> un grand bloc avec un picto, « 30 jours satisfait ou remboursé », deux lignes sur la procédure, et un bouton qui remonte au bundle.</p>
+  <p><strong>Exemple :</strong> « Essaie Peau Nette 30 jours. Pas convaincue ? Un e-mail, on te rembourse, tu gardes le pot. » Bouton : « Je profite de l'offre »</p>
+
+  <div class="done"><b>✅ Fait quand</b>Pour chacune des 11 sections, tu as écrit (ou fait écrire, chapitre 06) ton propre texte dans un document, avant de toucher à la boutique.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">04</span>L'offre : ce que le client achète vraiment</h2>
+  <p class="lead">Le produit, c'est 20 % de la décision. L'offre, c'est le reste : prix, prix barré, bundle, cadeau, livraison, garantie. Une bonne offre sur un produit moyen bat un bon produit sans offre.</p>
+
+  <h3>Le prix</h3>
+  <ul>
+    <li><strong>Entre 40 et 80 € en France</strong> pour un lancement Meta Ads : en dessous, la marge ne paie pas la pub ; au-dessus, la décision demande trop de confiance pour une première commande.</li>
+    <li><strong>Au moins 3 fois ton coût</strong> (produit + transport). Produit à 9 €, livraison à 4 € : prix minimum 39 €.</li>
+    <li><strong>Prix psychologique</strong> : 39 €, 49 €, 59 €. Pas 40 €, pas 43,50 €.</li>
+  </ul>
+
+  <h3>Le prix barré</h3>
+  <p>Il doit être crédible : 1,6 à 2 fois le prix de vente, pas plus. <s>72 €</s> 39 € passe. <s>199 €</s> 39 € ne passe pas. Le prix barré est le prix de l'unité « hors offre » : tu peux le justifier par le prix catalogue d'un seul pot sans remise.</p>
+
+  <h3>Le bundle 1 / 2 / 3</h3>
+  <table class="t">
+    <tr><th>Option</th><th>Rôle</th><th>Réglage</th></tr>
+    <tr><td>1 unité</td><td>Le prix d'entrée, l'ancre</td><td>Prix plein, pas de cadeau</td></tr>
+    <tr><td>2 unités</td><td>Celle que tu veux vendre</td><td>Présélectionnée, « Le plus populaire », -25 % environ, cadeau offert</td></tr>
+    <tr><td>3 unités</td><td>Rend la 2 raisonnable</td><td>-33 % environ, « Meilleure valeur », cadeau + livraison express</td></tr>
+  </table>
+  <p>Le cadeau coûte moins de 2 € (gant, pochette, mini-format, guide PDF) et vaut 10 € aux yeux du client. Nomme-le et donne-lui un prix barré : « + gant exfoliant offert (valeur 9 €) ».</p>
+
+  <h3>La livraison offerte</h3>
+  <p>Toujours. Le client déteste découvrir 4,90 € au paiement : c'est la première cause d'abandon de panier. Intègre le coût dans ton prix et affiche « Livraison offerte » dans la barre d'annonce, sous le bouton, et dans le pied de page.</p>
+
+  <h3>La garantie 30 jours</h3>
+  <p>« Satisfait ou remboursé 30 jours » fait monter le taux de conversion de 10 à 20 % et coûte presque rien : moins de 2 % des clients l'utilisent quand le produit est correct. Elle apparaît trois fois : sous le bouton, dans la FAQ, en bloc pleine largeur. Formule-la simplement : « Un e-mail, on te rembourse. »</p>
+
+  <div class="note warn"><b>Erreur à éviter</b>Une offre différente sur la pub et sur la page. Si la pub dit -46 %, la page dit -46 %. Si la pub dit « pack duo », le bundle 2 est présélectionné. La cohérence pub → page, c'est ce qui fait tenir le ROAS.</div>
+
+  <div class="claude"><b>Demande à Claude</b>« Mon produit me coûte [X] € livré. Mes concurrents vendent entre [Y] et [Z] €. Propose-moi un prix de vente, un prix barré crédible, un bundle 1/2/3 avec les prix et les pourcentages, un cadeau à moins de 2 € cohérent avec [produit], et calcule ma marge sur chaque option après 15 € de coût pub par commande. »</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as ton tableau d'offre : prix, prix barré, bundle 1/2/3 avec prix et %, cadeau nommé, et ta marge par option après pub.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">05</span>Le copywriting : des textes qui font acheter</h2>
+  <p class="lead">Pas besoin d'être écrivain. Il faut une promesse, des bénéfices, des preuves, et des avis crédibles. Le reste, c'est de la mise en page.</p>
+
+  <h3>La promesse en une phrase</h3>
+  <p>Formule : <strong>[résultat concret] + [pour qui] + [en combien de temps / avec quelle facilité]</strong>. Elle est en gras, sous le prix, c'est la phrase la plus lue de ta page.</p>
+  <ul>
+    <li>« Une peau lisse, sans poils incarnés, en 2 minutes sous la douche. »</li>
+    <li>« Des cheveux qui tiennent toute la journée, sans laque, en 30 secondes le matin. »</li>
+    <li>« Ton chat occupé 2 heures par jour, sans que tu lèves le petit doigt. »</li>
+  </ul>
+
+  <h3>Bénéfices, pas caractéristiques</h3>
+  <table class="t">
+    <tr><th>Caractéristique (ce que c'est)</th><th>Bénéfice (ce que ça change)</th></tr>
+    <tr><td>Cristaux de sucre 300 microns</td><td>Exfolie sans irriter, même les peaux sensibles</td></tr>
+    <tr><td>Pot de 200 ml</td><td>Un pot = 3 mois d'utilisation</td></tr>
+    <tr><td>Silicone médical</td><td>Se lave en 10 secondes, dure des années</td></tr>
+    <tr><td>Batterie 2 000 mAh</td><td>Une semaine sans recharger</td></tr>
+  </table>
+  <p>Règle : après chaque caractéristique, ajoute « ce qui veut dire que… » et garde seulement la fin de la phrase.</p>
+
+  <h3>Les preuves chiffrées</h3>
+  <p>Un chiffre bat un adjectif. « Résultat visible » est faible. « 94 % constatent moins de poils incarnés après 3 semaines (sondage de 412 clientes) » est fort. Tes sources possibles, honnêtes : un sondage envoyé à tes premiers clients, le nombre de commandes, la note moyenne, un test fait sur 10 personnes de ton entourage avec photos. Pas de chiffre sans source, pas d'étude inventée.</p>
+
+  <h3>Les avis crédibles</h3>
+  <ul>
+    <li><strong>Prénom + initiale</strong> (« Camille R. »), jamais un nom complet, jamais « Anonyme ».</li>
+    <li><strong>Badge « Achat vérifié »</strong> sur chaque carte.</li>
+    <li><strong>Variés</strong> : âges, situations, usages, longueurs différents. Un avis court de 2 lignes, un long de 5, un mitigé à 4 étoiles (« j'aurais aimé un pot plus grand ») : c'est ce qui rend l'ensemble vrai.</li>
+    <li><strong>Concrets</strong> : un détail de vie (« je l'utilise le dimanche et le mercredi », « ma fille de 16 ans me l'a piqué »).</li>
+    <li><strong>Jamais de promesse médicale</strong> : pas de « ça a guéri », « plus d'eczéma », « mon médecin confirme ».</li>
+  </ul>
+
+  <div class="note danger"><b>La ligne rouge</b>Au lancement tu n'as pas 1 300 avis. Le prompt maître met « 1 300 avis » en placeholder : remplace par un chiffre vrai dès que tu as des commandes, ou retire le nombre et garde les étoiles. Un chiffre faux sur un produit de santé ou de beauté peut te coûter ta boutique.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Ta promesse tient en une phrase, tes 6 bénéfices sont des bénéfices (pas des caractéristiques), et chaque chiffre de ta page a une source que tu peux montrer.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">06</span>Les prompts : Claude écrit, tu relis</h2>
+  <p class="lead">Deux prompts suffisent pour tous les textes de la page. Remplis les crochets avec soin : c'est la qualité de ce que tu lui donnes qui fait la qualité de ce qu'il rend.</p>
+
+  <h3>Prompt 1 : tous les textes de la page</h3>
+  <p>À coller dans Claude (claude.ai), pas dans Claude Code :</p>
+  <pre class="prompt">Tu es copywriter e-commerce spécialisé dans les pages produit à forte conversion (style marques DTC qui scalent sur Meta Ads).
+
+Mon produit : [nom, ce que c'est, matière, taille, ce qu'il fait concrètement]
+Ma cible : [qui achète : sexe, âge, situation, ce qu'elle vit, ce qu'elle veut vraiment]
+Le problème qu'il règle : [la douleur, avec des mots que la cliente utiliserait]
+Ce qui le différencie des alternatives : [rasoir / cire / institut / produit concurrent : pourquoi le mien est mieux]
+Mon offre : prix [X] €, prix barré [Y] €, bundle 1 / 2 / 3 à [prix], cadeau [nom], livraison offerte, garantie 30 jours
+Ton de marque : [ex. direct et chaleureux, tutoiement / vouvoiement]
+Preuves dont je dispose réellement : [nombre de commandes, note, sondage, tests : sois honnête]
+
+Écris les textes de ma page produit, en français, dans cet ordre, prêts à coller dans mon thème :
+1. Barre d'annonce (une ligne, avec l'offre).
+2. Titre produit (5 mots max) et sous-titre.
+3. Promesse en une phrase (résultat + pour qui + facilité), puis 6 bénéfices d'une ligne avec une icône suggérée.
+4. Les 3 cartes du bundle : nom, prix, pourcentage, mention du cadeau, et le texte du bouton.
+5. Les 3 garanties sous le bouton (3 mots chacune).
+6. Grille de 4 bénéfices : titre de 3 mots + phrase d'une ligne.
+7. 3 statistiques en gros chiffres, UNIQUEMENT à partir des preuves que je t'ai données (si je n'en ai pas, propose quoi mesurer).
+8. Tableau comparatif : 5 critères, mon produit vs 2 alternatives génériques (pas de marque nommée), coche ou croix par cellule.
+9. Bloc garantie pleine largeur : titre, 2 lignes, texte du bouton.
+Règles : bénéfices et pas caractéristiques, phrases courtes, zéro jargon, aucune promesse médicale ni « cliniquement prouvé », aucun chiffre inventé. Présente chaque section avec son numéro et son titre pour que je m'y retrouve.</pre>
+
+  <h3>Prompt 2 : les 6 avis et la FAQ</h3>
+  <pre class="prompt">Même produit, même cible, même ton que ci-dessus.
+
+A. Écris 6 avis clients pour ma page, à partir de ces retours réels que j'ai reçus : [colle les retours de tes clients, testeurs, proches ; si tu n'en as pas encore, dis-le et il proposera des modèles À REMPLACER par de vrais avis]. Chaque avis : étoiles (5 ou 4), titre de 4 à 6 mots, texte de 2 à 5 lignes avec un détail de vie concret, prénom + initiale, badge « Achat vérifié ». Profils variés (âge, situation, usage), longueurs variées, un avis à 4 étoiles avec une petite réserve non bloquante. Aucun résultat médical, aucune guérison, aucun chiffre.
+
+B. Écris la FAQ : 5 questions, celles qui empêchent VRAIMENT d'acheter (livraison et délai, retour / remboursement, utilisation et fréquence, compatibilité / peaux sensibles ou équivalent, composition ou fabrication). Réponses de 2 à 3 lignes, rassurantes, précises (délais en jours, procédure de retour en une phrase).</pre>
+
+  <div class="note info"><b>Après le prompt</b>Relis tout avec la checklist du chapitre 08. Puis, dans Claude Code : « Voici les textes de ma page produit [colle]. Remplace les placeholders de chaque section par ces textes, section par section, montre-moi, puis enchaîne. » Ou fais-le toi-même dans Shopify → Personnaliser (chapitre 09).</div>
+
+  <div class="claude"><b>Demande à Claude</b>Pour améliorer un texte précis : « Voici ma promesse : [texte]. Propose 5 variantes plus courtes, plus concrètes, qui parlent à [cible]. » Choisis, ne prends pas la première.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as un document avec les 9 blocs de textes, les 6 avis et la FAQ, relus par toi.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">07</span>La version mobile : ce que 80 % de tes clients voient</h2>
+  <p class="lead">Ta pub est sur Instagram et TikTok. Le client arrive sur un téléphone, souvent en 4G, souvent en marchant. Ta page se juge sur un écran de 6 pouces.</p>
+
+  <h3>Le premier écran, sans scroller</h3>
+  <p>Sur un téléphone, le client doit voir avant de bouger le pouce :</p>
+  <ol>
+    <li>La barre d'annonce (une ligne, pas deux).</li>
+    <li>La première image de la galerie, en grand, carrée ou 4:5.</li>
+    <li>Les étoiles et le nombre d'avis.</li>
+    <li>Le titre et le prix barré / prix promo.</li>
+  </ol>
+  <p>Le bouton doit arriver au deuxième écran au plus tard. Si le client doit scroller trois fois pour trouver comment acheter, tu perds la moitié des ventes.</p>
+
+  <h3>Le sticky add to cart</h3>
+  <p>Après 400 px de scroll, une barre fixe apparaît en bas de l'écran : miniature, prix promo, bouton « Ajouter au panier ». Elle disparaît quand le bouton principal est visible. Le client peut acheter depuis n'importe quel endroit de la page, sans remonter. Le prompt est dans le guide 04, chapitre 06.</p>
+
+  <h3>Les détails qui comptent sur mobile</h3>
+  <ul>
+    <li>Texte à 16 px minimum : plus petit, c'est illisible en marchant.</li>
+    <li>Boutons pleine largeur, 48 px de haut : un pouce doit tomber dessus.</li>
+    <li>Le tableau comparatif doit tenir en largeur (3 colonnes max) ou devenir des cartes.</li>
+    <li>Les images en 4:5 ou 1:1 : le 16:9 devient minuscule en vertical.</li>
+    <li>Vitesse : chaque image compressée (moins de 300 Ko), pas de vidéo en lecture automatique lourde.</li>
+  </ul>
+
+  <h3>Comment vérifier</h3>
+  <p>Dans Chrome, sur l'aperçu <code>127.0.0.1:9292</code> : clic droit → Inspecter → icône téléphone en haut à gauche → choisis « iPhone 14 Pro ». Scrolle toute la page. Puis fais pareil sur ton vrai téléphone : <code>shopify theme dev</code> affiche aussi une adresse réseau que tu peux ouvrir sur ton téléphone s'il est sur le même Wi-Fi.</p>
+
+  <div class="claude"><b>Demande à Claude</b>Dans Claude Code : « Vérifie la page produit en 390 px de large. Liste tout ce qui déborde, se superpose ou passe sous 16 px, et corrige sans toucher au desktop. » Puis vérifie toi-même, il rate parfois un détail.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Sur ton téléphone, tu vois les étoiles, le titre et le prix sans scroller, le bouton au deuxième écran, et la barre sticky apparaît quand tu descends.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">08</span>La checklist de relecture avant mise en ligne</h2>
+  <p class="lead">Lis ta page comme une cliente méfiante, à voix haute, sur ton téléphone. Coche tout. Un point manquant = une objection qui reste ouverte.</p>
+
+  <h3>Les cinq objections</h3>
+  <ul class="check">
+    <li>« Ça marche ? » : note + avis au-dessus du titre, avis photos, UGC ou avant / après, stats sourcées.</li>
+    <li>« C'est pour moi ? » : promesse en une phrase, 6 bénéfices, images avec une personne qui ressemble à ma cible.</li>
+    <li>« Pourquoi pas l'alternative ? » : tableau comparatif avec 2 alternatives génériques.</li>
+    <li>« Et si ça ne marche pas ? » : garantie 30 jours visible 3 fois, FAQ avec retour et remboursement.</li>
+    <li>« Pourquoi maintenant ? » : timer, bundle présélectionné avec cadeau, livraison offerte aujourd'hui.</li>
+  </ul>
+
+  <h3>Les textes</h3>
+  <ul class="check">
+    <li>Zéro faute (colle la page dans Claude : « corrige l'orthographe et la grammaire sans changer le sens »).</li>
+    <li>Aucun placeholder oublié (« Lorem », « [produit] », « 1 300 avis » si tu n'en as pas).</li>
+    <li>Aucune promesse médicale, aucun « cliniquement prouvé » sans étude, aucune marque concurrente nommée.</li>
+    <li>Les prix sont les mêmes partout : barre d'annonce, bundle, sticky, panier.</li>
+    <li>L'offre est identique à celle de la pub (même pourcentage, même pack, même cadeau).</li>
+  </ul>
+
+  <h3>Le parcours</h3>
+  <ul class="check">
+    <li>Le bouton ajoute la bonne quantité au panier (teste les 3 options du bundle).</li>
+    <li>Le cadeau apparaît dans le panier (produit à 0 € ajouté automatiquement, ou mention claire).</li>
+    <li>Le paiement va jusqu'au bout avec une commande test (Démarrage, section 04).</li>
+    <li>L'e-mail de confirmation arrive et est propre (nom de marque, pas « Ma boutique »).</li>
+    <li>Les politiques (retour, confidentialité, CGV, mentions légales) sont en pied de page et remplies.</li>
+  </ul>
+
+  <h3>La vitesse</h3>
+  <ul class="check">
+    <li>Images compressées, moins de 300 Ko chacune.</li>
+    <li>Pas d'app inutile installée (chaque app ajoute un script).</li>
+    <li>La page s'ouvre en moins de 3 secondes en 4G sur ton téléphone.</li>
+  </ul>
+
+  <div class="done"><b>✅ Fait quand</b>Toutes les cases sont cochées et une personne qui ne connaît pas ton produit a compris en 10 secondes ce que c'est, pour qui, et combien.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">09</span>Dans le thème Aesthetic Lab : où changer chaque texte</h2>
+  <p class="lead">Grâce aux règles du jeu données à Claude Code (guide 04), chaque texte est modifiable sans code, depuis Shopify. Voici où.</p>
+
+  <p>Admin Shopify → Boutique en ligne → Thèmes → sur ton thème (de développement ou non publié) → <strong>Personnaliser</strong>. En haut, le menu déroulant « Page d'accueil » te permet de choisir « Produits → Produit par défaut » pour voir la page produit. À gauche, la liste des sections dans l'ordre de la page.</p>
+
+  <table class="t">
+    <tr><th>Tu veux changer…</th><th>Où</th></tr>
+    <tr><td>Le texte de la barre d'annonce, l'heure de fin du timer</td><td>Section « Barre d'annonce » (en haut de la liste, souvent dans l'en-tête)</td></tr>
+    <tr><td>Le titre, le prix, les images</td><td>Produits → ton produit (hors Personnaliser) : titre, prix, prix comparé (= prix barré), Médias</td></tr>
+    <tr><td>La note et le nombre d'avis au-dessus du titre</td><td>Section « Galerie / Informations produit » → bloc « Note »</td></tr>
+    <tr><td>La promesse et les 6 bénéfices</td><td>Section « Promesse + bénéfices » → chaque bénéfice est un bloc</td></tr>
+    <tr><td>Les prix et les noms du bundle, l'option présélectionnée, le cadeau</td><td>Section « Bundle » → réglages de la section</td></tr>
+    <tr><td>Les 3 garanties</td><td>Section « Garanties » → 3 blocs</td></tr>
+    <tr><td>Les questions de la FAQ</td><td>Section « FAQ » → un bloc par question</td></tr>
+    <tr><td>Les 4 bénéfices en grille, les 3 stats</td><td>Sections « Grille bénéfices » et « Statistiques » → un bloc par case</td></tr>
+    <tr><td>Les lignes du comparatif</td><td>Section « Comparatif » → un bloc par critère, coche / croix par colonne</td></tr>
+    <tr><td>Les avis</td><td>Section « Avis clients » → un bloc par avis (étoiles, titre, texte, prénom, photo)</td></tr>
+    <tr><td>Le bloc garantie final</td><td>Section « Garantie » en bas de liste</td></tr>
+    <tr><td>Les couleurs et la police globales</td><td>Bouton « Paramètres du thème » (roue en bas à gauche) → Couleurs, Typographie</td></tr>
+  </table>
+
+  <div class="note warn"><b>Deux pièges</b>1) Tu modifies le thème PUBLIÉ au lieu du thème de développement : vérifie le nom du thème en haut de Personnaliser. 2) Tu oublies « Enregistrer » en haut à droite : les changements sont perdus en changeant de page.</div>
+
+  <div class="claude"><b>Demande à Claude</b>Tu ne trouves pas où est un texte ? Dans Claude Code : « Dans quelle section et quel réglage de l'éditeur se trouve le texte "[colle le texte]" ? » Il te donne le fichier et le nom du réglage.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as remplacé tous les placeholders de la page produit par tes textes, enregistré, et vérifié sur l'aperçu mobile.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">10</span>Checklist de fin : ta page est prête pour la pub</h2>
+  <p class="lead">Ta page produit est le dernier maillon avant la vente. Tout ce qui suit (créatives, Pixel, Meta Ads) envoie du trafic dessus. Elle doit être finie avant de dépenser 1 € de pub.</p>
+
+  <ul class="check">
+    <li>Les 11 sections sont là, dans l'ordre, chacune avec mon vrai texte.</li>
+    <li>Mon offre est posée : prix, prix barré crédible, bundle 1/2/3 avec le 2 présélectionné, cadeau nommé, livraison offerte, garantie 30 jours visible 3 fois.</li>
+    <li>Mes 6 avis viennent de vrais retours, prénom + initiale, achat vérifié, variés, sans promesse médicale.</li>
+    <li>Ma FAQ a 5 questions qui lèvent de vraies objections.</li>
+    <li>La version mobile est vérifiée sur mon téléphone : premier écran, bouton, sticky, vitesse.</li>
+    <li>La checklist de relecture (chapitre 08) est entièrement cochée.</li>
+    <li>Les médias sont en place (guide 06) : galerie, porté, détail, avant / après, avis photos.</li>
+    <li>Une commande test est passée de bout en bout.</li>
+    <li>Lien de la page envoyé à Mady pour validation, étape cochée dans Mes étapes.</li>
+  </ul>
+
+  <div class="note info"><b>La suite</b>Guide 06 : les médias de ta boutique avec GPT Image 2. Puis la page Créatives et le guide 07 : les pubs qui envoient du trafic sur cette page.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Mady a validé la page, ou t'a donné 3 corrections maximum que tu as faites dans la journée.</div>
+</section>
+
+</body>
+</html>

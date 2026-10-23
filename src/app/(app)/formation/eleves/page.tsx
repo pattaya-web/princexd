@@ -168,7 +168,7 @@ export default function StudentAccessPage() {
                   <th className="text-left">Identifiant</th>
                   <th className="text-left">Accès</th>
                   <th className="text-left">Studio IA</th>
-                  <th className="text-left">Modules</th>
+                  <th className="text-left">Guides</th>
                   <th className="text-left">Étapes</th>
                   <th className="text-left">Dernière visite</th>
                   <th />
@@ -207,7 +207,8 @@ export default function StudentAccessPage() {
                       <Toggle checked={s.studioAccess} onChange={() => void toggleStudio(s)} label={s.studioAccess ? (s.hasKieKey ? "Ouvert · clé OK" : "Ouvert · sans clé") : "Fermé"} />
                     </td>
                     <td className="num">
-                      {s.completed} / {data.publishedModules}
+                      {s.lessonsDone} / {data.lessonsTotal}
+                      {data.publishedModules > 0 && <div className="dim text-[11px]">vidéos {s.completed} / {data.publishedModules}</div>}
                     </td>
                     <td className="num">
                       {s.stepsDone} / {s.stepsTotal}

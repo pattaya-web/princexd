@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Scale X · Fournisseur, livraison et service client</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #141a1f; font-size: 11pt; line-height: 1.5; }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 0; }
+  p { margin: 0 0 8pt; }
+  a { color: #0b63c4; }
+  .kicker { font-family: "Segoe UI", Arial, sans-serif; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #0b63c4; font-weight: 700; margin: 0 0 6pt; }
+
+  /* Couverture */
+  .cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .brand { font-weight: 800; font-size: 13pt; letter-spacing: 0.04em; margin-bottom: 40pt; }
+  .cover .brand span { color: #0b63c4; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 0 0 14pt; }
+  .cover .sub { font-size: 14pt; color: #4a5560; font-family: Georgia, serif; margin-bottom: 28pt; }
+  .cover .meta { font-size: 10pt; color: #4a5560; margin-top: 24pt; }
+  .cover ul { margin: 0; padding-left: 18pt; }
+  .cover li { margin: 3pt 0; }
+  .cover .foot { margin-top: auto; font-size: 9pt; color: #7a858f; border-top: 1px solid #e3e7ea; padding-top: 10pt; }
+
+  /* Chapitres */
+  .chapter { page-break-before: always; }
+  .chapter.first { page-break-before: auto; }
+  h2 { font-size: 22pt; margin: 0 0 6pt; line-height: 1.15; }
+  h2 .num { display: inline-block; color: #0b63c4; margin-right: 8pt; font-size: 16pt; vertical-align: 6pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; }
+  .lead { font-size: 12pt; color: #4a5560; margin: 0 0 14pt; }
+  h3 { font-size: 15pt; margin: 18pt 0 6pt; }
+  h4 { font-size: 12pt; margin: 0 0 3pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  strong { font-weight: 700; }
+
+  /* Encadrés */
+  .note { border-left: 3px solid #0b63c4; background: #eef4fb; padding: 8pt 11pt; margin: 10pt 0; border-radius: 3px; page-break-inside: avoid; }
+  .note b { display: block; color: #0b63c4; margin-bottom: 2pt; }
+  .note.ok { border-color: #178a4c; background: #ecf7f0; } .note.ok b { color: #178a4c; }
+  .note.warn { border-color: #d98a0e; background: #fff6e8; } .note.warn b { color: #b86f00; }
+  .note.danger { border-color: #c9302c; background: #fdeeee; } .note.danger b { color: #c9302c; }
+  .claude { border: 1px solid #c9c3f5; background: #f4f2ff; padding: 8pt 11pt; margin: 10pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .claude b { display: block; color: #5b5ce6; margin-bottom: 2pt; }
+  .done { border: 1px solid #b7e0c5; background: #ecf7f0; padding: 8pt 11pt; margin: 12pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .done b { display: block; color: #178a4c; margin-bottom: 2pt; }
+
+  /* Étapes */
+  .step { display: flex; gap: 10pt; margin: 10pt 0; page-break-inside: avoid; }
+  .step .n { flex: 0 0 24pt; height: 24pt; border-radius: 5px; background: #0b63c4; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 11pt; }
+  .step .body { flex: 1; min-width: 0; }
+
+  /* Code et prompts */
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 9.5pt; line-height: 1.45; margin: 6pt 0 10pt; padding: 8pt 10pt; border-radius: 4px; page-break-inside: avoid; }
+  pre.cmd { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; border: 1px solid #e1e5e9; }
+  pre.prompt { font-family: "Segoe UI", Arial, sans-serif; background: #fbf7ec; border: 1px solid #ecdfbd; font-size: 10pt; }
+  pre.prompt::before { content: "PROMPT À COPIER"; display: block; font-size: 7.5pt; letter-spacing: 0.16em; color: #9a7b2c; font-weight: 700; margin-bottom: 4pt; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; padding: 0 3pt; border-radius: 3px; font-size: 9.5pt; }
+
+  /* Checklist et tableaux */
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { padding-left: 20pt; position: relative; margin: 4pt 0; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; top: -1pt; font-size: 12pt; color: #0b63c4; }
+  table.t { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+  table.t th, table.t td { border: 1px solid #dfe3e7; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  table.t th { background: #f3f5f7; font-weight: 700; }
+  .cols { display: flex; gap: 14pt; } .cols > div { flex: 1; min-width: 0; }
+  hr { border: 0; border-top: 1px solid #e3e7ea; margin: 14pt 0; }
+  .muted { color: #6b7680; }
+  .small { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="brand">SCALE <span>X</span> · EDUCATION</div>
+  <p class="kicker">Guide 12 · Opérations</p>
+  <h1>Fournisseur, livraison et service client</h1>
+  <p class="sub">Une pub qui vend, c'est bien. Un colis qui arrive et un client qui revient, c'est ce qui fait durer la boutique. Voilà comment tenir 50 commandes par jour sans y passer tes journées.</p>
+  <p class="kicker">À la fin de ce guide, tu sauras</p>
+  <ul>
+    <li>Choisir ton fournisseur (AliExpress pour tester, agent dès que ça vend), commander un échantillon et brancher les commandes automatiques.</li>
+    <li>Annoncer des délais honnêtes, suivre les colis, et répondre à chaque situation client avec un message prêt à copier.</li>
+    <li>Gérer retours, remboursements, litiges PayPal et obligations légales en France, en 20 minutes par jour.</li>
+  </ul>
+  <p class="meta">Temps de lecture : 45 min · Temps de mise en pratique : 2 h de mise en place, puis 20 min par jour</p>
+  <div class="foot">Scale X · Accompagnement e-commerce + IA · Mady · Version octobre 2026. Bloqué ? Demande d'abord à Claude. Mady, c'est pour les urgences.</div>
+</header>
+
+<section class="chapter first">
+  <h2><span class="num">01</span>Où acheter ton produit</h2>
+  <p class="lead">Tu ne stockes rien au début. Tu testes en dropshipping, tu passes à un agent dès que ça vend, tu stockes quand c'est prouvé. Trois étapes, dans cet ordre.</p>
+
+  <table class="t">
+    <tr><th>Étape</th><th>Quand</th><th>Comment</th><th>Délai client (Europe)</th><th>Coût produit</th></tr>
+    <tr><td><strong>1. Dropshipping AliExpress</strong></td><td>Test du produit, 0 à 100 commandes</td><td>Le fournisseur envoie directement au client, commande par commande, via DSers</td><td>7 à 15 jours</td><td>Le plus élevé (prix unitaire)</td></tr>
+    <tr><td><strong>2. Agent de sourcing / CJdropshipping / fournisseur privé</strong></td><td>Dès 5 à 10 commandes par jour</td><td>L'agent achète en Chine, stocke dans son entrepôt, expédie chaque commande avec ton packaging</td><td>5 à 8 jours</td><td>−20 à −40 %</td></tr>
+    <tr><td><strong>3. Stock en 3PL (logisticien)</strong></td><td>Produit prouvé, 30 commandes par jour et plus</td><td>Tu achètes 500 à 2 000 unités, un logisticien en France ou en Europe expédie en 24 à 48 h</td><td>1 à 3 jours</td><td>Le plus bas (volume)</td></tr>
+  </table>
+
+  <h3>Pourquoi cet ordre</h3>
+  <ul>
+    <li><strong>Tu ne sais pas encore si le produit se vend.</strong> Acheter 500 unités avant la première pub, c'est 3 000 € bloqués sur une hypothèse. Mady a abandonné plus de produits qu'il n'en a scalés : en dropshipping, abandonner coûte zéro stock.</li>
+    <li><strong>L'agent arrive quand la marge le justifie.</strong> À 10 commandes par jour, 30 % d'économie sur le coût produit, c'est 100 à 150 € par jour de marge en plus. Et le délai passe de 12 à 6 jours : moins de « où est mon colis ».</li>
+    <li><strong>Le stock, c'est l'étape « marque ».</strong> Livraison en 48 h, packaging à ton nom, retours gérés en France. Tu y vas quand les chiffres sont stables depuis 4 semaines.</li>
+  </ul>
+  <div class="note warn"><b>Le piège du débutant</b>Vouloir « faire propre » dès le début : stock, packaging, entrepôt. Résultat : 3 000 € dehors, un produit qui ne vend pas, et des cartons dans le salon. Teste d'abord. Propre ensuite.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu sais à quelle étape tu es (1, 2 ou 3) et à quel nombre de commandes par jour tu passes à la suivante.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">02</span>Choisir le fournisseur et commander l'échantillon</h2>
+  <p class="lead">Un bon fournisseur se voit à cinq critères. Et tu ne vends rien que tu n'as pas eu entre les mains.</p>
+
+  <h3>Les 5 critères sur AliExpress</h3>
+  <table class="t">
+    <tr><th>Critère</th><th>Minimum</th><th>Où le voir</th></tr>
+    <tr><td>Note de la boutique</td><td>4,7 / 5 et plus, boutique ouverte depuis plus d'un an</td><td>Page de la boutique, en haut</td></tr>
+    <tr><td>Commandes sur la fiche</td><td>500 et plus, avec des avis récents (moins d'un mois) et des photos clients</td><td>Fiche produit, sous le titre et dans les avis</td></tr>
+    <tr><td>Délai de traitement</td><td>1 à 3 jours (le temps avant expédition)</td><td>Fiche produit, bloc livraison</td></tr>
+    <tr><td>Livraison</td><td>« AliExpress Standard Shipping » ou Cainiao vers la France, avec suivi, 7 à 15 jours</td><td>Fiche produit, choisir « Livrer vers : France »</td></tr>
+    <tr><td>Photos réelles</td><td>Les photos clients dans les avis ressemblent au produit des photos de vente</td><td>Avis avec photos</td></tr>
+  </table>
+  <ul>
+    <li>Repère 3 fournisseurs pour le même produit. Compare prix livré, délai, avis.</li>
+    <li>Contacte-les par message (en anglais, Claude te l'écrit) : « Do you ship to France with tracking? What is your processing time? Can you ship without AliExpress invoice or promotional material? » Celui qui répond en moins de 24 h de façon précise est ton premier choix.</li>
+    <li>Évite : les fiches à 50 commandes, les boutiques de moins de 6 mois, les délais « 30 à 60 jours », les prix anormalement bas (contrefaçon ou produit différent).</li>
+  </ul>
+
+  <h3>Agents et alternatives</h3>
+  <ul>
+    <li><strong>CJdropshipping</strong> : plateforme qui fait fournisseur + entrepôt + expédition, branchée à Shopify. Pratique dès le début si le produit y est.</li>
+    <li><strong>Agent de sourcing</strong> : une personne ou une petite société en Chine qui négocie, contrôle la qualité, stocke et expédie. On le trouve par recommandation (demande à Mady), sur les groupes e-commerce, ou via CJ / HyperSKU / Zendrop.</li>
+    <li><strong>Fournisseur européen</strong> : plus cher, livraison en 3 à 5 jours. Intéressant pour un produit à forte marge où le délai est l'argument.</li>
+  </ul>
+
+  <h3>L'échantillon : obligatoire</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Commande 1 à 2 unités chez chaque fournisseur présélectionné</h4><p>Livré chez toi, avec le mode de livraison que tes clients auront. Note la date de commande.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Chronomètre</h4><p>Date d'expédition (traitement), date de livraison (transit). C'est le délai réel que tu annonceras, pas celui de la fiche.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Contrôle qualité</h4><p>Emballage (arrivé intact ? sans pub AliExpress ?), produit conforme aux photos (taille, couleur, matière), fonctionne (teste-le 3 jours), odeur, notice, finitions. Prends 10 photos et une vidéo d'unboxing : elles serviront pour la page produit et les créatives (image de référence réelle).</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Décide</h4><p>Si tu n'achèterais pas ce produit à ce prix pour toi ou ta mère, tu ne le vends pas. Change de fournisseur ou de produit.</p></div></div>
+
+  <div class="claude"><b>Demande à Claude</b>« Écris-moi en anglais un message pour un fournisseur AliExpress : je veux savoir le délai de traitement, s'il livre en France avec suivi, s'il peut expédier sans facture ni publicité dans le colis, s'il fait un prix à partir de 50 commandes par mois, et s'il peut mettre un flyer avec mon logo. Ton poli, direct. »</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as reçu et testé l'échantillon, noté le délai réel, et tu as 10 photos réelles du produit.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">03</span>Connecter la boutique et automatiser les commandes</h2>
+  <p class="lead">Chaque commande Shopify doit partir chez le fournisseur sans que tu recopies une adresse. DSers (ou équivalent) fait ça en un clic.</p>
+
+  <h3>Installer DSers</h3>
+  <ol>
+    <li>Admin Shopify → Applications → cherche « DSers » (AliExpress Dropshipping) → Installer. Le plan gratuit suffit pour commencer.</li>
+    <li>Dans DSers : connecte ton compte AliExpress (bouton « Link AliExpress »). Crée un compte AliExpress dédié à la boutique, avec ta carte, et active l'adresse de facturation.</li>
+    <li>Paramètres DSers : devise EUR, pays par défaut France, mode de livraison par défaut « AliExpress Standard Shipping », message au fournisseur : <code>Please ship without invoice or promotional materials. Thank you.</code></li>
+  </ol>
+
+  <h3>Importer et relier ton produit</h3>
+  <ol>
+    <li>DSers → « Import List » → colle l'URL de la fiche AliExpress du fournisseur choisi → « Push to Shopify ». Ou, si Mady a déjà généré ta boutique avec le produit : DSers → « My Products » → ton produit → « Mapping ».</li>
+    <li><strong>Mapping des variantes</strong> : chaque variante Shopify (couleur, taille) doit pointer vers la bonne variante AliExpress. C'est l'étape où les erreurs arrivent (le client commande « bleu », le fournisseur reçoit « rouge »). Vérifie chaque ligne.</li>
+    <li>Ajoute un <strong>fournisseur de secours</strong> (mapping « Advanced » : fournisseur 2 pour la France) : si le premier est en rupture, DSers bascule.</li>
+  </ol>
+
+  <h3>Le flux d'une commande</h3>
+  <table class="t">
+    <tr><th>Étape</th><th>Qui</th><th>Délai</th></tr>
+    <tr><td>Le client paie sur Shopify</td><td>Shopify → e-mail de confirmation automatique</td><td>Immédiat</td></tr>
+    <tr><td>La commande apparaît dans DSers « Awaiting order »</td><td>Toi : sélectionner tout → « Order » → paiement AliExpress en une fois</td><td>Chaque matin, 5 min</td></tr>
+    <tr><td>Le fournisseur expédie</td><td>DSers récupère le numéro de suivi et le pousse dans Shopify</td><td>1 à 3 jours</td></tr>
+    <tr><td>Shopify envoie l'e-mail « Commande expédiée » avec le suivi</td><td>Automatique</td><td>Dès que le suivi arrive</td></tr>
+    <tr><td>Le colis arrive</td><td>7 à 15 jours en Europe (Cainiao / ePacket)</td><td>Tu ne fais rien, sauf si retard</td></tr>
+  </table>
+  <div class="note warn"><b>Trésorerie</b>Tu paies le fournisseur AVANT que Shopify Payments ne te verse (versement sous 3 à 5 jours ouvrés, et une réserve possible les premières semaines). Garde 300 à 500 € de trésorerie pour les commandes de la première semaine. Sans ça, tu ne peux pas passer les commandes et les clients attendent.</div>
+
+  <h3>Alternatives à DSers</h3>
+  <p>CJdropshipping (son app Shopify fait la même chose avec ses propres produits et entrepôts), Zendrop, AutoDS. Même logique : import, mapping, commande en un clic, suivi automatique. Quand tu passes à un agent, il reçoit un export des commandes (CSV ou accès à ton Shopify en « staff » limité) et pousse les suivis lui-même.</p>
+
+  <div class="done"><b>✅ Fait quand</b>Une commande test passe de Shopify à DSers, est payée sur AliExpress, et le numéro de suivi remonte dans Shopify.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">04</span>Délais honnêtes et suivi de colis</h2>
+  <p class="lead">Le client accepte 10 jours de livraison. Il n'accepte pas 10 jours sans nouvelles. Tout se joue sur ce que tu annonces et ce que tu envoies.</p>
+
+  <h3>Annoncer le vrai délai</h3>
+  <ul>
+    <li>Sur la page produit, sous le bouton : « Livraison offerte · 7 à 12 jours ouvrés · suivi par e-mail ». Le délai réel mesuré avec ton échantillon, plus 2 jours de marge.</li>
+    <li>Sur la page « Livraison » (Paramètres → Politiques → Politique de livraison) : traitement 1 à 3 jours, transit 7 à 12 jours, transporteurs, pays livrés, ce qui se passe en cas de retard (on renvoie ou on rembourse).</li>
+    <li>Dans l'e-mail de confirmation : le délai, et « tu recevras ton numéro de suivi sous 3 jours ».</li>
+    <li>Jamais « livraison 48 h » si c'est 10 jours. Le client qui découvre le délai après avoir payé ouvre un litige. Celui qui l'a lu avant attend tranquillement.</li>
+  </ul>
+  <div class="note ok"><b>Transformer le délai en argument</b>« Expédié depuis notre entrepôt partenaire, livraison offerte, suivi en temps réel » rassure plus que « 48 h » qui n'est pas tenu. Et le bundle « 2 achetés, livraison prioritaire offerte » fait monter le panier.</div>
+
+  <h3>La page de suivi</h3>
+  <ol>
+    <li>Installe une app de suivi : <strong>Track123</strong> ou <strong>17TRACK</strong> (gratuites au début). Elle crée une page « Suivre ma commande » sur ta boutique, dans ta charte, qui lit les suivis Cainiao / La Poste / Colissimo.</li>
+    <li>Mets le lien dans le menu du pied de page et dans l'e-mail « Commande expédiée ».</li>
+    <li>Active dans l'app les e-mails d'étape : « colis pris en charge », « arrivé en France », « en livraison ». Trois e-mails automatiques de plus = trois fois moins de messages « où est mon colis ».</li>
+    <li>Option : masque le nom du transporteur chinois dans la page (réglage « hide carrier ») et affiche « Partenaire logistique ».</li>
+  </ol>
+
+  <h3>Les e-mails automatiques Shopify</h3>
+  <p>Paramètres → Notifications. Shopify envoie déjà : confirmation de commande, commande expédiée, mise à jour de livraison, remboursement. Personnalise-les : ton logo, ton ton (tutoiement ou pas, selon ta marque), le délai, le lien de suivi, l'adresse du service client, et une phrase humaine (« Je m'appelle [prénom], je suis là si tu as une question »). Demande à Claude Code de réécrire le texte des notifications dans ta charte.</p>
+
+  <h3>Suivre les commandes à risque</h3>
+  <p>Chaque matin dans DSers ou l'app de suivi : filtre « pas de mouvement depuis 7 jours » et « en transit depuis plus de 15 jours ». Pour celles-là, tu écris au client AVANT qu'il t'écrive (modèle « retard » du chapitre 05). Un message proactif annule 80 % des litiges.</p>
+
+  <div class="done"><b>✅ Fait quand</b>Le délai réel est écrit sur la page produit, la page Livraison et l'e-mail de confirmation ; la page de suivi existe et ses e-mails d'étape sont actifs.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">05</span>Les messages clients à copier</h2>
+  <p class="lead">Huit situations couvrent 95 % des messages que tu recevras. Pour chacune, un modèle. Tu copies, tu changes le prénom et le numéro de commande, tu envoies.</p>
+
+  <h3>Le ton</h3>
+  <p>Prénom du client, une phrase qui montre que tu as lu, la réponse, l'action concrète avec une date, une signature avec ton prénom. Jamais de « nous sommes désolés pour la gêne occasionnée ». Tu parles comme une personne.</p>
+
+  <h3>1. Confirmation (automatique, texte à mettre dans Shopify)</h3>
+  <pre class="prompt">Objet : C'est bon, ta commande est confirmée 🙌
+
+Bonjour [Prénom],
+Merci pour ta commande n° [#1234] ! Elle est en préparation dès maintenant.
+Expédition sous 1 à 3 jours, puis 7 à 12 jours de livraison. Tu reçois ton numéro de suivi par e-mail dès que le colis part.
+Une question ? Réponds simplement à cet e-mail, je lis tout.
+[Prénom], [Marque]</pre>
+
+  <h3>2. Expédition (automatique)</h3>
+  <pre class="prompt">Objet : Ton colis est parti 📦
+
+Bonjour [Prénom],
+Ta commande n° [#1234] est en route. Suis-la ici : [lien de suivi].
+Les premières infos de suivi peuvent mettre 2 à 4 jours à s'afficher, c'est normal.
+Livraison prévue entre le [date] et le [date].
+[Prénom], [Marque]</pre>
+
+  <h3>3. « Où est mon colis ? » (dans les délais)</h3>
+  <pre class="prompt">Bonjour [Prénom],
+Je viens de vérifier : ton colis n° [#1234] est bien en route, il est actuellement [dernière étape du suivi, ex. « arrivé au centre de tri en France »]. Tu peux suivre ici : [lien].
+La livraison est prévue d'ici le [date]. Si rien n'a bougé à cette date, écris-moi et je m'en occupe immédiatement.
+[Prénom], [Marque]</pre>
+
+  <h3>4. Retard (tu écris en premier)</h3>
+  <pre class="prompt">Bonjour [Prénom],
+Je t'écris parce que ton colis n° [#1234] prend plus de temps que prévu : il est bloqué [au tri / en douane / chez le transporteur] depuis [X] jours. Ce n'est pas normal et je préfère te prévenir avant que tu te poses la question.
+Voilà ce que je propose : je te renvoie un colis dès aujourd'hui en expédition prioritaire, ou je te rembourse intégralement, au choix. Dis-moi ce que tu préfères, et je m'en occupe dans la journée.
+Je te mets aussi un code de 15 % pour ta prochaine commande : [CODE].
+Désolé pour l'attente,
+[Prénom], [Marque]</pre>
+
+  <h3>5. Colis perdu (plus de 25 jours, suivi figé)</h3>
+  <pre class="prompt">Bonjour [Prénom],
+Ton colis n° [#1234] est considéré comme perdu par le transporteur. Je ne vais pas te faire attendre plus : je te renvoie le produit aujourd'hui (nouveau suivi d'ici 3 jours), ou je te rembourse immédiatement si tu préfères. Réponds-moi juste « renvoi » ou « remboursement ».
+[Prénom], [Marque]</pre>
+
+  <h3>6. Demande de retour</h3>
+  <pre class="prompt">Bonjour [Prénom],
+Pas de souci, tu as 30 jours pour changer d'avis. Pour que je puisse t'aider au mieux : peux-tu me dire en une phrase ce qui ne va pas, et m'envoyer une photo du produit ?
+Selon le cas, je te propose un remplacement, un remboursement, ou un geste si tu veux le garder. Je te réponds dans la journée.
+[Prénom], [Marque]</pre>
+
+  <h3>7. Remboursement effectué</h3>
+  <pre class="prompt">Bonjour [Prénom],
+C'est fait : le remboursement de [montant] € est parti sur ton moyen de paiement. Il apparaît sous 3 à 5 jours ouvrés selon ta banque (c'est le délai bancaire, pas le mien).
+Merci de ta patience, et désolé que ça n'ait pas été parfait cette fois.
+[Prénom], [Marque]</pre>
+
+  <h3>8. Demande d'avis (10 jours après la livraison, automatisable)</h3>
+  <pre class="prompt">Objet : Alors, [Prénom], qu'est-ce que tu en penses ?
+
+Bonjour [Prénom],
+Ça fait une dizaine de jours que tu as reçu [produit]. J'aimerais vraiment savoir ce que tu en penses, en vrai.
+Un avis prend 30 secondes ici : [lien]. Si tu ajoutes une photo, je t'envoie un code de 10 % pour la prochaine.
+Et si quelque chose ne va pas, réponds-moi directement : je préfère le savoir.
+[Prénom], [Marque]</pre>
+
+  <div class="note warn"><b>Le produit cassé ou défectueux</b>Pas de retour demandé (le renvoi vers la Chine coûte plus que le produit). Photo, puis renvoi d'un neuf ou remboursement. Tu notes le fournisseur : au 3e défaut, tu changes.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Les 8 modèles sont enregistrés dans ton outil (Gmail « modèles », Shopify Inbox « réponses rapides », ou Notion), avec ton prénom et ta marque.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">06</span>Retours, remboursements, litiges</h2>
+  <p class="lead">La loi fixe un minimum. Ta politique, c'est un argument de vente. Et un litige se gagne avec des preuves, pas avec des excuses.</p>
+
+  <h3>Ce que dit la loi en France</h3>
+  <ul>
+    <li><strong>Droit de rétractation : 14 jours</strong> à partir de la réception, sans motif, pour toute vente à distance à un particulier. Tu rembourses dans les 14 jours suivant la rétractation. Les frais de renvoi peuvent être à la charge du client si tu l'as écrit dans tes CGV.</li>
+    <li><strong>Exceptions</strong> : produits descellés d'hygiène (cosmétiques ouverts, sous-vêtements), produits personnalisés. À préciser dans les CGV.</li>
+    <li><strong>Garantie légale de conformité : 2 ans.</strong> Un produit défectueux doit être réparé, remplacé ou remboursé.</li>
+    <li>Tes politiques (remboursement, livraison, CGV, confidentialité, mentions légales) doivent être accessibles depuis chaque page (pied de page). Shopify les génère : Paramètres → Politiques.</li>
+  </ul>
+
+  <h3>Ta politique : 30 jours satisfait ou remboursé</h3>
+  <p>Tu fais mieux que la loi, et tu le dis partout (page produit, sous le bouton, FAQ). Ça lève l'objection « et si ça ne marche pas ? » et ça coûte peu : sur 100 commandes, 2 à 4 demandent un retour ou un remboursement. La confiance gagnée vaut bien plus.</p>
+  <table class="t">
+    <tr><th>Situation</th><th>Ce que tu fais</th><th>Retour physique ?</th></tr>
+    <tr><td>Produit cassé, défectueux, non conforme</td><td>Photo → renvoi d'un neuf ou remboursement, au choix du client, sous 24 h</td><td>Non</td></tr>
+    <tr><td>Le client a changé d'avis, produit intact</td><td>Remboursement à réception du retour, ou geste (remboursement partiel de 30 à 50 %, il garde le produit) si le retour coûte plus que le produit</td><td>Selon le coût : adresse en France (agent / 3PL) ou pas de retour</td></tr>
+    <tr><td>Colis perdu ou plus de 30 jours</td><td>Renvoi ou remboursement, sans discussion</td><td>Non</td></tr>
+    <tr><td>Client mécontent du résultat (cosmétique, bien-être)</td><td>Remboursement sous la garantie 30 jours, demande de retour d'expérience</td><td>Non</td></tr>
+  </table>
+  <p>Dans Shopify : Commandes → la commande → Rembourser (total ou partiel). Le client reçoit l'e-mail automatique. Note la raison dans la chronologie de la commande.</p>
+
+  <h3>Litiges PayPal et chargebacks (contestations bancaires)</h3>
+  <p>Un client qui ouvre un litige PayPal ou conteste chez sa banque, c'est 15 € de frais pour toi s'il gagne, et au-delà de 1 % de contestations, Shopify Payments et PayPal peuvent geler ton compte. Trois règles :</p>
+  <ol>
+    <li><strong>Réponds avant.</strong> Un client qui a une réponse en moins de 24 h n'ouvre pas de litige. Les messages proactifs sur les retards (chapitre 05) évitent la majorité des cas.</li>
+    <li><strong>Réponds vite au litige</strong> (délai de 7 à 10 jours, après c'est perdu d'office), avec des preuves : numéro de suivi avec statut « livré », capture de la page produit affichant le délai annoncé, e-mails envoyés au client, politique de livraison. PayPal → Centre de résolution ; Shopify → Commandes → la commande → bloc « Contestation » → Envoyer une réponse.</li>
+    <li><strong>Si le colis n'est pas livré ou que tu n'as pas de preuve</strong> : rembourse avant que le litige ne soit tranché. Un litige perdu te coûte le produit, le remboursement ET les frais. Un remboursement volontaire ne coûte que le remboursement.</li>
+  </ol>
+  <pre class="prompt">Réponse type à un litige « article non reçu » (à coller dans le centre de résolution) :
+Commande n° [#1234] passée le [date], expédiée le [date] avec le suivi [numéro] ([transporteur]). Statut actuel : [livré le [date] à [ville] / en transit]. Le délai de livraison de 7 à 12 jours ouvrés était affiché sur la page produit et dans l'e-mail de confirmation (captures jointes). Nous avons écrit au client le [date] pour l'informer du suivi (copie jointe). Nous restons disponibles pour une solution amiable (renvoi ou remboursement) si le colis n'est pas livré d'ici le [date].</pre>
+
+  <div class="claude"><b>Demande à Claude</b>« Un client a ouvert un litige PayPal pour "objet non reçu". Voici le suivi : [colle le suivi], la date de commande, ce que j'ai affiché comme délai, et les messages échangés. Rédige ma réponse pour le centre de résolution, factuelle, avec la liste des preuves à joindre, et dis-moi si j'ai intérêt à rembourser tout de suite. »</div>
+
+  <div class="done"><b>✅ Fait quand</b>Ta politique de retour 30 jours est écrite dans Shopify et visible sur la page produit, et tu sais où répondre à un litige avec quelles preuves.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">07</span>Le service client en 20 minutes par jour</h2>
+  <p class="lead">Pas de chat en direct, pas de téléphone. Une boîte mail, des modèles, un créneau. Le client veut une réponse claire en moins de 24 h, pas une réponse immédiate.</p>
+
+  <h3>La mise en place (1 h, une fois)</h3>
+  <ol>
+    <li><strong>Une adresse dédiée</strong> : <code>bonjour@tamarque.fr</code> (Google Workspace, environ 6 €/mois, ou Zoho Mail gratuit). Jamais ton adresse perso. Mets-la dans Shopify (Paramètres → Général → e-mail de l'expéditeur) : les clients répondent aux notifications et ça arrive là.</li>
+    <li><strong>Shopify Inbox</strong> (gratuit) : un widget de chat sur la boutique, où tu réponds en différé depuis l'app. Mets le message d'accueil automatique : « Merci pour ton message, je réponds sous 24 h. Pour suivre ta commande : [lien page de suivi]. » 40 % des gens trouvent leur réponse dans ce message.</li>
+    <li><strong>Les modèles</strong> du chapitre 05 enregistrés dans Gmail (Paramètres → Avancé → Modèles) ou dans Shopify Inbox (réponses rapides).</li>
+    <li><strong>Une FAQ</strong> sur la boutique : délai, suivi, retour, paiement, tailles. Le lien dans le pied de page et dans l'e-mail d'accueil. Demande à Claude Code de la générer dans le thème (section FAQ accordéon, guide 05).</li>
+    <li><strong>Instagram et TikTok</strong> : les DM arrivent aussi. Réponse courte + « écris-moi à bonjour@… avec ton numéro de commande, je m'en occupe ». Tout passe par la boîte mail, un seul endroit.</li>
+  </ol>
+
+  <h3>La routine (20 min, tous les jours, même heure)</h3>
+  <table class="t">
+    <tr><th>Minute</th><th>Action</th></tr>
+    <tr><td>0 à 5</td><td>DSers : commandes de la veille → tout sélectionner → commander → payer. Vérifier les commandes sans suivi depuis 4 jours → message au fournisseur.</td></tr>
+    <tr><td>5 à 15</td><td>Boîte mail + Inbox : répondre à tout avec les modèles. Un message = une réponse, pas de « je reviens vers vous ». Remboursements et renvois faits dans la foulée.</td></tr>
+    <tr><td>15 à 20</td><td>App de suivi : colis sans mouvement depuis 7 jours → message « retard » proactif. Noter dans un tableau : date, commande, problème, action.</td></tr>
+  </table>
+
+  <h3>Le ton, en trois règles</h3>
+  <ul>
+    <li><strong>Lu, compris, réglé.</strong> Montre que tu as lu (reprends un détail), dis ce que tu fais, dis quand.</li>
+    <li><strong>Pas de justification.</strong> « Le fournisseur a eu du retard », le client s'en fiche. « Je te renvoie un colis aujourd'hui », ça il l'entend.</li>
+    <li><strong>Un geste vaut mieux qu'un débat.</strong> Un code de 15 %, un remboursement partiel, un renvoi : 5 € qui évitent un litige à 15 € et un avis à une étoile.</li>
+  </ul>
+
+  <h3>Le prompt « réponds à ce client »</h3>
+  <pre class="prompt">Tu es le service client de ma boutique [Marque] (produit : [produit], délai de livraison annoncé : 7 à 12 jours ouvrés, politique : 30 jours satisfait ou remboursé, retours physiques uniquement si le produit vaut plus de 25 €). Ton : [tutoiement / vouvoiement], chaleureux, direct, phrases courtes, signature « [Prénom], [Marque] ». Jamais de « gêne occasionnée », jamais de justification sur le fournisseur.
+
+Voici le message du client :
+« [colle le message] »
+
+Infos sur sa commande : n° [#], passée le [date], statut du suivi : [colle], montant [X €].
+
+Rédige ma réponse. Elle doit : reprendre un détail de son message, donner une réponse claire, proposer UNE action concrète avec une date, et si la situation le justifie (retard de plus de 5 jours, défaut, colis perdu), proposer un geste (renvoi, remboursement, ou code -15 %). Si tu manques d'une info, mets-la entre crochets.</pre>
+
+  <div class="done"><b>✅ Fait quand</b>Ton adresse dédiée est dans Shopify, Inbox est actif avec son message d'accueil, et tu as tenu la routine de 20 minutes 5 jours de suite.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">08</span>Les obligations en France</h2>
+  <p class="lead">Vendre en ligne, c'est une activité déclarée. Ça prend une heure, c'est gratuit ou presque, et ça t'évite le gel de Shopify Payments et un redressement.</p>
+
+  <h3>Le statut : micro-entreprise pour commencer</h3>
+  <ul>
+    <li><strong>Déclaration</strong> sur le guichet unique (formalites.entreprises.gouv.fr), activité « vente à distance sur catalogue général » (code 47.91B). Gratuit, numéro SIRET sous 1 à 3 semaines. Tu peux vendre dès la déclaration faite.</li>
+    <li><strong>Charges</strong> : environ 12,3 % du chiffre d'affaires encaissé (vente de marchandises), déclarées chaque mois ou trimestre sur autoentrepreneur.urssaf.fr. Pas de CA, pas de charges.</li>
+    <li><strong>Plafond</strong> : 188 700 € de CA par an en vente de marchandises. Au-delà, ou dès que tu scales sérieusement (marge, charges déductibles, associés), tu passes en société (SASU / EURL) : vois un expert-comptable à partir de 5 000 € de CA par mois.</li>
+    <li><strong>TVA</strong> : en micro, tu es en franchise de TVA jusqu'à 85 000 € de CA (tu ne la factures pas, tu ne la récupères pas, tu affiches « TVA non applicable, art. 293 B du CGI »). Au-delà, ou sur option, tu collectes 20 %. Dans Shopify : Paramètres → Taxes → France → coche « inclure les taxes dans les prix » dans les deux cas, et mets le taux à 0 % en franchise.</li>
+    <li><strong>Attention à la TVA à l'import</strong> : en dropshipping depuis la Chine, la TVA à l'import est en général collectée par AliExpress (IOSS) pour les colis de moins de 150 €. Vérifie que le fournisseur expédie avec IOSS, sinon le client paie la TVA et des frais à la livraison, et il refuse le colis.</li>
+  </ul>
+
+  <h3>Les pages obligatoires sur la boutique</h3>
+  <table class="t">
+    <tr><th>Page</th><th>Contenu minimum</th><th>Où dans Shopify</th></tr>
+    <tr><td>Mentions légales</td><td>Nom, prénom (ou raison sociale), adresse, SIRET, e-mail, hébergeur (Shopify International Ltd, Dublin), directeur de publication</td><td>Paramètres → Politiques → Informations de contact + page « Mentions légales »</td></tr>
+    <tr><td>CGV (conditions générales de vente)</td><td>Prix, paiement, livraison, rétractation 14 jours, garanties légales, litiges (médiateur de la consommation à nommer)</td><td>Paramètres → Politiques → Conditions de service</td></tr>
+    <tr><td>Politique de remboursement</td><td>Tes 30 jours, la procédure, les exceptions</td><td>Paramètres → Politiques → Politique de remboursement</td></tr>
+    <tr><td>Politique de confidentialité</td><td>Données collectées, Pixel Meta, cookies, droits RGPD, contact</td><td>Paramètres → Politiques → Politique de confidentialité</td></tr>
+    <tr><td>Politique de livraison</td><td>Délais, zones, transporteurs, frais</td><td>Paramètres → Politiques → Politique de livraison</td></tr>
+  </table>
+  <p>Shopify génère des textes de base ; demande à Claude de les adapter à la loi française (rétractation, médiateur, TVA) : « Voici ma politique de remboursement générée par Shopify. Adapte-la au droit français de la vente à distance : rétractation 14 jours, garantie de conformité 2 ans, exceptions, et ajoute ma garantie commerciale 30 jours satisfait ou remboudé. » Un bandeau cookies est nécessaire avec le Pixel Meta : l'app gratuite de Shopify (« Confidentialité des clients » dans Paramètres) suffit.</p>
+
+  <h3>Factures et comptabilité</h3>
+  <ul>
+    <li>Chaque commande doit pouvoir donner une facture : app « Sufio » ou « Order Printer » (gratuite) pour générer un PDF à la demande du client. En micro, mentions obligatoires : tes coordonnées, SIRET, « TVA non applicable, art. 293 B du CGI », numéro et date.</li>
+    <li>Un compte bancaire dédié à l'activité (obligatoire au-delà de 10 000 € de CA deux années de suite, recommandé dès le début). Shopify Payments et PayPal versent dessus, AliExpress et Meta prélèvent dessus.</li>
+    <li>Un livre des recettes (tableau : date, montant, moyen de paiement, client). L'export des commandes Shopify suffit, garde-le chaque mois.</li>
+    <li>Garde les factures Meta (Gestionnaire → Facturation) et AliExpress (commandes DSers) : c'est ce qui prouvera tes charges le jour où tu passes en société.</li>
+  </ul>
+  <div class="note danger"><b>Ne vends pas sans SIRET</b>Shopify Payments demande ton SIRET et ta pièce d'identité à la vérification. Sans, les versements sont gelés après quelques centaines d'euros. Déclare-toi AVANT la première pub.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Ton SIRET est obtenu, les 5 pages légales sont en ligne dans le pied de page, le compte dédié est ouvert et relié à Shopify Payments.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">09</span>Les apps : utiles, inutiles</h2>
+  <p class="lead">Chaque app, c'est 10 à 30 € par mois et du code qui ralentit ta page. Tu en installes 5, pas 25.</p>
+
+  <table class="t">
+    <tr><th>Besoin</th><th>App recommandée</th><th>Prix</th><th>Pourquoi</th></tr>
+    <tr><td>Commandes fournisseur</td><td>DSers (AliExpress) ou l'app CJdropshipping</td><td>Gratuit au début</td><td>Commandes en un clic, suivi automatique</td></tr>
+    <tr><td>Suivi de colis</td><td>Track123 ou 17TRACK</td><td>Gratuit jusqu'à 50 à 100 colis / mois</td><td>Page de suivi, e-mails d'étape, moins de messages</td></tr>
+    <tr><td>Avis clients</td><td>Judge.me (gratuit) ou l'app Avis de Shopify</td><td>Gratuit</td><td>Demande d'avis automatique, étoiles sur la page</td></tr>
+    <tr><td>Service client</td><td>Shopify Inbox</td><td>Gratuit</td><td>Chat différé, réponses rapides, message d'accueil</td></tr>
+    <tr><td>Factures</td><td>Order Printer (Shopify) ou Sufio</td><td>Gratuit / 19 €</td><td>Facture PDF à la demande</td></tr>
+    <tr><td>Panier moyen</td><td>Les sections bundle du thème Aesthetic Lab (déjà là)</td><td>0 €</td><td>Pas d'app : Claude Code te construit le bundle et l'upsell dans le thème (guide 05)</td></tr>
+  </table>
+
+  <h3>À éviter</h3>
+  <ul>
+    <li><strong>Les apps de « fausse urgence »</strong> (compteurs de visiteurs inventés, « 12 personnes regardent ce produit ») : interdites en France depuis 2022 (pratiques commerciales trompeuses), et le thème gère le vrai compte à rebours d'offre.</li>
+    <li><strong>Les apps de pop-up multiples</strong> : une pop-up e-mail à l'arrivée, c'est le maximum. Trois pop-ups font fuir.</li>
+    <li><strong>Les builders de page</strong> (PageFly, GemPages) : Claude Code fait mieux, plus vite, sans abonnement et sans ralentir la page.</li>
+    <li><strong>Les apps « tout-en-un » à 50 €/mois</strong> dont tu utilises une fonction.</li>
+    <li><strong>Les apps installées « pour tester »</strong> et jamais retirées : chaque app laisse du code. Désinstalle ce que tu n'utilises pas, puis demande à Claude Code de nettoyer le thème.</li>
+  </ul>
+  <div class="note"><b>Règle</b>Avant d'installer une app, demande à Claude Code : « Est-ce que tu peux faire [fonction] directement dans le thème ? » Dans 7 cas sur 10, oui.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as au maximum 6 apps installées, chacune avec un usage précis, et aucune app de fausse urgence.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">10</span>Monter en charge, et la checklist 50 commandes par jour</h2>
+  <p class="lead">Quand ça vend, les problèmes changent : ce n'est plus « est-ce que ça marche », c'est « est-ce que ça tient ». Voilà comment passer à l'agent sans casser la machine.</p>
+
+  <h3>Quand passer à l'agent</h3>
+  <ul>
+    <li>5 à 10 commandes par jour pendant 2 semaines, et un ROAS stable (guide 10).</li>
+    <li>Ou dès que les messages « où est mon colis » dépassent 10 % des commandes : le délai AliExpress te coûte plus en service client qu'un agent.</li>
+  </ul>
+
+  <h3>Négocier avec l'agent (ou le fournisseur)</h3>
+  <ol>
+    <li>Envoie ton volume réel (export Shopify des 30 derniers jours) et ta projection (« 15 par jour le mois prochain »). Les chiffres négocient pour toi.</li>
+    <li>Demande un prix par palier : 100, 300, 1 000 unités par mois. Vise −20 à −40 % sur le prix AliExpress.</li>
+    <li>Demande le délai de livraison vers la France avec sa ligne (5 à 8 jours en général, YunExpress ou équivalent), et le coût d'expédition par colis.</li>
+    <li>Demande un <strong>contrôle qualité</strong> avant expédition (photo de chaque lot) et le remplacement des défectueux à ses frais.</li>
+    <li>Demande le <strong>packaging de marque</strong> : boîte ou pochette avec ton logo, un flyer « merci » avec un code -10 % pour la 2e commande. Compte 0,30 à 1 € par colis. Le flyer rapporte des réachats et des avis.</li>
+    <li>Paiement : tu paies un stock d'avance chez l'agent (ex. 300 unités) qu'il garde dans son entrepôt, puis chaque expédition est facturée. C'est ta première immobilisation : fais-la quand la trésorerie le permet (2 à 3 semaines de ventes d'avance).</li>
+  </ol>
+  <div class="note warn"><b>Transition sans coupure</b>Garde DSers / AliExpress actif pendant 2 semaines en parallèle de l'agent. Tu bascules les nouvelles commandes vers l'agent, les anciennes finissent chez AliExpress. Pas de jour sans fournisseur.</div>
+
+  <h3>Les délais après la bascule</h3>
+  <table class="t">
+    <tr><th></th><th>AliExpress</th><th>Agent</th><th>3PL France</th></tr>
+    <tr><td>Traitement</td><td>1 à 3 jours</td><td>24 h</td><td>24 h</td></tr>
+    <tr><td>Transit</td><td>7 à 15 jours</td><td>5 à 8 jours</td><td>1 à 3 jours</td></tr>
+    <tr><td>À afficher sur la boutique</td><td>7 à 12 jours ouvrés</td><td>5 à 8 jours ouvrés</td><td>2 à 4 jours ouvrés</td></tr>
+    <tr><td>Messages « où est mon colis »</td><td>10 à 15 % des commandes</td><td>3 à 5 %</td><td>&lt; 1 %</td></tr>
+  </table>
+  <p>Mets à jour le délai partout (page produit, politique, e-mails) le jour de la bascule. Un délai plus court, c'est aussi un meilleur taux de conversion : parle-en à Mady, c'est le moment de retester le prix.</p>
+
+  <h3>Checklist : prête à livrer 50 commandes par jour</h3>
+  <ul class="check">
+    <li>Fournisseur principal + fournisseur de secours mappés dans DSers (ou agent avec stock d'avance de 2 semaines).</li>
+    <li>Échantillon reçu, testé, photos réelles faites. Délai réel mesuré.</li>
+    <li>Commande test passée de bout en bout : Shopify → fournisseur → suivi → e-mail client.</li>
+    <li>Délai affiché identique sur la page produit, la politique de livraison et l'e-mail de confirmation.</li>
+    <li>Page de suivi en ligne, e-mails d'étape actifs, lien dans le pied de page.</li>
+    <li>Notifications Shopify personnalisées (logo, ton, délai, contact).</li>
+    <li>Adresse e-mail dédiée dans Shopify, Shopify Inbox actif avec message d'accueil, FAQ en ligne.</li>
+    <li>8 modèles de réponse enregistrés. Routine de 20 min calée à heure fixe.</li>
+    <li>Politique 30 jours écrite et visible sous le bouton d'achat.</li>
+    <li>SIRET obtenu, 5 pages légales en ligne, compte bancaire dédié relié à Shopify Payments, bandeau cookies actif.</li>
+    <li>IOSS vérifié avec le fournisseur (pas de TVA à payer par le client à la livraison).</li>
+    <li>Trésorerie : 2 semaines de coût produit d'avance sur le compte.</li>
+    <li>Tableau de suivi des problèmes (date, commande, problème, action) tenu chaque jour.</li>
+    <li>Taux de litiges / contestations connu et sous 0,5 % (Shopify Payments → Contestations).</li>
+    <li>Maximum 6 apps, aucune de fausse urgence.</li>
+    <li>Seuil de passage à l'agent décidé (ex. 10 commandes / jour pendant 14 jours) et premier contact agent pris.</li>
+  </ul>
+
+  <div class="note ok"><b>La phrase à retenir</b>Un colis qui arrive quand tu l'as dit, et une réponse en moins de 24 h : c'est tout ce que le client demande. Le reste, c'est de l'optimisation.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Les 16 cases sont cochées, et tu as tenu 7 jours de routine sans aucun message client resté sans réponse plus de 24 h.</div>
+</section>
+
+</body>
+</html>

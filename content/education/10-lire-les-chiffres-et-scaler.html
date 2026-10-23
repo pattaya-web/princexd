@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Scale X · Lire les chiffres et scaler</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #141a1f; font-size: 11pt; line-height: 1.5; }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 0; }
+  p { margin: 0 0 8pt; }
+  a { color: #0b63c4; }
+  .kicker { font-family: "Segoe UI", Arial, sans-serif; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #0b63c4; font-weight: 700; margin: 0 0 6pt; }
+
+  /* Couverture */
+  .cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .brand { font-weight: 800; font-size: 13pt; letter-spacing: 0.04em; margin-bottom: 40pt; }
+  .cover .brand span { color: #0b63c4; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 0 0 14pt; }
+  .cover .sub { font-size: 14pt; color: #4a5560; font-family: Georgia, serif; margin-bottom: 28pt; }
+  .cover .meta { font-size: 10pt; color: #4a5560; margin-top: 24pt; }
+  .cover ul { margin: 0; padding-left: 18pt; }
+  .cover li { margin: 3pt 0; }
+  .cover .foot { margin-top: auto; font-size: 9pt; color: #7a858f; border-top: 1px solid #e3e7ea; padding-top: 10pt; }
+
+  /* Chapitres */
+  .chapter { page-break-before: always; }
+  .chapter.first { page-break-before: auto; }
+  h2 { font-size: 22pt; margin: 0 0 6pt; line-height: 1.15; }
+  h2 .num { display: inline-block; color: #0b63c4; margin-right: 8pt; font-size: 16pt; vertical-align: 6pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; }
+  .lead { font-size: 12pt; color: #4a5560; margin: 0 0 14pt; }
+  h3 { font-size: 15pt; margin: 18pt 0 6pt; }
+  h4 { font-size: 12pt; margin: 0 0 3pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  strong { font-weight: 700; }
+
+  /* Encadrés */
+  .note { border-left: 3px solid #0b63c4; background: #eef4fb; padding: 8pt 11pt; margin: 10pt 0; border-radius: 3px; page-break-inside: avoid; }
+  .note b { display: block; color: #0b63c4; margin-bottom: 2pt; }
+  .note.ok { border-color: #178a4c; background: #ecf7f0; } .note.ok b { color: #178a4c; }
+  .note.warn { border-color: #d98a0e; background: #fff6e8; } .note.warn b { color: #b86f00; }
+  .note.danger { border-color: #c9302c; background: #fdeeee; } .note.danger b { color: #c9302c; }
+  .claude { border: 1px solid #c9c3f5; background: #f4f2ff; padding: 8pt 11pt; margin: 10pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .claude b { display: block; color: #5b5ce6; margin-bottom: 2pt; }
+  .done { border: 1px solid #b7e0c5; background: #ecf7f0; padding: 8pt 11pt; margin: 12pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .done b { display: block; color: #178a4c; margin-bottom: 2pt; }
+
+  /* Étapes */
+  .step { display: flex; gap: 10pt; margin: 10pt 0; page-break-inside: avoid; }
+  .step .n { flex: 0 0 24pt; height: 24pt; border-radius: 5px; background: #0b63c4; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 11pt; }
+  .step .body { flex: 1; min-width: 0; }
+
+  /* Code et prompts */
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 9.5pt; line-height: 1.45; margin: 6pt 0 10pt; padding: 8pt 10pt; border-radius: 4px; page-break-inside: avoid; }
+  pre.cmd { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; border: 1px solid #e1e5e9; }
+  pre.prompt { font-family: "Segoe UI", Arial, sans-serif; background: #fbf7ec; border: 1px solid #ecdfbd; font-size: 10pt; }
+  pre.prompt::before { content: "PROMPT À COPIER"; display: block; font-size: 7.5pt; letter-spacing: 0.16em; color: #9a7b2c; font-weight: 700; margin-bottom: 4pt; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; padding: 0 3pt; border-radius: 3px; font-size: 9.5pt; }
+
+  /* Checklist et tableaux */
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { padding-left: 20pt; position: relative; margin: 4pt 0; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; top: -1pt; font-size: 12pt; color: #0b63c4; }
+  table.t { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+  table.t th, table.t td { border: 1px solid #dfe3e7; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  table.t th { background: #f3f5f7; font-weight: 700; }
+  .cols { display: flex; gap: 14pt; } .cols > div { flex: 1; min-width: 0; }
+  hr { border: 0; border-top: 1px solid #e3e7ea; margin: 14pt 0; }
+  .muted { color: #6b7680; }
+  .small { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="brand">SCALE <span>X</span> · EDUCATION</div>
+  <p class="kicker">Guide 10 · Meta Ads</p>
+  <h1>Lire les chiffres et scaler</h1>
+  <p class="sub">Trois chiffres, dans l'ordre, au bout de trois jours. Puis une décision : couper, refaire des créatives, ou monter le budget. Rien d'autre.</p>
+  <p class="kicker">À la fin de ce guide, tu sauras</p>
+  <ul>
+    <li>Lire CTR, CPC et ROAS dans le Gestionnaire de publicités Meta, et savoir lequel regarder en premier.</li>
+    <li>Calculer TON seuil de ROAS de rentabilité, avec ta marge réelle, et décider en 5 minutes : coupe, créatives ou scale.</li>
+    <li>Scaler comme Mady : +20 à 30 % tous les 2 à 3 jours, décliner la créative gagnante, recommencer chaque semaine.</li>
+  </ul>
+  <p class="meta">Temps de lecture : 45 min · Temps de mise en pratique : 15 min par jour, un point tous les 3 jours</p>
+  <div class="foot">Scale X · Accompagnement e-commerce + IA · Mady · Version octobre 2026. Bloqué ? Demande d'abord à Claude. Mady, c'est pour les urgences.</div>
+</header>
+
+<section class="chapter first">
+  <h2><span class="num">01</span>Les trois chiffres, dans cet ordre</h2>
+  <p class="lead">Au bout de 3 jours de campagne, tu ne regardes pas 40 colonnes. Tu en regardes trois, dans un ordre précis. Chacune répond à une question différente.</p>
+
+  <p>Une pub Meta, c'est une chaîne : quelqu'un voit ta créative, il clique, il arrive sur ta page, il achète. Chaque maillon a son chiffre. Si tu lis les chiffres dans le désordre, tu corriges le mauvais maillon. Le ROAS peut être mauvais parce que la créative n'arrête personne, ou parce que la page ne convertit pas. Ce n'est pas la même réparation.</p>
+
+  <h3>1. CTR : la créative arrête-t-elle le scroll ?</h3>
+  <p>Le CTR (taux de clic), c'est le nombre de clics sur le lien divisé par le nombre d'impressions. Il mesure une seule chose : est-ce que ta créative donne envie de cliquer. Rien d'autre. Il ne dit rien sur ta page ni sur ton produit.</p>
+  <table class="t">
+    <tr><th>CTR (clics sur le lien)</th><th>Lecture</th><th>Décision</th></tr>
+    <tr><td><strong>&gt; 2 %</strong></td><td>La créative arrête le scroll. Le hook marche.</td><td>On garde, on passe au CPC.</td></tr>
+    <tr><td>1 % à 2 %</td><td>Moyenne. Ça peut tourner si le reste suit.</td><td>On garde 3 jours de plus, on prépare des variantes de hook.</td></tr>
+    <tr><td><strong>&lt; 1 %</strong></td><td>Morte. Peu importe le reste : personne ne voit ta page.</td><td>On coupe la créative. Pas la campagne : la créative.</td></tr>
+  </table>
+  <div class="note warn"><b>Le piège : regarder le CTR « tous »</b>Meta affiche deux CTR : « CTR (tous) » compte les clics sur la pub (like, agrandir, commenter). « CTR (clics sur le lien) » compte seulement les clics vers ta boutique. C'est celui-là, et uniquement celui-là, que tu lis. Un CTR « tous » de 4 % avec un CTR lien de 0,6 %, c'est une pub qu'on regarde mais sur laquelle personne ne clique.</div>
+
+  <h3>2. CPC : achètes-tu le trafic au bon prix ?</h3>
+  <p>Le CPC (coût par clic sur le lien), c'est ce que tu paies pour amener une personne sur ta page. Il dépend du CTR (plus de gens cliquent, moins chaque clic coûte) et du CPM (ce que Meta te facture pour 1 000 impressions, qui dépend du pays, de la saison et de la concurrence).</p>
+  <table class="t">
+    <tr><th>CPC</th><th>Lecture</th><th>Décision</th></tr>
+    <tr><td><strong>&lt; 1 €</strong></td><td>Tu achètes le trafic au bon prix. Pour 50 €, tu as 50 visiteurs ou plus.</td><td>On passe au ROAS.</td></tr>
+    <tr><td>1 € à 1,50 €</td><td>Cher mais vivable si le produit se vend bien (panier moyen élevé).</td><td>On regarde le ROAS avant de juger.</td></tr>
+    <tr><td><strong>&gt; 1,50 €</strong></td><td>Créative faible ou produit sans intérêt pour l'audience. Chaque visiteur te coûte trop cher pour être rentable.</td><td>Nouvelle créative. Si 3 créatives différentes donnent le même CPC, c'est le produit.</td></tr>
+  </table>
+
+  <h3>3. ROAS : le juge</h3>
+  <p>Le ROAS (retour sur dépense publicitaire), c'est le chiffre d'affaires généré divisé par ce que tu as dépensé en pub. Un ROAS de 2 veut dire : 1 € de pub, 2 € de ventes. C'est le seul chiffre qui décide du budget. Les deux autres servent à comprendre POURQUOI le ROAS est ce qu'il est.</p>
+  <table class="t">
+    <tr><th>ROAS après 3 jours</th><th>Lecture</th><th>Décision</th></tr>
+    <tr><td><strong>&gt; 2</strong></td><td>Ça marche. Tu es rentable sur la plupart des produits à 3x de marge.</td><td>On scale : +20 à 30 % de budget (chapitre 05).</td></tr>
+    <tr><td>1 à 2</td><td>Tu rembourses la pub mais tu ne gagnes pas (ou presque). Le produit intéresse, la mécanique fuit quelque part.</td><td>Nouvelles créatives ou nouvelle page produit, selon le diagnostic (chapitre 04). Budget inchangé.</td></tr>
+    <tr><td><strong>&lt; 1</strong></td><td>Tu perds de l'argent sur chaque euro dépensé.</td><td>On coupe. Produit suivant, sauf si le diagnostic montre un bug évident (pixel, checkout cassé).</td></tr>
+  </table>
+
+  <div class="note ok"><b>La règle de Mady</b>CTR d'abord, CPC ensuite, ROAS pour trancher. Si le CTR est sous 1 %, tu ne lis même pas la suite : la créative est à refaire. Si le CTR est bon et le ROAS mauvais, le problème est après le clic, donc sur ta boutique.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu peux donner, de tête, les trois seuils (CTR 2 %, CPC 1 €, ROAS 2) et dire quelle colonne du Gestionnaire correspond à chacun.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">02</span>Ton vrai seuil de ROAS</h2>
+  <p class="lead">« ROAS supérieur à 2 » est un repère général. Ton seuil à toi dépend de ta marge. Calcule-le une fois, note-le, et compare tout à ce chiffre.</p>
+
+  <h3>Le ROAS de rentabilité (break-even)</h3>
+  <p>Le ROAS break-even, c'est le ROAS en dessous duquel tu perds de l'argent sur chaque vente. La formule :</p>
+  <pre class="cmd">ROAS break-even = Prix de vente / (Prix de vente − Coût produit − Frais par commande)</pre>
+  <p>Les frais par commande, c'est tout ce qui part à chaque vente : frais de paiement Shopify Payments (environ 1,5 % + 0,25 €), frais de livraison que tu paies au fournisseur, emballage, part des abonnements (Shopify, apps) ramenée à la commande, retours (compte 3 à 5 % du prix).</p>
+
+  <h3>Exemple chiffré</h3>
+  <table class="t">
+    <tr><th>Poste</th><th>Montant</th></tr>
+    <tr><td>Prix de vente TTC</td><td>49,90 €</td></tr>
+    <tr><td>TVA (20 %, si tu la collectes ; en franchise, 0)</td><td>8,32 €</td></tr>
+    <tr><td>Prix HT encaissé</td><td>41,58 €</td></tr>
+    <tr><td>Coût produit + livraison fournisseur</td><td>12,00 €</td></tr>
+    <tr><td>Frais de paiement (1,5 % + 0,25 €)</td><td>1,00 €</td></tr>
+    <tr><td>Emballage, apps, retours (estimation)</td><td>2,50 €</td></tr>
+    <tr><td><strong>Marge avant pub</strong></td><td><strong>26,08 €</strong></td></tr>
+  </table>
+  <p>ROAS break-even = 49,90 / 26,08 = <strong>1,91</strong>. Sur ce produit, à ROAS 1,91 tu ne gagnes rien. À ROAS 2,5, chaque commande te laisse environ 6 € nets après pub. À ROAS 3, environ 9,50 €.</p>
+  <div class="note warn"><b>Marge 3x minimum</b>C'est pour ça que Mady ne prend que des produits à au moins 3x de marge (coût 12 €, vente 40 € ou plus). Avec 2x de marge, ton ROAS break-even monte vers 3 et la pub devient presque impossible à rentabiliser en lancement.</div>
+
+  <h3>Ton seuil de scale</h3>
+  <p>Seuil de scale = ROAS break-even + 0,3 à 0,5. Dans l'exemple, tu scales à partir de 2,3. Entre 1,9 et 2,3, tu tiens le budget et tu refais des créatives. Sous 1,9, tu perds, tu coupes ou tu corriges.</p>
+
+  <div class="claude"><b>Demande à Claude</b>« Voici mon prix de vente [X €], mon coût produit livré [Y €], je suis en [micro-entreprise en franchise de TVA / société avec TVA]. Calcule mon ROAS break-even avec les frais Shopify Payments, 4 % de retours et 2 € d'emballage, puis donne-moi mon seuil de scale et ma marge nette par commande à ROAS 2, 2,5 et 3. Présente ça en tableau. »</div>
+
+  <ul class="check">
+    <li>Mon prix de vente, mon coût produit livré et mes frais par commande sont notés.</li>
+    <li>Mon ROAS break-even est calculé et écrit en haut de mon tableau de suivi.</li>
+    <li>Mon seuil de scale (break-even + 0,3 à 0,5) est noté à côté.</li>
+  </ul>
+  <div class="done"><b>✅ Fait quand</b>Tu as un chiffre précis pour ton ROAS break-even (ex. 1,91) et tu peux expliquer d'où il vient.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">03</span>Lire le Gestionnaire de publicités</h2>
+  <p class="lead">Le Gestionnaire est fait pour tout te montrer. Toi, tu veux voir six colonnes, au bon niveau, sur la bonne période.</p>
+
+  <h3>Les trois niveaux</h3>
+  <table class="t">
+    <tr><th>Niveau</th><th>Ce que c'est</th><th>Ce que tu y lis</th></tr>
+    <tr><td>Campagne</td><td>Ton enveloppe (CBO 50 €/jour). Une seule en test.</td><td>Dépense totale, ROAS global, nombre d'achats. C'est ici que tu montes ou baisses le budget.</td></tr>
+    <tr><td>Ensemble de publicités (ad set)</td><td>L'audience (large, sans intérêts, pays) et les placements.</td><td>CPM, fréquence. Un ad set par test, deux quand tu scales horizontalement.</td></tr>
+    <tr><td>Publicité (ad)</td><td>Chaque créative avec son texte.</td><td>CTR lien, CPC, achats par créative. C'est ici que tu coupes et que tu trouves ta gagnante.</td></tr>
+  </table>
+
+  <h3>Tes six colonnes</h3>
+  <p>Dans le Gestionnaire : Colonnes → Personnaliser les colonnes. Garde seulement celles-ci, dans cet ordre, puis « Enregistrer comme préréglage » et nomme-le « Scale X ».</p>
+  <ol>
+    <li><strong>Montant dépensé</strong></li>
+    <li><strong>CTR (taux de clics sur le lien)</strong></li>
+    <li><strong>CPC (coût par clic sur le lien)</strong></li>
+    <li><strong>CPM</strong> (coût pour 1 000 impressions)</li>
+    <li><strong>Achats</strong> (événement Purchase du Pixel) et <strong>Coût par achat</strong></li>
+    <li><strong>ROAS des achats</strong> (valeur de conversion des achats / dépense)</li>
+  </ol>
+  <p>Bonus utiles : « Ajouts au panier », « Paiements initiés », « Fréquence ». Ils servent au diagnostic du chapitre 04.</p>
+
+  <h3>La période</h3>
+  <p>En haut à droite, choisis « 3 derniers jours » pour le point J+3, « 7 derniers jours » pour le point hebdo. Jamais « aujourd'hui » : les achats de la journée ne sont pas tous remontés, tu lirais faux.</p>
+
+  <h3>La fenêtre d'attribution</h3>
+  <p>Meta attribue un achat à ta pub si la personne a cliqué dans les 7 jours avant d'acheter (« 7 jours après le clic ») ou vu dans la journée (« 1 jour après la vue »). Conséquence : les chiffres d'hier bougent encore aujourd'hui et demain. Un ROAS de 1,4 à J+3 peut finir à 1,8 à J+7, parce que des gens qui ont cliqué lundi achètent jeudi. C'est pour ça qu'on ne touche à rien pendant 3 jours et qu'on compare toujours des périodes complètes.</p>
+  <div class="note"><b>Shopify et Meta ne disent jamais le même chiffre</b>Shopify compte toutes tes commandes. Meta ne compte que celles qu'il arrive à relier à une pub. Un écart de 10 à 30 % est normal. Si Meta affiche 2 achats et Shopify 9, ton Pixel ou ta Conversions API ne remontent pas tout : retourne au guide Démarrage, section 06, et vérifie que les événements sont en « Navigateur ET Serveur ».</div>
+
+  <h3>Le Pixel avant tout</h3>
+  <p>Aucune lecture n'a de sens si le Pixel ment. Avant de juger une campagne : Gestionnaire d'événements → ton Pixel → Tester les événements → fais une commande test. Purchase doit apparaître avec la bonne valeur. Sinon, tu corriges ça d'abord.</p>
+
+  <div class="done"><b>✅ Fait quand</b>Ton préréglage de colonnes « Scale X » est enregistré, et tu as vérifié que Purchase remonte avec la bonne valeur dans Tester les événements.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">04</span>Le diagnostic : où ça fuit</h2>
+  <p class="lead">Un mauvais ROAS n'est jamais « la pub qui marche pas ». C'est un maillon précis de la chaîne qui lâche. Tu le trouves en suivant l'arbre, de haut en bas.</p>
+
+  <h3>L'arbre de décision</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>CTR lien sous 1 % ?</h4><p>Le problème est la <strong>créative</strong>. Personne ne clique. Le hook (les 2 premières secondes ou la première ligne d'une statique) ne touche pas la douleur ou le désir. Action : 3 nouvelles créatives avec 3 hooks de nature différente (question, affirmation choc, résultat). Ne touche pas à la page, elle n'a pas encore été testée.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>CTR correct (&gt; 1,5 %) mais CPC au-dessus de 1,50 € ?</h4><p>Regarde le <strong>CPM</strong>. CPM élevé (&gt; 15 € en France) : audience chère, placement cher (Audience Network, Messenger), ou saison (novembre-décembre). Action : vérifie les placements (Advantage+ sans Audience Network), élargis le pays si ton produit s'y prête, ou accepte le CPM si le ROAS tient. Si le CPM est normal et le CPC quand même haut, c'est que le CTR est en réalité trop juste : retour à la créative. Si trois créatives différentes donnent le même résultat, c'est le <strong>produit</strong> qui n'intéresse pas cette audience.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Des clics, mais pas d'ajouts au panier ?</h4><p>Repère : moins de 8 % des visiteurs ajoutent au panier (ajouts au panier / clics sur le lien). Le problème est la <strong>page produit</strong>. Trois causes classiques : la page met plus de 3 secondes à charger sur mobile (teste sur ton téléphone en 4G), la promesse de la pub ne correspond pas à ce que la page montre en haut (la pub dit « soulage en 5 min », la page parle de design), le prix surprend (pas de prix barré, pas de bundle, pas de garantie visible avant le bouton). Action : relis le guide Page produit, corrige le haut de page d'abord. Demande à Claude Code d'analyser la vitesse.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Des paniers, mais pas d'achats ?</h4><p>Repère : moins de 30 % des paiements initiés finissent en achat. Le problème est le <strong>checkout</strong> : frais de livraison qui apparaissent au dernier moment (mets la livraison offerte dans le prix), délai de livraison annoncé trop long ou pas annoncé, moyen de paiement manquant (PayPal absent fait perdre 10 à 15 % des gens), pas de réassurance (pas de logo paiement sécurisé, pas de politique de retour visible), ou un bug : fais toi-même une commande test depuis ton téléphone, jusqu'à la page de confirmation.</p></div></div>
+  <div class="step"><div class="n">5</div><div class="body"><h4>Des achats, mais ROAS sous ton seuil ?</h4><p>La mécanique marche, l'<strong>économie</strong> ne suit pas. Leviers : monter le panier moyen (bundle 2 packs présélectionné, cadeau offert à partir de 2, upsell après le paiement), monter le prix si ton CTR et ton taux de conversion sont bons (teste +10 €), baisser le coût par achat en déclinant la créative gagnante (chapitre 05), réduire le coût produit (agent, commande groupée, voir guide 12).</p></div></div>
+
+  <h3>Les repères de conversion</h3>
+  <table class="t">
+    <tr><th>Étape</th><th>Comment le calculer</th><th>Correct</th><th>Problème</th></tr>
+    <tr><td>Clic → ajout panier</td><td>Ajouts au panier / clics lien</td><td>8 à 15 %</td><td>&lt; 5 %</td></tr>
+    <tr><td>Ajout panier → paiement initié</td><td>Paiements initiés / ajouts</td><td>40 à 60 %</td><td>&lt; 30 %</td></tr>
+    <tr><td>Paiement initié → achat</td><td>Achats / paiements initiés</td><td>30 à 50 %</td><td>&lt; 20 %</td></tr>
+    <tr><td>Clic → achat (taux de conversion)</td><td>Achats / clics lien</td><td>2 à 4 %</td><td>&lt; 1 %</td></tr>
+  </table>
+
+  <div class="note danger"><b>Ne change qu'une chose à la fois</b>Si tu refais les créatives ET la page ET le prix le même jour, tu ne sauras jamais ce qui a marché. Une correction, 3 jours, lecture. Puis la suivante.</div>
+
+  <div class="claude"><b>Demande à Claude</b>« Voici mes chiffres sur 3 jours : dépense [X], impressions [X], clics lien [X], ajouts panier [X], paiements initiés [X], achats [X], CA [X]. Mon ROAS break-even est [X]. Calcule chaque taux de la chaîne, dis-moi quel maillon lâche en premier et propose-moi UNE seule correction prioritaire, avec ce que je dois vérifier dans 3 jours. »</div>
+
+  <div class="done"><b>✅ Fait quand</b>Pour ta campagne en cours, tu as identifié le maillon qui lâche (créative, trafic, page, checkout ou économie) et noté UNE correction à tester.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">05</span>Scaler comme Mady</h2>
+  <p class="lead">Le scale, ce n'est pas le budget. C'est les créatives. Le budget, c'est juste le robinet qu'on ouvre quand les chiffres le permettent.</p>
+
+  <h3>Les bons signaux</h3>
+  <p>Tu scales uniquement quand les trois sont au vert sur 3 jours complets : CTR lien au-dessus de 2 %, CPC sous 1 €, ROAS au-dessus de ton seuil de scale. Deux sur trois, tu attends ou tu corriges.</p>
+
+  <h3>Scaling vertical : +20 à 30 % tous les 2 à 3 jours</h3>
+  <p>Tu montes le budget de la campagne CBO de 20 à 30 %, pas plus. Au-delà, Meta relance une phase d'apprentissage et tes chiffres se dégradent pendant 2 jours. Exemple : 50 € → 65 € → 80 € → 100 € → 120 € → 150 €. Entre chaque palier, 2 à 3 jours sans toucher. Si le ROAS passe sous ton seuil après un palier, tu redescends au palier précédent et tu y restes 3 jours.</p>
+  <table class="t">
+    <tr><th>Jour</th><th>Budget / jour</th><th>Condition pour passer au suivant</th></tr>
+    <tr><td>J0 à J3</td><td>50 €</td><td>CTR &gt; 2 %, CPC &lt; 1 €, ROAS &gt; seuil</td></tr>
+    <tr><td>J3 à J6</td><td>65 €</td><td>ROAS tient (baisse de moins de 15 % tolérée)</td></tr>
+    <tr><td>J6 à J9</td><td>80 €</td><td>Idem</td></tr>
+    <tr><td>J9 à J12</td><td>100 €</td><td>Idem + 2e série de créatives lancée</td></tr>
+    <tr><td>J12 à J15</td><td>120 € puis 150 €</td><td>Idem. Au-delà de 150 €, on duplique (horizontal).</td></tr>
+  </table>
+  <div class="note warn"><b>Modifier = remettre l'apprentissage à zéro</b>Changer le budget de plus de 30 %, modifier l'audience, ajouter 5 créatives d'un coup : chaque grosse modification remet la campagne en apprentissage. Petits paliers, et on ne touche pas au reste.</div>
+
+  <h3>Décliner la gagnante</h3>
+  <p>À J+3, tu classes tes créatives par CTR lien. La meilleure, c'est ta gagnante. Tu ne la laisses pas seule : tu en fais 5 versions.</p>
+  <ol>
+    <li><strong>Même vidéo, 3 hooks différents</strong> (les 3 premières secondes changent, le reste est identique).</li>
+    <li><strong>Même hook, nouvelle scène</strong> (autre personne, autre décor, prompt Seedance avec le même script).</li>
+    <li><strong>Version statique</strong> du hook gagnant (GPT Image 2, post-it manuscrit, prix barré).</li>
+    <li><strong>Version longue</strong> (30 s avec preuve supplémentaire) et <strong>version courte</strong> (10 s, le hook et l'offre).</li>
+    <li><strong>Même créative, nouveau texte principal</strong> (angle de la première ligne différent).</li>
+  </ol>
+  <p>Ces 5 versions partent dans un <strong>nouvel ad set</strong> de la même campagne, pas à côté de la gagnante dans le sien : ainsi la gagnante continue de tourner et tu lis les variantes séparément. Tu coupes les créatives sous 1 % de CTR au bout de 3 jours, tu gardes les autres.</p>
+
+  <h3>Scaling horizontal : dupliquer</h3>
+  <p>Quand ta campagne dépasse 150 €/jour et que le ROAS tient, tu dupliques l'ad set gagnant (clic droit → Dupliquer) avec les mêmes créatives, dans la même campagne ou dans une seconde campagne CBO. Puis tu ouvres de nouveaux pays : Belgique, Suisse, Canada francophone pour une boutique en français ; Allemagne, Italie, Espagne avec la boutique traduite (demande à Claude Code de traduire le thème, guide 04). Un pays = un ad set, pour lire chaque marché séparément.</p>
+
+  <h3>La boucle hebdomadaire</h3>
+  <p>Depuis 6 ans, Mady fait la même chose chaque semaine : <strong>produit → créatives → 3 jours → chiffres → coupe ou scale → créatives</strong>. Une créative s'épuise en 1 à 2 semaines (la fréquence monte au-dessus de 3, le CTR descend). Il en faut 10 nouvelles par semaine pour tenir. C'est le vrai travail d'un e-commerçant en 2026 : pas le budget, les créatives.</p>
+  <table class="t">
+    <tr><th>Jour</th><th>Action (15 à 45 min)</th></tr>
+    <tr><td>Lundi</td><td>Lecture des 7 derniers jours. Classement des créatives par CTR. Décision budget (palier ou retour).</td></tr>
+    <tr><td>Mardi</td><td>Déclinaison de la gagnante : 5 versions (page Créatives, Studio IA).</td></tr>
+    <tr><td>Mercredi</td><td>Mise en ligne du nouvel ad set avec les 5 versions. 3 jours sans toucher.</td></tr>
+    <tr><td>Jeudi</td><td>Service client, logistique, page produit (corrections issues du diagnostic).</td></tr>
+    <tr><td>Vendredi</td><td>Nouvel angle : 3 créatives sur un angle différent (page Créatives, prompt 1).</td></tr>
+    <tr><td>Samedi</td><td>Lecture J+3 de l'ad set du mercredi. Coupe des créatives sous 1 %.</td></tr>
+    <tr><td>Dimanche</td><td>Rien. Ou préparation de la semaine.</td></tr>
+  </table>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as fait un premier palier (+20 à 30 %) sur une campagne au vert, et un ad set de 5 déclinaisons de ta gagnante tourne.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">06</span>Le tableau de suivi et la routine de 15 minutes</h2>
+  <p class="lead">Les chiffres dans le Gestionnaire, ça bouge et ça s'oublie. Dans un tableau, ça se lit en 10 secondes et ça se montre à Mady.</p>
+
+  <h3>Le modèle</h3>
+  <p>Google Sheets ou Excel, une ligne par jour et par campagne. Demande à Claude de te le créer avec les formules.</p>
+  <table class="t">
+    <tr><th>Date</th><th>Budget</th><th>Dépense</th><th>Impr.</th><th>Clics lien</th><th>CTR</th><th>CPC</th><th>CPM</th><th>Paniers</th><th>Achats Meta</th><th>Commandes Shopify</th><th>CA Shopify</th><th>ROAS réel</th><th>Décision</th></tr>
+    <tr><td>23/10</td><td>50 €</td><td>49,80 €</td><td>6 200</td><td>142</td><td>2,3 %</td><td>0,35 €</td><td>8,03 €</td><td>14</td><td>3</td><td>4</td><td>199,60 €</td><td>4,0</td><td>Tenir</td></tr>
+    <tr><td>24/10</td><td>50 €</td><td>50,10 €</td><td>5 900</td><td>118</td><td>2,0 %</td><td>0,42 €</td><td>8,49 €</td><td>9</td><td>2</td><td>2</td><td>99,80 €</td><td>2,0</td><td>Tenir</td></tr>
+    <tr><td>25/10</td><td>50 €</td><td>49,95 €</td><td>6 400</td><td>151</td><td>2,4 %</td><td>0,33 €</td><td>7,80 €</td><td>17</td><td>4</td><td>5</td><td>249,50 €</td><td>5,0</td><td>J+3 : palier 65 €</td></tr>
+  </table>
+  <p><strong>ROAS réel</strong> = CA Shopify (hors frais de port, hors commandes d'autres sources) / dépense Meta. C'est celui que tu compares à ton seuil. Le ROAS Meta sert à comparer les créatives entre elles.</p>
+
+  <h3>La routine du matin (15 min, tous les jours)</h3>
+  <ol>
+    <li><strong>Shopify</strong> (2 min) : commandes de la veille, CA, une commande à problème ?</li>
+    <li><strong>Gestionnaire</strong> (5 min) : période « hier », niveau publicité, préréglage Scale X. Tu remplis la ligne du tableau.</li>
+    <li><strong>Lecture</strong> (3 min) : une créative sous 1 % de CTR depuis 3 jours ? Tu la coupes. Fréquence au-dessus de 3 ? Tu notes « créatives à renouveler ».</li>
+    <li><strong>Décision</strong> (2 min) : si on est à J+3 d'un palier et que les trois chiffres sont au vert, palier suivant. Sinon, rien.</li>
+    <li><strong>Service client</strong> (3 min) : mails et messages de la veille (guide 12).</li>
+  </ol>
+  <div class="note warn"><b>Pas plus de 15 minutes</b>Regarder le Gestionnaire 10 fois par jour ne change pas les chiffres, ça te fait juste prendre des décisions sur des demi-journées. Une fois le matin, c'est tout.</div>
+
+  <div class="claude"><b>Demande à Claude</b>« Crée-moi un Google Sheets de suivi Meta Ads avec ces colonnes : [liste]. Ajoute les formules pour CTR, CPC, CPM, ROAS réel, et une mise en forme conditionnelle : CTR en vert au-dessus de 2 %, rouge sous 1 % ; CPC rouge au-dessus de 1,50 € ; ROAS vert au-dessus de [mon seuil de scale], orange entre [break-even] et [seuil], rouge sous [break-even]. Donne-moi les formules à coller. »</div>
+
+  <div class="done"><b>✅ Fait quand</b>Ton tableau existe, les 3 premiers jours sont remplis et les couleurs s'affichent.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">07</span>Le point J+3 avec Mady</h2>
+  <p class="lead">Un call de 20 minutes où on décide. Pas un call où on cherche les chiffres. Tu arrives préparé, on tranche.</p>
+
+  <h3>Ce que tu prépares avant de réserver</h3>
+  <ul class="check">
+    <li>Capture du Gestionnaire, niveau publicité, période « 3 derniers jours », colonnes Scale X, triée par CTR lien.</li>
+    <li>Capture du niveau campagne (dépense totale, achats, ROAS).</li>
+    <li>Capture Shopify : Analyses → 3 derniers jours (sessions, taux de conversion, commandes, CA).</li>
+    <li>Ton tableau de suivi à jour avec ton ROAS break-even en haut.</li>
+    <li>Les créatives dans un dossier, nommées (ex. UGC-angle1-hookA-9x16), avec leur CTR noté à côté.</li>
+    <li>Ta lecture : quel maillon lâche selon toi (chapitre 04) et la correction que tu proposes.</li>
+    <li>Une question précise. Pas « qu'est-ce que t'en penses », mais « je coupe la créative 3 et je passe à 65 € ou j'attends ? ».</li>
+  </ul>
+
+  <h3>Comment ça se passe</h3>
+  <p>Tu envoies les captures sur WhatsApp la veille du call. Pendant le call : 5 minutes de lecture ensemble, 10 minutes de décision (coupe, créatives, page, budget), 5 minutes pour fixer les actions et le prochain point. Tu ressors avec 1 à 3 actions, pas 10. Tu les notes dans Mes étapes (Mady peut te les assigner directement).</p>
+
+  <h3>Après le call</h3>
+  <p>Tu appliques dans les 24 h. Les créatives à refaire partent sur la page Créatives le jour même. Tu réserves le point suivant dans 3 à 7 jours, selon la décision.</p>
+  <div class="note"><b>Réserver</b>Page « Réserver un appel » dans Scale X. Mets « Point J+3, campagne [nom] » dans le motif.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tes captures et ta lecture sont envoyées à Mady avant le call, et tu as une question précise à lui poser.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">08</span>Quand abandonner un produit</h2>
+  <p class="lead">S'acharner coûte plus cher que recommencer. Il y a des règles pour arrêter, et elles sont là pour te protéger de toi-même.</p>
+
+  <h3>Les règles d'arrêt</h3>
+  <table class="t">
+    <tr><th>Situation</th><th>Règle</th><th>Décision</th></tr>
+    <tr><td>Aucun achat</td><td>150 € dépensés sans un seul achat, avec Pixel vérifié</td><td>On coupe. Produit suivant.</td></tr>
+    <tr><td>ROAS sous 1</td><td>Après 2 séries de créatives différentes (6 créatives, 2 angles, 6 jours de test)</td><td>On coupe. Produit suivant.</td></tr>
+    <tr><td>ROAS entre 1 et break-even</td><td>Après 2 séries de créatives ET une page produit corrigée</td><td>On coupe, sauf si le panier moyen peut monter (bundle non testé).</td></tr>
+    <tr><td>CTR &lt; 1 % sur 6 créatives</td><td>Deux angles différents, deux formats (vidéo + statique)</td><td>Le produit n'arrête personne. Produit suivant.</td></tr>
+  </table>
+
+  <h3>Les exceptions (vérifier avant de couper)</h3>
+  <ul>
+    <li>Le Pixel ne remonte pas Purchase : tu as peut-être des ventes que Meta ne voit pas. Regarde Shopify.</li>
+    <li>Le checkout a un bug : fais une commande test. Un bouton qui ne marche pas sur iPhone, ça arrive.</li>
+    <li>La campagne a été modifiée pendant les 3 jours : les chiffres ne valent rien, on relance proprement.</li>
+    <li>Le CPM a doublé d'un coup (Black Friday, Noël) : attendre 48 h avant de conclure.</li>
+  </ul>
+
+  <h3>Ce que tu gardes d'un produit abandonné</h3>
+  <p>Tout. La boutique (tu changes le produit, le thème reste), les créatives (le format qui a fait le meilleur CTR), le compte pub (qui a appris), le tableau. Un produit abandonné te coûte 150 à 300 € et t'apprend plus qu'un mois de réflexion. Mady a abandonné plus de produits qu'il n'en a scalés. C'est normal, c'est le jeu.</p>
+  <div class="note ok"><b>Retour à BrandSearch</b>Produit suivant = guide 02. Tu as déjà tes 3 produits validés avec Mady : tu passes au deuxième. Si les 3 sont épuisés, tu refais une recherche avec ce que tu as appris (quel angle a fait cliquer, quel prix a bloqué).</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu connais les 4 règles d'arrêt et tu as vérifié les 4 exceptions avant de couper un produit.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">09</span>Faire analyser tes chiffres par Claude</h2>
+  <p class="lead">Le Gestionnaire exporte tout en CSV. Claude lit le CSV et te sort le diagnostic en 30 secondes. Tu décides, il calcule.</p>
+
+  <h3>Exporter</h3>
+  <ol>
+    <li>Gestionnaire → niveau Publicité → période « 7 derniers jours » → préréglage de colonnes Scale X (ajoute « Ajouts au panier », « Paiements initiés », « Fréquence »).</li>
+    <li>Bouton « Rapports » → « Exporter les données du tableau » → CSV.</li>
+    <li>Ouvre claude.ai, joins le fichier (ou colle le contenu), colle le prompt ci-dessous.</li>
+  </ol>
+
+  <pre class="prompt">Tu es média buyer Meta Ads senior, spécialisé e-commerce DTC. Je te donne l'export CSV de mon Gestionnaire de publicités, niveau publicité, sur les 7 derniers jours.
+
+Mon contexte : produit [nom, prix de vente X €], ROAS break-even [X], seuil de scale [X], budget actuel [X €/jour] en CBO, lancement le [date], pays [X]. Mes créatives sont nommées [format-angle-hook-ratio].
+
+Fais exactement ceci, dans cet ordre :
+1. Un tableau par créative : dépense, CTR lien, CPC, CPM, fréquence, ajouts au panier, paiements initiés, achats, coût par achat, ROAS. Trie par CTR lien décroissant.
+2. Classe chaque créative : GAGNANTE (CTR &gt; 2 % et ROAS &gt; seuil de scale), À GARDER (entre les deux), À COUPER (CTR &lt; 1 % ou ROAS &lt; break-even après 3 jours et plus de 30 € dépensés).
+3. Calcule les taux de la chaîne au global (clic → panier, panier → paiement, paiement → achat) et dis-moi quel maillon lâche en premier, avec les seuils : panier 8 %, paiement 40 %, achat 30 %.
+4. Donne-moi UNE décision budget : palier +20 à 30 %, tenir, redescendre, ou couper. Justifie en 2 lignes avec mes seuils.
+5. Donne-moi la liste des 5 déclinaisons à produire à partir de la gagnante (hook, scène, statique, durée, texte), avec un nom de fichier pour chacune.
+6. Termine par les 3 actions de la semaine, dans l'ordre, chacune en une ligne.
+
+Ne me donne aucun conseil générique. Si une donnée manque, dis-le et continue avec ce que tu as.</pre>
+
+  <div class="claude"><b>Demande à Claude, aussi</b>« Compare l'export de cette semaine avec celui de la semaine dernière (joints). Qu'est-ce qui s'est dégradé, qu'est-ce qui s'est amélioré, et est-ce que la fréquence explique la baisse de CTR ? »</div>
+
+  <div class="note warn"><b>Claude calcule, toi tu décides</b>Il ne connaît ni ton stock, ni ta trésorerie, ni ce que Mady t'a dit au dernier call. Si sa recommandation contredit une règle de ce guide, c'est la règle qui gagne. Et avant de monter un budget, tu regardes ton solde de compte pub : Meta prélève, il ne demande pas.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as fait analyser un export par Claude et tu as obtenu un classement de tes créatives plus une décision budget.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">10</span>Checklist et récap</h2>
+  <p class="lead">Tout le guide en une page. Imprime-la, colle-la à côté de l'écran.</p>
+
+  <h3>Les seuils</h3>
+  <table class="t">
+    <tr><th>Chiffre</th><th>Vert</th><th>Orange</th><th>Rouge</th></tr>
+    <tr><td>CTR lien</td><td>&gt; 2 %</td><td>1 à 2 %</td><td>&lt; 1 % : créative morte</td></tr>
+    <tr><td>CPC lien</td><td>&lt; 1 €</td><td>1 à 1,50 €</td><td>&gt; 1,50 € : créative faible ou produit</td></tr>
+    <tr><td>ROAS</td><td>&gt; seuil de scale (≈ 2 à 2,5)</td><td>break-even à seuil</td><td>&lt; break-even : on perd</td></tr>
+    <tr><td>Fréquence</td><td>&lt; 2</td><td>2 à 3</td><td>&gt; 3 : créatives usées</td></tr>
+  </table>
+
+  <h3>Les décisions</h3>
+  <ul>
+    <li>Trois chiffres au vert sur 3 jours complets → palier +20 à 30 %.</li>
+    <li>ROAS entre break-even et seuil → budget inchangé, nouvelles créatives ou page selon le diagnostic.</li>
+    <li>ROAS sous break-even après 2 séries de créatives → on coupe, produit suivant.</li>
+    <li>150 € sans achat (Pixel vérifié) → on coupe.</li>
+    <li>Gagnante trouvée → 5 déclinaisons dans un nouvel ad set.</li>
+    <li>Plus de 150 €/jour et ROAS stable → dupliquer l'ad set, nouveaux pays.</li>
+  </ul>
+
+  <h3>Checklist hebdomadaire</h3>
+  <ul class="check">
+    <li>Mon ROAS break-even et mon seuil de scale sont écrits en haut du tableau.</li>
+    <li>Le tableau est rempli tous les matins (15 min, pas plus).</li>
+    <li>J'ai lu CTR, puis CPC, puis ROAS, dans cet ordre, au niveau publicité.</li>
+    <li>J'ai coupé les créatives sous 1 % de CTR depuis 3 jours.</li>
+    <li>J'ai identifié le maillon qui lâche et testé UNE correction.</li>
+    <li>Ma gagnante a ses 5 déclinaisons en ligne dans un nouvel ad set.</li>
+    <li>3 nouvelles créatives sur un nouvel angle sont parties cette semaine.</li>
+    <li>Si palier : +20 à 30 % maximum, et rien d'autre n'a bougé.</li>
+    <li>Les captures du point J+3 sont envoyées à Mady avant le call, avec une question précise.</li>
+    <li>Je sais à combien je coupe ce produit (150 € sans achat, ROAS &lt; 1 après 2 séries).</li>
+  </ul>
+
+  <div class="note ok"><b>La phrase à retenir</b>Produit → créatives → 3 jours → chiffres → coupe ou scale → créatives. Le seul juge, c'est le ROAS. Le seul levier, c'est la créative.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as coché ce guide dans Education, ta première lecture J+3 est faite et notée dans le tableau, et ton point avec Mady est réservé.</div>
+</section>
+
+</body>
+</html>

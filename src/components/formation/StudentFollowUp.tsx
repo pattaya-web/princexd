@@ -67,8 +67,13 @@ export function StudentFollowUp({ studentId, onClose, onChanged }: { studentId: 
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] dim">
             <span>
-              Modules : <strong className="num">{data.modulesDone} / {data.modulesTotal}</strong>
+              Guides lus : <strong className="num">{data.lessonsDone} / {data.lessonsTotal}</strong>
             </span>
+            {data.modulesTotal > 0 && (
+              <span>
+                Vidéos : <strong className="num">{data.modulesDone} / {data.modulesTotal}</strong>
+              </span>
+            )}
             <span>
               Étapes : <strong className="num">{data.steps.filter((s) => s.done).length + data.tasks.filter((t) => t.done).length} / {data.steps.length + data.tasks.length}</strong>
             </span>

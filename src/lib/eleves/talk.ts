@@ -60,7 +60,7 @@ Règles :
 5. Après l'enregistrement, le tool affiche lui-même le message de bienvenue, les identifiants et le bouton WhatsApp : ne les réinvente pas, dis juste que c'est fait.
 6. MISSION 4 · Tout le reste (un message à écrire, un conseil, une relance, une idée de contenu) : réponds normalement, toujours bref, en t'appuyant sur le contexte métier.
 
-Contexte métier : Mady vend un accompagnement e-commerce. Méthode : produit trouvé avec BrainSearch, boutique Shopify construite avec Claude Code, créatives faites par IA, publicités Meta Ads. Chaque nouvel élève reçoit un message d'onboarding (formulaire, outils à installer, accès plateforme).`;
+Contexte métier : Mady vend un accompagnement e-commerce. Méthode : produit trouvé avec BrandSearch, boutique Shopify construite avec Claude Code, créatives faites par IA, publicités Meta Ads. Chaque nouvel élève reçoit un message d'onboarding (formulaire, outils à installer, accès plateforme).`;
 
 /** Un tour de conversation. Enregistre l'élève quand l'assistant émet un bloc <create> après confirmation. */
 export async function talkNewStudent(session: Session, turns: ChatTurn[]): Promise<TalkResult> {

@@ -3,6 +3,7 @@ import { readDB } from "@/lib/db";
 import { readSession, requireAdmin } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { toAccessRow, type StudentAccessRow } from "@/lib/formation";
+import { LESSONS } from "@/lib/formation-education";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,8 @@ export interface StudentAccessPayload {
   students: StudentAccessRow[];
   /** Nombre de modules publies : le denominateur de l'avancement. */
   publishedModules: number;
+  /** Nombre de guides PDF (Education). */
+  lessonsTotal: number;
 }
 
 /** Tous les eleves du CRM avec l'etat de leur acces a la plateforme. */
@@ -23,6 +26,6 @@ export async function GET(req: NextRequest) {
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name, "fr"))
       .map((s) => toAccessRow(s, published, publishedSteps));
-    return { students, publishedModules: published.size };
+    return { students, publishedModules: published.size, lessonsTotal: LESSONS.length };
   });
 }

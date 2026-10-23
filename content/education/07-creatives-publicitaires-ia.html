@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Scale X · Tes créatives publicitaires avec l'IA</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #141a1f; font-size: 11pt; line-height: 1.5; }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 0; }
+  p { margin: 0 0 8pt; }
+  a { color: #0b63c4; }
+  .kicker { font-family: "Segoe UI", Arial, sans-serif; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #0b63c4; font-weight: 700; margin: 0 0 6pt; }
+  .cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .brand { font-weight: 800; font-size: 13pt; letter-spacing: 0.04em; margin-bottom: 40pt; }
+  .cover .brand span { color: #0b63c4; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 0 0 14pt; }
+  .cover .sub { font-size: 14pt; color: #4a5560; font-family: Georgia, serif; margin-bottom: 28pt; }
+  .cover .meta { font-size: 10pt; color: #4a5560; margin-top: 24pt; }
+  .cover ul { margin: 0; padding-left: 18pt; }
+  .cover li { margin: 3pt 0; }
+  .cover .foot { margin-top: auto; font-size: 9pt; color: #7a858f; border-top: 1px solid #e3e7ea; padding-top: 10pt; }
+  .chapter { page-break-before: always; }
+  .chapter.first { page-break-before: auto; }
+  h2 { font-size: 22pt; margin: 0 0 6pt; line-height: 1.15; }
+  h2 .num { display: inline-block; color: #0b63c4; margin-right: 8pt; font-size: 16pt; vertical-align: 6pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; }
+  .lead { font-size: 12pt; color: #4a5560; margin: 0 0 14pt; }
+  h3 { font-size: 15pt; margin: 18pt 0 6pt; }
+  h4 { font-size: 12pt; margin: 0 0 3pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  strong { font-weight: 700; }
+  .note { border-left: 3px solid #0b63c4; background: #eef4fb; padding: 8pt 11pt; margin: 10pt 0; border-radius: 3px; page-break-inside: avoid; }
+  .note b { display: block; color: #0b63c4; margin-bottom: 2pt; }
+  .note.ok { border-color: #178a4c; background: #ecf7f0; } .note.ok b { color: #178a4c; }
+  .note.warn { border-color: #d98a0e; background: #fff6e8; } .note.warn b { color: #b86f00; }
+  .note.danger { border-color: #c9302c; background: #fdeeee; } .note.danger b { color: #c9302c; }
+  .claude { border: 1px solid #c9c3f5; background: #f4f2ff; padding: 8pt 11pt; margin: 10pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .claude b { display: block; color: #5b5ce6; margin-bottom: 2pt; }
+  .done { border: 1px solid #b7e0c5; background: #ecf7f0; padding: 8pt 11pt; margin: 12pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .done b { display: block; color: #178a4c; margin-bottom: 2pt; }
+  .step { display: flex; gap: 10pt; margin: 10pt 0; page-break-inside: avoid; }
+  .step .n { flex: 0 0 24pt; height: 24pt; border-radius: 5px; background: #0b63c4; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 11pt; }
+  .step .body { flex: 1; min-width: 0; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 9.5pt; line-height: 1.45; margin: 6pt 0 10pt; padding: 8pt 10pt; border-radius: 4px; page-break-inside: avoid; }
+  pre.cmd { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; border: 1px solid #e1e5e9; }
+  pre.prompt { font-family: "Segoe UI", Arial, sans-serif; background: #fbf7ec; border: 1px solid #ecdfbd; font-size: 10pt; }
+  pre.prompt::before { content: "PROMPT À COPIER"; display: block; font-size: 7.5pt; letter-spacing: 0.16em; color: #9a7b2c; font-weight: 700; margin-bottom: 4pt; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; padding: 0 3pt; border-radius: 3px; font-size: 9.5pt; }
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { padding-left: 20pt; position: relative; margin: 4pt 0; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; top: -1pt; font-size: 12pt; color: #0b63c4; }
+  table.t { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+  table.t th, table.t td { border: 1px solid #dfe3e7; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  table.t th { background: #f3f5f7; font-weight: 700; }
+  .cols { display: flex; gap: 14pt; } .cols > div { flex: 1; min-width: 0; }
+  hr { border: 0; border-top: 1px solid #e3e7ea; margin: 14pt 0; }
+  .muted { color: #6b7680; }
+  .small { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="brand">SCALE <span>X</span> · EDUCATION</div>
+  <p class="kicker">Guide 07 · Créatives</p>
+  <h1>Tes créatives publicitaires avec l'IA</h1>
+  <p class="sub">Images statiques, vidéos UGC, scripts, montage : comment sortir 10 créatives par semaine sans tournage, avec GPT Image 2, Seedance 2.5 et le Studio IA.</p>
+  <p class="kicker">À la fin de ce guide, tu sauras</p>
+  <ul>
+    <li>Trouver tes angles, puis produire des statiques et des vidéos qui arrêtent le scroll, dans cet ordre.</li>
+    <li>Écrire un script UGC de 20 à 30 secondes et le transformer en clips IA cohérents, voix et sous-titres compris.</li>
+    <li>Tenir une cadence hebdomadaire de production et livrer 6 créatives nommées, prêtes pour Meta.</li>
+  </ul>
+  <p class="meta">Temps de lecture : 45 min · Temps de mise en pratique : 2 à 3 jours pour les 6 premières créatives</p>
+  <div class="foot">Scale X · Accompagnement e-commerce + IA · Mady · Version octobre 2026. Bloqué ? Demande d'abord à Claude. Mady, c'est pour les urgences.</div>
+</header>
+
+<section class="chapter first">
+  <h2><span class="num">01</span>Le principe : une créative, ça s'use</h2>
+  <p class="lead">Avant de générer quoi que ce soit, comprends la règle du jeu. Sur Meta, ce n'est pas le budget qui fait la performance, c'est la créative. Et une créative meurt vite.</p>
+
+  <h3>Une créative s'épuise en 1 à 2 semaines</h3>
+  <p>Une pub qui marche aujourd'hui sera vue par les mêmes personnes dix fois d'ici dix jours. Le CTR baisse, le CPC monte, le coût par achat explose. Ce n'est pas que ton produit est mort : c'est que ta créative est usée. Il y a 3 ans, une créative demandait un tournage, un monteur, une semaine. Aujourd'hui, une créative, c'est 20 minutes. Donc la cadence a changé : <strong>10 créatives par semaine</strong>, pas 10 par mois.</p>
+
+  <div class="note">
+    <b>Ce que ça change pour toi</b>
+    Tu ne cherches pas LA créative parfaite. Tu produis en série, tu testes 5 à 8 créatives à la fois, tu gardes celles qui ont un CTR supérieur à 2 %, tu déclines les gagnantes, tu jettes le reste. Un échec coûte quelques centimes de génération. Une semaine passée à « peaufiner », ça coûte une semaine de ventes.
+  </div>
+
+  <h3>Trois modèles, trois rôles</h3>
+  <table class="t">
+    <tr><th>Modèle</th><th>Tu lui donnes</th><th>Il te sort</th><th>Tu l'utilises pour</th></tr>
+    <tr><td><strong>GPT Image 2</strong><br><span class="small muted">image</span></td><td>La photo de ton produit en référence + la scène (lieu, personne, lumière, format).</td><td>Le produit en situation, en packshot, dans une main, en avant / après, en statique avec post-it. Le produit reste identique : forme, couleur, étiquette.</td><td>Toutes les images de départ. Chaque vidéo commence par une image GPT Image 2. 20 à 40 s, quelques centimes.</td></tr>
+    <tr><td><strong>Seedance 2.5</strong><br><span class="small muted">image → vidéo</span></td><td>L'image GPT Image 2 + la description du mouvement, de la caméra, de la durée, du texte parlé.</td><td>Un clip de 5 à 10 secondes avec lip sync : la personne parle, montre le produit, l'applique, se déplace.</td><td>UGC face cam, démonstration, micro-trottoir, animation 3D, routine beauté. 1 à 3 min, moins d'un euro.</td></tr>
+    <tr><td><strong>Higgsfield Genjutsu</strong><br><span class="small muted">vidéo → vidéo</span></td><td>Une vraie prise de 10 à 15 s + jusqu'à 30 images de référence du nouveau personnage.</td><td>La même vidéo avec une autre personne, un autre produit ou un autre lieu. Mouvement, caméra et voix d'origine conservés.</td><td>Décliner une bonne prise en 10 versions, cloner une ambassadrice, garder un personnage cohérent. 2 à 5 min, quelques euros.</td></tr>
+  </table>
+  <p>Les trois s'enchaînent : une image GPT Image 2, animée par Seedance, déclinée par Genjutsu. Tu n'as pas besoin des trois dès le premier jour. Pour tes 6 premières créatives : GPT Image 2 et Seedance suffisent.</p>
+
+  <h3>L'ordre de production, toujours le même</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Les angles</h4><p>Tu demandes à Claude 10 angles marketing (prompt n°1 de la page Créatives). Tu en gardes 3. Sans angle, tu génères des jolies images qui ne vendent rien.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Les statiques</h4><p>3 images 4:5 avec hook manuscrit, flèche, prix. Rapides, pas chères, et souvent les meilleures au lancement.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Les vidéos</h4><p>3 vidéos 9:16 de 20 à 30 s : une image de départ par plan, un clip Seedance par plan, montage sur téléphone.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Le dossier</h4><p>6 fichiers nommés, exportés, envoyés. Puis on recommence la semaine suivante avec ce que les chiffres ont dit.</p></div></div>
+
+  <div class="note warn">
+    <b>Le piège du débutant</b>
+    Ouvrir l'outil de génération avant d'avoir ses angles. Tu vas passer 3 heures à générer des visuels « sympas » et tu n'auras rien à mettre en pub. L'angle d'abord, l'outil ensuite.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu peux expliquer en une phrase à quoi sert chacun des trois modèles, et tu as noté dans tes étapes l'objectif de la semaine : 3 statiques + 3 vidéos.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">02</span>Les angles d'abord</h2>
+  <p class="lead">Un angle, c'est la raison pour laquelle une personne précise achète ton produit aujourd'hui. Une créative sans angle, c'est une photo de catalogue.</p>
+
+  <h3>Ce qu'est un angle, concrètement</h3>
+  <p>Le même produit se vend à des gens différents pour des raisons différentes. Un masseur cervical : l'angle « douleur au bureau » (la femme de 35 ans qui finit sa journée avec la nuque bloquée), l'angle « cadeau pour maman », l'angle « je n'ai pas le temps pour un ostéo », l'angle « 40 € une fois au lieu de 60 € la séance ». Quatre angles, quatre hooks, quatre créatives qui ne se ressemblent pas. C'est ça qu'on teste : des angles, pas des variantes de la même image.</p>
+
+  <h3>Le prompt « 10 angles »</h3>
+  <p>Va sur la page <strong>Créatives</strong> de la plateforme, copie le prompt n°1 et colle-le dans Claude (ou GPT). Le voici, pour mémoire :</p>
+  <pre class="prompt">Tu es un expert en publicité e-commerce (Meta Ads, TikTok Ads) spécialisé dans les marques DTC qui scalent.
+
+Mon produit : [ce que c'est, matière, ce qu'il fait, prix de vente]
+Ma cible : [qui achète : âge, sexe, situation, ce qu'elle veut vraiment]
+Lien concurrent qui vend déjà ce produit : [URL]
+Ma marque : [nom] · ton : [ex. clean et premium / chaleureux / sportif]
+
+Donne-moi 10 angles marketing différents pour vendre ce produit en publicité. Pour chaque angle : le nom de l'angle, la douleur ou le désir qu'il touche, le hook (première phrase, 8 mots max, qui arrête le scroll), et le type de créative qui marche le mieux pour cet angle (UGC face caméra, démonstration, avant / après, image statique avec texte, unboxing).
+
+Classe-les du plus prometteur au moins prometteur pour un lancement à petit budget, et explique en une phrase pourquoi le numéro 1 est le numéro 1.</pre>
+
+  <h3>Comment choisir tes 3 angles</h3>
+  <ul>
+    <li><strong>Un angle douleur</strong> : le problème que le client vit, dit avec ses mots. C'est presque toujours le plus fort au lancement.</li>
+    <li><strong>Un angle preuve / résultat</strong> : ce que la personne obtient, montré, pas raconté. Démonstration ou avant / après crédible.</li>
+    <li><strong>Un angle offre / valeur</strong> : le prix comparé à l'alternative (« une séance = 60 €, ça = 39 € une fois »). Parfait en statique.</li>
+  </ul>
+  <p>Regarde aussi ce que font les concurrents sur BrandSearch (brandsearch.co) : filtre leurs pubs actives, trie par durée. Une pub qui tourne depuis 60 jours a un angle qui marche. Tu ne copies pas la pub, tu récupères l'angle et tu le refais avec ton produit et ta personne.</p>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Voici 3 pubs concurrentes qui tournent depuis plus de 30 jours (je colle les textes et je décris les visuels). Quel angle chacune utilise-t-elle ? Lequel est absent chez eux et que je pourrais prendre ? »
+  </div>
+
+  <h3>Fiche angle (à remplir pour chacun des 3)</h3>
+  <table class="t">
+    <tr><th>Champ</th><th>Exemple</th></tr>
+    <tr><td>Nom de l'angle</td><td>Nuque bloquée au bureau</td></tr>
+    <tr><td>Personne</td><td>Femme 30-45 ans, télétravail, 6 h d'écran par jour</td></tr>
+    <tr><td>Douleur ou désir</td><td>Finit la journée avec la nuque raide, mal de tête, pas le temps d'aller chez l'ostéo</td></tr>
+    <tr><td>Hook (8 mots max)</td><td>« Ta nuque te fait mal à 18 h ? »</td></tr>
+    <tr><td>Preuve</td><td>Démonstration 15 s, sensation immédiate, 10 min par jour</td></tr>
+    <tr><td>Format</td><td>UGC face cam + 1 statique post-it</td></tr>
+  </table>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as 3 fiches angle remplies, chacune avec un hook de 8 mots max, et tu sais quel format tu vas produire pour chaque angle.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">03</span>Les statiques qui marchent</h2>
+  <p class="lead">Une image, un hook écrit à la main, une flèche, un prix. C'est le format le moins cher à produire et il bat régulièrement des vidéos à 500 € de tournage.</p>
+
+  <h3>L'anatomie d'une statique qui convertit</h3>
+  <ul>
+    <li><strong>Le post-it</strong> : le hook, écrit à la main. Le cerveau lit l'écriture manuscrite comme un mot d'un ami, pas comme une pub.</li>
+    <li><strong>La flèche</strong> : elle guide l'œil du hook vers le produit. Toujours.</li>
+    <li><strong>Le cercle</strong> : le prix ou le mot-clé entouré, comme sur un cahier.</li>
+    <li><strong>La photo réaliste</strong> : rendu téléphone, lumière de fenêtre, décor réel. Pas de studio léché.</li>
+    <li><strong>Le prix ancré</strong> : l'ancien prix barré, le nouveau en très gros. Le format : <strong>4:5</strong> (1080 × 1350 px), celui qui prend le plus de place dans le feed.</li>
+  </ul>
+
+  <div class="note">
+    <b>La règle du produit identique</b>
+    Tu mets toujours la photo de ton produit en référence dans GPT Image 2 et tu écris « Use the attached product photo as exact reference, keep the product identical ». Sans ça, l'IA redessine ton produit et ta pub montre un objet qui n'existe pas. Meta et tes clients le verront.
+  </div>
+
+  <h3>Les 6 prompts GPT Image 2 de Mady (gabarits)</h3>
+  <p>Remplace [PRODUIT], [LIEU], les textes manuscrits et les prix. Les prix d'origine étaient en dollars ; mets les tiens en euros. Un prompt = une image 4:5. Génère 2 à 3 versions par prompt, garde la meilleure.</p>
+
+  <h4>1. Post-it + prix manuscrit</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the product identical. [LIEU réel, ex. real wooden porch, white railings], soft daylight, phone realism. Pink sticky note on top, handwritten "[HOOK, ex. the whole 3-piece set]" with an arrow to the product. Bottom, handwritten: "was [ANCIEN PRIX] €" crossed out, "[NOUVEAU PRIX] €" large in a hand-drawn circle. 4:5.</pre>
+
+  <h4>2. Le calcul barré</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the product identical. Bright living room, wood floor, [situation d'usage réaliste]. Lined notebook paper taped to the wall: "[ALTERNATIVE CHÈRE, ex. une séance chaque semaine = pour toujours]" crossed out in red, "[PRODUIT] = [PRIX] € once" circled, arrow to product. Bottom: "was [ANCIEN PRIX] €" struck, "[PRIX] €" very large. 4:5.</pre>
+
+  <h4>3. Unboxing POV</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the product identical. First-person view: a hand lifts the product out of an open cardboard box with tissue paper, kitchen counter, window light. Yellow sticky note: "[RÉACTION, ex. wait, c'est tout ça ?]" with an arrow. Bottom: "was [ANCIEN PRIX] €" struck, "[PRIX] €" very large. 4:5.</pre>
+
+  <h4>4. Comparaison de valeur</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the product identical. Cozy balcony at golden hour, potted plants, throw blanket, mug. Torn notebook page on the wall: "[DÉPENSE COURANTE, ex. one dinner out: 40 € +]" crossed, "[PRODUIT]: [PRIX] €" circled, arrow to product. Bottom: "was [ANCIEN PRIX] €" struck, "[PRIX] €" very large. 4:5.</pre>
+
+  <h4>5. Trois contextes</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the product identical. Vertical 4:5 split in three equal panels: the same product in [CONTEXTE 1], [CONTEXTE 2], [CONTEXTE 3], golden light. Handwritten white label top-left of each panel: "[mot 1]", "[mot 2]", "[mot 3]". Bottom: "was [ANCIEN PRIX] €" struck, "[PRIX] €" on a cream paper label.</pre>
+
+  <h4>6. Callouts produit</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the product identical. Clean studio render on a soft cream gradient, product centered, subtle shadow. Four pale green rounded badges with icons connected by thin lines: "[CARACTÉRISTIQUE 1]", "[CARACTÉRISTIQUE 2]", "[CARACTÉRISTIQUE 3]", "[CARACTÉRISTIQUE 4]". Bottom: "was [ANCIEN PRIX] €" struck, "[PRIX] €" bold. 4:5.</pre>
+
+  <div class="note warn">
+    <b>Le texte généré a des fautes</b>
+    L'IA écrit parfois « 39,9 €€ » ou invente une lettre. Garde les textes courts (5 mots max par post-it), en français simple, et relis chaque image. Une faute visible, tu régénères, tu ne publies pas.
+  </div>
+
+  <h3>Avant / après : seulement si c'est crédible</h3>
+  <p>Même personne, même cadrage, même lumière, même décor ; seule la différence promise change, et subtilement. Pas de miracle. Meta refuse les avant / après choquants (peau, corps, poids), et un client sait reconnaître un faux. Si ton produit touche au corps, préfère la démonstration.</p>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Voici mon angle (je colle ma fiche angle) et ma photo de référence. Écris-moi 3 prompts GPT Image 2 en anglais sur le modèle post-it + prix, avec 3 hooks différents en français de 5 mots max, format 4:5. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as 3 statiques 4:5 exportées, une par angle, produit identique à ta référence, textes relus sans faute, prix en euros.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">04</span>Les vidéos : 6 formats, 1 prompt chacun</h2>
+  <p class="lead">Une vidéo IA, c'est une image de départ GPT Image 2, puis un clip Seedance 2.5 de 5 à 10 secondes. Voici les formats qui convertissent et le prompt derrière chacun.</p>
+
+  <h3>Les 3 prompts de base</h3>
+  <h4>Mise en situation (GPT Image 2, l'image de départ)</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the product identical. Place it in [LIEU, ex. a bright modern bathroom], held by [PERSONNE, ex. a woman in her 30s], soft morning window light, shot on iPhone, realistic UGC style, vertical 9:16.</pre>
+  <h4>Image vers vidéo (Seedance 2.5)</h4>
+  <pre class="prompt">Start from the attached image. [PERSONNE] lifts the product toward the camera, smiles, then demonstrates it on [ZONE, ex. her forearm] with a slow circular motion. Handheld phone camera, slight natural shake, 8 seconds, 9:16.</pre>
+  <h4>Packshot dynamique (Seedance 2.5)</h4>
+  <pre class="prompt">Start from the attached product image. Slow 180-degree orbit around the product on a clean white surface, soft studio light, shallow depth of field, product stays sharp and identical, 6 seconds, 9:16.</pre>
+
+  <h3>Les 6 formats</h3>
+  <table class="t">
+    <tr><th>Format</th><th>Pourquoi ça marche</th><th>Prompt Seedance 2.5 (adapter le produit et la personne)</th></tr>
+    <tr><td><strong>01 · Le micro-trottoir</strong></td><td>Le spectateur croit à une vraie interview. Un témoignage spontané vaut plus qu'une pub.</td><td>Handheld street interview, a young man holds a red microphone toward a woman in her 40s on a city sidewalk. He asks a question, she answers with natural gestures and a surprised smile, then looks at the product he shows her. Documentary camera, real daylight, lip sync, 10 seconds, 9:16.</td></tr>
+    <tr><td><strong>02 · L'animation 3D</strong></td><td>Le style film d'animation stoppe le scroll dans un feed réel. Parfait pour raconter un problème avec émotion.</td><td>Pixar-style 3D animated woman with curly hair looks down worried, then her expression shifts to relief and a smile as she holds up the product. Soft cinematic light, subtle camera push-in, expressive facial animation, 8 seconds, 9:16.</td></tr>
+    <tr><td><strong>03 · L'UGC face cam</strong></td><td>Le format qui convertit le plus sur Meta. Une personne normale, dans sa chambre, qui parle à la caméra.</td><td>A woman in her 30s sits in a bedroom, speaks directly to the phone camera holding [PRODUIT], applies it [GESTE], then shows it to the lens. Natural indoor light, front phone camera look, lip sync, 10 seconds, 9:16.</td></tr>
+    <tr><td><strong>04 · L'expert au tableau</strong></td><td>L'autorité. Expliquer au tableau est perçu comme de l'éducation, pas de la pub.</td><td>A woman in her 60s in a navy blazer stands beside a whiteboard in a plain office, writes a few words and a simple diagram, turns to the camera and explains with calm authority. Static tripod camera, flat office light, lip sync, 10 seconds, 9:16.</td></tr>
+    <tr><td><strong>05 · Le selfie miroir</strong></td><td>Le format natif TikTok. Le produit est porté, le CTA « commente » fait monter l'engagement.</td><td>A fit woman in a white sports top and blue leggings films herself in a gym mirror with her phone, turns to show the fit from the side and back, adjusts her ponytail, confident look. Gym fluorescent light, phone mirror selfie look, 8 seconds, 9:16.</td></tr>
+    <tr><td><strong>06 · La routine beauté</strong></td><td>Le rendu campagne de marque : lumière douce, gestes lents. Ça vend le résultat.</td><td>A woman with wet slicked-back blonde hair stands in a white tiled bathroom, holds [PRODUIT] to the camera, applies it on her cheekbone with slow circular fingertips, tilts her face to the window light, eyes closed. Dewy skin, close-up beauty framing, 8 seconds, 9:16.</td></tr>
+  </table>
+
+  <div class="note ok">
+    <b>Les modèles répondent mieux en anglais</b>
+    Tes prompts de génération sont en anglais, toujours. Le texte parlé par la personne, lui, est en français : tu le mets dans le champ dialogue du modèle, ou tu l'enregistres en voix off au montage.
+  </div>
+
+  <h3>Comment adapter un format à ton produit</h3>
+  <ol>
+    <li>Choisis le format selon l'angle : douleur → UGC face cam ; preuve → démonstration ou expert ; offre → statique ou unboxing.</li>
+    <li>Décris la personne précisément (âge, cheveux, tenue, décor) et <strong>garde cette description identique</strong> sur tous les plans de la même vidéo.</li>
+    <li>Génère d'abord l'image de départ (GPT Image 2, mise en situation, 9:16), vérifie que le produit est identique, puis seulement la vidéo.</li>
+    <li>Termine chaque prompt vidéo par la durée, « 9:16 » et « lip sync » si la personne parle.</li>
+  </ol>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as choisi un format par angle (3 formats), et pour chacun tu as une image de départ 9:16 validée, produit identique à la référence.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">05</span>Écrire un script UGC et le découper en clips</h2>
+  <p class="lead">Une vidéo UGC, c'est 60 à 80 mots, dits par une personne crédible, en 20 à 30 secondes. Voici la structure, puis comment la transformer en 3 ou 4 clips IA qui se suivent.</p>
+
+  <h3>La structure en 5 temps</h3>
+  <table class="t">
+    <tr><th>Temps</th><th>Durée</th><th>Rôle</th><th>Exemple (masseur cervical)</th></tr>
+    <tr><td>Hook</td><td>0-3 s</td><td>Arrêter le scroll. Douleur ou résultat, pas le produit.</td><td>« Ta nuque te fait mal tous les soirs à 18 h ? »</td></tr>
+    <tr><td>Problème</td><td>3-8 s</td><td>Ce que la personne vivait avant, avec ses mots.</td><td>« Moi c'était ça, 6 h d'écran, j'avais la tête dans un étau. L'ostéo, 60 € et pas de créneau. »</td></tr>
+    <tr><td>Produit</td><td>8-20 s</td><td>Comment elle l'a découvert, ce que ça fait, démonstration.</td><td>« Et j'ai testé ça. Dix minutes, posé comme ça, chaleur et massage. Regarde. »</td></tr>
+    <tr><td>Preuve</td><td>20-25 s</td><td>Un résultat concret, un chiffre, une sensation.</td><td>« Trois semaines, je n'ai plus la tête qui chauffe en fin de journée. »</td></tr>
+    <tr><td>CTA</td><td>25-30 s</td><td>Simple, avec l'offre.</td><td>« Il est à 39 € au lieu de 69 € cette semaine, lien juste en dessous. »</td></tr>
+  </table>
+
+  <h3>Le prompt pour que Claude écrive tes scripts</h3>
+  <p>Prompt n°4 de la page Créatives. Il te sort 3 scripts avec 3 hooks de nature différente (question, affirmation choc, résultat), le texte parlé, les plans à filmer ou générer, et le texte à afficher à l'écran. Copie-le depuis la plateforme, remplis les crochets.</p>
+
+  <h3>Découper le script en clips</h3>
+  <p>Seedance fait des clips de 5 à 10 secondes. Un script de 25 secondes = 3 ou 4 clips. La règle : <strong>une idée par clip, la même personne, le même décor, la même lumière</strong>.</p>
+  <table class="t">
+    <tr><th>Clip</th><th>Texte parlé (FR)</th><th>Ce qu'on voit</th><th>Durée</th></tr>
+    <tr><td>1</td><td>Hook + début du problème</td><td>Face cam, chambre, la personne se tient la nuque, regarde l'objectif</td><td>8 s</td></tr>
+    <tr><td>2</td><td>Fin du problème + découverte</td><td>Elle attrape le produit hors champ, le montre à la caméra</td><td>7 s</td></tr>
+    <tr><td>3</td><td>Démonstration</td><td>Elle le pose sur sa nuque, ferme les yeux, respire</td><td>8 s</td></tr>
+    <tr><td>4</td><td>Preuve + CTA</td><td>Retour face cam, sourire, montre le produit à l'objectif</td><td>7 s</td></tr>
+  </table>
+
+  <h3>Le prompt « script → prompts vidéo »</h3>
+  <p>Prompt n°5 de la page Créatives : tu colles ton script, la description de ton produit, celle du personnage, et Claude te rend pour chaque plan le prompt vidéo en anglais, la ligne de dialogue en français, la durée, et le prompt de l'image de départ. Ensuite, dans le Studio IA ou Higgsfield : image de départ → vidéo, plan par plan.</p>
+  <pre class="prompt">Tu es réalisateur de pubs vidéo générées par IA (Seedance 2.5). Voici mon script : [colle le script]. Mon produit : [description précise, identique à mon image de référence]. Personnage : [ex. femme 35 ans, cheveux bruns attachés, sweat gris, chambre lumineuse] (le même sur tous les plans). Format 9:16, clips de 5 à 10 s. Pour chaque plan : 1) le prompt vidéo en anglais (une seule scène, caméra, mouvement, lumière, ce que fait la personne, où est le produit, « realistic smartphone footage, natural skin, lip sync, no text, no logo »), 2) la ligne de dialogue en français, 3) la durée, 4) le prompt GPT Image 2 de l'image de départ (même personnage, même décor). Garde une cohérence totale entre les plans. Termine par l'ordre de montage et les sous-titres.</pre>
+
+  <div class="note warn">
+    <b>Le piège de la cohérence</b>
+    Si tu changes un mot dans la description du personnage entre deux plans (« cheveux attachés » puis rien), tu auras deux femmes différentes. Copie-colle exactement la même description de personnage et de décor dans chaque prompt. Au besoin, génère l'image de départ du plan 2 à partir de l'image du plan 1 en référence.
+  </div>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Mes 4 clips ne sont pas cohérents : la personne change de tenue entre le clip 2 et le clip 3. Voici mes 4 prompts. Réécris-les avec une description de personnage strictement identique, et dis-moi quel clip régénérer. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as un script de 60 à 80 mots validé, découpé en 3 ou 4 clips avec le même personnage, et les prompts image + vidéo de chaque clip prêts à coller.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">06</span>Voix, sous-titres, montage sur téléphone</h2>
+  <p class="lead">Tes clips sont générés. Il reste 20 minutes de montage pour en faire une pub. Tout se fait sur ton téléphone avec CapCut, gratuit.</p>
+
+  <h3>La voix : deux options</h3>
+  <table class="t">
+    <tr><th>Option</th><th>Quand</th><th>Comment</th></tr>
+    <tr><td><strong>Lip sync</strong> (la personne parle)</td><td>UGC face cam, micro-trottoir, expert : tout ce qui est « témoignage ».</td><td>Tu mets la ligne de dialogue en français dans le champ dialogue / audio du modèle au moment de générer le clip. Vérifie que la bouche suit. Si ça décale, régénère le clip seul.</td></tr>
+    <tr><td><strong>Voix off</strong></td><td>Démonstration, packshot, routine, animation 3D : la personne ne parle pas face caméra.</td><td>Tu enregistres le texte toi-même dans CapCut (micro du téléphone, pièce calme) ou tu génères la voix dans le Studio IA, puis tu la poses sur la timeline.</td></tr>
+  </table>
+
+  <h3>Les sous-titres : 3 à 5 mots par carte</h3>
+  <p>80 % des gens regardent sans le son. Les sous-titres ne sont pas une option. Règles :</p>
+  <ul>
+    <li>3 à 5 mots par carte, gros, centrés dans le tiers bas (jamais tout en bas : l'interface de Meta cache 15 % de l'écran).</li>
+    <li>Police simple et épaisse, blanc avec contour noir, ou noir sur bandeau clair.</li>
+    <li>Le mot-clé du hook en couleur (jaune) : « nuque », « 39 € », « 10 minutes ».</li>
+    <li>CapCut : Texte → Sous-titres automatiques, puis tu corriges les fautes à la main. Toujours.</li>
+  </ul>
+
+  <h3>Le montage CapCut en 8 gestes</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Nouveau projet, format 9:16</h4><p>Importe tes 3-4 clips dans l'ordre du script. Vérifie le ratio 9:16 en bas (1080 × 1920).</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Coupe les débuts et fins morts</h4><p>Chaque clip IA a souvent 0,5 s de latence au début. Coupe. Le hook doit démarrer à la première image.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Voix</h4><p>Lip sync déjà dans le clip : vérifie le volume. Voix off : Audio → Enregistrer, ou importe le fichier du Studio IA. Aligne sur les plans.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Sous-titres</h4><p>Texte → Sous-titres automatiques → corrige → style : gras, blanc contour noir, tiers bas. Mot-clé en jaune.</p></div></div>
+  <div class="step"><div class="n">5</div><div class="body"><h4>Musique</h4><p>Audio → Sons, une piste calme et sans paroles, volume à 10-15 %. La voix doit rester devant. Pas de musique sous licence que tu n'as pas (évite les hits TikTok pour une pub).</p></div></div>
+  <div class="step"><div class="n">6</div><div class="body"><h4>Carte de fin (2 s)</h4><p>Le produit + le prix + « Lien ci-dessous ». Tu peux réutiliser ta statique post-it ici.</p></div></div>
+  <div class="step"><div class="n">7</div><div class="body"><h4>Export</h4><p>1080p, 30 images/s, 9:16. Pas de filigrane CapCut (désactive le logo de fin dans les réglages d'export).</p></div></div>
+  <div class="step"><div class="n">8</div><div class="body"><h4>Relecture plein écran, son coupé</h4><p>Si tu comprends la pub sans le son, elle est prête. Sinon, les sous-titres ne suffisent pas.</p></div></div>
+
+  <div class="note">
+    <b>Durée totale</b>
+    20 à 30 secondes. Au-delà, le coût par vue monte et la rétention tombe. Une vidéo de 45 s, c'est deux pubs.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as 3 vidéos 9:16 exportées en 1080 × 1920, sous-titrées sans faute, compréhensibles sans le son, de 20 à 30 secondes chacune.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">07</span>Où générer, combien ça coûte</h2>
+  <p class="lead">Deux endroits pour générer : Higgsfield, tout-en-un, et le Studio IA de la plateforme, sur ta clé KIE. Voici lequel choisir et ce que ça coûte.</p>
+
+  <h3>Option 1 · Higgsfield (pour commencer)</h3>
+  <p>Tous les modèles au même endroit, zéro installation : GPT Image 2, Seedance 2.5, Genjutsu. Plus cher par génération, mais tu es opérationnel en 5 minutes. Tu importes ton image de référence, tu choisis le modèle, tu colles le prompt, tu choisis le ratio. C'est aussi le seul endroit pour Genjutsu (vidéo → vidéo).</p>
+
+  <h3>Option 2 · Le Studio IA de la plateforme (ta clé KIE)</h3>
+  <p>Mady t'ouvre le Studio après tes premières créatives. Tu crées ton compte sur kie.ai, tu recharges des crédits, tu colles ta clé API dans Scale X → <strong>Studio IA</strong>. Tes générations tournent sur tes crédits, et toi seul vois tes résultats.</p>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Onglet Image</h4><p>Choisis GPT Image 2, importe ton image de référence produit, colle le prompt, choisis le ratio (4:5 pour une statique, 9:16 pour une image de départ vidéo). Génère. Le résultat arrive dans la galerie en haut.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Onglet Vidéo</h4><p>Choisis Seedance 2.5, importe l'image de départ (ou clique « réutiliser » sur l'image générée), colle le prompt vidéo, mets la ligne de dialogue si la personne parle, durée 5 à 10 s, 9:16. Génère.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Télécharge</h4><p>Flèche sur la vignette → le fichier est dans tes téléchargements. Renomme-le tout de suite (chapitre 08).</p></div></div>
+
+  <h3>Coûts indicatifs (octobre 2026)</h3>
+  <table class="t">
+    <tr><th>Génération</th><th>Coût approximatif</th><th>Temps</th></tr>
+    <tr><td>1 image GPT Image 2</td><td>0,05 à 0,15 €</td><td>20 à 40 s</td></tr>
+    <tr><td>1 clip Seedance 2.5 de 8 s (avec audio)</td><td>0,50 à 1,50 €</td><td>1 à 3 min</td></tr>
+    <tr><td>1 clip Genjutsu (vidéo → vidéo)</td><td>2 à 5 €</td><td>2 à 5 min</td></tr>
+    <tr><td><strong>6 créatives complètes</strong> (3 statiques + 3 vidéos, avec les ratés)</td><td><strong>15 à 30 €</strong></td><td>Une après-midi</td></tr>
+  </table>
+  <p>Compte 20 à 30 € de crédits pour ta première semaine. Un tournage avec une créatrice UGC, c'est 150 à 400 € la vidéo. Tu n'as plus d'excuse pour ne tester qu'une seule créative.</p>
+
+  <div class="note warn">
+    <b>Les ratés font partie du prix</b>
+    Sur 10 générations, 3 ou 4 sont bonnes. C'est normal. Ne t'acharne pas à corriger une image ratée : change un détail du prompt et régénère. Garde la meilleure, supprime le reste pour ne pas te noyer.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as un compte Higgsfield ou ta clé KIE posée dans le Studio IA avec au moins 20 € de crédits, et tu as généré ta première image avec ton produit en référence.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">08</span>La production hebdomadaire et le nommage</h2>
+  <p class="lead">10 créatives par semaine, ça ne se fait pas « quand j'ai le temps ». Ça se fait avec un planning fixe et des fichiers rangés.</p>
+
+  <h3>Le planning de la semaine</h3>
+  <table class="t">
+    <tr><th>Jour</th><th>Tâche</th><th>Temps</th><th>Livrable</th></tr>
+    <tr><td><strong>Lundi</strong></td><td>Angles. Lis les chiffres de la semaine passée (guide 10), garde les angles gagnants, demande 10 nouveaux angles à Claude, choisis-en 3.</td><td>1 h</td><td>3 fiches angle</td></tr>
+    <tr><td><strong>Mardi</strong></td><td>Images. 3 statiques 4:5 + les images de départ 9:16 de tes 3 vidéos (3 à 4 par vidéo).</td><td>2 h</td><td>3 statiques + 10-12 images de départ</td></tr>
+    <tr><td><strong>Mercredi</strong></td><td>Vidéos. Scripts avec Claude, prompts par plan, génération des clips Seedance.</td><td>2 h</td><td>10-12 clips</td></tr>
+    <tr><td><strong>Jeudi</strong></td><td>Montage. CapCut : assemblage, voix, sous-titres, export. Relecture sans le son.</td><td>1 h 30</td><td>3 vidéos finales</td></tr>
+    <tr><td><strong>Vendredi</strong></td><td>Envoi. Nommage, dossier, mise en pub (guide 09) ou envoi à Mady si c'est ta première semaine.</td><td>30 min</td><td>6 créatives en ligne</td></tr>
+  </table>
+  <p>Une fois la machine rodée, tu passes à 5 statiques + 5 vidéos par semaine : même planning, un peu plus de volume. Et quand une créative gagne, tu la déclines (5 hooks différents sur le même clip, c'est 5 créatives en 30 minutes).</p>
+
+  <h3>Le nommage des fichiers</h3>
+  <p>Dans deux semaines tu auras 40 fichiers. Dans le Gestionnaire de publicités, tu dois savoir lequel est lequel sans l'ouvrir. Un nom = type + angle + hook + format.</p>
+  <pre class="cmd">UGC-angle1-hookA-9x16.mp4
+UGC-angle1-hookB-9x16.mp4
+STAT-angle2-postit-4x5.jpg
+STAT-angle3-calcul-4x5.jpg
+DEMO-angle2-hookA-9x16.mp4
+TROTTOIR-angle1-hookC-9x16.mp4</pre>
+  <ul>
+    <li><strong>Type</strong> : UGC, STAT, DEMO, TROTTOIR, EXPERT, MIROIR, ROUTINE, 3D.</li>
+    <li><strong>Angle</strong> : le numéro de ta fiche angle (tiens une liste : angle1 = nuque bureau, angle2 = cadeau…).</li>
+    <li><strong>Hook</strong> : A, B, C… ou un mot (postit, calcul, unboxing).</li>
+    <li><strong>Format</strong> : 9x16 ou 4x5.</li>
+  </ul>
+  <p>Même nom dans le Gestionnaire de publicités. Quand tu liras « UGC-angle1-hookB : CTR 3,1 % », tu sauras exactement quoi décliner.</p>
+
+  <h3>Le dossier</h3>
+  <pre class="cmd">CREATIVES/
+  semaine-01/
+    angles.txt          (tes 3 fiches angle)
+    scripts.txt         (les scripts validés)
+    sources/            (images de départ, clips bruts)
+    finales/            (les 6 fichiers nommés, prêts pour Meta)
+  semaine-02/
+    ...</pre>
+
+  <div class="done"><b>✅ Fait quand</b>Ton planning de la semaine est posé dans ton agenda (5 créneaux), et ton dossier CREATIVES/semaine-01/finales contient tes 6 fichiers nommés selon la règle.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">09</span>Ce que Meta refuse, et la checklist finale</h2>
+  <p class="lead">Une pub refusée, c'est trois jours perdus. Voici ce qui déclenche un refus, et la checklist avant d'envoyer tes 6 créatives.</p>
+
+  <h3>Ce qui fait refuser (ou restreindre) une pub</h3>
+  <table class="t">
+    <tr><th>Motif</th><th>Ce que ça veut dire</th><th>Ce que tu fais</th></tr>
+    <tr><td><strong>Avant / après choquant</strong></td><td>Peau, corps, poids, cheveux montrés « avant » de façon dégradante, ou résultat irréaliste.</td><td>Démonstration à la place. Si avant / après : même personne, différence subtile, pas de zoom sur le défaut.</td></tr>
+    <tr><td><strong>Promesse médicale</strong></td><td>« Soigne », « guérit », « élimine la douleur », « perds 5 kg », « anti-âge prouvé ».</td><td>Parle de sensation, de confort, de routine : « détend », « apaise », « 10 minutes de pause ». Jamais de résultat médical.</td></tr>
+    <tr><td><strong>Caractéristiques personnelles</strong></td><td>« Tu es en surpoids ? », « Toi qui as de l'acné » : Meta interdit de désigner un attribut de la personne.</td><td>Parle de la situation, pas de la personne : « Les journées à 6 h d'écran… »</td></tr>
+    <tr><td><strong>Texte sur l'image</strong></td><td>La règle des 20 % n'existe plus, mais une image couverte de texte est moins diffusée et illisible sur mobile.</td><td>Un hook de 5 mots, un prix. Le reste dans le texte de la pub.</td></tr>
+    <tr><td><strong>Marques tierces</strong></td><td>Logos ou noms d'autres marques (Apple, Dyson, un concurrent) dans l'image ou le texte.</td><td>Aucun logo tiers. Le tableau comparatif dit « alternative » ou « modèle classique », jamais le nom.</td></tr>
+    <tr><td><strong>Page de destination</strong></td><td>La pub promet 39 €, la page affiche 49 €. Ou la boutique est encore protégée par mot de passe.</td><td>Prix identique partout. Mot de passe retiré. Page testée sur téléphone.</td></tr>
+    <tr><td><strong>Fausse autorité</strong></td><td>« Recommandé par les médecins », « vu à la télé » sans preuve.</td><td>Si tu n'as pas la preuve, tu ne le dis pas.</td></tr>
+  </table>
+
+  <div class="note danger">
+    <b>Un refus, ce n'est pas la fin</b>
+    Une pub refusée : tu lis le motif, tu corriges (souvent un mot), tu renvoies. Trois refus sur le même compte en peu de temps, et le compte passe en restriction : là c'est deux semaines de blocage. Donc tu relis chaque pub avec cette table AVANT de l'envoyer.
+  </div>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Voici le texte de ma pub, le texte sur mon image et mon script vidéo (je colle tout). Vérifie chaque phrase contre les règles publicitaires Meta : promesse médicale, attribut personnel, avant / après, marque tierce. Réécris ce qui pose problème en gardant l'angle. »
+  </div>
+
+  <h3>Checklist « 6 créatives prêtes »</h3>
+  <ul class="check">
+    <li>3 angles différents, une fiche angle par créative (pas 6 variantes du même angle).</li>
+    <li>3 statiques 4:5 (1080 × 1350) : produit identique à la référence, hook de 5 mots max relu, prix en euros, ancien prix barré.</li>
+    <li>3 vidéos 9:16 (1080 × 1920), 20 à 30 s, même personnage sur tous les plans, lip sync propre ou voix off alignée.</li>
+    <li>Sous-titres sur toutes les vidéos, 3 à 5 mots par carte, sans faute, pas dans les 15 % du bas.</li>
+    <li>Chaque vidéo se comprend son coupé, et le hook démarre à la première image.</li>
+    <li>Aucune promesse médicale, aucun attribut personnel, aucun logo tiers, aucun avant / après choquant.</li>
+    <li>Le prix dans la pub = le prix sur la page produit. Boutique sans mot de passe, testée sur téléphone.</li>
+    <li>6 fichiers nommés selon la règle, dans CREATIVES/semaine-01/finales.</li>
+    <li>Étape « Crée tes créatives avec l'IA » cochée dans Mes étapes.</li>
+  </ul>
+
+  <div class="note ok">
+    <b>Et ensuite</b>
+    Guide 08 : ton compte Meta Business et ton Pixel. Guide 09 : tu lances. Guide 10 : tu lis les chiffres à J+3 et tu reviens ici pour décliner les gagnantes. La boucle, c'est ça : produit → créatives → 3 jours → chiffres → on coupe ou on scale → créatives.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Les 9 cases ci-dessus sont cochées et tes 6 créatives sont dans le dossier finales. Tu passes au guide 08.</div>
+</section>
+
+</body>
+</html>

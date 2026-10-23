@@ -142,6 +142,8 @@ export interface Settings {
   studentCreatives?: Partial<StudentCreativesSettings>;
   /** Etapes par defaut de la marche a suivre posees une fois. */
   courseStepsSeededAt?: string;
+  /** Version du texte des étapes par défaut posée en base (voir formation-steps.ts). */
+  courseStepsSeedVersion?: number;
   /** Content OS : habitudes du jour, priorités, routine hebdo, ressources, chantiers. */
   contentOs?: Partial<ContentOsState>;
   /** Rotation des types de story par jour (0 = dimanche). */
@@ -690,6 +692,10 @@ export interface Student {
   studioAccess?: boolean;
   /** Cle API KIE de l'eleve (kie.ai). Jamais renvoyee en clair au navigateur. */
   kieApiKey?: string;
+  /** Etapes du guide Demarrage cochees (cles section:os:index). */
+  guideDone?: string[];
+  /** Guides PDF (Education) marques terminés : ids du manifeste src/lib/formation-education.ts. */
+  completedLessons?: string[];
 }
 
 /** « Demande ta boutique à Mady » : l'eleve donne son adresse Shopify, Mady genere avec le generateur. */

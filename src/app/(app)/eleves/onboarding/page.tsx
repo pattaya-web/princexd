@@ -119,7 +119,7 @@ export default function OnboardingPage() {
                 <Field label="Claude Pro Max (90 €/mois)" hint="Mets ton lien affilié quand tu en auras un ; sinon la page d'abonnement Claude.">
                   <input className="input" value={form.claudeUrl} onChange={(e) => set("claudeUrl", e.target.value)} inputMode="url" />
                 </Field>
-                <Field label="BrainSearch, plan Starter (63 $/mois)" hint="Idem : lien affilié BrainSearch dès que tu l'as.">
+                <Field label="BrandSearch, plan Starter (63 $/mois)" hint="Idem : lien affilié BrandSearch dès que tu l'as.">
                   <input className="input" value={form.brainsearchUrl} onChange={(e) => set("brainsearchUrl", e.target.value)} inputMode="url" />
                 </Field>
               </div>

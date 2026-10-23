@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Scale X · Les médias de ta boutique avec GPT Image 2</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #141a1f; font-size: 11pt; line-height: 1.5; }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 0; }
+  p { margin: 0 0 8pt; }
+  a { color: #0b63c4; }
+  .kicker { font-family: "Segoe UI", Arial, sans-serif; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #0b63c4; font-weight: 700; margin: 0 0 6pt; }
+
+  /* Couverture */
+  .cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .brand { font-weight: 800; font-size: 13pt; letter-spacing: 0.04em; margin-bottom: 40pt; }
+  .cover .brand span { color: #0b63c4; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 0 0 14pt; }
+  .cover .sub { font-size: 14pt; color: #4a5560; font-family: Georgia, serif; margin-bottom: 28pt; }
+  .cover .meta { font-size: 10pt; color: #4a5560; margin-top: 24pt; }
+  .cover ul { margin: 0; padding-left: 18pt; }
+  .cover li { margin: 3pt 0; }
+  .cover .foot { margin-top: auto; font-size: 9pt; color: #7a858f; border-top: 1px solid #e3e7ea; padding-top: 10pt; }
+
+  /* Chapitres */
+  .chapter { page-break-before: always; }
+  .chapter.first { page-break-before: auto; }
+  h2 { font-size: 22pt; margin: 0 0 6pt; line-height: 1.15; }
+  h2 .num { display: inline-block; color: #0b63c4; margin-right: 8pt; font-size: 16pt; vertical-align: 6pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; }
+  .lead { font-size: 12pt; color: #4a5560; margin: 0 0 14pt; }
+  h3 { font-size: 15pt; margin: 18pt 0 6pt; }
+  h4 { font-size: 12pt; margin: 0 0 3pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  strong { font-weight: 700; }
+
+  /* Encadrés */
+  .note { border-left: 3px solid #0b63c4; background: #eef4fb; padding: 8pt 11pt; margin: 10pt 0; border-radius: 3px; page-break-inside: avoid; }
+  .note b { display: block; color: #0b63c4; margin-bottom: 2pt; }
+  .note.ok { border-color: #178a4c; background: #ecf7f0; } .note.ok b { color: #178a4c; }
+  .note.warn { border-color: #d98a0e; background: #fff6e8; } .note.warn b { color: #b86f00; }
+  .note.danger { border-color: #c9302c; background: #fdeeee; } .note.danger b { color: #c9302c; }
+  .claude { border: 1px solid #c9c3f5; background: #f4f2ff; padding: 8pt 11pt; margin: 10pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .claude b { display: block; color: #5b5ce6; margin-bottom: 2pt; }
+  .done { border: 1px solid #b7e0c5; background: #ecf7f0; padding: 8pt 11pt; margin: 12pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .done b { display: block; color: #178a4c; margin-bottom: 2pt; }
+
+  /* Étapes */
+  .step { display: flex; gap: 10pt; margin: 10pt 0; page-break-inside: avoid; }
+  .step .n { flex: 0 0 24pt; height: 24pt; border-radius: 5px; background: #0b63c4; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 11pt; }
+  .step .body { flex: 1; min-width: 0; }
+
+  /* Code et prompts */
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 9.5pt; line-height: 1.45; margin: 6pt 0 10pt; padding: 8pt 10pt; border-radius: 4px; page-break-inside: avoid; }
+  pre.cmd { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; border: 1px solid #e1e5e9; }
+  pre.prompt { font-family: "Segoe UI", Arial, sans-serif; background: #fbf7ec; border: 1px solid #ecdfbd; font-size: 10pt; }
+  pre.prompt::before { content: "PROMPT À COPIER"; display: block; font-size: 7.5pt; letter-spacing: 0.16em; color: #9a7b2c; font-weight: 700; margin-bottom: 4pt; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; padding: 0 3pt; border-radius: 3px; font-size: 9.5pt; }
+
+  /* Checklist et tableaux */
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { padding-left: 20pt; position: relative; margin: 4pt 0; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; top: -1pt; font-size: 12pt; color: #0b63c4; }
+  table.t { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+  table.t th, table.t td { border: 1px solid #dfe3e7; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  table.t th { background: #f3f5f7; font-weight: 700; }
+  .cols { display: flex; gap: 14pt; } .cols > div { flex: 1; min-width: 0; }
+  hr { border: 0; border-top: 1px solid #e3e7ea; margin: 14pt 0; }
+  .muted { color: #6b7680; }
+  .small { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="brand">SCALE <span>X</span> · EDUCATION</div>
+  <p class="kicker">Guide 06 · Boutique</p>
+  <h1>Les médias de ta boutique avec GPT Image 2</h1>
+  <p class="sub">Des photos produit qui semblent vraies, cohérentes entre elles, au bon format pour chaque section du thème Aesthetic Lab. Méthode, formats, prompts prêts à copier et checklist anti-IA.</p>
+  <p class="kicker">À la fin de ce guide, tu sauras</p>
+  <ul>
+    <li>Générer, à partir d'une seule vraie photo de ton produit, toute la bibliothèque d'images de ta boutique, dans les 5 formats du thème.</li>
+    <li>Reconnaître et refuser une image « qui sent l'IA », avec les 7 points de contrôle, avant qu'un client la voie.</li>
+    <li>Nommer, classer et placer chaque image au bon endroit dans Shopify, puis envoyer un premier dossier propre à Mady.</li>
+  </ul>
+  <p class="meta">Temps de lecture : 40 min · Temps de mise en pratique : 2 à 3 heures pour les 10 premières images</p>
+  <div class="foot">Scale X · Accompagnement e-commerce + IA · Mady · Version octobre 2026. Bloqué ? Demande d'abord à Claude. Mady, c'est pour les urgences.</div>
+</header>
+
+<section class="chapter first">
+  <h2><span class="num">01</span>Ton objectif et ta première mission</h2>
+  <p class="lead">Une boutique sans photos crédibles ne vend pas, même avec la meilleure page. Ton objectif : une bibliothèque de médias qui répond aux questions de l'acheteur, cohérente comme si un seul photographe avait tout shooté.</p>
+
+  <h3>Ce que tu construis</h3>
+  <p>Une bibliothèque d'images <strong>crédibles</strong> (on dirait des photos), <strong>cohérentes</strong> (même produit, même ambiance, mêmes couleurs) et <strong>adaptées à chaque espace du thème</strong> (le bon ratio au bon endroit, sans déformation). Pas des « jolies images IA » : des photos de boutique qui vendent.</p>
+
+  <h3>Mission de départ : 10 images à envoyer à Mady</h3>
+  <p>Avant de refaire tout le site, on juge la qualité. Produis et envoie à Mady :</p>
+  <table class="t">
+    <tr><th>Quantité</th><th>Format</th><th>Type conseillé</th></tr>
+    <tr><td>2</td><td>9:16</td><td>Produit en situation, cadrage vertical mobile</td></tr>
+    <tr><td>2</td><td>16:9</td><td>Bannière large avec de la respiration autour du produit</td></tr>
+    <tr><td>2</td><td>4:3</td><td>Produit seul fond simple + détail / matière</td></tr>
+    <tr><td>2</td><td>3:4</td><td>Produit porté / utilisé par une personne</td></tr>
+    <tr><td>2</td><td>Libre</td><td>Idées de packaging (boîte vierge, écrin, pochette)</td></tr>
+  </table>
+  <p>Quand Mady valide ces 10 images, tu as ton standard. Tu produis le reste de la bibliothèque sur le même modèle.</p>
+
+  <h3>Les outils</h3>
+  <ul>
+    <li><strong>GPT Image 2</strong> : le modèle d'image qui comprend une photo de référence et une consigne, et qui respecte le produit (forme, couleur, étiquette). C'est le seul modèle qu'on utilise pour les médias de boutique.</li>
+    <li><strong>Où le lancer</strong> : sur Higgsfield (modèle GPT Image 2, import de l'image de référence) ou dans le <strong>Studio IA</strong> de la plateforme (onglet Image, modèle GPT Image 2, avec ta clé KIE : quelques centimes par image).</li>
+    <li><strong>Claude</strong> : pour écrire ou adapter tes prompts à partir de la liste des médias du thème (chapitre 09).</li>
+  </ul>
+
+  <div class="note info"><b>La règle à retenir</b>Une génération IA peut contenir des erreurs même avec un bon prompt. Le but est un rendu photographique naturel, pas une garantie automatique. Chaque image passe une vérification humaine (la tienne, chapitre 08) avant d'être mise en ligne.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as compris la mission des 10 images et tu sais dans quel outil tu vas les générer (Higgsfield ou Studio IA).</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">02</span>La méthode en 6 étapes</h2>
+  <p class="lead">Tu n'as besoin ni de savoir photographier, ni de savoir designer. Tu suis toujours le même ordre, pour chaque image.</p>
+
+  <div class="step"><div class="n">1</div><div class="body">
+    <h4>Choisis une VRAIE image de référence</h4>
+    <p>Une photo nette de ton produit, bien éclairée, qui montre les détails : la vraie forme, la vraie couleur, l'étiquette, le fermoir, la texture. Sources : la fiche du fournisseur (demande les photos HD), le site d'un concurrent qui vend le même produit, ou ta propre photo si tu as reçu un échantillon (fond blanc, lumière de fenêtre, téléphone propre). Si tu as plusieurs vues (face, profil, détail), garde-les toutes : tu changeras de référence selon l'image à produire.</p>
+    <div class="note warn"><b>Piège</b>Une référence floue, sombre ou déjà retouchée donne un produit déformé sur toutes les images suivantes. Prends 10 minutes pour trouver la meilleure.</div>
+  </div></div>
+
+  <div class="step"><div class="n">2</div><div class="body">
+    <h4>Ouvre GPT Image 2 et importe la référence</h4>
+    <p>Higgsfield : Image → modèle GPT Image 2 → zone « référence » → téléverse ta photo. Studio IA : onglet Image → GPT Image 2 → champ image de référence → dépose ta photo. Vérifie que la miniature apparaît AVANT de lancer. Sans référence, le modèle invente un produit.</p>
+  </div></div>
+
+  <div class="step"><div class="n">3</div><div class="body">
+    <h4>Choisis le bon ratio</h4>
+    <p>9:16, 16:9, 4:3, 3:4 ou 1:1 selon l'emplacement visé (chapitre 03). Si l'outil ne propose pas le ratio exact, génère dans le plus proche puis recadre, sans jamais étirer le produit.</p>
+  </div></div>
+
+  <div class="step"><div class="n">4</div><div class="body">
+    <h4>Copie le prompt + son négatif</h4>
+    <p>Chaque fiche du chapitre 07 a une partie positive et une partie « NEGATIVE PROMPT ». Colle les deux dans la même demande (ou dans le champ « négatif » si l'interface en a un). Ne supprime jamais les contraintes de fidélité produit (« keep the product identical to the reference »).</p>
+  </div></div>
+
+  <div class="step"><div class="n">5</div><div class="body">
+    <h4>Génère, compare, corrige</h4>
+    <p>Compare l'image obtenue à la référence : forme, proportions, couleur, étiquette, mains, ombres. Si quelque chose est faux, ajuste le prompt (une correction à la fois : « the bottle must be 15 cm tall relative to the hand ») et relance. Ne valide jamais une image parce qu'elle est jolie. Génère 2 à 4 variantes par prompt, garde la meilleure.</p>
+  </div></div>
+
+  <div class="step"><div class="n">6</div><div class="body">
+    <h4>Exporte et classe immédiatement</h4>
+    <p>Télécharge la meilleure version en pleine résolution, nomme-la clairement (chapitre 10) et range-la dans le dossier de son format. Ne garde pas 10 variantes presque identiques : sélectionne des angles réellement complémentaires.</p>
+  </div></div>
+
+  <div class="note ok"><b>Si une image paraît trop lisse ou « publicitaire »</b>Ajoute au prompt : <em>more candid iPhone 15 photography, natural unretouched skin, ordinary home light, believable imperfections, less polished staging</em>. Ça ramène vers la photo de téléphone, qui est ce qui vend.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as produit ta première image avec la méthode complète, de la référence à l'export nommé.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">03</span>Les formats, et où chacun va dans le thème Aesthetic Lab</h2>
+  <p class="lead">Le ratio, c'est la forme de l'image. Ce n'est ni la qualité ni la résolution. Une image au mauvais ratio est recadrée par le thème, et ton produit sort du cadre.</p>
+
+  <table class="t">
+    <tr><th>Ratio</th><th>Taille cible</th><th>Utilisation</th><th>Où dans Aesthetic Lab</th></tr>
+    <tr><td><strong>9:16</strong></td><td>1080 × 1920 px</td><td>Visuel mobile immersif, UGC fixe, section verticale</td><td>Bannière mobile de l'accueil, image des sections plein écran sur téléphone</td></tr>
+    <tr><td><strong>16:9</strong></td><td>1920 × 1080 px</td><td>Bannière large ordinateur, univers de marque</td><td>Bannière d'accueil (hero), section « Comment ça marche »</td></tr>
+    <tr><td><strong>4:3</strong></td><td>1600 × 1200 px</td><td>Photo produit horizontale, détails, packaging</td><td>Sections bénéfices (image + texte), fiche produit (Produits → Médias)</td></tr>
+    <tr><td><strong>3:4</strong></td><td>1200 × 1600 px</td><td>Portrait porté, vignette verticale, storytelling</td><td>Sections avis clients, « porté », cartes de la grille bénéfices</td></tr>
+    <tr><td><strong>1:1</strong></td><td>1200 × 1200 px</td><td>Galerie et cartes carrées</td><td>Galerie produit, miniatures, grille de collection</td></tr>
+  </table>
+
+  <h3>Les emplacements du thème, dans l'ordre de la page d'accueil</h3>
+  <ol>
+    <li><strong>Bannière d'accueil (hero)</strong> : 1 image 16:9 pour ordinateur + 1 image 9:16 pour mobile (le thème permet une image mobile séparée). Le produit en situation, respiration autour, pas de détail au bord.</li>
+    <li><strong>Sections bénéfices</strong> (image à gauche, texte à droite) : 3 à 4 images 4:3. Produit utilisé, détail matière, résultat.</li>
+    <li><strong>Avant / après</strong> : 2 images 1:1, même personne, même cadrage, même lumière.</li>
+    <li><strong>Comment ça marche</strong> : 1 image 16:9 ou 3 images 4:3 (étape 1, 2, 3).</li>
+    <li><strong>Avis clients</strong> : 4 à 6 photos 3:4 ou 1:1, personnes différentes avec le produit.</li>
+    <li><strong>Fiche produit</strong> (Produits → ton produit → Médias) : 5 à 8 images 1:1 : produit seul, porté, détail, avant / après, avis photo, packaging.</li>
+  </ol>
+
+  <div class="note warn"><b>Le thème recadre parfois</b>Une bannière 16:9 est recadrée sur mobile si tu n'as pas fourni d'image mobile. Place toujours le sujet important près du centre, et configure l'image mobile séparée (9:16) quand le thème le propose. Aucun détail essentiel tout au bord.</div>
+
+  <div class="note warn"><b>Une même photo ne remplace pas tous les formats</b>Une image portrait étirée en bannière n'est pas une bannière. Regénère la scène en 16:9 en demandant davantage de décor et de respiration autour du produit. Les proportions du produit restent naturelles.</div>
+
+  <div class="claude"><b>Demande à Claude</b>Pour avoir la liste exacte des images de TON thème : dans Claude Code, dans le dossier BOUTIQUE-SHOPIFY, « Liste toutes les images utilisées par templates/index.json et templates/product.json : section, rôle, ratio recommandé d'après les dimensions du conteneur. Présente en tableau. » Tu obtiens ta feuille de route, image par image.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as écrit ta liste d'images à produire : pour chacune, l'emplacement, le ratio, la taille et le type.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">04</span>Les 7 types de médias et la question de l'acheteur</h2>
+  <p class="lead">Ton objectif n'est pas de multiplier les jolies images, mais de répondre aux questions que se pose quelqu'un qui n'a jamais touché ton produit.</p>
+
+  <table class="t">
+    <tr><th>Type</th><th>Question de l'acheteur</th><th>Ce que l'image doit montrer</th></tr>
+    <tr><td><strong>Produit seul</strong></td><td>« À quoi ressemble exactement l'objet ? »</td><td>Fond simple, vue entière, référence fidèle, ombre douce. 2 à 3 angles.</td></tr>
+    <tr><td><strong>Porté / utilisé</strong></td><td>« Comment ça rend dans la vraie vie ? »</td><td>Une personne ou un contexte ordinaire, dimensions crédibles, geste naturel.</td></tr>
+    <tr><td><strong>Détail / matière</strong></td><td>« Est-ce que les finitions ont l'air sérieuses ? »</td><td>Macro réaliste : couture, fermoir, texture, grain. Zéro détail inventé.</td></tr>
+    <tr><td><strong>Lifestyle</strong></td><td>« Avec quel style de vie le produit s'associe-t-il ? »</td><td>Décor réel (salle de bain, cuisine, balcon), photo native, pas de scène artificielle.</td></tr>
+    <tr><td><strong>Packaging</strong></td><td>« Comment peut-il être présenté ou offert ? »</td><td>Boîte, écrin, pochette : concept vierge tant que ton vrai packaging n'est pas confirmé.</td></tr>
+    <tr><td><strong>Unboxing</strong></td><td>« Qu'est-ce que je vois à l'ouverture ? »</td><td>Mains naturelles, boîte réaliste, papier de soie, produit exact.</td></tr>
+    <tr><td><strong>Émotion / cadeau</strong></td><td>« Pourquoi l'acheter ou l'offrir ? »</td><td>Un instant sincère : surprise, sourire, moment partagé. Aucune promesse inventée.</td></tr>
+  </table>
+
+  <h3>Le minimum par produit</h3>
+  <p>Au moins un produit seul clair, un porté / utilisé, un détail de matière, une scène lifestyle et une idée cadeau ou packaging. Cinq images complémentaires valent mieux que dix fois le même portrait. Exemple pour un collier : porté sur un cou, posé seul sur du lin, macro du pendentif et de la chaîne, lifestyle sur une coiffeuse avec lumière de fenêtre, écrin ouvert dans des mains.</p>
+
+  <div class="note info"><b>Et les vidéos ?</b>Le thème Aesthetic Lab a quelques emplacements vidéo 9:16. Elles se font APRÈS les images, à partir d'une image GPT Image 2 animée par Seedance 2.5 : c'est le guide 07 (Créatives) et la page Créatives de la plateforme. Ici, on fait les images.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Ta liste d'images couvre les 7 types pour ton produit principal, avec au moins un exemplaire de chaque.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">05</span>Deux couleurs de marque, pas plus</h2>
+  <p class="lead">Deux couleurs suffisent à créer une identité forte. Elles doivent rester les mêmes sur Shopify et revenir, parfois, dans les médias. Pas dans chaque image : dans l'ensemble.</p>
+
+  <table class="t">
+    <tr><th>Univers</th><th>Couleur 1 (base)</th><th>Couleur 2 (accent)</th><th>Effet</th></tr>
+    <tr><td>Bijoux / cadeau</td><td>Ivoire chaud <code>#F5EFE8</code></td><td>Espresso <code>#382F2A</code></td><td>Doux et soigné, premium sans être froid</td></tr>
+    <tr><td>Beauté / soin</td><td>Crème <code>#F7F3EC</code></td><td>Vert sauge <code>#7A9A7E</code></td><td>Calme, naturel, simple</td></tr>
+    <tr><td>Accessoire tech / sport</td><td>Blanc cassé <code>#F4F4F2</code></td><td>Anthracite <code>#2B2F33</code></td><td>Net, sobre, sérieux</td></tr>
+    <tr><td>Maison / cuisine</td><td>Lin <code>#EFE9DF</code></td><td>Terracotta <code>#B8613E</code></td><td>Chaleureux, artisanal</td></tr>
+  </table>
+
+  <h3>Comment les utiliser</h3>
+  <ul>
+    <li><strong>Couleur 1 = base visuelle</strong> : fond du site, arrière-plans discrets, écrin, tissu ou papier dans les photos.</li>
+    <li><strong>Couleur 2 = accent / contraste</strong> : boutons, petits détails du site, ruban, boîte, un vêtement ou un accessoire secondaire dans une photo.</li>
+    <li>Dans les photos, privilégie les teintes naturelles du lieu. Les couleurs de marque n'ont PAS besoin d'apparaître dans chaque image.</li>
+    <li>Vérifie le contraste des boutons : un joli duo ne suffit pas si le texte du bouton est illisible. Texte blanc sur vert sauge clair, par exemple, ne passe pas.</li>
+    <li>Ne change pas de palette d'une photo à l'autre : l'ensemble doit ressembler à une seule marque.</li>
+  </ul>
+
+  <p>Dans Claude Code, une fois choisies : « Remplace la couleur de fond par #F5EFE8 et la couleur d'accent par #382F2A dans tout le thème, vérifie le contraste des boutons et des liens. » Mady les a déjà posées à la génération : tu peux les garder ou les ajuster.</p>
+
+  <div class="note danger"><b>Logo et texte sur les images : point important</b>« Aucun texte dans les médias » signifie : pas de phrases, pas de badges, pas de prix, pas d'accroche, pas d'écriture générée. L'IA invente des lettres. Pour un packaging brandé, ajoute uniquement ton VRAI fichier logo en référence et vérifie sa fidélité ; sinon génère une boîte vierge et applique ton logo après, dans un outil de design. Les visuels avec post-it et prix (pubs statiques) sont une autre famille : page Créatives, guide 07.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tes deux couleurs sont choisies (code hex noté), posées dans le thème, et tu les cites dans tes prompts quand un fond ou un accessoire doit les reprendre.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">06</span>Le standard ultra-réaliste : ce qui sent l'IA, et comment l'éviter</h2>
+  <p class="lead">Une photo réussie doit paraître prise par une personne avec un téléphone ou un appareil, pas fabriquée par un logiciel. Le client ne sait pas dire pourquoi, mais il sent le faux, et il ferme.</p>
+
+  <table class="t">
+    <tr><th>À rechercher</th><th>À refuser</th><th>À vérifier</th></tr>
+    <tr><td>Lumière de fenêtre, légèrement directionnelle</td><td>Lumière parfaite de partout, sans ombre</td><td>Les ombres vont dans le même sens que la lumière</td></tr>
+    <tr><td>Vrais matériaux : grain du bois, plis du tissu, reflets imparfaits</td><td>Métal brillant irréel, plastique « mouillé »</td><td>Le produit touche vraiment la surface (ombre de contact)</td></tr>
+    <tr><td>Pores de peau, petites imperfections, mèches de cheveux</td><td>Peau en plastique, visage symétrique de magazine</td><td>Les proportions produit / main / corps sont crédibles</td></tr>
+    <tr><td>Cadrage légèrement imparfait, un peu de grain</td><td>Composition trop centrée, trop « publicitaire »</td><td>L'ambiance (heure, lieu, saison) est cohérente d'une image à l'autre</td></tr>
+    <tr><td>Produit identique à la référence</td><td>Chaîne déformée, bouchon changé, étiquette inventée</td><td>Compare côte à côte avec la référence, à chaque fois</td></tr>
+    <tr><td>Mains naturelles, 5 doigts, gestes simples</td><td>Mains étranges, doigts en trop, bijou qui fusionne avec la peau</td><td>Zoome sur chaque main avant de valider</td></tr>
+    <tr><td>Aucun texte, ou texte strictement issu de ta référence</td><td>Lettres illisibles, logo inventé, écriture sur les murs</td><td>Zoome sur chaque zone où du texte pourrait apparaître</td></tr>
+  </table>
+
+  <h3>Les 7 points de contrôle avant de valider une image</h3>
+  <ul class="check">
+    <li><strong>Produit</strong> : forme, couleur, taille, étiquette identiques à la référence ?</li>
+    <li><strong>Mains et corps</strong> : 5 doigts, proportions normales, geste possible ?</li>
+    <li><strong>Lumière et ombres</strong> : une seule source cohérente, ombres de contact présentes ?</li>
+    <li><strong>Texte</strong> : aucun texte ni logo inventé, nulle part (zoome) ?</li>
+    <li><strong>Arrière-plan</strong> : objets réels, pas de meuble déformé, pas de reflet impossible ?</li>
+    <li><strong>Peau et matières</strong> : texture visible, pas de rendu plastique ?</li>
+    <li><strong>Cohérence</strong> : même marque, même ambiance que les autres images validées ?</li>
+  </ul>
+  <p>Un seul « non » : tu relances. La plupart des images demandent 2 à 3 essais. C'est normal, ça coûte quelques centimes.</p>
+
+  <h3>Les mots qui ramènent vers le réel</h3>
+  <p>À ajouter dans tes prompts, en anglais : <em>shot on iPhone 15, natural window light, unretouched, slight grain, candid framing, real skin texture, believable imperfections, no studio polish</em>. Et dans le négatif : <em>3D render, CGI, plastic skin, overly smooth, airbrushed, symmetrical face, extra fingers, warped product, invented text, invented logo, watermark</em>.</p>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as passé tes 3 premières images aux 7 points de contrôle et tu en as refusé au moins une (si tu n'en refuses aucune, regarde mieux).</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">07</span>Les prompts prêts à copier</h2>
+  <p class="lead">Douze fiches, une par type d'image. Remplace <code>[PRODUCT]</code> par la description précise de ton produit en anglais (ex. « gold snake pendant necklace », « satin hair bonnet », « ceramic electric steamer »). Colle le prompt ET son négatif. Référence importée à chaque fois.</p>
+
+  <h4>1. Packshot fond simple (4:3 ou 1:1)</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the [PRODUCT] identical in shape, color, size and label. Product alone, centered, on a plain warm off-white surface with a soft matte paper backdrop, gentle window light from the left, soft contact shadow, slight depth of field, shot on a Sony A7 with 50mm lens, clean e-commerce product photo, 4:3.
+NEGATIVE PROMPT: text, logo, watermark, extra objects, reflection artifacts, warped product, 3D render, CGI, plastic look, oversaturated colors, busy background.</pre>
+
+  <h4>2. Produit porté / utilisé (3:4)</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the [PRODUCT] identical. A woman in her 30s wearing / using it naturally in a bright bedroom, candid moment, looking slightly away from camera, real skin texture, loose strands of hair, natural window light, shot on iPhone 15, unretouched, 3:4 vertical.
+NEGATIVE PROMPT: text, logo, watermark, plastic skin, airbrushed, symmetrical magazine face, extra fingers, deformed hands, product changed or resized, studio flash, heavy makeup, celebrity likeness.</pre>
+
+  <h4>3. Détail / matière en macro (4:3)</h4>
+  <pre class="prompt">Use the attached product photo as exact reference. Extreme close-up macro of the [PRODUCT] showing the real material texture, stitching / clasp / surface finish exactly as in the reference, shallow depth of field, soft daylight, slight natural grain, no retouching, 4:3.
+NEGATIVE PROMPT: text, logo, invented details, invented engravings, glossy CGI metal, plastic sheen, warped shape, extra parts, watermark.</pre>
+
+  <h4>4. Lifestyle lumière de fenêtre (4:3 ou 16:9)</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the [PRODUCT] identical. The product placed naturally on a wooden dresser near a window, morning light, a few everyday objects around (a glass of water, a book), lived-in home, candid composition slightly off-center, shot on iPhone 15, realistic colors, 4:3.
+NEGATIVE PROMPT: text, logo, watermark, showroom staging, perfect symmetry, CGI, 3D render, oversaturated, floating objects, warped furniture.</pre>
+
+  <h4>5. Unboxing POV (4:3)</h4>
+  <pre class="prompt">Use the attached product photo as exact reference. First-person point of view: two natural hands lifting the [PRODUCT] out of an open plain cardboard box with white tissue paper, on a kitchen counter, window light, real skin texture, 5 fingers per hand, candid phone photo, 4:3.
+NEGATIVE PROMPT: text, logo, printed box branding, invented packaging text, extra fingers, deformed hands, plastic skin, CGI, watermark, product changed.</pre>
+
+  <h4>6. Cadeau / émotion (3:4)</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the [PRODUCT] identical. A woman in her 40s receiving the product in a small open gift box from a friend's hands, sincere surprised smile, living room with soft afternoon light, candid moment, real skin, shot on iPhone 15, 3:4.
+NEGATIVE PROMPT: text, logo, ribbon with text, invented card, watermark, plastic skin, symmetrical faces, extra fingers, staged studio look, CGI.</pre>
+
+  <h4>7. Bannière 16:9 avec respiration</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the [PRODUCT] identical. Wide horizontal composition 16:9: the product placed in the right third of the frame on a linen cloth, large calm empty space on the left for website text overlay later, warm off-white tones, soft window light, shallow depth of field, realistic photo.
+NEGATIVE PROMPT: text, logo, watermark, product cropped at the edge, centered composition, busy background, CGI, 3D render, oversaturated.</pre>
+
+  <h4>8. Visuel mobile 9:16</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the [PRODUCT] identical. Vertical 9:16 phone photo: a woman in her 20s holding the product toward the camera at arm's length in a bright bathroom, product in the upper middle of the frame, natural light, real skin texture, candid framing, shot on iPhone 15.
+NEGATIVE PROMPT: text, logo, watermark, product at the very top or bottom edge, plastic skin, extra fingers, warped product, studio flash, CGI.</pre>
+
+  <h4>9. Avant / après, même personne (2 images 1:1)</h4>
+  <pre class="prompt">Image A (before): Realistic phone photo, 1:1, a woman in her 30s with [describe the before state: e.g. frizzy dry hair], neutral expression, plain bathroom wall, same window light from the left, head and shoulders, front camera look, unretouched.
+Image B (after): Exactly the same woman, same bathroom, same light from the left, same framing and distance, same neutral expression, now with [describe the after state: e.g. smooth defined hair], subtle and believable change only, holding the [PRODUCT] from the attached reference at chest level, 1:1.
+NEGATIVE PROMPT: text, logo, watermark, different person, different lighting, exaggerated transformation, airbrushed skin, CGI, invented product.</pre>
+
+  <h4>10. Photo « avis client » (3:4 ou 1:1)</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the [PRODUCT] identical. A candid customer-style photo: a man in his 50s at home showing the product he just received, slight smile, ordinary living room, mixed indoor light, phone photo with slight grain, imperfect framing, real skin, 3:4.
+NEGATIVE PROMPT: text, logo, watermark, studio quality, professional model look, plastic skin, extra fingers, warped product, CGI, oversaturated.</pre>
+
+  <h4>11. Packaging vierge (4:3)</h4>
+  <pre class="prompt">Use the attached product photo as exact reference. The [PRODUCT] presented inside an open plain box in warm off-white (#F5EFE8) with a dark espresso (#382F2A) inner lining, no printed text or logo anywhere, blank surfaces ready for branding, on a linen cloth, soft daylight, realistic packaging mockup photo, 4:3.
+NEGATIVE PROMPT: text, letters, logo, printed branding, barcode, stickers, watermark, CGI, warped box, product changed.</pre>
+
+  <h4>12. Trois contextes en un visuel (4:5 ou 16:9)</h4>
+  <pre class="prompt">Use the attached product photo as exact reference, keep the [PRODUCT] identical. One image split into three equal vertical panels showing the same product in three real settings: a bathroom shelf, a bedroom nightstand, a travel bag on a hotel bed. Consistent warm daylight across panels, realistic phone photography, no text, 16:9.
+NEGATIVE PROMPT: text, labels, logo, watermark, product size changing between panels, CGI, 3D render, oversaturated, cluttered scenes.</pre>
+
+  <div class="note warn"><b>Adapter sans casser</b>Tu peux changer le lieu, la personne, l'heure. Tu ne retires jamais : « Use the attached product photo as exact reference, keep the [PRODUCT] identical » ni le négatif « text, logo, watermark ». C'est ce qui garde ton produit vrai et tes images propres.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as généré au moins une image avec 6 fiches différentes, validées aux 7 points de contrôle.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">08</span>Les erreurs classiques et leur correction</h2>
+  <p class="lead">Les mêmes problèmes reviennent chez tout le monde. Voici la correction à ajouter au prompt, mot pour mot.</p>
+
+  <table class="t">
+    <tr><th>Problème sur l'image</th><th>Correction à ajouter au prompt</th></tr>
+    <tr><td>Le produit a changé (forme, couleur, étiquette)</td><td><em>Strictly keep the product identical to the reference image: same shape, same color, same size, same label. Do not redesign it.</em> Et vérifie que la référence est bien importée.</td></tr>
+    <tr><td>Le produit est trop grand ou trop petit dans la main</td><td><em>The product is about [X] cm long, it fits in the palm / covers the forearm.</em> Donne une mesure réelle.</td></tr>
+    <tr><td>Mains étranges, doigts en trop</td><td><em>Hands partially visible, relaxed natural grip, five fingers, nothing overlapping the product.</em> Ou cadre pour couper les mains.</td></tr>
+    <tr><td>Peau plastique, visage de mannequin</td><td><em>Real unretouched skin with visible pores and small imperfections, ordinary person, not a model.</em></td></tr>
+    <tr><td>Texte ou logo inventé</td><td><em>No text, no letters, no logo anywhere in the image, blank surfaces.</em> Si ça persiste, change de décor (moins de murs, d'emballages).</td></tr>
+    <tr><td>Trop « pub », trop parfait</td><td><em>more candid iPhone 15 photography, ordinary home light, believable imperfections, less polished staging.</em></td></tr>
+    <tr><td>Lumière incohérente avec les autres images</td><td>Fixe-la dans tous tes prompts : <em>soft window light from the left, late morning</em>. Même phrase partout.</td></tr>
+    <tr><td>Produit coupé au bord d'une bannière</td><td><em>Leave generous empty space around the product, product fully inside the frame, placed in the right third.</em></td></tr>
+    <tr><td>Reflet ou ombre impossible</td><td><em>Single light source, physically consistent shadows, soft contact shadow under the product.</em></td></tr>
+  </table>
+
+  <div class="claude"><b>Demande à Claude</b>Colle l'image ratée et le prompt utilisé : « Voici mon prompt et l'image obtenue. Le problème : [décris]. Réécris le prompt pour corriger ça sans changer le reste. » Il reformule, tu relances.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as corrigé une image ratée en ajoutant la bonne phrase, et la deuxième génération passe les 7 points.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">09</span>Le méta-prompt : Claude écrit tes prompts à partir de ta liste de médias</h2>
+  <p class="lead">Plutôt que d'adapter 25 fiches à la main, donne à Claude la liste des médias de ton thème et ton produit. Il te rend un prompt propre par image, dans l'ordre.</p>
+
+  <p>À coller dans Claude (claude.ai). Remplis les crochets, puis colle ta liste (celle du chapitre 03, ou celle que Mady t'a envoyée avec ta boutique) :</p>
+  <pre class="prompt">Tu es directeur artistique e-commerce. Ma marque : [nom]. Mon produit : [description précise : ce que c'est, matière, couleur, taille, ce qu'il fait]. Ma cible : [qui achète, âge, besoin]. Ton de marque : [ex. clean et premium / naturel et chaleureux / sportif]. Mes deux couleurs : [hex base] et [hex accent]. Ma boutique est en [français / anglais].
+
+J'ai une image de référence du produit que je mets en référence dans GPT Image 2 (Higgsfield ou Studio IA) : le produit doit rester strictement identique sur chaque image (forme, couleurs, matière, étiquette), interdiction de le redessiner.
+
+Écris-moi UN prompt par image de la liste ci-dessous, en anglais, prêt à coller. Chaque prompt :
+- commence par « Use the attached product photo as exact reference, keep the [produit] identical » ;
+- photo-réaliste, style photo smartphone (iPhone 15) ou appareil photo selon la section ; personne crédible et ordinaire si besoin (pas de visage de célébrité, pas de mannequin) ; peau réelle non retouchée ;
+- cadrage adapté au ratio indiqué, sujet loin des bords pour les bannières ;
+- lumière naturelle de fenêtre, la même pour toutes les images (fixe-la une fois) ;
+- fond et accessoires cohérents avec la marque et ses deux couleurs, sans les forcer dans chaque image ;
+- aucun texte, aucun logo, aucun badge dans l'image ;
+- se termine par une ligne « NEGATIVE PROMPT: » avec ce qu'il faut éviter (text, logo, watermark, CGI, plastic skin, extra fingers, warped product, et ce qui est spécifique à la scène).
+
+Présente le résultat en liste : numéro, section du thème, ratio et taille en pixels, puis le prompt dans un bloc à copier. Pour les photos avis clients, varie les personnes (âge, sexe, lieu) et les gestes. Pour les avant / après, même personne, même cadrage, même lumière, seule la différence promise change, de façon subtile et crédible. Pour le packaging, boîte vierge sans texte.
+
+Liste des images :
+[colle ici ta liste : ex. « 1 × 16:9 · Bannière d'accueil », « 1 × 9:16 · Bannière mobile », « 3 × 4:3 · Sections bénéfices », « 2 × 1:1 · Avant / après », « 4 × 3:4 · Avis clients », « 6 × 1:1 · Fiche produit : seul, porté, détail, unboxing, packaging, cadeau »]</pre>
+
+  <div class="note ok"><b>Ensuite</b>Tu copies chaque prompt dans GPT Image 2, avec le ratio indiqué et ta référence importée. Tu génères 2 à 4 variantes, tu gardes la meilleure, tu passes les 7 points de contrôle, tu exportes, tu nommes. Image suivante.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Claude t'a rendu ta liste complète de prompts, un par image du thème, et tu l'as enregistrée dans un document.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">10</span>Nommer, classer, et placer dans Shopify</h2>
+  <p class="lead">Un dossier propre te fait gagner une heure à chaque mise à jour, et c'est ce que Mady attend pour valider vite.</p>
+
+  <h3>Le classement</h3>
+  <p>Un dossier <code>MEDIAS-[MARQUE]</code> avec un sous-dossier par ratio : <code>9x16</code>, <code>16x9</code>, <code>4x3</code>, <code>3x4</code>, <code>1x1</code>, plus <code>packaging</code> et <code>refs</code> (tes images de référence). Les images refusées vont dans <code>_rejets</code> ou à la corbeille, pas au milieu.</p>
+
+  <h3>Le nommage</h3>
+  <p>Format : <code>[marque]-[type]-[ratio]-[numéro].jpg</code>, en minuscules, sans accent ni espace.</p>
+  <ul>
+    <li><code>seryva-seul-1x1-01.jpg</code></li>
+    <li><code>seryva-porte-3x4-02.jpg</code></li>
+    <li><code>seryva-banniere-16x9-01.jpg</code> et <code>seryva-banniere-mobile-9x16-01.jpg</code></li>
+    <li><code>seryva-avant-1x1-01.jpg</code> / <code>seryva-apres-1x1-01.jpg</code></li>
+    <li><code>seryva-avis-3x4-01.jpg</code> à <code>-06.jpg</code></li>
+  </ul>
+
+  <h3>Poids et compression</h3>
+  <p>JPG pour les photos (PNG seulement si fond transparent). 1600 px minimum sur le grand côté, 2000 px pour le 16:9. Compresse chaque fichier sous 300 Ko avant l'envoi dans Shopify (outil gratuit : squoosh.app, qualité 80). Une page lente perd des ventes ; Shopify recompresse mais pas assez.</p>
+
+  <h3>Placer les images dans Shopify, pas à pas</h3>
+  <div class="step"><div class="n">1</div><div class="body">
+    <h4>Les sections du thème</h4>
+    <p>Admin → Boutique en ligne → Thèmes → ton thème → <strong>Personnaliser</strong>. À gauche, clique sur la section (ex. « Bannière d'accueil »). Dans le panneau de droite, clique sur l'image actuelle → « Modifier » ou « Sélectionner une image » → « Téléverser » → choisis ton fichier. Pour la bannière, cherche le champ « Image mobile » et mets le 9:16. Enregistre en haut à droite.</p>
+  </div></div>
+  <div class="step"><div class="n">2</div><div class="body">
+    <h4>La fiche produit</h4>
+    <p>Admin → Produits → ton produit → bloc <strong>Médias</strong> → « Ajouter » → téléverse tes 5 à 8 images 1:1. Glisse-les pour l'ordre : produit seul en premier (c'est la miniature partout), puis porté, détail, avant / après, avis photo, packaging. Mets un texte alternatif (« Collier serpent doré porté ») sur chacune : accessibilité et référencement.</p>
+  </div></div>
+  <div class="step"><div class="n">3</div><div class="body">
+    <h4>Les avis et la grille</h4>
+    <p>Dans Personnaliser, section « Avis clients » → chaque avis est un bloc → clique dessus → champ image → téléverse la photo 3:4 correspondante. Même chose pour la grille de bénéfices et la section avant / après.</p>
+  </div></div>
+  <div class="step"><div class="n">4</div><div class="body">
+    <h4>Vérifie sur mobile et sur ordinateur</h4>
+    <p>En haut de Personnaliser, bascule entre l'icône ordinateur et l'icône téléphone. Chaque image doit montrer le produit entier, sans recadrage bizarre. Si une bannière coupe le produit sur mobile, c'est qu'il manque l'image mobile 9:16.</p>
+  </div></div>
+
+  <div class="claude"><b>Demande à Claude</b>Avec l'extension Claude pour Chrome, sur la page Personnaliser : « Remplace l'image de la section Bannière d'accueil par le fichier seryva-banniere-16x9-01.jpg et l'image mobile par seryva-banniere-mobile-9x16-01.jpg, puis enregistre. » Il clique pour toi. Vérifie après.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Toutes tes images sont nommées, classées par ratio, compressées sous 300 Ko, et placées dans les bonnes sections et dans la fiche produit, vérifiées sur mobile.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">11</span>Checklist de validation avant envoi à Mady</h2>
+  <p class="lead">Envoie les 10 images de la mission (chapitre 01) seulement quand tout est coché. Mady regarde la qualité et la cohérence, pas la quantité.</p>
+
+  <h3>Chaque image</h3>
+  <ul class="check">
+    <li>Produit identique à la référence : forme, couleur, taille, étiquette (comparé côte à côte).</li>
+    <li>7 points de contrôle passés (produit, mains, lumière, texte, arrière-plan, peau et matières, cohérence).</li>
+    <li>Aucun texte, aucun logo, aucun badge généré.</li>
+    <li>Bon ratio, bonne taille (1600 px mini), sujet loin des bords pour les bannières.</li>
+    <li>Fichier nommé selon le format, compressé sous 300 Ko.</li>
+  </ul>
+
+  <h3>L'ensemble</h3>
+  <ul class="check">
+    <li>2 × 9:16, 2 × 16:9, 2 × 4:3, 2 × 3:4, 2 idées de packaging : 10 fichiers, pas 9, pas 14.</li>
+    <li>Au moins 5 types différents parmi les 7 (seul, porté, détail, lifestyle, packaging, unboxing, cadeau).</li>
+    <li>Même lumière et même ambiance sur toutes : on dirait un seul shooting.</li>
+    <li>Les deux couleurs de marque reviennent dans l'ensemble, sans être forcées dans chaque image.</li>
+    <li>Pas deux images quasi identiques.</li>
+  </ul>
+
+  <h3>L'envoi</h3>
+  <ul class="check">
+    <li>Un dossier zippé ou un lien de partage (Drive) avec les 10 fichiers nommés.</li>
+    <li>Un message de 3 lignes : produit, les 2 couleurs, et la seule image sur laquelle tu hésites.</li>
+    <li>Étape « Demande ta boutique à Mady, puis vérifie et complète » : avancée dans Mes étapes.</li>
+  </ul>
+
+  <div class="note info"><b>Après validation</b>Tu produis le reste de la bibliothèque sur le même standard (chapitre 09, le méta-prompt), tu places tout dans Shopify (chapitre 10), puis tu passes à la page Créatives et au guide 07 : les images et vidéos de PUB, qui sont une autre famille (post-it, prix, UGC, Seedance 2.5).</div>
+
+  <div class="done"><b>✅ Fait quand</b>Mady a validé tes 10 images, ou t'a demandé des corrections que tu as refaites dans la journée.</div>
+</section>
+
+</body>
+</html>

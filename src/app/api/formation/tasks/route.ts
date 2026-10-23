@@ -4,6 +4,7 @@ import { readSession, requireAdmin } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { ensureCourseSteps, newTask, stepItems, type StepItem } from "@/lib/formation-steps";
 import type { ShopRequest } from "@/lib/types";
+import { lessonProgress } from "@/lib/formation-education";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ export interface StudentFollowUpPayload {
   coachNotes: string;
   modulesDone: number;
   modulesTotal: number;
+  lessonsDone: number;
+  lessonsTotal: number;
   shopRequest: ShopRequest | null;
 }
 
@@ -34,6 +37,8 @@ function payload(studentId: string): StudentFollowUpPayload {
     coachNotes: s.coachNotes ?? "",
     modulesDone: published.filter((m) => done.has(m.id)).length,
     modulesTotal: published.length,
+    lessonsDone: lessonProgress(s.completedLessons).done,
+    lessonsTotal: lessonProgress(s.completedLessons).total,
     shopRequest: s.shopRequest ?? null,
   };
 }

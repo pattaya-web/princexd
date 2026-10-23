@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Scale X · Meta Business, compte publicitaire et Pixel</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #141a1f; font-size: 11pt; line-height: 1.5; }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 0; }
+  p { margin: 0 0 8pt; }
+  a { color: #0b63c4; }
+  .kicker { font-family: "Segoe UI", Arial, sans-serif; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #0b63c4; font-weight: 700; margin: 0 0 6pt; }
+  .cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .brand { font-weight: 800; font-size: 13pt; letter-spacing: 0.04em; margin-bottom: 40pt; }
+  .cover .brand span { color: #0b63c4; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 0 0 14pt; }
+  .cover .sub { font-size: 14pt; color: #4a5560; font-family: Georgia, serif; margin-bottom: 28pt; }
+  .cover .meta { font-size: 10pt; color: #4a5560; margin-top: 24pt; }
+  .cover ul { margin: 0; padding-left: 18pt; }
+  .cover li { margin: 3pt 0; }
+  .cover .foot { margin-top: auto; font-size: 9pt; color: #7a858f; border-top: 1px solid #e3e7ea; padding-top: 10pt; }
+  .chapter { page-break-before: always; }
+  .chapter.first { page-break-before: auto; }
+  h2 { font-size: 22pt; margin: 0 0 6pt; line-height: 1.15; }
+  h2 .num { display: inline-block; color: #0b63c4; margin-right: 8pt; font-size: 16pt; vertical-align: 6pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; }
+  .lead { font-size: 12pt; color: #4a5560; margin: 0 0 14pt; }
+  h3 { font-size: 15pt; margin: 18pt 0 6pt; }
+  h4 { font-size: 12pt; margin: 0 0 3pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  strong { font-weight: 700; }
+  .note { border-left: 3px solid #0b63c4; background: #eef4fb; padding: 8pt 11pt; margin: 10pt 0; border-radius: 3px; page-break-inside: avoid; }
+  .note b { display: block; color: #0b63c4; margin-bottom: 2pt; }
+  .note.ok { border-color: #178a4c; background: #ecf7f0; } .note.ok b { color: #178a4c; }
+  .note.warn { border-color: #d98a0e; background: #fff6e8; } .note.warn b { color: #b86f00; }
+  .note.danger { border-color: #c9302c; background: #fdeeee; } .note.danger b { color: #c9302c; }
+  .claude { border: 1px solid #c9c3f5; background: #f4f2ff; padding: 8pt 11pt; margin: 10pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .claude b { display: block; color: #5b5ce6; margin-bottom: 2pt; }
+  .done { border: 1px solid #b7e0c5; background: #ecf7f0; padding: 8pt 11pt; margin: 12pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .done b { display: block; color: #178a4c; margin-bottom: 2pt; }
+  .step { display: flex; gap: 10pt; margin: 10pt 0; page-break-inside: avoid; }
+  .step .n { flex: 0 0 24pt; height: 24pt; border-radius: 5px; background: #0b63c4; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 11pt; }
+  .step .body { flex: 1; min-width: 0; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 9.5pt; line-height: 1.45; margin: 6pt 0 10pt; padding: 8pt 10pt; border-radius: 4px; page-break-inside: avoid; }
+  pre.cmd { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; border: 1px solid #e1e5e9; }
+  pre.prompt { font-family: "Segoe UI", Arial, sans-serif; background: #fbf7ec; border: 1px solid #ecdfbd; font-size: 10pt; }
+  pre.prompt::before { content: "PROMPT À COPIER"; display: block; font-size: 7.5pt; letter-spacing: 0.16em; color: #9a7b2c; font-weight: 700; margin-bottom: 4pt; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; padding: 0 3pt; border-radius: 3px; font-size: 9.5pt; }
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { padding-left: 20pt; position: relative; margin: 4pt 0; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; top: -1pt; font-size: 12pt; color: #0b63c4; }
+  table.t { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+  table.t th, table.t td { border: 1px solid #dfe3e7; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  table.t th { background: #f3f5f7; font-weight: 700; }
+  .cols { display: flex; gap: 14pt; } .cols > div { flex: 1; min-width: 0; }
+  hr { border: 0; border-top: 1px solid #e3e7ea; margin: 14pt 0; }
+  .muted { color: #6b7680; }
+  .small { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="brand">SCALE <span>X</span> · EDUCATION</div>
+  <p class="kicker">Guide 08 · Meta</p>
+  <h1>Meta Business, compte publicitaire et Pixel</h1>
+  <p class="sub">Tout ce qui doit exister côté Meta avant ta première pub : le portefeuille Business, la page, le compte publicitaire vérifié, le Pixel installé dans Shopify et les événements qui remontent en Navigateur et en Serveur.</p>
+  <p class="kicker">À la fin de ce guide, tu sauras</p>
+  <ul>
+    <li>Créer un portefeuille Meta Business propre, une page Facebook reliée à Instagram et un compte publicitaire vérifié, en euros.</li>
+    <li>Installer le Pixel et la Conversions API via l'application Facebook &amp; Instagram de Shopify, avec le partage de données en Maximal.</li>
+    <li>Vérifier que les 5 événements remontent, donner l'accès partenaire à Mady et dépanner les cas classiques.</li>
+  </ul>
+  <p class="meta">Temps de lecture : 35 min · Temps de mise en pratique : 2 h, plus 24 à 72 h d'attente pour les vérifications Meta</p>
+  <div class="foot">Scale X · Accompagnement e-commerce + IA · Mady · Version octobre 2026. Bloqué ? Demande d'abord à Claude. Mady, c'est pour les urgences.</div>
+</header>
+
+<section class="chapter first">
+  <h2><span class="num">01</span>Avant de commencer : ce qu'on construit</h2>
+  <p class="lead">Côté Meta, il y a cinq objets qui doivent exister et être reliés entre eux. Si un seul manque, ta pub ne part pas, ou elle part sans rien mesurer.</p>
+
+  <table class="t">
+    <tr><th>Objet</th><th>À quoi ça sert</th><th>Où</th></tr>
+    <tr><td><strong>Portefeuille Meta Business</strong></td><td>Le « coffre » qui contient tout le reste. C'est lui que tu partages avec Mady.</td><td>business.facebook.com</td></tr>
+    <tr><td><strong>Page Facebook</strong></td><td>L'identité de ta marque. Une pub est toujours publiée « au nom de » une page.</td><td>Dans le portefeuille</td></tr>
+    <tr><td><strong>Compte Instagram</strong></td><td>Relié à la page, pour que tes pubs sortent aussi sur Instagram avec ton nom de marque.</td><td>Dans le portefeuille</td></tr>
+    <tr><td><strong>Compte publicitaire</strong></td><td>Là où on dépense. Devise, fuseau, carte, vérification.</td><td>Dans le portefeuille</td></tr>
+    <tr><td><strong>Pixel (jeu de données)</strong></td><td>Ce qui mesure : vue de page, ajout au panier, achat. Sans lui, Meta optimise à l'aveugle.</td><td>Gestionnaire d'événements + app Shopify</td></tr>
+  </table>
+
+  <div class="note warn">
+    <b>Pourquoi un portefeuille Business et pas ton profil perso</b>
+    Si tu lances des pubs depuis ton profil personnel, tu ne peux pas donner accès à Mady proprement, tu n'as pas la Conversions API, et une restriction bloque tout ton compte perso. Le portefeuille Business, c'est 10 minutes de plus aujourd'hui et des semaines de problèmes en moins.
+  </div>
+
+  <h3>Ce qu'il te faut sous la main</h3>
+  <ul class="check">
+    <li>Un compte Facebook personnel actif depuis plus de quelques semaines (un compte créé hier se fait restreindre).</li>
+    <li>Ta boutique Shopify en ligne, sans mot de passe, avec ton domaine.</li>
+    <li>Une carte bancaire (ou un compte PayPal) au nom de la personne ou de l'entreprise.</li>
+    <li>Une pièce d'identité valide. Pour une société : SIRET et un justificatif (Kbis, facture au nom de l'entreprise).</li>
+    <li>Un compte Instagram de marque (créé avec l'e-mail de la marque, nom = nom de la boutique).</li>
+  </ul>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    Installe l'extension Claude pour Chrome (Démarrage, section 07). Sur chaque page Meta de ce guide, ouvre le panneau Claude et dis-lui : « Je suis sur business.facebook.com, je veux créer mon portefeuille Business pour ma boutique [NOM]. Guide-moi clic par clic et fais-le pour moi quand tu peux. » Il voit ton écran, il sait où cliquer même quand l'interface a changé.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as les 5 éléments de la checklist sous la main et tu comprends ce que sont les 5 objets du tableau.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">02</span>Le portefeuille Meta Business, la page, Instagram</h2>
+  <p class="lead">Un portefeuille, une page, un compte Instagram reliés. 20 minutes.</p>
+
+  <h3>Créer le portefeuille Business</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Va sur business.facebook.com</h4><p>Connecté avec ton compte Facebook personnel. Clique « Créer un compte » (ou « Créer un portefeuille Business »). Nom : le nom de ta marque. Ton nom. Ton e-mail professionnel (celui de la marque, pas Gmail perso si tu peux).</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Confirme l'e-mail</h4><p>Meta envoie un lien. Clique-le. Sans confirmation, certaines fonctions restent grisées.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Renseigne l'entreprise</h4><p>Paramètres de l'entreprise → Infos sur l'entreprise : adresse, téléphone, site web (ton domaine). Statut auto-entrepreneur : mets ton nom comme raison sociale et ton SIRET.</p></div></div>
+
+  <h3>Créer la page Facebook</h3>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Paramètres de l'entreprise → Comptes → Pages → Ajouter → Créer une page</h4><p>Nom = nom de la marque. Catégorie : « Boutique en ligne » ou « Commerce de détail ». Si tu as déjà une page, « Ajouter une page » et revendique-la.</p></div></div>
+  <div class="step"><div class="n">5</div><div class="body"><h4>Habille la page</h4><p>Photo de profil : ton logo (carré, fond uni). Couverture : ton produit en situation (image GPT Image 2 16:9). Description : une phrase, ta promesse. Bouton d'action : « Acheter » vers ta boutique. Publie 3 posts (produit, avis, bénéfice) pour que la page ne soit pas vide quand quelqu'un clique dessus depuis ta pub.</p></div></div>
+
+  <h3>Relier Instagram</h3>
+  <div class="step"><div class="n">6</div><div class="body"><h4>Crée le compte Instagram de marque</h4><p>Sur ton téléphone, avec l'e-mail de la marque. Passe-le en compte professionnel (Paramètres → Type de compte). Même logo, même description, 3 à 6 posts.</p></div></div>
+  <div class="step"><div class="n">7</div><div class="body"><h4>Paramètres de l'entreprise → Comptes → Comptes Instagram → Ajouter</h4><p>Connecte-toi avec le compte de marque. Puis attribue-le à ton compte publicitaire (chapitre 03) quand il existera.</p></div></div>
+
+  <div class="note">
+    <b>Une marque = une page = un Instagram</b>
+    Ne mélange pas ton compte perso. Si plus tard tu testes un deuxième produit sous une autre marque, tu crées une autre page dans le même portefeuille. Le portefeuille, lui, reste unique.
+  </div>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Écris-moi la description de ma page Facebook et de mon Instagram (150 caractères max), et 3 premiers posts pour la marque [NOM] qui vend [PRODUIT] à [CIBLE]. Ton : [ton]. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Dans Paramètres de l'entreprise → Comptes, tu vois ta page ET ton compte Instagram, tous deux au nom de la marque, et la page a un logo, une couverture et 3 posts.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">03</span>Le compte publicitaire : devise, carte, vérification</h2>
+  <p class="lead">C'est l'objet le plus sensible. Un compte créé proprement passe la vérification en 24 h. Un compte bâclé se fait restreindre avant la première pub.</p>
+
+  <h3>Créer le compte publicitaire</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Paramètres de l'entreprise → Comptes → Comptes publicitaires → Ajouter → Créer un compte publicitaire</h4><p>Nom : « [Marque] – Ads ». Fuseau horaire : <strong>Europe/Paris</strong>. Devise : <strong>EUR</strong>. Ces deux réglages sont définitifs : si tu te trompes, il faut recréer un compte.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Rattache-le à l'entreprise</h4><p>« Ce compte publicitaire sera utilisé pour : mon entreprise ». Donne-toi l'accès complet (admin).</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Attribue la page et l'Instagram</h4><p>Comptes publicitaires → ton compte → Ressources associées : ta page, ton Instagram, ton Pixel (plus tard).</p></div></div>
+
+  <h3>Ajouter le moyen de paiement</h3>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Facturation et paiements → Ajouter un moyen de paiement</h4><p>Carte bancaire au nom du titulaire du compte, ou PayPal. Pays : France. Si tu as une société, mets les infos de facturation de la société (nom, adresse, numéro de TVA intracommunautaire si tu en as un : ça évite la TVA sur la facture Meta).</p></div></div>
+  <div class="step"><div class="n">5</div><div class="body"><h4>Le plafond de dépense</h4><p>Un compte neuf a souvent un plafond quotidien bas (25 à 50 €). Il monte seul avec l'historique de paiements réussis. Ne demande pas d'augmentation le premier jour : dépense 3 à 5 jours proprement, paie tes factures, et le plafond monte.</p></div></div>
+
+  <h3>La vérification</h3>
+  <p>Meta peut demander deux choses, à des moments différents :</p>
+  <ul>
+    <li><strong>Vérification d'identité</strong> (personne) : pièce d'identité en photo. Centre de sécurité → Vérification. 24 à 48 h.</li>
+    <li><strong>Vérification de l'entreprise</strong> (facultative au début, obligatoire pour certains plafonds et pour la boutique Instagram) : Kbis ou justificatif + numéro de téléphone professionnel. 2 à 5 jours.</li>
+  </ul>
+  <p>Fais la vérification d'identité tout de suite, avant la première pub. Un compte vérifié se fait beaucoup moins restreindre.</p>
+
+  <h3>« Compte restreint » : quoi faire</h3>
+  <div class="note danger">
+    <b>Les trois causes qui reviennent</b>
+    1) Compte Facebook perso trop récent ou sans activité. 2) Pub avec promesse médicale, attribut personnel ou avant / après (guide 07, chapitre 09). 3) Pic de dépense ou carte refusée. Dans tous les cas, tu ne recrées PAS un autre compte dans la foulée : Meta le lie au premier et restreint les deux.
+  </div>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Lis le motif</h4><p>Qualité du compte (business.facebook.com/accountquality) : le motif est écrit. Pub refusée ? Restriction de dépense ? Vérification demandée ?</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Fais ce qui est demandé</h4><p>Pièce d'identité, confirmation de téléphone, changement de carte. Calmement, une fois.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Fais appel de la décision</h4><p>Bouton « Demander une vérification » / « Faire appel ». Texte court, factuel : « Boutique e-commerce [NOM], produit [PRODUIT], site [URL]. Compte créé le [date], aucune infraction à ma connaissance. Merci de réexaminer. » Pas de pavé, pas d'énervement.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Attends 24 à 72 h</h4><p>Sans relancer dix fois. Pendant ce temps : créatives, page produit, organique.</p></div></div>
+
+  <h3>Donner l'accès partenaire à Mady</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Paramètres de l'entreprise → Utilisateurs → Partenaires → Ajouter → Donner à un partenaire l'accès à vos ressources</h4><p>Mady te donne l'identifiant de son portefeuille Business (un numéro). Colle-le.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Choisis les ressources</h4><p>Page : accès complet. Compte publicitaire : gestion du compte publicitaire. Pixel (jeu de données) : gestion complète. Instagram : gestion complète.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Préviens Mady</h4><p>Sur WhatsApp : « Accès partenaire donné sur page + compte pub + pixel ». Il vérifie de son côté. Tu restes propriétaire de tout : un accès partenaire se retire en un clic.</p></div></div>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Mon compte publicitaire est restreint, voici la capture de la page Qualité du compte. Explique-moi le motif, ce que je dois fournir, et écris-moi le texte d'appel en 3 phrases. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Le compte publicitaire est en EUR / Europe-Paris, la carte est ajoutée et acceptée, la vérification d'identité est validée, la page et l'Instagram lui sont attribués, et Mady a l'accès partenaire.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">04</span>Créer le Pixel (jeu de données)</h2>
+  <p class="lead">Le Pixel, c'est le compteur. Sans lui, Meta ne sait pas qui achète et tes pubs n'apprennent rien. On le crée ici, on l'installe au chapitre 05 sans toucher une ligne de code.</p>
+
+  <h3>Vocabulaire</h3>
+  <p>Meta appelle maintenant le Pixel un <strong>« jeu de données »</strong> (dataset). C'est la même chose : un identifiant à 15-16 chiffres qui reçoit les événements de ta boutique. Un jeu de données contient deux canaux : le <strong>Pixel</strong> (navigateur du visiteur) et la <strong>Conversions API</strong> (serveur Shopify → serveur Meta). Il te faut les deux : iOS et les bloqueurs de pub cassent le premier, le second passe toujours.</p>
+
+  <div class="step"><div class="n">1</div><div class="body"><h4>Gestionnaire d'événements</h4><p>business.facebook.com/events_manager. Choisis ton portefeuille Business en haut à gauche.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Connecter des sources de données → Web → Connecter</h4><p>Nom du jeu de données : « [Marque] – Pixel ». Crée. Si Meta te propose de choisir un partenaire ou de coller du code : <strong>ferme</strong>. On passe par Shopify au chapitre suivant, pas par le code.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Note l'identifiant</h4><p>Paramètres du jeu de données → ID. Garde-le, tu le reconnaîtras dans Shopify.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Attribue-le au compte publicitaire</h4><p>Paramètres de l'entreprise → Sources de données → Jeux de données → ton Pixel → Ressources associées → ajouter ton compte publicitaire. Sinon tu ne pourras pas choisir ce Pixel dans ta campagne.</p></div></div>
+
+  <div class="note warn">
+    <b>Un seul Pixel par boutique</b>
+    Deux Pixels sur la même boutique = chaque achat compté deux fois = chiffres faux = décisions fausses. Si tu as déjà un vieux Pixel d'un essai passé, supprime-le de Shopify (chapitre 07) avant d'installer le nouveau.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Un jeu de données au nom de ta marque existe dans le Gestionnaire d'événements, tu as noté son ID, et il est attribué à ton compte publicitaire.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">05</span>Installer le Pixel et la Conversions API dans Shopify</h2>
+  <p class="lead">Zéro code. L'application Facebook &amp; Instagram de Meta installe le Pixel navigateur et la Conversions API serveur en même temps, à condition de choisir « Maximal ».</p>
+
+  <div class="step"><div class="n">1</div><div class="body"><h4>Admin Shopify → Applications → App Store → « Facebook &amp; Instagram » (éditeur : Meta) → Installer</h4><p>C'est l'application officielle. Pas une application tierce « Pixel pro » : tu n'en as pas besoin.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Connecte ton compte Facebook</h4><p>Celui qui est admin du portefeuille Business. Autorise toutes les permissions demandées (gestion des pages, des pubs, du catalogue).</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Choisis dans l'ordre</h4>
+    <ul>
+      <li><strong>Portefeuille Business</strong> : celui de ta marque.</li>
+      <li><strong>Page Facebook</strong> : ta page de marque.</li>
+      <li><strong>Compte Instagram</strong> : ton compte de marque (facultatif ici, mais fais-le).</li>
+      <li><strong>Compte publicitaire</strong> : « [Marque] – Ads ».</li>
+      <li><strong>Jeu de données / Pixel</strong> : « [Marque] – Pixel », celui créé au chapitre 04. Vérifie l'ID.</li>
+    </ul></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Partage des données : <strong>Maximal</strong></h4><p>Trois niveaux : Standard (Pixel seul), Amélioré (Pixel + données client), Maximal (Pixel + Conversions API côté serveur). Choisis Maximal. C'est ça qui fait passer les achats même quand le navigateur bloque. Accepte les conditions.</p></div></div>
+  <div class="step"><div class="n">5</div><div class="body"><h4>Termine la configuration</h4><p>Boutique Facebook / Instagram : tu peux sauter pour l'instant (chapitre 08). Clique « Terminer ». L'application affiche « Partage de données : actif ».</p></div></div>
+
+  <div class="note">
+    <b>Et les paramètres de confidentialité Shopify ?</b>
+    Admin Shopify → Paramètres → Confidentialité des clients. Si tu vends en Europe, active la bannière cookies (gratuite, dans Shopify) : le Pixel navigateur ne se déclenche qu'après consentement, mais la Conversions API continue de remonter les achats. C'est précisément pour ça qu'on la veut.
+  </div>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Je suis dans l'application Facebook &amp; Instagram de Shopify. Vérifie avec moi que le Pixel sélectionné est bien l'ID [ID] et que le partage de données est en Maximal. Si ce n'est pas le cas, montre-moi où cliquer. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Dans l'application Facebook &amp; Instagram de Shopify, tu vois ton Pixel avec le bon ID et « Partage de données : Maximal, actif ».</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">06</span>Vérifier que les événements remontent</h2>
+  <p class="lead">Installer ne suffit pas. On vérifie, sinon tu lanceras 50 € par jour sur un compteur cassé.</p>
+
+  <h3>Les 5 événements qu'on veut voir</h3>
+  <table class="t">
+    <tr><th>Événement</th><th>Quand il se déclenche</th><th>À quoi il sert dans Meta</th></tr>
+    <tr><td><strong>PageView</strong></td><td>Chaque page ouverte</td><td>Vérifier que le Pixel est vivant</td></tr>
+    <tr><td><strong>ViewContent</strong></td><td>Page produit ouverte</td><td>Reciblage « a vu le produit »</td></tr>
+    <tr><td><strong>AddToCart</strong></td><td>Clic « Ajouter au panier »</td><td>Reciblage panier, signal d'intérêt</td></tr>
+    <tr><td><strong>InitiateCheckout</strong></td><td>Page de paiement ouverte</td><td>Panier abandonné</td></tr>
+    <tr><td><strong>Purchase</strong></td><td>Commande payée, avec le montant</td><td><strong>L'optimisation de ta campagne.</strong> C'est sur lui que Meta apprend.</td></tr>
+  </table>
+
+  <h3>Le test, pas à pas</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Gestionnaire d'événements → ton Pixel → onglet « Tester les événements »</h4><p>Colle l'adresse de ta boutique dans « Tester les événements du navigateur » et clique « Ouvrir le site web ».</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Dans l'onglet qui s'ouvre, fais le parcours client</h4><p>Accueil → page produit → Ajouter au panier → Panier → Commander (jusqu'à la page de paiement, informations remplies).</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Reviens sur « Tester les événements »</h4><p>Tu dois voir apparaître, en vert : PageView, ViewContent, AddToCart, InitiateCheckout. Regarde la colonne <strong>source</strong> de chaque ligne : il doit y avoir <strong>« Navigateur » ET « Serveur »</strong> (deux lignes par événement, ou une ligne avec les deux icônes, selon l'interface).</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Fais une commande test pour voir Purchase</h4><p>Passerelle de test Shopify (Paramètres → Paiements → passerelle fictive « Bogus », carte « 1 »), ou une vraie commande que tu rembourses ensuite. Purchase doit apparaître avec le montant et la devise EUR.</p></div></div>
+
+  <div class="note ok">
+    <b>C'est bon quand</b>
+    Les 5 événements sont en vert avec Navigateur ET Serveur. Si tu ne vois que « Navigateur », le partage de données n'est pas en Maximal : retourne dans l'application Shopify. Si tu ne vois rien du tout : chapitre 07.
+  </div>
+
+  <h3>Déduplication : un achat = un seul Purchase</h3>
+  <p>Comme le Pixel et la Conversions API envoient tous les deux l'achat, Meta les fusionne grâce à un identifiant d'événement commun. L'application Shopify le gère pour toi. Pour vérifier : Gestionnaire d'événements → ton Pixel → Vue d'ensemble → « Événements dédupliqués » doit être proche de 100 % sur Purchase après quelques jours. S'il est à 0 %, tu as deux installations du Pixel (chapitre 07).</p>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Voici une capture de l'onglet Tester les événements. Dis-moi quels événements remontent, avec quelle source, et ce qui manque pour que ma campagne puisse optimiser sur Purchase. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>PageView, ViewContent, AddToCart, InitiateCheckout et Purchase apparaissent dans Tester les événements, chacun avec Navigateur ET Serveur, et Purchase porte le montant en EUR.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">07</span>Domaine, iOS et dépannage</h2>
+  <p class="lead">Trois réglages secondaires qui t'évitent des surprises, puis les pannes classiques et leur solution.</p>
+
+  <h3>Vérifier ton domaine</h3>
+  <p>Paramètres de l'entreprise → Sécurité de la marque → Domaines → Ajouter → ton domaine (sans www). Trois méthodes : la plus simple est l'<strong>enregistrement DNS TXT</strong>. Meta te donne une ligne ; tu la colles chez ton registrar (ou dans Shopify → Paramètres → Domaines → gérer le DNS si le domaine est chez Shopify). Attends 10 minutes à quelques heures, clique « Vérifier ». Pourquoi : sans domaine vérifié, certaines pubs avec lien sont limitées, et tu ne peux pas configurer les événements iOS.</p>
+
+  <h3>Événements agrégés (iOS 14+)</h3>
+  <p>Depuis iOS 14, Meta ne mesure que 8 événements par domaine pour les utilisateurs iPhone qui refusent le suivi. Tu dois dire lesquels, par ordre de priorité. Gestionnaire d'événements → ton Pixel → Mesure agrégée des événements → Configurer les événements web → ton domaine → ordre : <strong>1. Purchase (valeur), 2. InitiateCheckout, 3. AddToCart, 4. ViewContent, 5. PageView</strong>. Enregistre. C'est 2 minutes, et sans ça tes campagnes optimisées sur Purchase affichent des erreurs sur iOS.</p>
+
+  <h3>Dépannage</h3>
+  <table class="t">
+    <tr><th>Symptôme</th><th>Cause probable</th><th>Solution</th></tr>
+    <tr><td>Rien ne remonte dans Tester les événements</td><td>Boutique encore protégée par mot de passe, ou bannière cookies non acceptée pendant le test, ou mauvais Pixel sélectionné dans l'app.</td><td>Retire le mot de passe (Boutique en ligne → Préférences). Accepte les cookies dans l'onglet de test. Vérifie l'ID du Pixel dans l'app Shopify.</td></tr>
+    <tr><td>Navigateur seulement, pas de Serveur</td><td>Partage de données en Standard ou Amélioré.</td><td>App Facebook &amp; Instagram → Paramètres → Partage de données → Maximal.</td></tr>
+    <tr><td>Purchase manquant, le reste OK</td><td>Commande test pas finalisée (page de remerciement non atteinte), ou paiement en attente.</td><td>Refais une commande jusqu'à la page « Merci ». Avec la passerelle fictive, le paiement est immédiat.</td></tr>
+    <tr><td>Double comptage (2 Purchase par commande)</td><td>Deux installations : l'app Meta + un ancien code Pixel dans le thème, ou une app tierce de Pixel.</td><td>Boutique en ligne → Thèmes → Modifier le code → cherche « fbq( » dans theme.liquid et supprime le bloc ; désinstalle les apps tierces de Pixel ; garde uniquement l'app Facebook &amp; Instagram.</td></tr>
+    <tr><td>Événements avec un drapeau rouge « paramètres manquants »</td><td>Devise ou valeur absente sur Purchase.</td><td>Vérifie la devise de la boutique (EUR) dans Paramètres → Général. Réinstalle l'app Meta si besoin.</td></tr>
+    <tr><td>« Pixel non disponible » dans la campagne</td><td>Pixel pas attribué au compte publicitaire.</td><td>Paramètres de l'entreprise → Sources de données → ton Pixel → Ressources associées → ajouter le compte pub.</td></tr>
+  </table>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Mon Pixel compte 2 Purchase par commande. Ouvre le code de mon thème Shopify (Boutique en ligne → Thèmes → Modifier le code), cherche toute trace de fbq ou de Facebook Pixel et dis-moi exactement quoi supprimer, sans toucher au reste. » (Avec Claude Code dans ton dossier de thème, il peut le faire directement : « Cherche fbq dans tout le thème et retire les blocs Pixel Facebook, montre-moi le diff avant d'enregistrer. »)
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Ton domaine est vérifié, les événements agrégés sont configurés avec Purchase en priorité 1, et aucun symptôme du tableau ne s'applique à ta boutique.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">08</span>Boutique Facebook / Instagram (facultatif) et checklist finale</h2>
+  <p class="lead">Le catalogue synchronisé, c'est un bonus : utile plus tard pour les pubs dynamiques et Instagram Shopping. Puis la checklist « prêt à lancer ».</p>
+
+  <h3>Le catalogue et la boutique Instagram</h3>
+  <p>L'application Facebook &amp; Instagram de Shopify peut synchroniser tes produits dans un catalogue Meta. Ça sert à : taguer tes produits dans tes posts Instagram, afficher une boutique sur ta page, et plus tard lancer des pubs catalogue (Advantage+ catalogue). Pour ta première campagne, tu n'en as pas besoin. Si tu veux l'activer : dans l'app → Boutique Facebook et Instagram → Configurer → paiement « sur ton site web » (pas le paiement Meta) → accepte. L'approbation de la boutique prend 1 à 3 jours et exige la vérification de l'entreprise (chapitre 03).</p>
+
+  <div class="note warn">
+    <b>Si Meta refuse la boutique</b>
+    Souvent : politiques de retour et de livraison absentes de ton site, ou domaine non vérifié. Génère les politiques dans Shopify (Démarrage, section 04), vérifie le domaine (chapitre 07), redemande. Et si ça traîne, ce n'est pas bloquant : tes pubs tournent sans boutique Instagram.
+  </div>
+
+  <h3>Checklist « prêt à lancer »</h3>
+  <ul class="check">
+    <li>Portefeuille Meta Business créé, e-mail confirmé, infos entreprise remplies.</li>
+    <li>Page Facebook de marque avec logo, couverture, bouton Acheter, 3 posts.</li>
+    <li>Compte Instagram de marque, professionnel, relié à la page et au portefeuille.</li>
+    <li>Compte publicitaire en EUR, fuseau Europe/Paris, carte acceptée, vérification d'identité validée.</li>
+    <li>Page, Instagram et Pixel attribués au compte publicitaire.</li>
+    <li>Accès partenaire donné à Mady (page, compte pub, Pixel, Instagram) et confirmé.</li>
+    <li>Un seul jeu de données / Pixel, créé dans le Gestionnaire d'événements, ID noté.</li>
+    <li>Application Facebook &amp; Instagram installée dans Shopify, bon Pixel, partage de données Maximal.</li>
+    <li>Les 5 événements vus dans Tester les événements, Navigateur ET Serveur, Purchase avec montant EUR.</li>
+    <li>Domaine vérifié, événements agrégés configurés (Purchase en 1).</li>
+    <li>Boutique sans mot de passe, bannière cookies active, commande test réussie jusqu'à la page Merci.</li>
+    <li>Étapes « Crée ton compte Meta Business » et « Installe le Pixel Meta » cochées dans Mes étapes.</li>
+  </ul>
+
+  <div class="note ok">
+    <b>Et ensuite</b>
+    Guide 09 : tu lances ta première campagne. Tout ce que tu viens de faire, c'est pour qu'au moment où tu cliques « Publier », Meta sache qui est ta marque, où dépenser et comment compter chaque achat.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Les 12 cases sont cochées. Tu passes au guide 09.</div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Scale X · Lancer ta première campagne Meta Ads</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #141a1f; font-size: 11pt; line-height: 1.5; }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 0; }
+  p { margin: 0 0 8pt; }
+  a { color: #0b63c4; }
+  .kicker { font-family: "Segoe UI", Arial, sans-serif; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #0b63c4; font-weight: 700; margin: 0 0 6pt; }
+  .cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .brand { font-weight: 800; font-size: 13pt; letter-spacing: 0.04em; margin-bottom: 40pt; }
+  .cover .brand span { color: #0b63c4; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 0 0 14pt; }
+  .cover .sub { font-size: 14pt; color: #4a5560; font-family: Georgia, serif; margin-bottom: 28pt; }
+  .cover .meta { font-size: 10pt; color: #4a5560; margin-top: 24pt; }
+  .cover ul { margin: 0; padding-left: 18pt; }
+  .cover li { margin: 3pt 0; }
+  .cover .foot { margin-top: auto; font-size: 9pt; color: #7a858f; border-top: 1px solid #e3e7ea; padding-top: 10pt; }
+  .chapter { page-break-before: always; }
+  .chapter.first { page-break-before: auto; }
+  h2 { font-size: 22pt; margin: 0 0 6pt; line-height: 1.15; }
+  h2 .num { display: inline-block; color: #0b63c4; margin-right: 8pt; font-size: 16pt; vertical-align: 6pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; }
+  .lead { font-size: 12pt; color: #4a5560; margin: 0 0 14pt; }
+  h3 { font-size: 15pt; margin: 18pt 0 6pt; }
+  h4 { font-size: 12pt; margin: 0 0 3pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  strong { font-weight: 700; }
+  .note { border-left: 3px solid #0b63c4; background: #eef4fb; padding: 8pt 11pt; margin: 10pt 0; border-radius: 3px; page-break-inside: avoid; }
+  .note b { display: block; color: #0b63c4; margin-bottom: 2pt; }
+  .note.ok { border-color: #178a4c; background: #ecf7f0; } .note.ok b { color: #178a4c; }
+  .note.warn { border-color: #d98a0e; background: #fff6e8; } .note.warn b { color: #b86f00; }
+  .note.danger { border-color: #c9302c; background: #fdeeee; } .note.danger b { color: #c9302c; }
+  .claude { border: 1px solid #c9c3f5; background: #f4f2ff; padding: 8pt 11pt; margin: 10pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .claude b { display: block; color: #5b5ce6; margin-bottom: 2pt; }
+  .done { border: 1px solid #b7e0c5; background: #ecf7f0; padding: 8pt 11pt; margin: 12pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .done b { display: block; color: #178a4c; margin-bottom: 2pt; }
+  .step { display: flex; gap: 10pt; margin: 10pt 0; page-break-inside: avoid; }
+  .step .n { flex: 0 0 24pt; height: 24pt; border-radius: 5px; background: #0b63c4; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 11pt; }
+  .step .body { flex: 1; min-width: 0; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 9.5pt; line-height: 1.45; margin: 6pt 0 10pt; padding: 8pt 10pt; border-radius: 4px; page-break-inside: avoid; }
+  pre.cmd { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; border: 1px solid #e1e5e9; }
+  pre.prompt { font-family: "Segoe UI", Arial, sans-serif; background: #fbf7ec; border: 1px solid #ecdfbd; font-size: 10pt; }
+  pre.prompt::before { content: "PROMPT À COPIER"; display: block; font-size: 7.5pt; letter-spacing: 0.16em; color: #9a7b2c; font-weight: 700; margin-bottom: 4pt; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; padding: 0 3pt; border-radius: 3px; font-size: 9.5pt; }
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { padding-left: 20pt; position: relative; margin: 4pt 0; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; top: -1pt; font-size: 12pt; color: #0b63c4; }
+  table.t { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+  table.t th, table.t td { border: 1px solid #dfe3e7; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  table.t th { background: #f3f5f7; font-weight: 700; }
+  .cols { display: flex; gap: 14pt; } .cols > div { flex: 1; min-width: 0; }
+  hr { border: 0; border-top: 1px solid #e3e7ea; margin: 14pt 0; }
+  .muted { color: #6b7680; }
+  .small { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="brand">SCALE <span>X</span> · EDUCATION</div>
+  <p class="kicker">Guide 09 · Lancement</p>
+  <h1>Lancer ta première campagne Meta Ads</h1>
+  <p class="sub">Une campagne, 50 € par jour, un ad set large, 5 à 8 créatives, 3 jours sans toucher. La structure de Mady, clic par clic, avec les textes de pub et les colonnes à lire.</p>
+  <p class="kicker">À la fin de ce guide, tu sauras</p>
+  <ul>
+    <li>Monter la campagne de test exactement comme Mady, du choix de l'objectif jusqu'à l'URL avec UTM.</li>
+    <li>Écrire les textes de pub de tes 3 angles, en français, avec Claude.</li>
+    <li>Lancer à minuit, ne rien toucher pendant 72 h, et savoir quoi regarder (et surtout quoi ne pas regarder).</li>
+  </ul>
+  <p class="meta">Temps de lecture : 35 min · Temps de mise en pratique : 1 h 30 de configuration, puis 3 jours de test</p>
+  <div class="foot">Scale X · Accompagnement e-commerce + IA · Mady · Version octobre 2026. Bloqué ? Demande d'abord à Claude. Mady, c'est pour les urgences.</div>
+</header>
+
+<section class="chapter first">
+  <h2><span class="num">01</span>La structure de Mady, et pourquoi elle est simple</h2>
+  <p class="lead">Une campagne de test, c'est une question posée à Meta : « est-ce que ce produit, avec ces créatives, se vend ? ». Plus la structure est simple, plus la réponse est lisible.</p>
+
+  <h3>La structure</h3>
+  <table class="t">
+    <tr><th>Niveau</th><th>Réglage</th><th>Pourquoi</th></tr>
+    <tr><td><strong>1 campagne</strong></td><td>Objectif Ventes, budget au niveau de la campagne (Advantage / CBO), <strong>50 € par jour</strong></td><td>Meta répartit lui-même le budget vers les créatives qui marchent. 50 €, c'est assez pour avoir des achats en 3 jours sur un produit à 40-80 €, pas plus pour tester.</td></tr>
+    <tr><td><strong>1 ad set</strong></td><td>Large : pays, 18-65+, <strong>pas d'intérêts, pas d'âge précis</strong>, placements automatiques</td><td>Ta créative fait le ciblage. Meta trouve les acheteurs mieux que tes 15 intérêts. Un seul ad set = pas de concurrence entre tes propres audiences.</td></tr>
+    <tr><td><strong>5 à 8 ads</strong></td><td>Tes créatives fabriquées avant (guide 07) : 3 statiques + 3 vidéos minimum</td><td>C'est la seule variable qu'on teste. Des angles différents, pas des variantes.</td></tr>
+    <tr><td><strong>3 jours</strong></td><td>Sans toucher. Aucune modification.</td><td>Chaque modification (budget, audience, créative) remet la phase d'apprentissage à zéro. Tu attends 72 h, tu lis, tu décides.</td></tr>
+  </table>
+
+  <div class="note">
+    <b>Pourquoi pas d'intérêts</b>
+    Il y a 5 ans, on empilait des intérêts (« yoga », « bien-être », « femmes 25-45 »). Aujourd'hui, l'algorithme avec un Pixel propre et une bonne créative trouve l'acheteur tout seul, et plus large = moins cher. Les intérêts, c'est toi qui limites Meta. Une seule exception : le pays.
+  </div>
+
+  <h3>Ce qu'on ne fait pas au lancement</h3>
+  <ul>
+    <li>Pas de reciblage (il n'y a personne à recibler).</li>
+    <li>Pas de campagne « trafic » ou « engagement » : on veut des achats, on optimise sur Purchase dès le premier euro.</li>
+    <li>Pas de test A/B dans l'outil de Meta : les 6 créatives dans un seul ad set, c'est déjà le test.</li>
+    <li>Pas de 3 produits en même temps. Un produit, une campagne, 3 jours.</li>
+  </ul>
+
+  <div class="done"><b>✅ Fait quand</b>Tu peux dessiner la structure sur un papier : 1 campagne CBO 50 €/jour → 1 ad set large → 6 ads, et tu sais pourquoi chaque choix.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">02</span>Prérequis : la checklist avant d'ouvrir le Gestionnaire</h2>
+  <p class="lead">Lancer sans ces 8 points, c'est brûler 150 € pour apprendre que ton Pixel ne comptait pas.</p>
+
+  <ul class="check">
+    <li><strong>Pixel vérifié</strong> : les 5 événements en Navigateur ET Serveur, Purchase avec montant EUR (guide 08, chapitre 06).</li>
+    <li><strong>Compte publicitaire</strong> : EUR, carte acceptée, vérification d'identité validée, pas de restriction dans Qualité du compte.</li>
+    <li><strong>Page et Instagram</strong> attribués au compte publicitaire, page habillée avec 3 posts.</li>
+    <li><strong>Page produit testée</strong> : commande complète depuis ton téléphone, en moins de 2 minutes, e-mail de confirmation reçu. Prix de la page = prix dans tes créatives.</li>
+    <li><strong>Boutique sans mot de passe</strong>, domaine en place, bannière cookies active, politiques générées (livraison, retours, confidentialité).</li>
+    <li><strong>6 créatives nommées</strong> dans CREATIVES/semaine-01/finales : 3 statiques 4:5, 3 vidéos 9:16 (guide 07, chapitre 09).</li>
+    <li><strong>Livraison et stock</strong> : tu sais comment tu expédies (fournisseur, délai), et le délai annoncé sur la page est le vrai.</li>
+    <li><strong>Budget disponible</strong> : 3 jours × 50 € = 150 € sur la carte, plus la marge pour les commandes à payer au fournisseur.</li>
+  </ul>
+
+  <div class="note warn">
+    <b>Le point que tout le monde saute</b>
+    La commande test sur téléphone. 80 % de ton trafic Meta sera sur mobile. Si le bouton « Ajouter au panier » est sous un bandeau sur iPhone, tu paieras des clics pour rien et tu accuseras tes créatives.
+  </div>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Voici le lien de ma page produit. Avec l'extension Chrome, parcours-la comme un client sur mobile : ajoute au panier, va jusqu'au paiement, et dis-moi tout ce qui freine ou bloque l'achat. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Les 8 cases sont cochées. Pas 7. Si une manque, tu la règles avant de continuer.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">03</span>Configurer la campagne, clic par clic</h2>
+  <p class="lead">Gestionnaire de publicités → Créer. Trois niveaux : campagne, ensemble de publicités (ad set), publicités. Tu fais exactement ceci.</p>
+
+  <h3>Niveau 1 · La campagne</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Objectif : Ventes</h4><p>Pas « Trafic », pas « Notoriété ». Si Meta propose une « campagne Advantage+ Shopping » ou une configuration « manuelle », choisis la configuration <strong>manuelle</strong> pour avoir la main sur chaque réglage.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Nom de la campagne</h4><p><code>[PRODUIT] – TEST – S01</code>. Un nom lisible dans un mois.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Catégorie de publicité spéciale</h4><p>Aucune (sauf si tu vends un produit financier, immobilier, politique : ce n'est pas ton cas).</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Budget de campagne Advantage (CBO) : activé</h4><p>Budget quotidien : <strong>50 €</strong>. Stratégie d'enchère : « Volume le plus élevé » (par défaut). Pas de plafond de coût au lancement.</p></div></div>
+
+  <h3>Niveau 2 · L'ensemble de publicités (ad set)</h3>
+  <div class="step"><div class="n">5</div><div class="body"><h4>Nom</h4><p><code>Large – FR – 18+</code>.</p></div></div>
+  <div class="step"><div class="n">6</div><div class="body"><h4>Conversion</h4><p>Lieu de conversion : <strong>Site web</strong>. Jeu de données / Pixel : <strong>« [Marque] – Pixel »</strong>. Événement de conversion : <strong>Achat (Purchase)</strong>. Si Purchase est grisé ou marqué « inactif », ton Pixel n'a pas encore reçu d'achat : fais la commande test du guide 08 puis reviens.</p></div></div>
+  <div class="step"><div class="n">7</div><div class="body"><h4>Budget et calendrier</h4><p>Le budget est au niveau campagne, rien à mettre ici. Date de début : <strong>demain, 00:00</strong> (chapitre 05). Pas de date de fin.</p></div></div>
+  <div class="step"><div class="n">8</div><div class="body"><h4>Audience</h4>
+    <ul>
+      <li>Lieu : <strong>France</strong> (ou ton marché). Un seul pays au lancement.</li>
+      <li>Âge : <strong>18 à 65+</strong>. Même si ta cible a 35 ans. Meta trouvera.</li>
+      <li>Genre : <strong>Tous</strong>. Même pour un produit « féminin » : les hommes achètent des cadeaux, et Meta corrigera seul.</li>
+      <li>Ciblage détaillé / intérêts : <strong>vide</strong>. Si « Audience Advantage+ » est proposé, laisse-le activé, sans suggestion.</li>
+      <li>Langues : vide.</li>
+    </ul></div></div>
+  <div class="step"><div class="n">9</div><div class="body"><h4>Placements</h4><p><strong>Placements Advantage+</strong> (automatiques). Pas de « placements manuels ». Meta mettra tes 9:16 en Reels et Stories, tes 4:5 dans les feeds.</p></div></div>
+
+  <h3>Niveau 3 · Les publicités (ads)</h3>
+  <p>Une publicité par créative. Tu en crées une, puis tu la dupliques 5 fois et tu changes la créative et le texte.</p>
+  <div class="step"><div class="n">10</div><div class="body"><h4>Nom de la publicité</h4><p>Le nom du fichier : <code>UGC-angle1-hookA-9x16</code>. Tu retrouveras la créative dans tes colonnes sans l'ouvrir.</p></div></div>
+  <div class="step"><div class="n">11</div><div class="body"><h4>Identité</h4><p>Page Facebook : ta page. Compte Instagram : ton compte de marque (pas « utiliser la page Facebook »).</p></div></div>
+  <div class="step"><div class="n">12</div><div class="body"><h4>Configuration de la publicité</h4><p>Créer une publicité → Image ou vidéo unique. Importe le fichier. Pour une vidéo 9:16, Meta te proposera de recadrer pour le feed : laisse-le faire ou importe aussi une version 4:5 si tu l'as. Désactive les « améliorations Advantage+ créatives » qui ajoutent de la musique ou recadrent tes textes (garde seulement « ajustements standard »).</p></div></div>
+  <div class="step"><div class="n">13</div><div class="body"><h4>Texte principal, titre, description</h4><p>Texte principal : 3 lignes (chapitre 04). Titre : 5 mots, le bénéfice ou l'offre. Description : une ligne (livraison offerte, garantie). Tu peux mettre jusqu'à 5 textes principaux : Meta testera. Mets-en 2 ou 3 par pub, pas plus.</p></div></div>
+  <div class="step"><div class="n">14</div><div class="body"><h4>Appel à l'action et destination</h4><p>Bouton : <strong>Acheter</strong>. Site web : l'URL de ta <strong>page produit</strong> (pas l'accueil). Ajoute les paramètres UTM dans le champ « Paramètres d'URL » :</p>
+  <pre class="cmd">utm_source=facebook&amp;utm_medium=paid&amp;utm_campaign={{campaign.name}}&amp;utm_content={{ad.name}}</pre>
+  <p>Dans Shopify → Analyses → Rapports → Sessions par source, tu verras exactement quelle pub amène quelle commande, même quand le Pixel doute.</p></div></div>
+  <div class="step"><div class="n">15</div><div class="body"><h4>Suivi</h4><p>Événements du site web : ton Pixel coché. Rien d'autre.</p></div></div>
+  <div class="step"><div class="n">16</div><div class="body"><h4>Duplique</h4><p>Publier la première ad en brouillon, puis « Dupliquer » × 5. Sur chaque copie : nouveau nom, nouvelle créative, texte adapté à l'angle. Vérifie l'URL et le bouton à chaque fois.</p></div></div>
+
+  <div class="note warn">
+    <b>Les trois cases qui piègent</b>
+    1) « Utiliser la page Facebook comme identité Instagram » : non, choisis ton vrai compte Instagram. 2) « Améliorations Advantage+ » : elles peuvent ajouter de la musique sur ta voix off ou changer ton texte. Décoche. 3) « Catalogue » : ne lie pas de catalogue sur une pub image / vidéo unique.
+  </div>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Je suis dans le Gestionnaire de publicités, sur mon ad set. Vérifie avec moi : conversion = Achat sur le Pixel [ID], France, 18-65+, tous genres, aucun intérêt, placements Advantage+, début demain 00:00. Dis-moi ce qui n'est pas conforme. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Ta campagne est en brouillon avec 1 ad set et 6 ads, chaque ad a sa créative, son texte, le bouton Acheter, l'URL de la page produit avec UTM, et l'identité Instagram de marque.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">04</span>Les textes de pub</h2>
+  <p class="lead">Le texte principal, c'est ce qu'on lit au-dessus de la créative. 3 lignes. Il commence par le hook et finit par le lien. Voici 3 structures et le prompt pour que Claude en écrive 5 par angle.</p>
+
+  <h3>Les règles</h3>
+  <ul>
+    <li><strong>3 lignes visibles</strong> avant le « … voir plus ». Le hook est la première ligne, toujours.</li>
+    <li>Le même angle que la créative. Un texte « douleur » sur une statique « offre », ça casse la logique.</li>
+    <li>Tutoiement si ta marque tutoie sur le site, vouvoiement sinon. Pas de mélange.</li>
+    <li>Pas de promesse médicale, pas d'attribut personnel (« tu as mal au dos ? » est OK ; « toi qui es en surpoids » ne l'est pas).</li>
+    <li>Un emoji au maximum par ligne, ou aucun. Le prix et l'offre explicites.</li>
+  </ul>
+
+  <h3>Structure 1 · Hook douleur</h3>
+  <pre class="prompt">Ta nuque te fait mal tous les soirs à 18 h ?
+10 minutes de chaleur et de massage, posé sur le canapé, sans rendez-vous ni 60 € la séance.
+Livraison offerte, 30 jours satisfait ou remboursé 👉 [lien]</pre>
+
+  <h3>Structure 2 · Témoignage</h3>
+  <pre class="prompt">« J'avais arrêté de compter les ostéos. Trois semaines avec ça, je ne finis plus mes journées la tête dans un étau. » Camille, 37 ans
+Masseur cervical chauffant, 10 minutes par jour.
+-40 % cette semaine, livraison offerte 👉 [lien]</pre>
+
+  <h3>Structure 3 · Offre</h3>
+  <pre class="prompt">Une séance d'ostéo : 60 €. Ça : 39 € une fois, et c'est chez toi pour toujours.
+Chaleur + massage, 10 minutes le soir, dans le canapé.
+Offre de lancement jusqu'à dimanche, 30 jours satisfait ou remboursé 👉 [lien]</pre>
+
+  <h3>Titre et description</h3>
+  <table class="t">
+    <tr><th>Champ</th><th>Règle</th><th>Exemples</th></tr>
+    <tr><td>Titre (sous la créative)</td><td>5 mots, le bénéfice ou l'offre</td><td>« Ta nuque détendue en 10 min » · « -40 % cette semaine » · « Fini les séances à 60 € »</td></tr>
+    <tr><td>Description</td><td>Une ligne de réassurance</td><td>« Livraison offerte · 30 jours satisfait ou remboursé » · « Paiement sécurisé · Expédié sous 24 h »</td></tr>
+  </table>
+
+  <h3>Le prompt pour Claude</h3>
+  <pre class="prompt">Tu es copywriter spécialisé en publicités Meta pour des marques e-commerce.
+
+Mon produit : [description, prix, offre : ex. 39 € au lieu de 69 €, livraison offerte, 30 jours satisfait ou remboursé]
+Ma cible : [cible]
+Mon angle : [colle la fiche angle : nom, douleur ou désir, hook, preuve]
+Ton : [tutoiement / vouvoiement], [direct et chaleureux / premium / sportif]
+Lien : [lien]
+
+Écris-moi 5 textes principaux de publicité pour cet angle, en français. Chaque texte : 3 lignes maximum visibles (la première ligne est le hook, 8 mots max), la deuxième explique le produit et le bénéfice, la troisième donne l'offre et le lien. Varie la nature du hook : question, affirmation choc, témoignage entre guillemets avec prénom et âge, chiffre, comparaison de prix.
+
+Interdits : promesse médicale (soigne, guérit, élimine), attribut personnel (tu es + caractéristique), avant / après, nom de marque tierce, majuscules criardes, plus d'un emoji par ligne.
+
+Donne aussi pour cet angle : 3 titres de 5 mots max et 2 descriptions d'une ligne (réassurance).</pre>
+
+  <div class="note">
+    <b>Comment répartir</b>
+    6 ads = 3 angles × 2 créatives (1 statique + 1 vidéo). Pour chaque angle, tu prends 2 ou 3 textes de Claude et tu les mets en « textes principaux » sur les 2 ads de l'angle. Même titre et même description pour les 2.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Chaque ad a 2 ou 3 textes principaux cohérents avec son angle, un titre de 5 mots et une description, et tu as relu chaque texte contre la liste des interdits.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">05</span>Le planning de lancement et les 72 h</h2>
+  <p class="lead">On lance à minuit, on vérifie que c'est parti, et on ne touche plus à rien pendant trois jours. C'est le moment le plus dur de l'accompagnement.</p>
+
+  <h3>Pourquoi minuit</h3>
+  <p>Meta dépense le budget quotidien sur la journée calendaire du fuseau de ton compte (Europe/Paris). Si tu lances à 16 h, il essaie de dépenser 50 € en 8 heures : enchères trop agressives, mauvais premiers signaux. Lancé à 00:00, le budget se répartit sur 24 h, le rythme est normal dès le jour 1.</p>
+
+  <h3>La veille</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Relis les 6 ads</h4><p>Aperçu de chaque ad en Reels, Stories et Feed. Son activé pour les vidéos. URL cliquée, elle ouvre la bonne page produit.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Date de début : demain 00:00</h4><p>Dans l'ad set. Vérifie le fuseau affiché.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Publie</h4><p>Bouton « Publier » en bas à droite. La campagne passe en « En cours d'examen ». L'examen prend de 10 minutes à 24 h. Si une ad est refusée, tu lis le motif, tu corriges le mot qui pose problème, tu « Demandes un nouvel examen ». Tu ne supprimes pas, tu ne recrées pas.</p></div></div>
+
+  <h3>Jour 1, le matin</h3>
+  <ul class="check">
+    <li>Toutes les ads sont « Active » (pas « En examen », pas « Refusée »).</li>
+    <li>La campagne a dépensé quelques euros entre minuit et ton réveil.</li>
+    <li>Le Pixel reçoit des PageView et ViewContent depuis les pubs (Gestionnaire d'événements → Vue d'ensemble, courbe du jour).</li>
+    <li>Shopify → Analyses → sessions en direct : du trafic arrive avec utm_source=facebook.</li>
+  </ul>
+  <p>Si ces 4 points sont bons, tu fermes le Gestionnaire. Tu l'ouvres une fois le soir, pour la même vérification. C'est tout.</p>
+
+  <h3>Jours 2 et 3 : on ne touche à rien</h3>
+  <div class="note danger">
+    <b>Ce que tu ne fais pas, même si ça te démange</b>
+    Pas de changement de budget (ni +10 €, ni -10 €). Pas de nouvelle ad ajoutée. Pas d'ad coupée « parce qu'elle a 0 vente ». Pas d'intérêt ajouté. Pas de texte modifié. Chaque action relance la phase d'apprentissage, et tu repars de zéro avec moins d'argent. Les 150 €, tu les as décidés avant. Tu les laisses travailler.
+  </div>
+  <p>Ce que tu regardes pendant les 3 jours, uniquement : la pub est active et dépense ; le Pixel reçoit des achats quand il y en a (ils apparaissent dans la colonne Achats avec un délai de quelques heures). Rien d'autre. Pas le CTR du jour 1 à 11 h. Pas le coût par achat après 2 ventes. Les chiffres du jour 1 ne veulent rien dire : Meta cherche encore.</p>
+
+  <h3>Et pendant ce temps</h3>
+  <p>Tu produis la semaine 02 de créatives (guide 07, chapitre 08). Tu réponds aux commentaires sous tes pubs (une question sans réponse, c'est une vente perdue ; un commentaire négatif, tu le masques). Tu prépares ton tableau de lecture du guide 10. Tu ne refais pas ta page produit.</p>
+
+  <div class="claude">
+    <b>Demande à Claude</b>
+    « Voici un commentaire sous ma pub : [commentaire]. Rédige une réponse courte, chaleureuse, qui lève l'objection et renvoie vers la page, sans promesse médicale. »
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>La campagne a démarré à 00:00, les 6 ads sont actives, le trafic arrive sur Shopify avec utm_source=facebook, et tu n'as rien modifié depuis la publication.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">06</span>Les colonnes à configurer dans le Gestionnaire</h2>
+  <p class="lead">Par défaut, le Gestionnaire affiche 20 colonnes dont 15 inutiles. Tu configures une fois une vue « Scale X » que tu liras à J+3.</p>
+
+  <h3>Créer la vue</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Colonnes → Personnaliser les colonnes</h4><p>Décoche tout. Puis coche, dans cet ordre :</p></div></div>
+  <table class="t">
+    <tr><th>Colonne</th><th>Ce qu'elle dit</th><th>Repère (guide 10)</th></tr>
+    <tr><td><strong>Montant dépensé</strong></td><td>Ce que tu as payé</td><td>≈ 50 € / jour</td></tr>
+    <tr><td><strong>Impressions</strong></td><td>Nombre d'affichages</td><td>Pour calculer le reste</td></tr>
+    <tr><td><strong>CPM</strong></td><td>Coût pour 1 000 impressions</td><td>8 à 20 € en France</td></tr>
+    <tr><td><strong>CTR (clics sur un lien)</strong></td><td>% des gens qui cliquent vers ta page. <em>Pas</em> « CTR (tous) ».</td><td>&gt; 2 % bon · &lt; 1 % mort</td></tr>
+    <tr><td><strong>CPC (clics sur un lien)</strong></td><td>Prix d'un clic vers ta page</td><td>&lt; 1 € bon · &gt; 1,50 € faible</td></tr>
+    <tr><td><strong>Ajouts au panier</strong></td><td>Événement AddToCart du Pixel</td><td>Signal d'intérêt</td></tr>
+    <tr><td><strong>Achats</strong></td><td>Événement Purchase du Pixel</td><td>Le seul qui compte</td></tr>
+    <tr><td><strong>Coût par achat</strong></td><td>Dépense ÷ achats</td><td>À comparer à ta marge</td></tr>
+    <tr><td><strong>ROAS (achats)</strong></td><td>Chiffre d'affaires ÷ dépense</td><td>&gt; 2 on scale · 1-2 on retravaille · &lt; 1 on coupe</td></tr>
+  </table>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Enregistre la vue</h4><p>« Enregistrer comme préréglage » → nom : <code>Scale X</code>. Elle sera disponible au niveau campagne, ad set et ads.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Fenêtre d'attribution</h4><p>Colonnes → Comparer les fenêtres d'attribution : garde « 7 jours après clic, 1 jour après vue » (par défaut). Ne change pas ça entre deux lectures, sinon tu compares des chiffres différents.</p></div></div>
+
+  <div class="note">
+    <b>Niveau ads, pas niveau campagne</b>
+    À J+3, tu lis cette vue au niveau <strong>Publicités</strong> : c'est là qu'on voit quelle créative gagne. Au niveau campagne, tu n'as que la moyenne, et une moyenne cache toujours une gagnante et trois perdantes.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Le préréglage « Scale X » existe avec les 9 colonnes, tu l'as ouvert au niveau Publicités, et tu sais lire le CTR lien et pas le CTR tous.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">07</span>Budget serré : l'alternative organique</h2>
+  <p class="lead">Si 150 € de test, ce n'est pas possible tout de suite, il y a une deuxième méthode. Elle est plus lente, elle coûte des heures et pas des euros, et elle marche.</p>
+
+  <p>L'organique IA, c'est un compte TikTok ou Instagram avec un personnage généré (GPT Image 2 pour le visage, Seedance 2.5 pour les vidéos, Higgsfield Genjutsu pour la cohérence), une niche, 2 à 3 vidéos par jour, et ton produit qui arrive à la vidéo 10. Des comptes 100 % IA font 30 000 à 350 000 vues par vidéo, zéro euro de pub. C'est le <strong>guide 11</strong>.</p>
+
+  <table class="t">
+    <tr><th></th><th>Meta Ads</th><th>Organique IA</th></tr>
+    <tr><td>Coût</td><td>50 €/jour</td><td>Crédits IA : 5 à 10 €/jour</td></tr>
+    <tr><td>Temps</td><td>1 h 30 de setup, puis 20 min/jour</td><td>1 h 30 par jour, tous les jours</td></tr>
+    <tr><td>Vitesse de réponse</td><td>3 jours</td><td>3 à 6 semaines</td></tr>
+    <tr><td>Lisibilité</td><td>CTR, CPC, ROAS : clair</td><td>Vues, rétention, commentaires : plus flou</td></tr>
+    <tr><td>Scalabilité</td><td>+20 % tous les 3 jours</td><td>Plus de comptes, plus de vidéos</td></tr>
+  </table>
+
+  <div class="note">
+    <b>Le conseil de Mady</b>
+    Si tu peux mettre 150 €, fais les pubs : tu auras une réponse en 3 jours et tu arrêteras de te poser des questions. Si tu ne peux pas, fais l'organique sérieusement (2 vidéos par jour, pas 2 par semaine) et mets de côté les premières ventes pour financer ton premier test Meta. Les deux en même temps, seulement quand une des deux tourne.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as choisi ta méthode pour les 30 prochains jours (Meta Ads ou organique) et tu l'as dit à Mady dans ton prochain point.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">08</span>Les erreurs classiques et la checklist « campagne lancée »</h2>
+  <p class="lead">Six ans de lancements, les mêmes erreurs reviennent. Lis-les une fois, tu les reconnaîtras au moment où tu seras sur le point de les faire.</p>
+
+  <table class="t">
+    <tr><th>Erreur</th><th>Ce qui se passe</th><th>À la place</th></tr>
+    <tr><td><strong>Toucher le budget le jour 2</strong></td><td>« Ça marche, je monte à 100 € » ou « 0 vente, je baisse à 20 € » : l'apprentissage repart de zéro, les 50 € du jour 1 sont perdus.</td><td>72 h, pas une de moins. Les décisions, c'est le guide 10.</td></tr>
+    <tr><td><strong>15 intérêts dans l'ad set</strong></td><td>Audience trop petite, CPM qui double, Meta privé de ses meilleurs acheteurs.</td><td>Large. Pays, 18-65+, rien d'autre.</td></tr>
+    <tr><td><strong>1 seule créative</strong></td><td>Tu testes le produit avec une seule chance. Si l'angle est mauvais, tu conclus que le produit l'est.</td><td>6 ads minimum, 3 angles.</td></tr>
+    <tr><td><strong>Pub refusée laissée refusée</strong></td><td>Tu lances avec 4 ads sur 6, et les 2 refusées étaient peut-être les meilleures.</td><td>Corrige le mot, demande un nouvel examen, le jour même.</td></tr>
+    <tr><td><strong>Tester 3 produits en même temps</strong></td><td>3 × 50 € = 150 €/jour, aucun des trois n'a assez de données, tu ne sais rien à J+3.</td><td>Un produit, 3 jours, une décision. Le suivant après.</td></tr>
+    <tr><td><strong>Optimiser sur « Ajout au panier »</strong></td><td>Meta t'amène des gens qui ajoutent au panier… et n'achètent pas.</td><td>Purchase dès le premier jour, même avec 0 achat dans l'historique.</td></tr>
+    <tr><td><strong>Regarder le Gestionnaire 20 fois par jour</strong></td><td>Tu finis par modifier quelque chose. Toujours.</td><td>Matin et soir, 2 minutes, les 4 points du chapitre 05.</td></tr>
+    <tr><td><strong>URL vers l'accueil</strong></td><td>Le client cherche le produit, ne le trouve pas, repart. Tu paies le clic.</td><td>URL de la page produit, avec UTM.</td></tr>
+    <tr><td><strong>Prix différent entre la pub et la page</strong></td><td>Confiance cassée, taux de conversion divisé par deux, et motif de refus Meta.</td><td>Même prix, même offre, partout.</td></tr>
+  </table>
+
+  <h3>Checklist « campagne lancée »</h3>
+  <ul class="check">
+    <li>Prérequis du chapitre 02 : les 8 cases cochées avant la configuration.</li>
+    <li>1 campagne Ventes, CBO 50 €/jour, nommée [PRODUIT] – TEST – S01.</li>
+    <li>1 ad set : conversion Achat sur mon Pixel, France, 18-65+, tous genres, aucun intérêt, placements Advantage+, début 00:00.</li>
+    <li>6 ads nommées comme mes fichiers, 3 angles, 3 statiques 4:5 + 3 vidéos 9:16, identité Instagram de marque.</li>
+    <li>Chaque ad : 2-3 textes principaux de l'angle, titre 5 mots, description, bouton Acheter, URL page produit + UTM.</li>
+    <li>Améliorations Advantage+ créatives décochées (sauf ajustements standard).</li>
+    <li>Publiée la veille, toutes les ads « Active » le matin du jour 1, dépense en cours, trafic UTM dans Shopify.</li>
+    <li>Vue « Scale X » créée avec les 9 colonnes, au niveau Publicités.</li>
+    <li>Rendez-vous J+3 posé dans mon agenda avec le guide 10 ouvert, et call réservé avec Mady (Réserver un appel).</li>
+    <li>Étape « Lance ta première campagne Meta Ads » cochée dans Mes étapes.</li>
+  </ul>
+
+  <div class="note ok">
+    <b>Et ensuite</b>
+    Guide 10 : à J+3, trois chiffres dans cet ordre, CTR, CPC, ROAS, et une décision : on coupe, on garde, ou on scale de 20 à 30 %. Puis on refait des créatives. C'est la boucle de Mady depuis six ans, et elle n'a pas changé.
+  </div>
+
+  <div class="done"><b>✅ Fait quand</b>Les 10 cases sont cochées et tu as fermé le Gestionnaire de publicités jusqu'à ce soir.</div>
+</section>
+
+</body>
+</html>

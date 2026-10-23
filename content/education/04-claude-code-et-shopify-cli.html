@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Scale X · Ta boutique sans une ligne de code : Claude Code + Shopify CLI</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #141a1f; font-size: 11pt; line-height: 1.5; }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; margin: 0; }
+  p { margin: 0 0 8pt; }
+  a { color: #0b63c4; }
+  .kicker { font-family: "Segoe UI", Arial, sans-serif; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #0b63c4; font-weight: 700; margin: 0 0 6pt; }
+
+  /* Couverture */
+  .cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .brand { font-weight: 800; font-size: 13pt; letter-spacing: 0.04em; margin-bottom: 40pt; }
+  .cover .brand span { color: #0b63c4; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 0 0 14pt; }
+  .cover .sub { font-size: 14pt; color: #4a5560; font-family: Georgia, serif; margin-bottom: 28pt; }
+  .cover .meta { font-size: 10pt; color: #4a5560; margin-top: 24pt; }
+  .cover ul { margin: 0; padding-left: 18pt; }
+  .cover li { margin: 3pt 0; }
+  .cover .foot { margin-top: auto; font-size: 9pt; color: #7a858f; border-top: 1px solid #e3e7ea; padding-top: 10pt; }
+
+  /* Chapitres */
+  .chapter { page-break-before: always; }
+  .chapter.first { page-break-before: auto; }
+  h2 { font-size: 22pt; margin: 0 0 6pt; line-height: 1.15; }
+  h2 .num { display: inline-block; color: #0b63c4; margin-right: 8pt; font-size: 16pt; vertical-align: 6pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; }
+  .lead { font-size: 12pt; color: #4a5560; margin: 0 0 14pt; }
+  h3 { font-size: 15pt; margin: 18pt 0 6pt; }
+  h4 { font-size: 12pt; margin: 0 0 3pt; font-family: "Segoe UI", Arial, sans-serif; font-weight: 700; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  strong { font-weight: 700; }
+
+  /* Encadrés */
+  .note { border-left: 3px solid #0b63c4; background: #eef4fb; padding: 8pt 11pt; margin: 10pt 0; border-radius: 3px; page-break-inside: avoid; }
+  .note b { display: block; color: #0b63c4; margin-bottom: 2pt; }
+  .note.ok { border-color: #178a4c; background: #ecf7f0; } .note.ok b { color: #178a4c; }
+  .note.warn { border-color: #d98a0e; background: #fff6e8; } .note.warn b { color: #b86f00; }
+  .note.danger { border-color: #c9302c; background: #fdeeee; } .note.danger b { color: #c9302c; }
+  .claude { border: 1px solid #c9c3f5; background: #f4f2ff; padding: 8pt 11pt; margin: 10pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .claude b { display: block; color: #5b5ce6; margin-bottom: 2pt; }
+  .done { border: 1px solid #b7e0c5; background: #ecf7f0; padding: 8pt 11pt; margin: 12pt 0; border-radius: 6px; page-break-inside: avoid; }
+  .done b { display: block; color: #178a4c; margin-bottom: 2pt; }
+
+  /* Étapes */
+  .step { display: flex; gap: 10pt; margin: 10pt 0; page-break-inside: avoid; }
+  .step .n { flex: 0 0 24pt; height: 24pt; border-radius: 5px; background: #0b63c4; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 11pt; }
+  .step .body { flex: 1; min-width: 0; }
+
+  /* Code et prompts */
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 9.5pt; line-height: 1.45; margin: 6pt 0 10pt; padding: 8pt 10pt; border-radius: 4px; page-break-inside: avoid; }
+  pre.cmd { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; border: 1px solid #e1e5e9; }
+  pre.prompt { font-family: "Segoe UI", Arial, sans-serif; background: #fbf7ec; border: 1px solid #ecdfbd; font-size: 10pt; }
+  pre.prompt::before { content: "PROMPT À COPIER"; display: block; font-size: 7.5pt; letter-spacing: 0.16em; color: #9a7b2c; font-weight: 700; margin-bottom: 4pt; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f3f5f7; padding: 0 3pt; border-radius: 3px; font-size: 9.5pt; }
+
+  /* Checklist et tableaux */
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { padding-left: 20pt; position: relative; margin: 4pt 0; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; top: -1pt; font-size: 12pt; color: #0b63c4; }
+  table.t { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 10pt; page-break-inside: avoid; }
+  table.t th, table.t td { border: 1px solid #dfe3e7; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  table.t th { background: #f3f5f7; font-weight: 700; }
+  .cols { display: flex; gap: 14pt; } .cols > div { flex: 1; min-width: 0; }
+  hr { border: 0; border-top: 1px solid #e3e7ea; margin: 14pt 0; }
+  .muted { color: #6b7680; }
+  .small { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="brand">SCALE <span>X</span> · EDUCATION</div>
+  <p class="kicker">Guide 04 · Boutique</p>
+  <h1>Ta boutique sans une ligne de code : Claude Code + Shopify CLI</h1>
+  <p class="sub">Tu décris en français, l'IA écrit le thème. Le cycle de travail complet, les prompts de Mady à copier tels quels, et les erreurs qui font perdre une journée.</p>
+  <p class="kicker">À la fin de ce guide, tu sauras</p>
+  <ul>
+    <li>Récupérer le thème Aesthetic Lab de ta boutique sur ton ordinateur et le voir en direct dans une prévisualisation.</li>
+    <li>Faire construire ou modifier n'importe quelle section par Claude Code, avec les prompts exacts de Mady.</li>
+    <li>Travailler sans jamais casser ta boutique en ligne : aperçu, validation, et mise en ligne seulement avec l'accord de Mady.</li>
+  </ul>
+  <p class="meta">Temps de lecture : 40 min · Temps de mise en pratique : une après-midi pour la première page produit</p>
+  <div class="foot">Scale X · Accompagnement e-commerce + IA · Mady · Version octobre 2026. Bloqué ? Demande d'abord à Claude. Mady, c'est pour les urgences.</div>
+</header>
+
+<section class="chapter first">
+  <h2><span class="num">01</span>Ce que tu es en train de faire, et pourquoi c'est la bonne méthode</h2>
+  <p class="lead">Il y a deux façons de monter une boutique Shopify. Une qui te coûte des journées et des apps à 20 €/mois. Une qui tient en 2 à 3 heures par page. On prend la deuxième.</p>
+
+  <h3>Les deux outils, en langage simple</h3>
+  <p><strong>Shopify CLI</strong> est un petit programme installé sur ton ordinateur. Il fait une seule chose : il connecte ton ordinateur à ta boutique Shopify. Grâce à lui, les fichiers de ton thème sont chez toi, dans un dossier, et tu peux voir chaque changement en direct dans une prévisualisation, sans toucher à la boutique que tes clients voient.</p>
+  <p><strong>Claude Code</strong> est une IA à qui tu parles en français dans une fenêtre de commande. Elle lit les fichiers du dossier, comprend la structure du thème, et écrit le code à ta place. Tu ne tapes jamais une ligne de code. Tu décris le résultat, tu regardes l'aperçu, tu valides ou tu corriges. Si tu sais écrire un message WhatsApp, tu sais l'utiliser.</p>
+
+  <table class="t">
+    <tr><th>Méthode classique</th><th>Claude Code + Shopify CLI</th></tr>
+    <tr><td>Thème Shopify + éditeur de thème, section par section à la souris</td><td>Tu décris en français, l'IA écrit le code du thème</td></tr>
+    <tr><td>1 journée par page produit</td><td>2 à 3 heures par page produit</td></tr>
+    <tr><td>Bloqué dès que le thème ne propose pas la section</td><td>N'importe quelle section, sur mesure</td></tr>
+    <tr><td>Une app à 20 €/mois par fonctionnalité</td><td>Zéro app, la boutique est à toi</td></tr>
+    <tr><td>Chaque nouveau produit repart de zéro</td><td>« Duplique la page X pour le produit Y » : fait en 10 minutes</td></tr>
+  </table>
+
+  <div class="note info"><b>Ce que Mady a déjà fait pour toi</b>Quand tu as demandé ta boutique (page Démarrage, section 09), Mady a généré sur ton Shopify les produits, la collection, les pages et le thème Aesthetic Lab, recoloré et réécrit pour ta marque. Ce guide commence là : la boutique existe, tu vas la personnaliser et construire ta page produit avec Claude Code.</div>
+
+  <h3>La règle de ce guide</h3>
+  <p>Tu travailles toujours sur une <strong>copie de développement</strong> du thème. Ta boutique publiée ne bouge pas tant que Mady n'a pas validé. Tu peux donc tout essayer, tout casser, tout recommencer : rien n'est visible des clients. Retiens cette phrase, elle revient dans chaque chapitre : <strong>jamais de <code>theme push</code> ni de <code>theme publish</code> sans consigne de Mady.</strong></p>
+
+  <div class="done"><b>✅ Fait quand</b>Tu peux expliquer en deux phrases à quoi sert Shopify CLI et à quoi sert Claude Code, et tu sais que tu ne publies rien seul.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">02</span>Rappel express : les outils doivent déjà être installés</h2>
+  <p class="lead">L'installation pas à pas (Windows et Mac) est sur la page Démarrage, sections 01 à 03. Ici on vérifie seulement que tout répond.</p>
+
+  <p>Ouvre une fenêtre de commande (Windows : touche Windows, tape <code>cmd</code>, Entrée. Mac : ⌘ + Espace, tape <code>Terminal</code>, Entrée). Copie ces cinq commandes une par une, Entrée après chacune :</p>
+  <pre class="cmd">git --version
+node -v
+npm -v
+shopify help
+claude --version</pre>
+
+  <table class="t">
+    <tr><th>Commande</th><th>Résultat attendu</th><th>Si ça ne répond pas</th></tr>
+    <tr><td><code>git --version</code></td><td>Un numéro de version</td><td>Réinstalle Git (Démarrage, section 02, étape 1)</td></tr>
+    <tr><td><code>node -v</code></td><td>v22.12.0 ou plus récent</td><td>Redémarre l'ordinateur, puis réinstalle Node.js LTS</td></tr>
+    <tr><td><code>npm -v</code></td><td>Un numéro de version</td><td>Vient avec Node.js : même correction</td></tr>
+    <tr><td><code>shopify help</code></td><td>La liste des commandes Shopify</td><td>Nouvelle fenêtre, puis <code>npm install -g @shopify/cli@latest</code></td></tr>
+    <tr><td><code>claude --version</code></td><td>Un numéro de version</td><td>Ferme et rouvre la fenêtre, puis relance l'installation de Claude Code</td></tr>
+  </table>
+
+  <div class="note warn"><b>Le piège n°1 des débutants</b>Une commande « non reconnue » juste après une installation, c'est presque toujours une fenêtre ouverte AVANT l'installation. Ferme toutes les fenêtres de commande, rouvre-en une, réessaie. Ça règle 80 % des cas.</div>
+
+  <div class="claude"><b>Demande à Claude</b>Si une commande renvoie une erreur, ne devine pas. Fais une capture d'écran du message complet, ouvre Claude (claude.ai) et colle-lui : « Je suis sur [Windows / Mac], j'installe Shopify CLI et Claude Code pour travailler sur ma boutique Shopify. Voici l'erreur [capture]. Explique-moi la cause et donne-moi la commande exacte à taper. » Il te sort de là en deux messages.</div>
+
+  <h3>Ton compte Claude</h3>
+  <p>Claude Code consomme beaucoup. Avec un compte Pro tu vas taper la limite au milieu d'une page produit. Prends <strong>Claude Max</strong> : c'est l'abonnement prévu pour construire une boutique entière et travailler plusieurs heures par jour. Un jour de blocage coûte plus cher qu'un mois d'abonnement.</p>
+
+  <div class="done"><b>✅ Fait quand</b>Les cinq commandes affichent un résultat sans erreur, et tu es connecté à Claude Code avec ton compte Max (tape <code>claude</code>, il ne te redemande pas de te connecter).</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">03</span>Le dossier de travail et ton thème Aesthetic Lab</h2>
+  <p class="lead">Tout se passe dans un seul dossier sur ton ordinateur. Le thème de ta boutique y est copié, Claude Code y travaille, Shopify CLI le prévisualise.</p>
+
+  <div class="step"><div class="n">1</div><div class="body">
+    <h4>Crée le dossier BOUTIQUE-SHOPIFY</h4>
+    <p>Dans Documents, crée un dossier nommé exactement <code>BOUTIQUE-SHOPIFY</code>. Pas d'espace, pas d'accent. C'est le seul dossier dont tu auras besoin pour toutes tes boutiques futures : une sous-dossier par boutique si un jour tu en as plusieurs.</p>
+  </div></div>
+
+  <div class="step"><div class="n">2</div><div class="body">
+    <h4>Ouvre une fenêtre de commande directement dans ce dossier</h4>
+    <p><strong>Windows :</strong> ouvre le dossier dans l'Explorateur. Clique dans la barre d'adresse tout en haut, efface le chemin, tape <code>cmd</code> puis Entrée. La fenêtre noire s'ouvre déjà dans le bon dossier.</p>
+    <p><strong>Mac :</strong> ouvre Terminal. Tape <code>cd</code> suivi d'un espace, fais glisser le dossier depuis le Finder dans la fenêtre Terminal, puis Entrée.</p>
+    <p>Vérifie : la ligne de commande affiche le nom du dossier. Si tu vois <code>C:\Users\toi&gt;</code> ou <code>~ $</code> tout seul, tu n'es pas dans le bon dossier.</p>
+  </div></div>
+
+  <div class="step"><div class="n">3</div><div class="body">
+    <h4>Trouve ton adresse .myshopify.com</h4>
+    <p>Admin Shopify → Paramètres → Domaines. Repère l'adresse qui se termine par <code>.myshopify.com</code>, par exemple <code>ma-marque.myshopify.com</code>. Note-la dans un fichier texte : tu vas la taper dans chaque commande. Dans tout ce guide, remplace <code>MA-BOUTIQUE.myshopify.com</code> par ta vraie adresse.</p>
+  </div></div>
+
+  <div class="step"><div class="n">4</div><div class="body">
+    <h4>Teste la connexion</h4>
+    <pre class="cmd">shopify theme list --store MA-BOUTIQUE.myshopify.com</pre>
+    <p>La première fois, Shopify ouvre ton navigateur : connecte-toi, choisis la bonne boutique, autorise Shopify CLI. Si une liste de thèmes apparaît dans la fenêtre de commande, ton ordinateur est connecté. Rien n'a été modifié.</p>
+  </div></div>
+
+  <h3>Récupérer le thème Aesthetic Lab : trois cas, un seul résultat</h3>
+  <p>Le but : avoir les fichiers du thème dans <code>BOUTIQUE-SHOPIFY</code>, avec les dossiers <code>assets</code>, <code>config</code>, <code>layout</code>, <code>locales</code>, <code>sections</code>, <code>snippets</code>, <code>templates</code> directement à la racine (pas dans un sous-dossier).</p>
+
+  <table class="t">
+    <tr><th>Ta situation</th><th>Ce que tu fais</th></tr>
+    <tr><td><strong>Cas A.</strong> Mady a généré ta boutique et le thème est déjà sur ton Shopify (c'est le cas normal)</td><td>Admin → Boutique en ligne → Thèmes. Le thème apparaît dans « Bibliothèque de thèmes ». Clique sur « … » → Publier (après accord de Mady). Puis récupère-le sur ton ordinateur avec la commande ci-dessous.</td></tr>
+    <tr><td><strong>Cas B.</strong> Mady t'a envoyé un fichier <code>aesthetic-lab.zip</code></td><td>Admin → Thèmes → « Ajouter un thème » → « Importer un fichier zip » → choisis le zip tel quel (ne le décompresse pas pour l'import). Ensuite, décompresse une copie du zip dans <code>BOUTIQUE-SHOPIFY</code> pour Claude Code.</td></tr>
+    <tr><td><strong>Cas C.</strong> Tu veux repartir de ce qui est en ligne</td><td>La commande <code>theme pull</code> ci-dessous télécharge n'importe quel thème de ta boutique dans le dossier courant.</td></tr>
+  </table>
+
+  <p>La commande qui télécharge le thème depuis ta boutique (lance-la dans <code>BOUTIQUE-SHOPIFY</code>) :</p>
+  <pre class="cmd">shopify theme pull --store MA-BOUTIQUE.myshopify.com</pre>
+  <p>Shopify te demande quel thème : choisis « Aesthetic Lab » avec les flèches, Entrée. Attends la fin. Ouvre le dossier dans l'Explorateur ou le Finder : tu dois voir les sept dossiers listés plus haut.</p>
+
+  <div class="note warn"><b>Le sous-dossier fantôme</b>Si en décompressant un zip tu obtiens <code>BOUTIQUE-SHOPIFY/aesthetic-lab-template/assets/…</code>, Claude Code et Shopify CLI ne trouveront rien. Déplace le contenu du sous-dossier à la racine de <code>BOUTIQUE-SHOPIFY</code> et supprime le sous-dossier vide.</div>
+
+  <div class="done"><b>✅ Fait quand</b><code>shopify theme list</code> affiche tes thèmes, et le dossier <code>BOUTIQUE-SHOPIFY</code> contient directement <code>assets</code>, <code>sections</code>, <code>templates</code>, <code>config</code>, <code>layout</code>, <code>snippets</code>, <code>locales</code>.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">04</span>Le cycle de travail : deux fenêtres, un aperçu, zéro risque</h2>
+  <p class="lead">C'est le cœur de la méthode. Une fenêtre montre ta boutique en direct, l'autre parle à Claude. Tu alternes entre les deux toute l'après-midi.</p>
+
+  <div class="step"><div class="n">1</div><div class="body">
+    <h4>Fenêtre 1 : la prévisualisation Shopify</h4>
+    <p>Dans <code>BOUTIQUE-SHOPIFY</code>, lance :</p>
+    <pre class="cmd">shopify theme dev --store MA-BOUTIQUE.myshopify.com</pre>
+    <p>Shopify crée un thème de développement (invisible des clients) et affiche un lien, en général <code>http://127.0.0.1:9292</code>. Ouvre-le dans Chrome. C'est ta boutique, version brouillon. Chaque fichier modifié par Claude Code se recharge tout seul dans cet onglet, en 1 à 2 secondes.</p>
+    <p><strong>Ne ferme jamais cette fenêtre pendant que tu travailles.</strong> Réduis-la, c'est tout.</p>
+  </div></div>
+
+  <div class="step"><div class="n">2</div><div class="body">
+    <h4>Fenêtre 2 : Claude Code</h4>
+    <p>Ouvre une DEUXIÈME fenêtre de commande dans le même dossier (même manœuvre qu'au chapitre 03, étape 2), puis :</p>
+    <pre class="cmd">claude</pre>
+    <p>Une interface de discussion s'ouvre dans la fenêtre. Tu tapes ton message, Entrée. Claude lit, réfléchit, propose des modifications de fichiers et te demande confirmation avant d'écrire. Réponds « oui » (ou « y ») quand tu es d'accord.</p>
+  </div></div>
+
+  <div class="step"><div class="n">3</div><div class="body">
+    <h4>La boucle : décrire → regarder → valider ou corriger</h4>
+    <ol>
+      <li>Tu décris ce que tu veux (en français, précis, un seul sujet par message).</li>
+      <li>Claude modifie les fichiers et te dit quoi vérifier.</li>
+      <li>Tu regardes l'onglet <code>127.0.0.1:9292</code>, sur ordinateur ET en mode mobile (clic droit → Inspecter → icône téléphone, ou réduis la fenêtre).</li>
+      <li>Ça te plaît : « Parfait, on passe à la suite. » Ça ne te plaît pas : tu dis exactement ce qui cloche (« le bouton passe sous l'image sur mobile », « le titre est trop petit », « la couleur n'est pas la bonne »).</li>
+    </ol>
+  </div></div>
+
+  <div class="note danger"><b>La règle absolue</b>N'utilise jamais <code>shopify theme push</code> ni <code>shopify theme publish</code> sans consigne de Mady. Le thème de développement est invisible des clients : tu peux tout y faire. Pousser, c'est remplacer ce qui est en ligne. Ça se fait une fois, ensemble, quand tout est validé.</div>
+
+  <h3>Pourquoi deux fenêtres ?</h3>
+  <p>La première garde la prévisualisation active : si tu la fermes, l'aperçu meurt et tu ne vois plus tes changements. La deuxième est la conversation avec Claude. Deux fenêtres, deux rôles. Beaucoup d'élèves lancent <code>claude</code> dans la fenêtre de <code>theme dev</code> : ça coupe l'aperçu. Si tu vois « Impossible de se connecter » dans Chrome, c'est ça.</p>
+
+  <h3>Fin de session</h3>
+  <p>Pour arrêter : dans chaque fenêtre, <code>Ctrl + C</code> (Mac : <code>Ctrl + C</code> aussi). Tes fichiers restent dans le dossier. La prochaine fois, tu relances les deux commandes et tu reprends où tu en étais. Claude Code garde même la mémoire du projet si tu tapes <code>claude --continue</code>.</p>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as les deux fenêtres ouvertes, ta boutique s'affiche sur <code>127.0.0.1:9292</code>, et Claude a répondu à un premier message.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">05</span>Les deux premiers prompts : onboarding et règles du jeu</h2>
+  <p class="lead">Avant de construire quoi que ce soit, Claude doit lire ton thème et connaître tes règles. Deux messages, cinq minutes, et tout le reste de l'après-midi se passe bien.</p>
+
+  <h3>Prompt 1 : l'onboarding (Claude lit, n'écrit rien)</h3>
+  <p>Copie ce message tel quel dans la fenêtre Claude Code :</p>
+  <pre class="prompt">Tu es mon développeur Shopify. Ce dossier est le thème de ma boutique. Lis-le entièrement, puis dis-moi en 10 lignes : la structure de la page produit, les sections existantes, et ce que tu me conseilles de supprimer ou d'ajouter pour une page produit qui convertit. N'écris rien pour l'instant.</pre>
+  <p>Claude te rend un résumé. Lis-le : tu apprends en deux minutes comment ton thème est construit (quelle section fait quoi). Garde ce résumé sous les yeux pour la suite.</p>
+
+  <h3>Prompt 2 : les règles du jeu (valables pour toute la session)</h3>
+  <pre class="prompt">À partir de maintenant, pour chaque section que tu crées : tout texte, image, couleur et prix doit être modifiable depuis l'éditeur de thème (schema settings). Mobile first. Pas de librairie externe. Couleurs : fond #FFFFFF, texte #111111, accent #006DBC. Après chaque section, dis-moi quoi vérifier dans l'aperçu.</pre>
+  <p>Remplace les trois couleurs par celles de ta marque (tu les as choisies au guide 06, chapitre couleurs ; sinon prends celles que Mady a mises dans ton thème : demande à Claude « quelles sont les couleurs principales définies dans assets/base.css ? »).</p>
+
+  <div class="note info"><b>Pourquoi ces règles comptent</b>« Modifiable depuis l'éditeur de thème » : tu pourras changer un texte ou une image depuis Shopify → Personnaliser, sans revenir dans Claude Code. « Mobile first » : 80 % de tes clients arrivent depuis Instagram ou TikTok, sur téléphone. « Pas de librairie externe » : ta page reste rapide, et rapide = ça vend.</div>
+
+  <div class="claude"><b>Demande à Claude</b>Tu ne comprends pas un mot du résumé (« snippet », « schema », « liquid ») ? Demande : « Explique-moi ce qu'est un [mot] dans un thème Shopify, en une phrase, comme à quelqu'un qui n'a jamais codé. » Tu n'as pas besoin de comprendre le code, juste le vocabulaire pour dialoguer.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Claude t'a rendu le résumé de ton thème et a confirmé les règles du jeu avec tes couleurs.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">06</span>Le prompt maître : la page produit entière en 11 sections</h2>
+  <p class="lead">C'est le message qui construit ta page produit. Claude avance section par section et te demande validation à chaque étape. Compte 2 à 3 heures, aperçu ouvert.</p>
+
+  <p>Remplace <code>[produit]</code> par ton produit, puis colle :</p>
+  <pre class="prompt">Construis la page produit de [produit] avec ces sections, dans cet ordre, chacune dans son propre fichier sections/ :
+1. Barre d'annonce avec compte à rebours et "Livraison offerte aujourd'hui".
+2. Galerie avec miniatures, "4,8/5 · 1 300 avis" au-dessus du titre, prix barré + prix promo + badge "-46 %".
+3. Promesse en gras + 6 bénéfices d'une ligne avec icône.
+4. Sélecteur de bundle 1 / 2 packs (présélectionné, "le plus populaire", cadeau offert), bouton "Profiter de l'offre".
+5. Garanties : livraison offerte, 30 jours satisfait ou remboursé, paiement sécurisé.
+6. FAQ accordéon 5 questions.
+7. Grille de 4 bénéfices.
+8. 3 statistiques en gros chiffres.
+9. Tableau comparatif nous vs 2 alternatives, 5 critères.
+10. 6 avis clients en cartes.
+11. Bloc garantie pleine largeur.
+Ajoute chaque section au template product.json. Textes en français, placeholders réalistes. Commence par la section 1, montre-moi, puis enchaîne.</pre>
+
+  <h3>Comment se passe la construction</h3>
+  <ul>
+    <li>Claude crée la section 1, modifie <code>templates/product.json</code>, et te dit : « Vérifie la barre d'annonce en haut de la page produit, sur mobile le texte doit tenir sur une ligne. »</li>
+    <li>Tu ouvres une page produit dans l'aperçu (<code>127.0.0.1:9292/products/ton-produit</code>). Tu regardes. Tu réponds « OK, enchaîne » ou tu décris la correction.</li>
+    <li>Il passe à la section 2, et ainsi de suite. Onze fois.</li>
+  </ul>
+
+  <div class="note ok"><b>Ce que tu obtiens</b>La structure exacte de la page analysée au guide 05 (Crystal Hair Eraser, bleame.com) : preuve avant le titre, promesse, bundle présélectionné, garanties, puis chaque objection levée dans l'ordre. Les textes sont des placeholders réalistes : tu les remplaces par les tiens au guide 05 (ou tu demandes à Claude de les écrire, prompt fourni là-bas).</div>
+
+  <div class="note warn"><b>Si Claude part dans tous les sens</b>Un message = une section. S'il te propose de tout faire d'un coup, réponds : « Non. Une section à la fois, montre-moi, j'attends ma validation avant la suivante. » S'il bloque sur une erreur, copie-lui le message d'erreur complet de la fenêtre <code>theme dev</code> : il corrige.</div>
+
+  <h3>Les sections pas à pas, en détail</h3>
+  <p>Si tu préfères construire la page section par section, ou en ajouter une plus tard, voici les prompts unitaires de Mady. Copie, colle, adapte le nom du produit.</p>
+
+  <h4>Bundle</h4>
+  <pre class="prompt">Crée la section "bundle-selector" : 3 options (1, 2, 3 unités) en cartes radio, prix unitaire, prix total, économie en %, badge "Le plus populaire" sur l'option 2 présélectionnée. Le bouton ajoute la bonne quantité au panier.</pre>
+
+  <h4>Tableau comparatif</h4>
+  <pre class="prompt">Crée la section "comparison-table" : colonne critères, colonne notre produit surlignée, 2 colonnes alternatives. 5 lignes, chaque cellule = coche verte ou croix rouge choisie dans l'éditeur. Lisible sur mobile.</pre>
+
+  <h4>Avant / après</h4>
+  <pre class="prompt">Crée la section "before-after" : deux images avec un curseur glissant pour comparer, labels modifiables, titre et sous-titre. Fonctionne au doigt sur mobile.</pre>
+
+  <h4>Sticky add to cart</h4>
+  <pre class="prompt">Ajoute une barre fixe en bas d'écran mobile après 400px de scroll : miniature, prix promo, bouton "Ajouter au panier". Disparaît quand le bouton principal est visible.</pre>
+
+  <h4>Avis clients</h4>
+  <pre class="prompt">Crée la section "reviews-grid" : 6 cartes avec étoiles, titre, texte, prénom + initiale, badge "Achat vérifié". Chaque avis est un bloc modifiable. Note globale en en-tête.</pre>
+
+  <h4>FAQ</h4>
+  <pre class="prompt">Crée la section "faq-accordion" : questions en blocs modifiables, une seule ouverte à la fois, icône + / −. Ajoute le balisage schema.org FAQPage.</pre>
+
+  <div class="done"><b>✅ Fait quand</b>Les 11 sections sont visibles dans l'aperçu, dans l'ordre, sur ordinateur et sur mobile, et tu peux changer un texte de chaque section depuis Shopify → Personnaliser (sur le thème de développement).</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">07</span>Et aussi, en une phrase : les prompts du quotidien</h2>
+  <p class="lead">Une fois la page construite, 90 % de ce que tu feras tient en un message. Voici ceux que Mady utilise toutes les semaines.</p>
+
+  <h4>Nouveau produit en 10 minutes</h4>
+  <pre class="prompt">Duplique le template de page produit de [produit A] en "product.b" pour [produit B]. Remplace les textes par ceux-ci : [textes]. Garde structure, couleurs et sections identiques.</pre>
+  <p>Ensuite, dans Shopify : Produits → le produit B → « Modèle de thème » → choisis <code>product.b</code>. Le deuxième produit a sa page complète, sans tout reconstruire.</p>
+
+  <h4>Traduire la boutique</h4>
+  <pre class="prompt">Traduis tous les textes des sections de la page produit en anglais américain, ton casual, dans locales/en.default.json, sans toucher au code.</pre>
+
+  <h4>Corriger un bug mobile</h4>
+  <pre class="prompt">Sur mobile, le bouton du bundle passe sous la galerie. Trouve la cause et corrige sans changer le design desktop.</pre>
+  <p>Adapte la première phrase à ton bug : décris ce que tu vois, où, sur quel appareil. Une capture d'écran collée dans la fenêtre (Ctrl + V) aide énormément.</p>
+
+  <h4>Vitesse</h4>
+  <pre class="prompt">Liste ce qui ralentit la page produit : images, scripts, apps. Applique les corrections sans risque, dis-moi ce qui demande ma validation.</pre>
+
+  <h4>Page d'accueil</h4>
+  <pre class="prompt">Crée une page d'accueil produit unique : hero plein écran, 3 bénéfices, 3 avis, garantie, FAQ. Réutilise les sections déjà créées.</pre>
+
+  <h4>Mettre en ligne (avec l'accord de Mady seulement)</h4>
+  <pre class="prompt">Vérifie l'aperçu, puis pousse le thème comme thème non publié. Je le publierai moi-même depuis Shopify.</pre>
+  <p>Claude lance <code>shopify theme push --unpublished</code> : le thème arrive dans ta bibliothèque Shopify, SANS remplacer celui en ligne. Tu l'envoies à Mady, il valide, et c'est toi qui cliques « Publier » dans Thèmes. C'est la seule façon de mettre en ligne dans l'accompagnement.</p>
+
+  <table class="t">
+    <tr><th>Tu veux…</th><th>Tu dis à Claude…</th></tr>
+    <tr><td>Changer une couleur partout</td><td>« Remplace la couleur d'accent #006DBC par #1F6F5B dans tout le thème et vérifie que le contraste reste lisible sur les boutons. »</td></tr>
+    <tr><td>Ajouter une section à la page d'accueil</td><td>« Ajoute à l'accueil, sous le hero, une section 3 colonnes "Pourquoi nous" avec icône, titre, texte, modifiables dans l'éditeur. »</td></tr>
+    <tr><td>Retirer une section</td><td>« Retire la section logos presse de la page d'accueil, sans supprimer le fichier. »</td></tr>
+    <tr><td>Comprendre ce qu'il a fait</td><td>« Explique-moi en 5 lignes ce que tu viens de modifier et où. »</td></tr>
+    <tr><td>Revenir en arrière</td><td>« Annule la dernière modification de la section avis et remets-la comme avant. »</td></tr>
+  </table>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as fait au moins une correction mobile et une modification de texte via un prompt, vues dans l'aperçu.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">08</span>Bien parler à Claude Code (et à Claude dans Chrome)</h2>
+  <p class="lead">Claude est aussi bon que ce que tu lui donnes. Trois habitudes font toute la différence : le contexte, les captures, et la validation à chaque étape.</p>
+
+  <h3>Donne le contexte en entier</h3>
+  <p>Au début d'une session, dis-lui qui tu es et ce que tu veux. Exemple :</p>
+  <pre class="prompt">Je lance une boutique Shopify de [produit] pour [cible : qui, âge, besoin]. Je suis sur [Windows / Mac], je ne sais pas coder, je travaille avec le thème Aesthetic Lab et je suis la méthode de mon coach. Aujourd'hui je veux [objectif précis : ex. finir la page produit et corriger l'affichage mobile]. Guide-moi étape par étape, fais-le pour moi quand tu peux, et dis-moi quoi vérifier dans l'aperçu après chaque modification.</pre>
+
+  <h3>Montre, ne décris pas</h3>
+  <ul>
+    <li><strong>Une erreur</strong> : copie le message complet de la fenêtre <code>theme dev</code> ou de Claude Code, colle-le. Pas « ça marche pas ».</li>
+    <li><strong>Un problème visuel</strong> : capture d'écran de l'aperçu, collée directement dans la fenêtre Claude Code (il lit les images).</li>
+    <li><strong>Une référence</strong> : « Je veux un bundle comme sur [lien de la page concurrente], section juste sous le prix. »</li>
+  </ul>
+
+  <h3>« Montre-moi, puis enchaîne »</h3>
+  <p>Termine chaque grosse demande par cette phrase. Claude fait une étape, s'arrête, tu vérifies, il continue. Sans ça, il peut modifier dix fichiers avant que tu aies vu quoi que ce soit. Avec ça, tu gardes le contrôle sans ralentir.</p>
+
+  <h3>L'extension Claude pour Chrome : pour l'admin Shopify</h3>
+  <p>Claude Code travaille dans les fichiers du thème. Pour tout ce qui se passe dans l'<strong>admin Shopify</strong> (paiements, livraison, taxes, politiques, Pixel), installe <strong>Claude pour Chrome</strong> (claude.ai/chrome). Il prend la main sur ton navigateur : il clique, remplit, vérifie, pendant que tu regardes.</p>
+  <table class="t">
+    <tr><th>Outil</th><th>Il travaille sur…</th><th>Exemple</th></tr>
+    <tr><td>Claude Code (fenêtre de commande)</td><td>Les fichiers du thème dans <code>BOUTIQUE-SHOPIFY</code></td><td>« Ajoute une section avant / après à la page produit. »</td></tr>
+    <tr><td>Claude pour Chrome (navigateur)</td><td>L'admin Shopify, le Gestionnaire de publicités Meta, n'importe quel site</td><td>« Ouvre Paramètres → Expédition et crée une zone France avec livraison offerte. »</td></tr>
+    <tr><td>Claude (claude.ai, chat)</td><td>La réflexion, le copywriting, les prompts de créatives</td><td>« Écris les 6 bénéfices de mon produit pour une femme de 35 ans. »</td></tr>
+  </table>
+
+  <div class="note ok"><b>Ne le sous-estime pas</b>Claude peut installer et dépanner Node, Shopify CLI, Git · modifier le thème (textes, couleurs, sections, vitesse) · écrire tes fiches produit, tes e-mails, tes politiques · configurer paiements, livraison, taxes avec l'extension Chrome · analyser tes résultats Meta Ads. Teste-le sur chaque chose qui te bloque AVANT de la mettre de côté ou d'écrire à Mady.</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as donné ton contexte complet à Claude Code en début de session, et tu as fait au moins une action dans l'admin Shopify avec Claude pour Chrome.</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">09</span>Les erreurs fréquentes et comment les corriger</h2>
+  <p class="lead">Tout le monde fait ces erreurs la première semaine. Les reconnaître, c'est gagner une journée.</p>
+
+  <table class="t">
+    <tr><th>Symptôme</th><th>Cause</th><th>Correction</th></tr>
+    <tr><td>Claude dit « je ne trouve pas de thème Shopify dans ce dossier »</td><td>Mauvais dossier : la fenêtre est ouverte dans Documents, ou le thème est dans un sous-dossier</td><td>Ferme la fenêtre, rouvre-la depuis <code>BOUTIQUE-SHOPIFY</code> (chapitre 03). Vérifie que <code>sections</code> et <code>templates</code> sont à la racine.</td></tr>
+    <tr><td>L'aperçu <code>127.0.0.1:9292</code> affiche « Impossible de se connecter »</td><td>La fenêtre <code>theme dev</code> est fermée, ou tu as lancé <code>claude</code> dedans</td><td>Rouvre une fenêtre dans le dossier, relance <code>shopify theme dev --store …</code>, laisse-la tourner.</td></tr>
+    <tr><td>Les clients voient tes tests en cours</td><td>Tu as modifié le thème publié, ou poussé sans <code>--unpublished</code></td><td>Admin → Thèmes → republie le thème précédent (Mady peut t'aider). Désormais : jamais de push / publish sans Mady.</td></tr>
+    <tr><td>Claude modifie des choses que tu n'as pas demandées</td><td>Prompt trop vague (« améliore la page »)</td><td>Un message = une section, un objectif. « Montre-moi, puis enchaîne. » Et annule : « Remets la section X comme avant. »</td></tr>
+    <tr><td>La modification n'apparaît pas dans l'aperçu</td><td>Cache du navigateur, ou tu regardes la mauvaise page (accueil au lieu de produit)</td><td>Ctrl + F5 dans Chrome. Vérifie l'URL : <code>/products/ton-produit</code>.</td></tr>
+    <tr><td>« Rate limit » ou « usage limit reached »</td><td>Compte Pro saturé</td><td>Passe à Claude Max. En attendant, patiente le délai affiché.</td></tr>
+    <tr><td>La page est magnifique sur ordinateur, cassée sur téléphone</td><td>Validation faite seulement en grand écran</td><td>Vérifie CHAQUE section en mode mobile (clic droit → Inspecter → icône téléphone). Demande : « Corrige l'affichage mobile de [section] sans changer le desktop. »</td></tr>
+    <tr><td>Shopify refuse la connexion</td><td>Mauvais compte, ou pas l'autorisation de gérer les thèmes</td><td>Déconnecte-toi de Shopify dans Chrome, reconnecte-toi avec le compte propriétaire, relance <code>theme list</code>.</td></tr>
+  </table>
+
+  <div class="claude"><b>Demande à Claude</b>Pour n'importe quel autre blocage : capture complète + « Je travaille sur un thème Shopify avec Claude Code et Shopify CLI. Voici ce que je vois [capture]. Qu'est-ce qui se passe et qu'est-ce que je tape ? » Si après deux échanges ça ne passe toujours pas, et seulement là, écris à Mady avec la capture (bouton Urgence sur la page Démarrage).</div>
+
+  <div class="done"><b>✅ Fait quand</b>Tu as lu ce tableau une fois et tu sais où le retrouver (Education → guide 04, chapitre 09).</div>
+</section>
+
+<section class="chapter">
+  <h2><span class="num">10</span>Checklist de fin : ta page produit est prête à être montrée à Mady</h2>
+  <p class="lead">Coche tout avant d'envoyer le lien de ton aperçu ou de ton thème non publié. Un seul point manquant, et le call sert à corriger au lieu d'avancer.</p>
+
+  <h3>Technique</h3>
+  <ul class="check">
+    <li>Le dossier <code>BOUTIQUE-SHOPIFY</code> contient le thème Aesthetic Lab à la racine.</li>
+    <li><code>shopify theme dev</code> tourne et l'aperçu s'affiche sur <code>127.0.0.1:9292</code>.</li>
+    <li>Claude Code a lu le thème (prompt d'onboarding) et connaît les règles du jeu avec mes couleurs.</li>
+    <li>Je n'ai lancé ni <code>theme push</code> ni <code>theme publish</code> sans Mady.</li>
+  </ul>
+
+  <h3>Page produit</h3>
+  <ul class="check">
+    <li>Les 11 sections sont présentes, dans l'ordre du prompt maître.</li>
+    <li>Preuve (note + nombre d'avis) visible AU-DESSUS du titre, prix barré + prix promo + badge.</li>
+    <li>Bundle avec option 2 présélectionnée et « Le plus populaire ».</li>
+    <li>Garanties sous le bouton : livraison offerte, 30 jours, paiement sécurisé.</li>
+    <li>FAQ : 5 questions, une seule ouverte à la fois.</li>
+    <li>Sticky add to cart visible sur mobile après le scroll.</li>
+    <li>Chaque texte, image, couleur et prix est modifiable dans Shopify → Personnaliser.</li>
+  </ul>
+
+  <h3>Mobile</h3>
+  <ul class="check">
+    <li>Chaque section vérifiée en mode téléphone : rien ne déborde, rien ne passe sous une image.</li>
+    <li>Le bouton principal est visible sans scroller sur un écran de téléphone.</li>
+    <li>La page se charge en moins de 3 secondes (demande à Claude le prompt Vitesse si besoin).</li>
+  </ul>
+
+  <h3>Pour Mady</h3>
+  <ul class="check">
+    <li>Thème poussé en non publié (prompt « Mettre en ligne », chapitre 07) OU capture d'écran complète de l'aperçu mobile.</li>
+    <li>Message envoyé : lien de la boutique, nom du thème dans la bibliothèque, et les 2 ou 3 points sur lesquels tu hésites.</li>
+    <li>Étape « Demande ta boutique à Mady, puis vérifie et complète » cochée dans Mes étapes.</li>
+  </ul>
+
+  <div class="note info"><b>La suite</b>Guide 05 : la page produit qui convertit (les textes, l'offre, les avis, chaque section expliquée). Guide 06 : les médias de ta boutique avec GPT Image 2 (les images à mettre dans ces sections).</div>
+
+  <div class="done"><b>✅ Fait quand</b>Toutes les cases sont cochées et Mady a reçu ton thème non publié ou tes captures.</div>
+</section>
+
+</body>
+</html>

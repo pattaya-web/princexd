@@ -60,6 +60,7 @@ export default function ScaleXDashboard() {
 
   const name = data.student?.firstName ?? "Mady";
   const f = data.formation;
+  const e = data.education;
   const wa = waHelpLink(data.portal.whatsapp, name);
 
   return (
@@ -111,46 +112,50 @@ export default function ScaleXDashboard() {
             </div>
           </section>
 
-          {/* 01 / Formation */}
+          {/* 01 / Education : les guides PDF */}
           <section className="card p-5">
             <div className="flex items-center justify-between gap-3">
-              <SectionLabel n="01" title="Formation" />
+              <SectionLabel n="01" title="Education 🎓" />
               <span className="label-xs num">
-                {f.done} / {f.total} modules terminés
+                {e.done} / {e.total} guides terminés
               </span>
             </div>
-            {f.total === 0 ? (
-              <p className="dim text-[13.5px] mt-4">Ta formation arrive : aucun module n&apos;est encore publié.</p>
-            ) : f.resume ? (
+            {e.resume ? (
               <>
-                <div className="label-xs mt-5">Reprendre où tu en étais</div>
-                <h2 className="text-[20px] font-semibold mt-1 leading-tight">{f.resume.title}</h2>
-                {f.resume.summary && <p className="muted text-[13.5px] mt-1 leading-relaxed">{f.resume.summary}</p>}
+                <div className="label-xs mt-5">À lire maintenant</div>
+                <h2 className="text-[20px] font-semibold mt-1 leading-tight">
+                  {String(e.resume.order).padStart(2, "0")} · {e.resume.title}
+                </h2>
+                {e.resume.summary && <p className="muted text-[13.5px] mt-1 leading-relaxed">{e.resume.summary}</p>}
               </>
             ) : (
-              <h2 className="text-[20px] font-semibold mt-5 leading-tight">Tous les modules sont terminés. Bravo.</h2>
+              <h2 className="text-[20px] font-semibold mt-5 leading-tight">Tous les guides sont terminés. Bravo.</h2>
             )}
-            {f.total > 0 && (
-              <>
-                <div className="flex items-center gap-3 mt-4">
-                  <div className="flex-1 h-[6px] rounded-full overflow-hidden" style={{ background: "var(--surface-3)" }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${f.percent}%`, background: "var(--good)" }} />
-                  </div>
-                  <span className="text-[12px] num dim">{f.percent}%</span>
-                </div>
-                <div className="label-xs mt-2">
-                  {f.resume ? `Module ${f.resume.index + 1} / ${f.total}` : `${f.total} modules`} · {f.percent}% de la formation
-                </div>
-                <div className="flex flex-wrap items-center gap-3 mt-4">
-                  <Link href={f.resume ? `/formation/cours?m=${f.resume.id}` : "/formation/cours"} className="btn btn-primary btn-sm">
-                    {f.resume ? "Reprendre" : "Revoir les modules"}
-                  </Link>
-                  <Link href="/formation/cours" className="text-[13px] font-medium hover:underline">
-                    Tous les modules →
-                  </Link>
-                </div>
-              </>
-            )}
+            <div className="flex items-center gap-3 mt-4">
+              <div className="flex-1 h-[6px] rounded-full overflow-hidden" style={{ background: "var(--surface-3)" }}>
+                <div className="h-full rounded-full transition-all" style={{ width: `${e.percent}%`, background: "var(--good)" }} />
+              </div>
+              <span className="text-[12px] num dim">{e.percent}%</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 mt-4">
+              {e.resume ? (
+                <a href={e.resume.file} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
+                  Ouvrir le PDF
+                </a>
+              ) : (
+                <Link href="/formation/education" className="btn btn-primary btn-sm">
+                  Revoir les guides
+                </Link>
+              )}
+              <Link href="/formation/education" className="text-[13px] font-medium hover:underline">
+                Tous les guides →
+              </Link>
+              {f.total > 0 && (
+                <Link href={f.resume ? `/formation/cours?m=${f.resume.id}` : "/formation/cours"} className="text-[13px] font-medium hover:underline">
+                  Vidéos ({f.done} / {f.total}) →
+                </Link>
+              )}
+            </div>
           </section>
 
           {/* 02 / Prochaines étapes */}
