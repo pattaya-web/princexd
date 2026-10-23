@@ -157,7 +157,8 @@ function StudioLine({ job }: { job: StudioJob }) {
   );
 }
 
-export function JobsDock() {
+/** `studioJobs` : sonder aussi la file du Swap video (faux pour un eleve, qui n'y a pas acces). */
+export function JobsDock({ studioJobs = true }: { studioJobs?: boolean } = {}) {
   const [jobs, setJobs] = useState<Generation[]>([]);
   const [history, setHistory] = useState<Generation[]>([]);
   const [studio, setStudio] = useState<StudioJob[]>([]);
@@ -208,7 +209,7 @@ export function JobsDock() {
       } catch {
         // Coupure reseau ponctuelle : on retentera au prochain tour.
       }
-      try {
+      if (studioJobs) try {
         // Le meme appel fait avancer la file du Swap video cote serveur.
         // Premier tour juste apres l'appel initial de la page Studio : on reprend sa liste.
         const body = await fetchStudioJobs(2000);

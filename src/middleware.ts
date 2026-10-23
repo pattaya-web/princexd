@@ -62,9 +62,14 @@ const VA_APIS = ["/api/outreach/", "/api/sales/session", "/api/version"];
  * (modules, acces) sont a l'admin : un eleve qui en tape l'adresse revient a
  * ses modules.
  */
-const STUDENT_PAGES = ["/formation"];
+const STUDENT_PAGES = ["/formation", "/studio"];
 const STUDENT_ADMIN_PAGES = ["/formation/modules", "/formation/eleves", "/formation/ressources", "/formation/parcours"];
-const STUDENT_APIS = ["/api/formation/", "/api/sales/session", "/api/version"];
+/*
+ * Studio IA par eleve : les routes de generation KIE (avec sa cle, voir
+ * lib/studio-tenant) et ses propres generations ; /api/kie/upload est hors
+ * middleware et verifie la session lui-meme.
+ */
+const STUDENT_APIS = ["/api/formation/", "/api/sales/session", "/api/version", "/api/kie/generate", "/api/kie/task", "/api/kie/credits", "/api/kie/download", "/api/thumb", "/api/data/generations"];
 
 /* --- Equipe commerciale --- */
 const SALES_PAGES = ["/sales"];

@@ -87,6 +87,8 @@ function StudioInner() {
   /* Monteur : un rappel des trois gestes du swap, qu'il peut fermer. */
   const { session } = useSession();
   const isEditor = session?.role === "editor";
+  /* Eleve (Studio IA par eleve) : image et video seulement, avec sa cle KIE ; pas de swap, de voix ni de dictee (cles du compte). */
+  const isStudent = session?.role === "student";
   const [guideClosed, setGuideClosed] = useLocalState("studio-editor-guide-closed", false);
   const [modelId, setModelId] = useState(() => firstOfKind("image").id);
   const [input, setInput] = useState<Record<string, unknown>>(() => defaultsFor(firstOfKind("image")));
@@ -179,6 +181,18 @@ function StudioInner() {
   const reuse = useCallback(
     (url: string, from: "image" | "video") => {
       const name = url.split("/").pop() ?? (from === "video" ? "vidéo" : "image");
+      if (isStudent) {
+        // Pas de swap pour l'eleve : l'image part dans le premier modele video (image → video).
+        const first = firstOfKind("video");
+        const slot = first.fields.find((f) => f.type === "file" || f.type === "files");
+        setKind("video");
+        setSwap(false);
+        setModelId(first.id);
+        setInput({ ...defaultsFor(first), ...(slot ? { [slot.key]: slot.type === "files" ? [url] : url } : {}) });
+        toast(from === "video" ? "Vidéo posée dans le formulaire." : "Image posée comme image de départ de la vidéo.");
+        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+        return;
+      }
       setKind("swap");
       setSwap(false);
       setAdvancedSwap(false);
@@ -187,7 +201,7 @@ function StudioInner() {
       toast(from === "video" ? "Envoyée comme vidéo originale." : "Envoyée comme image de référence.");
       window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
     },
-    [toast],
+    [toast, isStudent],
   );
 
   /**
@@ -276,6 +290,7 @@ function StudioInner() {
     let alive = true;
     // Le dock sonde deja la file : sa derniere liste suffit, sinon un appel.
     const cached = readStudioJobsCache();
+    if (isStudent) return;
     if (cached) setJobs(cached);
     else {
       fetchStudioJobs(2000)
@@ -288,7 +303,7 @@ function StudioInner() {
     };
     window.addEventListener(STUDIO_JOBS_EVENT, onStudio);
     return () => { alive = false; window.removeEventListener(STUDIO_JOBS_EVENT, onStudio); };
-  }, []);
+  }, [isStudent]);
 
   const jobActions = useMemo<JobActions>(
     () => ({
@@ -545,11 +560,15 @@ function StudioInner() {
                   setCreateTab(false);
                   switchKind(t);
                 }}
-                options={[
-                  ...(["image", "video", "swap"] as ModelKind[]).map((k) => ({ value: k as StudioTab, label: KIND_LABEL[k] })),
-                  { value: "create" as StudioTab, label: "Création" },
-                  { value: "talk" as StudioTab, label: "Photo qui parle" },
-                ]}
+                options={
+                  isStudent
+                    ? (["image", "video"] as ModelKind[]).map((k) => ({ value: k as StudioTab, label: KIND_LABEL[k] }))
+                    : [
+                        ...(["image", "video", "swap"] as ModelKind[]).map((k) => ({ value: k as StudioTab, label: KIND_LABEL[k] })),
+                        { value: "create" as StudioTab, label: "Création" },
+                        { value: "talk" as StudioTab, label: "Photo qui parle" },
+                      ]
+                }
               />
 
               {isEditor && !guideClosed && kind === "swap" && !talkTab && !createTab && (
@@ -568,8 +587,15 @@ function StudioInner() {
                   </button>
                 </div>
               )}
-              {kind === "image" && !talkTab && !createTab && (
+              {kind === "image" && !talkTab && !createTab && !isStudent && (
                 <Toggle checked={swap} onChange={setSwap} label="Swap de visage" />
+              )}
+              {isStudent && (
+                <div className="rounded-[10px] px-3.5 py-2.5 text-[12.5px] leading-relaxed" style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--accent) 25%, transparent)" }}>
+                  <strong>Ton Studio.</strong> Les générations tournent sur ta clé KIE (tes crédits) et toi seul vois tes résultats. Les prompts sont sur la page{" "}
+                  <a href="/formation/creatives" className="underline">Créatives</a> : Claude t&apos;écrit le prompt, tu le colles ici avec ton image de référence. Clé et solde :{" "}
+                  <a href="/formation/studio" className="underline">Studio IA</a>.
+                </div>
               )}
               {kind === "swap" && advancedSwap && (
                 <button type="button" className="link text-[12px] self-start" onClick={() => setAdvancedSwap(false)}>
@@ -676,7 +702,7 @@ function StudioInner() {
                         onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
                       />
                       <div className="flex justify-end -mt-1">
-                        <DictateButton onText={(t) => setInput((v) => ({ ...v, [f.key]: String(v[f.key] ?? "") ? `${String(v[f.key])} ${t}` : t }))} />
+                        {!isStudent && <DictateButton onText={(t) => setInput((v) => ({ ...v, [f.key]: String(v[f.key] ?? "") ? `${String(v[f.key])} ${t}` : t }))} />}
                       </div>
                     </Field>
                   ))}

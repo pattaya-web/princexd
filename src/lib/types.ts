@@ -684,6 +684,12 @@ export interface Student {
   coachNotes?: string;
   /** Demande de generation de boutique faite depuis la page Demarrage. */
   shopRequest?: ShopRequest;
+  /* --- Studio IA de l'eleve : ouvert par l'admin apres l'etape creatives,
+         il y travaille avec sa propre cle KIE, sur ses credits, et ne voit
+         que ses generations. --- */
+  studioAccess?: boolean;
+  /** Cle API KIE de l'eleve (kie.ai). Jamais renvoyee en clair au navigateur. */
+  kieApiKey?: string;
 }
 
 /** « Demande ta boutique à Mady » : l'eleve donne son adresse Shopify, Mady genere avec le generateur. */
@@ -1291,6 +1297,8 @@ export interface Generation {
   swipeId?: string;
   /** « image:0 », « video:2 » : l'index du prompt dans l'analyse. */
   swipeSlot?: string;
+  /** Eleve proprietaire (Studio IA par eleve). Absent = generation de l'admin / du monteur. */
+  ownerId?: string;
   createdAt: string;
   updatedAt: string;
 }

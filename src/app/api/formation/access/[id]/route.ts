@@ -18,7 +18,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   return handle(async () => {
     requireAdmin(readSession(req));
     const { id } = await ctx.params;
-    const raw = (await req.json().catch(() => ({}))) as { username?: unknown; password?: unknown; portalAccess?: unknown };
+    const raw = (await req.json().catch(() => ({}))) as { username?: unknown; password?: unknown; portalAccess?: unknown; studioAccess?: unknown; kieApiKey?: unknown };
     const db = readDB();
     const s = db.students.find((x) => x.id === id);
     if (!s) throw new Error("Élève introuvable.");
@@ -43,6 +43,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         throw new Error("Définis un identifiant avant d'ouvrir l'accès.");
       }
       s.portalAccess = raw.portalAccess;
+    }
+
+    // Studio IA : ouvert par l'admin ; la cle KIE peut aussi etre posee ici (vide = inchangee, « CLEAR » = effacee).
+    if (typeof raw.studioAccess === "boolean") s.studioAccess = raw.studioAccess;
+    if (typeof raw.kieApiKey === "string") {
+      const k = raw.kieApiKey.trim();
+      if (k === "CLEAR") delete s.kieApiKey;
+      else if (k) s.kieApiKey = k.slice(0, 200);
     }
 
     writeDB(db);

@@ -46,6 +46,19 @@ export default function StudentAccessPage() {
     void load();
   }, [load]);
 
+  const toggleStudio = async (s: StudentAccessRow) => {
+    setBusyId(s.id);
+    try {
+      await api(`/api/formation/access/${s.id}`, { method: "PATCH", body: JSON.stringify({ studioAccess: !s.studioAccess }) });
+      toast(s.studioAccess ? `Studio IA fermé pour ${s.name}.` : `Studio IA ouvert pour ${s.name} : il met sa clé KIE dans Scale X → Studio IA.`);
+      await load();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusyId("");
+    }
+  };
+
   const openEdit = (s: StudentAccessRow) => {
     setEditing(s);
     setUsername(s.username || s.suggestedUsername);
@@ -154,6 +167,7 @@ export default function StudentAccessPage() {
                   <th className="text-left">Contrat</th>
                   <th className="text-left">Identifiant</th>
                   <th className="text-left">Accès</th>
+                  <th className="text-left">Studio IA</th>
                   <th className="text-left">Modules</th>
                   <th className="text-left">Étapes</th>
                   <th className="text-left">Dernière visite</th>
@@ -188,6 +202,9 @@ export default function StudentAccessPage() {
                         onChange={() => void toggleAccess(s)}
                         label={s.portalAccess ? "Ouvert" : "Fermé"}
                       />
+                    </td>
+                    <td>
+                      <Toggle checked={s.studioAccess} onChange={() => void toggleStudio(s)} label={s.studioAccess ? (s.hasKieKey ? "Ouvert · clé OK" : "Ouvert · sans clé") : "Fermé"} />
                     </td>
                     <td className="num">
                       {s.completed} / {data.publishedModules}

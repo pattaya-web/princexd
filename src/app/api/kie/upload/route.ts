@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refuseUnless } from "@/lib/sales/access";
 import { uploadToKie, KieError } from "@/lib/kie";
+import { scopeError, studioScope, withScope } from "@/lib/studio-tenant";
 
 export const dynamic = "force-dynamic";
 /** Une vidéo de rush peut être longue à monter : on laisse largement le temps. */
@@ -18,8 +19,16 @@ const MAX_BYTES = 100 * 1024 * 1024;
  */
 export async function POST(req: NextRequest) {
   // Hors middleware (voir lib/sales/access) : memes roles qu'avant.
-  const refused = refuseUnless(req, ["editor"]);
+  const refused = refuseUnless(req, ["editor", "student"]);
   if (refused) return refused;
+  // Eleve : le fichier part sur le stockage KIE avec SA cle, rien ne reste ici.
+  let scope;
+  try {
+    scope = studioScope(req);
+  } catch (e) {
+    const { error, status } = scopeError(e);
+    return NextResponse.json({ error }, { status });
+  }
 
   let form: FormData;
   try {
@@ -40,7 +49,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const url = await uploadToKie(file);
+    const url = await withScope(scope, () => uploadToKie(file, scope.ownerId ? `eleve-${scope.ownerId}` : "princexd"));
     return NextResponse.json({ url, name: file.name, size: file.size });
   } catch (e) {
     const err = e as KieError;

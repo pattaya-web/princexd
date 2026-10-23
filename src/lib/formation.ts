@@ -102,6 +102,9 @@ export interface StudentAccessRow {
   tasksPending: number;
   /** Demande de boutique en attente (page Demarrage). */
   shopRequested: boolean;
+  /** Studio IA ouvert par l'admin, et cle KIE posee par l'eleve. */
+  studioAccess: boolean;
+  hasKieKey: boolean;
 }
 
 export function toAccessRow(s: Student, published: Set<string>, publishedSteps: Set<string> = new Set()): StudentAccessRow {
@@ -111,6 +114,8 @@ export function toAccessRow(s: Student, published: Set<string>, publishedSteps: 
     stepsTotal: publishedSteps.size + (s.tasks ?? []).length,
     tasksPending: (s.tasks ?? []).filter((t) => !t.done).length,
     shopRequested: s.shopRequest?.status === "demandee",
+    studioAccess: Boolean(s.studioAccess),
+    hasKieKey: Boolean((s.kieApiKey ?? "").trim()),
     id: s.id,
     name: s.name,
     email: s.email ?? "",

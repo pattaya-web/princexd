@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { CollectionName, DB, Settings } from "./types";
 import { applySoloCloser } from "./sales/closers";
 
@@ -311,8 +312,24 @@ export function getSettings(): Settings {
   return readDB().settings;
 }
 
-/** Clé effective : la variable d'env gagne sur celle saisie dans l'UI. */
+/*
+ * Cle KIE de la requete en cours.
+ *
+ * Un eleve travaille dans le Studio avec SA cle (sur ses credits) : la route
+ * enveloppe son traitement dans `withKieKey`, et tout ce qui appelle
+ * `getApiKey()` en dessous (createTask, getTask, uploadToKie, askText…)
+ * recoit cette cle sans qu'on la passe de main en main.
+ */
+const kieKeyContext = new AsyncLocalStorage<string>();
+
+export function withKieKey<T>(key: string, fn: () => Promise<T> | T): Promise<T> {
+  return Promise.resolve(kieKeyContext.run(key, fn));
+}
+
+/** Clé effective : celle de la requête (élève), sinon la variable d'env, sinon celle saisie dans l'UI. */
 export function getApiKey(): string {
+  const scoped = kieKeyContext.getStore();
+  if (scoped !== undefined) return scoped;
   return process.env.KIE_API_KEY?.trim() || getSettings().kieApiKey.trim();
 }
 

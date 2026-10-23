@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { insert, list, remove, removeMany, update } from "@/lib/db";
-import type { CollectionName } from "@/lib/types";
+import { readSession } from "@/lib/sales/access";
+import { readDB } from "@/lib/db";
+import type { CollectionName, Generation } from "@/lib/types";
+
+/**
+ * Generations : chacun les siennes. L'eleve (Studio IA par eleve) ne voit que
+ * celles qu'il a lancees ; l'admin et le monteur celles du Studio commun.
+ */
+function generationScope(req: NextRequest): { ownerId: string; student: boolean } {
+  const session = readSession(req);
+  return { ownerId: session.role === "student" ? session.memberId : "", student: session.role === "student" };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +60,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ collection:
   const key = resolve(collection);
   if (!key) return NextResponse.json({ error: "Collection inconnue" }, { status: 404 });
 
+  if (key === "generations") {
+    const { ownerId } = generationScope(req);
+    return NextResponse.json((list(key) as unknown as Generation[]).filter((g) => (g.ownerId ?? "") === ownerId));
+  }
   const rows = list(key);
   // Le hash du mot de passe d'un eleve n'a rien a faire dans le navigateur,
   // meme celui de l'admin : la page Eleves n'en a aucun usage.
@@ -72,6 +87,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ collection
   const { collection } = await ctx.params;
   const key = resolve(collection);
   if (!key) return NextResponse.json({ error: "Collection inconnue" }, { status: 404 });
+  if (key === "generations" && generationScope(req).student) return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   const body = (await req.json()) as Record<string, unknown>;
   return NextResponse.json(insert(key, body));
 }
@@ -80,6 +96,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ collectio
   const { collection } = await ctx.params;
   const key = resolve(collection);
   if (!key) return NextResponse.json({ error: "Collection inconnue" }, { status: 404 });
+  if (key === "generations" && generationScope(req).student) return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   const { id, ...patch } = (await req.json()) as { id?: string } & Record<string, unknown>;
   if (!id) return NextResponse.json({ error: "id manquant" }, { status: 400 });
   const row = update(key, id, patch);
@@ -91,14 +108,22 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ collecti
   const { collection } = await ctx.params;
   const key = resolve(collection);
   if (!key) return NextResponse.json({ error: "Collection inconnue" }, { status: 404 });
+  // On ne supprime que ce qu'on a le droit de voir.
+  const allowed = (ids: string[]) => {
+    if (key !== "generations") return ids;
+    const { ownerId } = generationScope(req);
+    const mine = new Set(readDB().generations.filter((g) => (g.ownerId ?? "") === ownerId).map((g) => g.id));
+    return ids.filter((id) => mine.has(id));
+  };
   // `ids` permet de vider une selection en une seule ecriture.
   const many = req.nextUrl.searchParams.get("ids");
   if (many) {
-    const list = many.split(",").map((s) => s.trim()).filter(Boolean);
+    const list = allowed(many.split(",").map((s) => s.trim()).filter(Boolean));
     if (!list.length) return NextResponse.json({ error: "ids vide" }, { status: 400 });
     return NextResponse.json(removeMany(key, list));
   }
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id manquant" }, { status: 400 });
+  if (!allowed([id]).length) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
   return NextResponse.json(remove(key, id));
 }

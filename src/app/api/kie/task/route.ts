@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTask, KieError } from "@/lib/kie";
-import { readDB, writeDB } from "@/lib/db";
+import { readDB, withKieKey, writeDB } from "@/lib/db";
+import { keyForOwner, ownGenerations, scopeError, studioScope } from "@/lib/studio-tenant";
 import { warmThumb } from "@/lib/thumbs";
 
 export const dynamic = "force-dynamic";
@@ -20,14 +21,23 @@ export async function GET(req: NextRequest) {
    * Le dock ne rediffusait rien, la case restait sur le chrono jusqu'a F5.
    */
   const wantList = req.nextUrl.searchParams.get("list") === "1";
+  // Chacun ne sonde et ne voit que ses generations (eleve : les siennes, avec sa cle).
+  let scope;
+  try {
+    scope = studioScope(req);
+  } catch (e) {
+    const { error, status } = scopeError(e);
+    return NextResponse.json({ error }, { status });
+  }
   const db = readDB();
-  const pending = db.generations.filter(
+  const mine = ownGenerations(db, scope.ownerId);
+  const pending = mine.filter(
     (g) => (one ? g.taskId === one : g.state !== "success" && g.state !== "fail"),
   );
   if (!pending.length) {
     return NextResponse.json(
       wantList
-        ? { updated: [], remaining: 0, generations: db.generations.slice(0, 60) }
+        ? { updated: [], remaining: 0, generations: mine.slice(0, 60) }
         : { updated: [], remaining: 0 },
     );
   }
@@ -37,7 +47,12 @@ export async function GET(req: NextRequest) {
   // Les taches sont interrogees en parallele : en serie, douze appels de
   // 300 ms depassaient l'intervalle de sondage et empilaient les requetes.
   const batch = pending.slice(0, 12);
-  const results = await Promise.allSettled(batch.map((gen) => getTask(gen.taskId)));
+  const results = await Promise.allSettled(
+    batch.map((gen) => {
+      const key = keyForOwner(db, gen.ownerId);
+      return key ? withKieKey(key, () => getTask(gen.taskId)) : getTask(gen.taskId);
+    }),
+  );
   for (const [i, gen] of batch.entries()) {
     const r = results[i];
     if (r.status === "rejected") {
@@ -84,6 +99,6 @@ export async function GET(req: NextRequest) {
   }
   if (changed) writeDB(db);
 
-  const remaining = db.generations.filter((g) => g.state !== "success" && g.state !== "fail").length;
-  return NextResponse.json({ updated, remaining, generations: db.generations.slice(0, 60) });
+  const remaining = mine.filter((g) => g.state !== "success" && g.state !== "fail").length;
+  return NextResponse.json({ updated, remaining, generations: mine.slice(0, 60) });
 }

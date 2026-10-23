@@ -719,6 +719,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 { href: "/formation/cours", label: "Formation", icon: "▶" },
                 { href: "/formation/etapes", label: "Mes étapes", icon: "☑" },
                 { href: "/formation/creatives", label: "Créatives", icon: "✦" },
+                { href: "/formation/studio", label: "Studio IA", icon: "◐" },
                 { href: "/formation/sops", label: "Ressources", icon: "▤" },
                 { href: "/formation/appel", label: "Réserver un appel", icon: "☏" },
               ],
@@ -825,7 +826,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <ViewSwitcher />
           <SessionBadge />
           {/* Le solde de credits IA ne concerne pas l'equipe commerciale. */}
-          {!isSalesOnly && !isVa && !isStudent && <CreditsWidget />}
+          {!isSalesOnly && !isVa && <CreditsWidget />}
           {!isSalesOnly && !isVa && !isStudent && <HiggsfieldWidget />}
         </div>
       </aside>
@@ -875,7 +876,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Hors du <main> : il ne doit pas etre remonte a chaque navigation. */}
-      {!isVa && !isStudent && <JobsDock />}
+      {!isVa && <JobsDock studioJobs={!isStudent} />}
       {/* Chat « Nouvel élève » (admin seulement) : bulle en bas à droite, sauf sur la page du chat. */}
       {session?.isAdmin && !pathname.startsWith("/eleves/nouveau") && <NewStudentChat variant="widget" />}
       <NewVersionBanner />

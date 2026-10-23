@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createTask, KieError } from "@/lib/kie";
 import { insert } from "@/lib/db";
 import { getModel } from "@/lib/models";
+import { scopeError, studioScope, withScope } from "@/lib/studio-tenant";
 import type { Generation } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,14 @@ function explain(msg: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Eleve : sa cle KIE, et la generation lui appartient.
+  let scope;
+  try {
+    scope = studioScope(req);
+  } catch (e) {
+    const { error, status } = scopeError(e);
+    return NextResponse.json({ error }, { status });
+  }
   const { model, input, swipeId, swipeSlot } = (await req.json()) as { model: string; input: Record<string, unknown>; swipeId?: string; swipeSlot?: string };
   const def = getModel(model);
   if (!def) return NextResponse.json({ error: `Modèle inconnu : ${model}` }, { status: 400 });
@@ -70,19 +79,19 @@ export async function POST(req: NextRequest) {
   const callback = base && !base.includes("localhost") ? `${base}/api/kie/callback` : undefined;
 
   try {
-    let taskId: string;
-    try {
-      taskId = await createTask(target, payload, callback);
-    } catch (e) {
-      // Fond explicite refuse a cette definition : on retente sans, plutot que d'echouer.
-      const msg = (e as KieError).message ?? "";
-      if (payload.background && /generation with background/i.test(msg)) {
-        delete payload.background;
-        taskId = await createTask(target, payload, callback);
-      } else {
+    const taskId = await withScope(scope, async () => {
+      try {
+        return await createTask(target, payload, callback);
+      } catch (e) {
+        // Fond explicite refuse a cette definition : on retente sans, plutot que d'echouer.
+        const msg = (e as KieError).message ?? "";
+        if (payload.background && /generation with background/i.test(msg)) {
+          delete payload.background;
+          return await createTask(target, payload, callback);
+        }
         throw e;
       }
-    }
+    });
     const row = insert("generations", {
       taskId,
       model: target,
@@ -97,7 +106,8 @@ export async function POST(req: NextRequest) {
       progress: 0,
       costTimeSec: 0,
       // Prompts IA d'un swipe : le resultat reste rattache a sa fiche.
-      ...(swipeId ? { swipeId: String(swipeId), swipeSlot: String(swipeSlot ?? "") } : {}),
+      ...(swipeId && !scope.ownerId ? { swipeId: String(swipeId), swipeSlot: String(swipeSlot ?? "") } : {}),
+      ...(scope.ownerId ? { ownerId: scope.ownerId } : {}),
       updatedAt: new Date().toISOString(),
     }) as unknown as Generation;
     return NextResponse.json(row);
