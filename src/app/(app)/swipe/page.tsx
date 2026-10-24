@@ -101,7 +101,7 @@ export default function SwipePage() {
     async (id: string) => {
       setWork(id, "Analyse…");
       try {
-        const res = await api<{ analysis: SwipeAnalysis }>("/api/ai/analyze", { method: "POST", body: JSON.stringify({ swipeId: id }), timeoutMs: 300_000 });
+        const res = await api<{ analysis: SwipeAnalysis }>("/api/ai/analyze", { job: true, method: "POST", body: JSON.stringify({ swipeId: id }), timeoutMs: 300_000 });
         setRows((prev) => prev.map((s) => (s.id === id ? { ...s, analysis: res.analysis, status: "analyse", transcriptNeeded: false } : s)));
         const st = res.analysis.etape;
         const conf = res.analysis.confiance ?? 0;
@@ -166,7 +166,7 @@ export default function SwipePage() {
     const id = row.id;
     setWork(id, "Transcription…");
     try {
-      const r = await api<{ transcript: string }>("/api/ai/transcribe-url", { method: "POST", body: JSON.stringify({ url: raw }), timeoutMs: 300_000 });
+      const r = await api<{ transcript: string }>("/api/ai/transcribe-url", { job: true, method: "POST", body: JSON.stringify({ url: raw }), timeoutMs: 300_000 });
       await patch(id, { transcriptInput: r.transcript, transcriptSource: "auto", transcriptNeeded: false });
       setWork(id, "");
       await analyzeSwipe(id);

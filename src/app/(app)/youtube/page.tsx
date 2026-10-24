@@ -250,9 +250,10 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
     setError("");
     try {
       const r = await api<{ video: YtVideo; cached?: boolean; auto?: boolean }>(`/api/youtube/${v.id}/transcript`, {
+        job: true,
         method: "POST",
         body: JSON.stringify({ force }),
-        timeoutMs: 90_000,
+        timeoutMs: 3 * 60_000,
       });
       onUpdate(r.video);
       setTab("transcript");
@@ -313,7 +314,7 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
     setBusy("script");
     setError("");
     try {
-      const r = await api<{ video: YtVideo }>(`/api/youtube/${v.id}/script`, { method: "POST", body: JSON.stringify({ extra }), timeoutMs: 6 * 60_000 });
+      const r = await api<{ video: YtVideo }>(`/api/youtube/${v.id}/script`, { job: true, method: "POST", body: JSON.stringify({ extra }), timeoutMs: 6 * 60_000 });
       onUpdate(r.video);
       setTab("script");
       toast("Analyse et script prêts.");

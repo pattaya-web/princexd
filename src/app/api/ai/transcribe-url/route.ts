@@ -3,6 +3,7 @@ import { readDB, writeDB } from "@/lib/db";
 import { MAX_UPLOAD_BYTES, transcribe } from "@/lib/openai";
 import { DownloadError, downloadAudio, isSupportedUrl, toArrayBuffer } from "@/lib/ytdlp";
 import { ensureCreatorVideo, extractAudio } from "@/lib/video-source";
+import { jobStatusResponse, respondAsJobBuffered } from "@/lib/bg-jobs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -18,7 +19,7 @@ const TRANSCRIBE_VOCAB =
  * Meta ne livre pas le fichier des reels qui ne t'appartiennent pas : on passe
  * donc par yt-dlp pour recuperer la piste audio, puis par OpenAI.
  */
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   const { url, savedId, force } = (await req.json().catch(() => ({}))) as {
     url?: string;
     savedId?: string;
@@ -88,4 +89,17 @@ export async function POST(req: NextRequest) {
     const err = e as DownloadError;
     return NextResponse.json({ error: err.message }, { status: err.code ?? 502 });
   }
+}
+
+/*
+ * Avec l'en-tete `x-bg-job: 1` (option `job: true` de api()), la reponse est
+ * produite en fond et rejouee au `GET ?job=` : le proxy ne coupe plus les
+ * traitements longs. Sans l'en-tete, la route repond comme avant.
+ */
+export async function POST(req: NextRequest) {
+  return respondAsJobBuffered(req, undefined, (r, c) => handlePost(r));
+}
+
+export async function GET(req: NextRequest) {
+  return jobStatusResponse(req) ?? Response.json({ error: "Méthode non prise en charge." }, { status: 405 });
 }

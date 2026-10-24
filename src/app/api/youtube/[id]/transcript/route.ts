@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
-import { elapsed, getJob, startJob } from "@/lib/bg-jobs";
+import { jobStatusResponse, respondAsJob, startJob } from "@/lib/bg-jobs";
 import { OpenAiError, transcribe } from "@/lib/openai";
 import { downloadAudio, toArrayBuffer } from "@/lib/ytdlp";
 import { fetchCaptions, YoutubeError } from "@/lib/youtube";
@@ -69,20 +69,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   if (v.transcript.trim() && !body.force) return NextResponse.json({ video: v, cached: true });
 
-  try {
-    const cap = await fetchCaptions(v.videoId);
-    if (!cap) return NextResponse.json({ error: `Cette vidéo n'a aucun sous-titre lisible d'ici. ${BLOCKED_HINT}` }, { status: 422 });
-    return NextResponse.json({ video: saveTranscript(id, cap.text, cap.language, "captions", cap.durationSec), auto: cap.auto });
-  } catch (e) {
-    const err = e as YoutubeError;
-    return NextResponse.json({ error: `${err.message} ${BLOCKED_HINT}` }, { status: 502 });
-  }
+  // Sous-titres : quelques secondes d'habitude, mais YouTube peut faire traîner
+  // un serveur de datacenter bien au-delà du délai du proxy → en fond si la page le demande.
+  return respondAsJob(req, async () => {
+    try {
+      const cap = await fetchCaptions(v.videoId);
+      if (!cap) return NextResponse.json({ error: `Cette vidéo n'a aucun sous-titre lisible d'ici. ${BLOCKED_HINT}` }, { status: 422 });
+      return NextResponse.json({ video: saveTranscript(id, cap.text, cap.language, "captions", cap.durationSec), auto: cap.auto });
+    } catch (e) {
+      const err = e as YoutubeError;
+      return NextResponse.json({ error: `${err.message} ${BLOCKED_HINT}` }, { status: 502 });
+    }
+  });
 }
 
-/** `?job=` : état de la transcription audio en cours. */
+/** `?job=` : état de la tâche en cours (sous-titres ou transcription audio). */
 export async function GET(req: NextRequest) {
-  const job = getJob<{ video: YtVideo }>(req.nextUrl.searchParams.get("job") ?? "");
-  if (!job) return NextResponse.json({ error: "Tâche introuvable : relance." }, { status: 404 });
-  if (job.status === "error") return NextResponse.json({ status: "error", error: job.error }, { status: 502 });
-  return NextResponse.json({ status: job.status, step: job.step, elapsed: elapsed(job), ...(job.result ? { result: job.result } : {}) });
+  return jobStatusResponse(req) ?? NextResponse.json({ error: "Précise ?job=." }, { status: 400 });
 }

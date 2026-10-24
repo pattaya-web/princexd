@@ -3,6 +3,7 @@ import { getSettings, readDB, writeDB } from "@/lib/db";
 import { fetchMediaUrl, InstagramError } from "@/lib/instagram";
 import { MAX_UPLOAD_BYTES, OpenAiError, transcribe } from "@/lib/openai";
 import { downloadAudio, toArrayBuffer } from "@/lib/ytdlp";
+import { jobStatusResponse, respondAsJobBuffered } from "@/lib/bg-jobs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -19,7 +20,7 @@ const TRANSCRIBE_VOCAB =
  * de l'identifiant du média avant de télécharger. Le mp4 part tel quel chez
  * OpenAI, qui l'accepte : aucune extraction audio locale n'est nécessaire.
  */
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   const { postId, force } = (await req.json().catch(() => ({}))) as {
     postId?: string;
     force?: boolean;
@@ -109,4 +110,17 @@ export async function POST(req: NextRequest) {
     const err = e as OpenAiError | InstagramError;
     return NextResponse.json({ error: err.message }, { status: err.code === 401 ? 401 : 502 });
   }
+}
+
+/*
+ * Avec l'en-tete `x-bg-job: 1` (option `job: true` de api()), la reponse est
+ * produite en fond et rejouee au `GET ?job=` : le proxy ne coupe plus les
+ * traitements longs. Sans l'en-tete, la route repond comme avant.
+ */
+export async function POST(req: NextRequest) {
+  return respondAsJobBuffered(req, undefined, (r, c) => handlePost(r));
+}
+
+export async function GET(req: NextRequest) {
+  return jobStatusResponse(req) ?? Response.json({ error: "Méthode non prise en charge." }, { status: 405 });
 }

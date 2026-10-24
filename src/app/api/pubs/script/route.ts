@@ -3,6 +3,7 @@ import { getSettings, newId, readDB, writeDB } from "@/lib/db";
 import { askText, KieError, parseJsonLoose } from "@/lib/kie";
 import { buildAdScriptPrompt, SYSTEM_AD_SCRIPTER } from "@/lib/prompts";
 import type { AdScript, AdScriptPlan } from "@/lib/types";
+import { jobStatusResponse, respondAsJobBuffered } from "@/lib/bg-jobs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -19,7 +20,7 @@ const strs = (v: unknown) => (Array.isArray(v) ? v.map(str).filter(Boolean) : []
  * Sans `url`, la transcription est celle collee dans le corps : ca permet de
  * partir d'un texte recupere ailleurs (sous-titres, prompteur d'un concurrent).
  */
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   const { folderId, url, transcript, brief } = (await req.json().catch(() => ({}))) as {
     folderId?: string;
     url?: string;
@@ -94,4 +95,17 @@ export async function POST(req: NextRequest) {
     const err = e as KieError;
     return NextResponse.json({ error: err.message }, { status: err.code === 401 ? 401 : 502 });
   }
+}
+
+/*
+ * Avec l'en-tete `x-bg-job: 1` (option `job: true` de api()), la reponse est
+ * produite en fond et rejouee au `GET ?job=` : le proxy ne coupe plus les
+ * traitements longs. Sans l'en-tete, la route repond comme avant.
+ */
+export async function POST(req: NextRequest) {
+  return respondAsJobBuffered(req, undefined, (r, c) => handlePost(r));
+}
+
+export async function GET(req: NextRequest) {
+  return jobStatusResponse(req) ?? Response.json({ error: "Méthode non prise en charge." }, { status: 405 });
 }

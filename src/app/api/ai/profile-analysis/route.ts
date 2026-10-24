@@ -3,6 +3,7 @@ import { readDB, writeDB } from "@/lib/db";
 import { askText, KieError, parseJsonLoose } from "@/lib/kie";
 import { buildProfilerPrompt, SYSTEM_PROFILER } from "@/lib/prompts";
 import type { ContentAnalysis } from "@/lib/types";
+import { jobStatusResponse, respondAsJobBuffered } from "@/lib/bg-jobs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -16,7 +17,7 @@ const MAX_POSTS = 40;
  * Sans `creator`, l'analyse porte sur mon propre compte. Le résultat est
  * conservé — c'est un appel IA, on ne le refait pas à chaque affichage.
  */
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   const { creator, force } = (await req.json().catch(() => ({}))) as {
     creator?: string;
     force?: boolean;
@@ -83,4 +84,17 @@ export async function POST(req: NextRequest) {
     const err = e as KieError;
     return NextResponse.json({ error: err.message }, { status: err.code === 401 ? 401 : 502 });
   }
+}
+
+/*
+ * Avec l'en-tete `x-bg-job: 1` (option `job: true` de api()), la reponse est
+ * produite en fond et rejouee au `GET ?job=` : le proxy ne coupe plus les
+ * traitements longs. Sans l'en-tete, la route repond comme avant.
+ */
+export async function POST(req: NextRequest) {
+  return respondAsJobBuffered(req, undefined, (r, c) => handlePost(r));
+}
+
+export async function GET(req: NextRequest) {
+  return jobStatusResponse(req) ?? Response.json({ error: "Méthode non prise en charge." }, { status: 405 });
 }

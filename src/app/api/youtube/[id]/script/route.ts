@@ -3,12 +3,13 @@ import { getSettings, readDB, writeDB } from "@/lib/db";
 import { askText, KieError } from "@/lib/kie";
 import { DEFAULT_SCRIPT_PROMPT, transcriptMessage } from "@/lib/youtube";
 import { withBrandContext } from "@/lib/brand";
+import { jobStatusResponse, respondAsJobBuffered } from "@/lib/bg-jobs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /** Analyse + script adapté, avec le prompt du scénariste comme consigne système. */
-export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handlePost(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const body = (await req.json().catch(() => ({}))) as { extra?: string };
   const db = readDB();
@@ -42,4 +43,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const err = e as KieError;
     return NextResponse.json({ error: `Modèle texte : ${err.message}` }, { status: err.code === 401 ? 401 : 502 });
   }
+}
+
+/*
+ * Avec l'en-tete `x-bg-job: 1` (option `job: true` de api()), la reponse est
+ * produite en fond et rejouee au `GET ?job=` : le proxy ne coupe plus les
+ * traitements longs. Sans l'en-tete, la route repond comme avant.
+ */
+export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return respondAsJobBuffered(req, ctx, (r, c) => handlePost(r, c));
+}
+
+export async function GET(req: NextRequest) {
+  return jobStatusResponse(req) ?? Response.json({ error: "Méthode non prise en charge." }, { status: 405 });
 }

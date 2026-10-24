@@ -82,11 +82,11 @@ function ScriptModal({
     void run("t", async () => {
       const r = mine
         ? await api<{ transcript: string }>("/api/ai/transcribe", {
-            method: "POST",
+            job: true, method: "POST",
             body: JSON.stringify({ postId: item.postId }),
           })
         : await api<{ transcript: string }>("/api/ai/transcribe-url", {
-            method: "POST",
+            job: true, method: "POST",
             body: JSON.stringify({ url: item.permalink, savedId: item.id }),
           });
       return r.transcript;
@@ -127,7 +127,7 @@ function ScriptModal({
             onClick={() =>
               void run("fr", async () => {
                 const r = await api<{ text: string }>("/api/ai/translate", {
-                  method: "POST",
+                  job: true, method: "POST",
                   body: JSON.stringify({ text }),
                 });
                 return r.text;

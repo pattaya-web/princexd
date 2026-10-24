@@ -1139,7 +1139,7 @@ function ScriptModal({ post, onClose }: { post: Post | null; onClose: () => void
       setError(null);
       try {
         const r = await api<{ transcript: string }>("/api/ai/transcribe", {
-          method: "POST",
+          job: true, method: "POST",
           body: JSON.stringify({ postId: target.id, force }),
         });
         setTranscript(r.transcript);
@@ -1158,7 +1158,7 @@ function ScriptModal({ post, onClose }: { post: Post | null; onClose: () => void
     setError(null);
     try {
       const r = await api<{ blueprint: PostScript }>("/api/ai/script", {
-        method: "POST",
+        job: true, method: "POST",
         body: JSON.stringify({ postId: post.id, transcript, force: true }),
       });
       setBlueprint(r.blueprint);

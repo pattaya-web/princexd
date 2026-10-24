@@ -3,6 +3,7 @@ import { askText, askVision, KieError, parseJsonLoose } from "@/lib/kie";
 import { getSettings, readDB, writeDB } from "@/lib/db";
 import { buildScriptPrompt, SYSTEM_SCRIPTER } from "@/lib/prompts";
 import type { PostScript } from "@/lib/types";
+import { jobStatusResponse, respondAsJobBuffered } from "@/lib/bg-jobs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -15,7 +16,7 @@ export const maxDuration = 300;
  * des chiffres de performance — sauf si l'utilisateur colle une vraie
  * transcription, auquel cas elle fait autorité.
  */
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   const { postId, transcript, force } = (await req.json().catch(() => ({}))) as {
     postId?: string;
     transcript?: string;
@@ -85,4 +86,17 @@ export async function POST(req: NextRequest) {
     const err = e as KieError;
     return NextResponse.json({ error: err.message }, { status: err.code === 401 ? 401 : 502 });
   }
+}
+
+/*
+ * Avec l'en-tete `x-bg-job: 1` (option `job: true` de api()), la reponse est
+ * produite en fond et rejouee au `GET ?job=` : le proxy ne coupe plus les
+ * traitements longs. Sans l'en-tete, la route repond comme avant.
+ */
+export async function POST(req: NextRequest) {
+  return respondAsJobBuffered(req, undefined, (r, c) => handlePost(r));
+}
+
+export async function GET(req: NextRequest) {
+  return jobStatusResponse(req) ?? Response.json({ error: "Méthode non prise en charge." }, { status: 405 });
 }

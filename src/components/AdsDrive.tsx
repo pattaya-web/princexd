@@ -136,7 +136,7 @@ function InspirationTile({
     onBusy(insp.url);
     try {
       const r = await api<{ transcript: string; cached?: boolean }>("/api/pubs/transcribe", {
-        method: "POST",
+        job: true, method: "POST",
         body: JSON.stringify({ folderId, url: insp.url, force: hasTranscript }),
         timeoutMs: 300_000,
       });
@@ -155,14 +155,14 @@ function InspirationTile({
     try {
       if (!hasTranscript) {
         const r = await api<{ transcript: string }>("/api/pubs/transcribe", {
-          method: "POST",
+          job: true, method: "POST",
           body: JSON.stringify({ folderId, url: insp.url }),
           timeoutMs: 300_000,
         });
         await onPatch({ transcript: r.transcript, transcribedAt: now() });
       }
       const r = await api<{ script: AdScript }>("/api/pubs/script", {
-        method: "POST",
+        job: true, method: "POST",
         body: JSON.stringify({ folderId, url: insp.url, brief }),
         timeoutMs: 240_000,
       });
@@ -495,7 +495,7 @@ function FolderView({
     setPasteBusy(true);
     try {
       const r = await api<{ script: AdScript }>("/api/pubs/script", {
-        method: "POST",
+        job: true, method: "POST",
         body: JSON.stringify({ folderId: folder.id, transcript: pasted, brief: pastedBrief }),
         timeoutMs: 240_000,
       });

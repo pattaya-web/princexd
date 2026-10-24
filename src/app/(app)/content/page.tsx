@@ -79,7 +79,7 @@ export default function ContentPage() {
     setAnalysing(who);
     try {
       const r = await api<{ analysis: ContentAnalysis }>("/api/ai/profile-analysis", {
-        method: "POST",
+        job: true, method: "POST",
         body: JSON.stringify(who ? { creator: who } : {}),
       });
       setShownAnalysis({ who: `@${who}`, data: r.analysis });

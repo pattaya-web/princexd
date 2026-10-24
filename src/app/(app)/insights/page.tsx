@@ -70,7 +70,7 @@ export default function InsightsPage() {
     setLoadingAi(true);
     setError(null);
     try {
-      const res = await api<{ strategy: Strategy }>("/api/ai/strategy", { method: "POST" });
+      const res = await api<{ strategy: Strategy }>("/api/ai/strategy", { job: true, method: "POST" });
       setStrategy(res.strategy);
       toast("Reco générée.");
     } catch (e) {

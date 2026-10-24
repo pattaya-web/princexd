@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
 import { MediaAudioError, readForTranscription } from "@/lib/media-audio";
 import { OpenAiError, transcribe } from "@/lib/openai";
+import { jobStatusResponse, respondAsJobBuffered } from "@/lib/bg-jobs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -16,7 +17,7 @@ const TRANSCRIBE_VOCAB =
  * Le texte est enregistre sur l'inspiration : c'est lui qui sert ensuite a
  * sortir un script. Une transcription existante n'est pas repayee sans `force`.
  */
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   const { folderId, url, force } = (await req.json().catch(() => ({}))) as {
     folderId?: string;
     url?: string;
@@ -52,4 +53,17 @@ export async function POST(req: NextRequest) {
     const code = [401, 404, 413, 422].includes(err.code) ? err.code : 502;
     return NextResponse.json({ error: err.message }, { status: code });
   }
+}
+
+/*
+ * Avec l'en-tete `x-bg-job: 1` (option `job: true` de api()), la reponse est
+ * produite en fond et rejouee au `GET ?job=` : le proxy ne coupe plus les
+ * traitements longs. Sans l'en-tete, la route repond comme avant.
+ */
+export async function POST(req: NextRequest) {
+  return respondAsJobBuffered(req, undefined, (r, c) => handlePost(r));
+}
+
+export async function GET(req: NextRequest) {
+  return jobStatusResponse(req) ?? Response.json({ error: "Méthode non prise en charge." }, { status: 405 });
 }

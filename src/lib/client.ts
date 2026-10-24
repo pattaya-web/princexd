@@ -10,21 +10,50 @@ import type { CollectionName } from "./types";
  * lisible au lieu de laisser un bouton tourner sans fin quand le serveur ou
  * le reseau ne repond plus.
  */
-export async function api<T>(url: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
-  const { timeoutMs, ...rest } = init ?? {};
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      ...rest,
-      headers: { "Content-Type": "application/json", ...(rest.headers ?? {}) },
-      ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
-    });
-  } catch (e) {
-    const name = (e as Error).name;
-    if (name === "TimeoutError" || name === "AbortError") {
-      throw new Error(`Le serveur n'a pas répondu en ${Math.round((timeoutMs ?? 0) / 60_000)} min. Réessaie, ou vérifie ta connexion.`);
+/**
+ * Appel JSON au serveur.
+ *
+ * `job: true` : la route tourne en tache de fond sur le serveur (voir
+ * lib/bg-jobs). Le premier appel recoit un identifiant, puis on interroge
+ * toutes les 2 s jusqu'a la vraie reponse, rejouee telle quelle. Aucune
+ * requete ne dure plus de quelques secondes : le proxy ne peut plus couper
+ * un traitement long en « Erreur 502 ». `timeoutMs` devient alors la duree
+ * totale acceptee (10 min par defaut).
+ */
+export async function api<T>(url: string, init?: RequestInit & { timeoutMs?: number; job?: boolean }): Promise<T> {
+  const { timeoutMs, job, ...rest } = init ?? {};
+  const perCall = job ? 30_000 : timeoutMs;
+  const fetchOnce = async (u: string, opts: RequestInit, signalMs: number | undefined) => {
+    try {
+      return await fetch(u, { ...opts, ...(signalMs ? { signal: AbortSignal.timeout(signalMs) } : {}) });
+    } catch (e) {
+      const name = (e as Error).name;
+      if (name === "TimeoutError" || name === "AbortError") {
+        throw new Error(`Le serveur n'a pas répondu en ${Math.max(1, Math.round((signalMs ?? 0) / 60_000))} min. Réessaie, ou vérifie ta connexion.`);
+      }
+      throw new Error("Connexion au serveur impossible. Vérifie ta connexion et réessaie.");
     }
-    throw new Error("Connexion au serveur impossible. Vérifie ta connexion et réessaie.");
+  };
+  let res = await fetchOnce(url, { ...rest, headers: { "Content-Type": "application/json", ...(job ? { "x-bg-job": "1" } : {}), ...(rest.headers ?? {}) } }, perCall);
+  if (job && res.status === 202) {
+    const { jobId } = (await res.json().catch(() => ({}))) as { jobId?: string };
+    if (jobId) {
+      const pollUrl = `${url}${url.includes("?") ? "&" : "?"}job=${encodeURIComponent(jobId)}`;
+      const deadline = Date.now() + (timeoutMs ?? 10 * 60_000);
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 2_000));
+        if (Date.now() > deadline) throw new Error("Le traitement n'a pas abouti dans le temps imparti. Réessaie dans un instant.");
+        try {
+          res = await fetchOnce(pollUrl, { method: "GET", cache: "no-store" }, 20_000);
+        } catch {
+          // Coupure passagere (reseau, proxy) : la tache tourne toujours, on reinterroge.
+          continue;
+        }
+        if (res.status === 202) continue;
+        if ([502, 503, 504].includes(res.status) && !(res.headers.get("content-type") ?? "").includes("json")) continue;
+        break;
+      }
+    }
   }
   const text = await res.text();
   let body: unknown = null;

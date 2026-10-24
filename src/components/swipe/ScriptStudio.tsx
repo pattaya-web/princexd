@@ -76,7 +76,7 @@ export function ScriptStudio({
   const generate = async () => {
     setGenerating(true);
     try {
-      const r = await api<{ script: SwipeScript; prodStatus: SwipeProdStatus; prodDates: Swipe["prodDates"] }>("/api/swipe/script", { method: "POST", body: JSON.stringify({ swipeId: s.id, mode }), timeoutMs: 120_000 });
+      const r = await api<{ script: SwipeScript; prodStatus: SwipeProdStatus; prodDates: Swipe["prodDates"] }>("/api/swipe/script", { job: true, method: "POST", body: JSON.stringify({ swipeId: s.id, mode }), timeoutMs: 120_000 });
       setScript(r.script);
       setBulletsText(r.script.bullets.join("\n"));
       setBrollText((r.script.broll ?? []).join("\n"));

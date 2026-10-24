@@ -65,7 +65,7 @@ export function SourcePanel({
     setTranscribing(true);
     setError("");
     try {
-      const r = await api<{ transcript: string }>("/api/ai/transcribe-url", { method: "POST", body: JSON.stringify({ url: s.url }), timeoutMs: 300_000 });
+      const r = await api<{ transcript: string }>("/api/ai/transcribe-url", { job: true, method: "POST", body: JSON.stringify({ url: s.url }), timeoutMs: 300_000 });
       setTranscript(r.transcript);
       await onPatch({ transcriptInput: r.transcript, transcriptSource: "auto", transcriptNeeded: false });
       toast("Transcription récupérée. Relis-la, puis lance l'analyse.");

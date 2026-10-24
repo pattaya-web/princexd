@@ -3,13 +3,14 @@ import { askText, KieError, parseJsonLoose } from "@/lib/kie";
 import { getSettings, insert, list } from "@/lib/db";
 import { buildStoryPrompt, SYSTEM_STORY } from "@/lib/prompts";
 import type { Story, StoryType } from "@/lib/types";
+import { jobStatusResponse, respondAsJobBuffered } from "@/lib/bg-jobs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const SLOTS: Story["slot"][] = ["matin", "midi", "aprem", "soir"];
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   const { date } = (await req.json()) as { date: string };
   const settings = getSettings();
   const day = String(new Date(`${date}T12:00:00`).getDay());
@@ -59,4 +60,17 @@ export async function POST(req: NextRequest) {
     const err = e as KieError;
     return NextResponse.json({ error: err.message }, { status: err.code === 401 ? 401 : 502 });
   }
+}
+
+/*
+ * Avec l'en-tete `x-bg-job: 1` (option `job: true` de api()), la reponse est
+ * produite en fond et rejouee au `GET ?job=` : le proxy ne coupe plus les
+ * traitements longs. Sans l'en-tete, la route repond comme avant.
+ */
+export async function POST(req: NextRequest) {
+  return respondAsJobBuffered(req, undefined, (r, c) => handlePost(r));
+}
+
+export async function GET(req: NextRequest) {
+  return jobStatusResponse(req) ?? Response.json({ error: "Méthode non prise en charge." }, { status: 405 });
 }
