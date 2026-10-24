@@ -34,8 +34,11 @@ export async function api<T>(url: string, init?: RequestInit & { timeoutMs?: num
     body = null;
   }
   if (!res.ok) {
-    const msg = (body as { error?: string })?.error ?? `Erreur ${res.status}`;
-    throw new Error(msg);
+    const known = (body as { error?: string })?.error;
+    // Pas de corps JSON et 502 / 503 / 504 : la reponse vient du proxy, pas de l'application
+    // (conteneur en cours de redemarrage apres un deploiement, ou requete trop longue pour lui).
+    const gateway = !known && [502, 503, 504].includes(res.status);
+    throw new Error(known ?? (gateway ? `Le serveur a été interrompu (mise à jour en cours ou réponse trop longue, erreur ${res.status}). Réessaie dans une minute.` : `Erreur ${res.status}`));
   }
   return body as T;
 }
