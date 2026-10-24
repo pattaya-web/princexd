@@ -807,6 +807,10 @@ export interface CreativeExample {
   url: string;
   /** Pourquoi elle marche, en une phrase. */
   note: string;
+  /** Ratio de l'image (3:4, 1:1, 9:16). */
+  ratio?: string;
+  /** Le prompt qui permet de la reproduire dans le Studio IA (avec la photo de référence). */
+  prompt?: string;
 }
 
 /** Un prompt que l'eleve copie dans Claude ou GPT pour produire ses creatives. */

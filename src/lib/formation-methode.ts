@@ -10,18 +10,27 @@ import type { Settings, StudentMethodSettings } from "@/lib/types";
 
 export const DEFAULT_PRODUCT_COUNT = 10;
 
-export const DEFAULT_THEME_PROMPT = `Dans mon dossier il y a le fichier [NOM-DU-ZIP].zip : c'est le thème Shopify de mon coach Mady. Sa page est parfaite. Tu ne changes ni la structure, ni le design, ni l'ordre des sections, ni les couleurs, ni les polices.
+export const DEFAULT_THEME_PROMPT = `Dans mon dossier il y a le fichier [NOM-DU-ZIP].zip : c'est le thème Shopify « Aesthetic Lab » de mon coach Mady (Online Store 2.0, dossiers assets / config / layout / locales / sections / snippets / templates à la racine, avec un README.md à lire en premier). Sa page est parfaite. Tu ne changes ni la structure, ni le design, ni l'ordre des sections, ni les couleurs, ni les polices, ni le CSS.
 
-Installe ce thème sur ma boutique Shopify ([mon-adresse].myshopify.com) et remplace UNIQUEMENT le contenu par celui de mon produit :
+Ma boutique : [mon-adresse].myshopify.com
+Mon produit : [nom, ce que c'est, ce qu'il fait, prix de vente, prix barré]
+Ma marque : [nom de marque] · e-mail support : [support@…]
+Ma cible : [qui achète et pourquoi]
+Mes images et vidéos : dans le sous-dossier « creatives »
 
-- Mon produit : [nom, ce que c'est, ce qu'il fait, prix de vente]
-- Ma marque : [nom de marque]
-- Ma cible : [qui achète et pourquoi]
-- Textes : réécris tous les textes du thème (titres, bénéfices, descriptions, avis clients, FAQ, bandeaux) pour mon produit, en français, en gardant à peu près la même longueur que les textes existants.
-- Images et vidéos : utilise mes fichiers du dossier « creatives » (dans mon dossier). Dis-moi lesquels il manque, à quel endroit, et dans quel format (3:4, 1:1, 9:16, 16:9).
-- Prix, variantes, livraison : [prix, options, délai]
+Fais tout toi-même avec Shopify CLI, je ne tape aucune commande :
+1. Décompresse le zip dans un dossier « theme » et lis le README.md.
+2. Connecte-le à ma boutique et lance l'aperçu (shopify theme dev --store [mon-adresse].myshopify.com). Donne-moi le lien d'aperçu à ouvrir.
+3. Remplace UNIQUEMENT le contenu, dans cet ordre, en me montrant chaque étape dans l'aperçu avant de passer à la suivante :
+   - Réglages du thème : nom de marque (wordmark), favicon, e-mail support, liens clés (produit principal, collection principale).
+   - Hero : ma vidéo 9:16 (ou mon image) du dossier creatives à la place des aplats gris, titre et sous-titre pour mon produit.
+   - Sections bénéfices, comment ça marche, avant / après, avis, FAQ, pied de page : réécris tous les textes pour mon produit, en français, même longueur que les textes existants ; mets mes images à la place des placeholders ; propose-moi 6 avis clients crédibles à valider.
+   - Page produit : garde un seul template produit, supprime les exemples (jawliner, patch, tape, peptide…), crée mon produit (titre, description, prix, prix barré, images) et les métachamps aesthetic_lab que le README décrit.
+   - Dis-moi les images ou vidéos qui manquent, à quel endroit, et dans quel format (3:4, 1:1, 9:16, 16:9) : je les génère dans mon Studio IA.
+4. Quand je dis « OK, mets en ligne » : envoie le thème sur ma boutique (shopify theme push --unpublished), publie-le, et vérifie que la page d'accueil et la page produit s'affichent bien sur mobile.
 
-Fais-le section par section. À chaque section, dis-moi ce que tu as changé pour que je vérifie dans l'aperçu (F5). Quand je dis « OK, mets en ligne », tu publies.`;
+Si une erreur apparaît, corrige-la et continue. Explique-moi chaque étape en une phrase simple, sans jargon.`;
+
 
 export const DEFAULT_METHOD: StudentMethodSettings = {
   productVideoUrl: "https://youtu.be/63LKEzcg5Bo",
@@ -29,7 +38,7 @@ export const DEFAULT_METHOD: StudentMethodSettings = {
   productNote:
     "Regarde la vidéo en entier, puis fais la recherche sur BrandSearch. Remplis le tableau avec tes 10 produits et envoie-le à Mady sur WhatsApp. Il valide ton produit avec toi, puis tu passes aux créatives.",
   themeNote:
-    "Ce thème, c'est ma page qui convertit. Elle est parfaite : tu ne touches ni à la structure, ni au design. Tu changes seulement les textes, les images, les vidéos et le produit pour que ce soit le tien. C'est Claude Code qui fait le travail, dans VS Code : tu lui donnes le fichier et le message ci-dessous.",
+    "Aesthetic Lab, c'est ma page qui convertit, livrée vide : les textes et les sections sont là, les médias sont des aplats gris à remplacer. Elle est parfaite : tu ne touches ni à la structure, ni au design. Tu changes seulement les textes, les images, les vidéos et le produit pour que ce soit le tien. C'est Claude Code qui fait le travail avec Shopify CLI, dans VS Code : tu lui donnes le fichier et le message ci-dessous.",
   themePrompt: DEFAULT_THEME_PROMPT,
 };
 

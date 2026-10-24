@@ -5,6 +5,7 @@ import { handle } from "@/lib/sales/http";
 import { methodSettings, readMethodSettings } from "@/lib/formation-methode";
 import { creativesSettings } from "@/lib/formation-creatives";
 import { portalSettings } from "@/lib/formation-steps";
+import { currentTheme } from "@/lib/formation-theme";
 import type { StudentMethodSettings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export interface MethodPayload {
   /** Numéro WhatsApp de Mady (vide = pas de bouton d'envoi, copie seulement). */
   whatsapp: string;
   /** Le thème de Mady, s'il est déposé. */
-  theme: { fileName: string; size: number; uploadedAt: string; downloadUrl: string } | null;
+  theme: { fileName: string; size: number; uploadedAt: string; downloadUrl: string; bundled: boolean } | null;
   /** Boutique exemple (réglée dans Créatives). */
   exampleShopUrl: string;
   /** Studio IA : ouvert par Mady pour cet élève, clé KIE posée. */
@@ -30,14 +31,14 @@ export async function GET(req: NextRequest) {
     const session = requireFormation(readSession(req));
     const db = readDB();
     const student = session.role === "student" ? db.students.find((s) => s.id === session.memberId) : undefined;
-    const theme = db.settings.studentTheme;
+    const theme = currentTheme(db.settings);
     return {
       student: student ? { id: student.id, name: student.name, firstName: student.name.trim().split(/\s+/)[0] ?? student.name } : null,
       isAdmin: session.isAdmin,
       preview: Boolean(session.impersonated),
       method: methodSettings(db.settings),
       whatsapp: portalSettings(db.settings).whatsapp,
-      theme: theme ? { fileName: theme.fileName, size: theme.size, uploadedAt: theme.uploadedAt, downloadUrl: "/api/formation/theme/file" } : null,
+      theme: theme ? { fileName: theme.fileName, size: theme.size, uploadedAt: theme.uploadedAt, downloadUrl: "/api/formation/theme/file", bundled: theme.bundled } : null,
       exampleShopUrl: creativesSettings(db.settings).exampleShopUrl,
       studio: { access: student ? Boolean(student.studioAccess) : session.isAdmin, hasKey: Boolean((student?.kieApiKey ?? "").trim()) },
     };

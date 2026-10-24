@@ -3,17 +3,17 @@ import fs from "fs";
 import { Readable } from "stream";
 import { readDB } from "@/lib/db";
 import { readSession } from "@/lib/sales/access";
-import { themePath } from "@/lib/formation-theme";
+import { currentTheme } from "@/lib/formation-theme";
 
 export const dynamic = "force-dynamic";
 
-/** Le zip du thème de Mady, sous son nom d'origine, en téléchargement. Admin ou élève connecté. */
+/** Le zip du thème de Mady (déposé par l'admin, sinon celui livré avec le dépôt), en téléchargement. Admin ou élève connecté. */
 export async function GET(req: NextRequest) {
   const session = readSession(req);
   if (!session.isAdmin && session.role !== "student") return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
-  const theme = readDB().settings.studentTheme;
-  const full = theme ? themePath(theme.stored) : null;
-  if (!theme || !full || !fs.existsSync(full)) return NextResponse.json({ error: "Pas de thème déposé." }, { status: 404 });
+  const theme = currentTheme(readDB().settings);
+  if (!theme) return NextResponse.json({ error: "Pas de thème disponible." }, { status: 404 });
+  const full = theme.full;
 
   const name = theme.fileName.replace(/[\r\n"]/g, "");
   const ascii = name.replace(/[^\x20-\x7e]/g, "_");

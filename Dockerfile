@@ -30,6 +30,8 @@ RUN apt-get update \
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+# Theme Shopify Aesthetic Lab servi aux eleves (hors public/, lu par /api/formation/theme/file).
+COPY --from=builder /app/content/theme ./content/theme
 
 # Base JSON + medias uploades : a monter en volume persistant sur /app/data.
 RUN mkdir -p /app/data/media && chown -R node:node /app

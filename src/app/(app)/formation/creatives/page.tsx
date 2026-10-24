@@ -7,7 +7,7 @@ import { ErrorNote, Spinner, useToast } from "@/components/ui";
 import { Annex } from "@/components/formation/Annex";
 import { PortalFooter, SectionLabel } from "@/components/formation/portal";
 import { DropZone, ProgressBar, uploadMany, type Progress } from "@/components/upload-ui";
-import { DEFAULT_CREATIVE_PROMPTS } from "@/lib/formation-creatives";
+import { DEFAULT_CREATIVE_PROMPTS, DEFAULT_EXAMPLES, DEFAULT_VIDEO_EXAMPLE } from "@/lib/formation-creatives";
 import type { CreativesPayload } from "@/app/api/formation/creatives/route";
 import type { CreativeExample, CreativePrompt, StudentCreativesSettings } from "@/lib/types";
 
@@ -55,7 +55,18 @@ function PromptCard({ p }: { p: CreativePrompt }) {
 }
 
 function ExampleCard({ e }: { e: CreativeExample }) {
-  const external = !e.url.startsWith("/");
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const external = /^https?:\/\//i.test(e.url);
+  const copyPrompt = async () => {
+    if (!e.prompt) return;
+    try {
+      await navigator.clipboard.writeText(e.prompt);
+      toast("Prompt copié. Dans le Studio : onglet Image, ta photo de référence, colle, choisis le ratio.");
+    } catch {
+      toast("Copie impossible : ouvre le prompt et sélectionne le texte.", "err");
+    }
+  };
   const media = /\.(mp4|webm|mov)(\?|$)/i.test(e.url) || e.kind === "video";
   const embeddable = e.url.startsWith("/api/media/") || /\.(jpe?g|png|webp|gif|mp4|webm)(\?|$)/i.test(e.url);
   return (
@@ -64,19 +75,74 @@ function ExampleCard({ e }: { e: CreativeExample }) {
         media ? (
           <video src={e.url} controls playsInline preload="metadata" className="w-full max-h-[420px] bg-black" />
         ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={e.url} alt={e.title} className="w-full max-h-[420px] object-contain" style={{ background: "var(--surface-3)" }} />
+          <a href={e.url} target="_blank" rel="noreferrer" style={{ background: "var(--surface-3)" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={e.url} alt={e.title} className="w-full max-h-[420px] object-contain" loading="lazy" />
+          </a>
         )
       ) : null}
-      <div className="p-3">
-        <div className="text-[14px] font-semibold leading-snug">{e.title || (e.kind === "video" ? "Vidéo exemple" : "Image exemple")}</div>
-        {e.note && <div className="muted text-[12.5px] mt-1 leading-relaxed">{e.note}</div>}
-        {(!embeddable || external) && (
-          <a href={e.url} target="_blank" rel="noreferrer" className="btn btn-sm mt-2">
-            Ouvrir ↗
-          </a>
+      <div className="p-3 flex flex-col gap-2">
+        <div className="flex items-start gap-2">
+          <div className="text-[14px] font-semibold leading-snug flex-1">{e.title || (e.kind === "video" ? "Vidéo exemple" : "Image exemple")}</div>
+          {e.ratio && <span className="badge !text-[10.5px] num shrink-0">{e.ratio}</span>}
+        </div>
+        {e.note && <div className="muted text-[12.5px] leading-relaxed">{e.note}</div>}
+        <div className="flex flex-wrap gap-2">
+          {e.prompt && (
+            <>
+              <button type="button" className="btn btn-sm btn-primary" onClick={() => void copyPrompt()}>
+                Copier le prompt
+              </button>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setOpen((v) => !v)}>
+                {open ? "Replier" : "Voir le prompt"}
+              </button>
+            </>
+          )}
+          {(!embeddable || external) && (
+            <a href={e.url} target="_blank" rel="noreferrer" className="btn btn-sm">
+              Ouvrir ↗
+            </a>
+          )}
+        </div>
+        {open && e.prompt && (
+          <pre className="text-[12.5px] leading-relaxed whitespace-pre-wrap rounded-md p-3" style={{ background: "var(--surface-3)", fontFamily: "inherit" }}>
+            {e.prompt}
+          </pre>
         )}
       </div>
+    </div>
+  );
+}
+
+function VideoExample() {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(DEFAULT_VIDEO_EXAMPLE);
+      toast("Prompt vidéo copié. Onglet Vidéo, ton image de base en entrée, 9:16. Remplace le produit et les phrases.");
+    } catch {
+      toast("Copie impossible : ouvre le prompt et sélectionne le texte.", "err");
+    }
+  };
+  return (
+    <div className="card-flat p-4 mt-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="badge !text-[10.5px]">Vidéo</span>
+        <span className="text-[15px] font-semibold leading-snug flex-1 min-w-[200px]">L&apos;exemple de prompt vidéo de Mady (collier, 15 s, 5 plans)</span>
+        <button type="button" className="btn btn-sm btn-primary" onClick={() => void copy()}>
+          Copier le prompt
+        </button>
+        <button type="button" className="btn btn-sm btn-ghost" onClick={() => setOpen((v) => !v)}>
+          {open ? "Replier" : "Voir"}
+        </button>
+      </div>
+      <div className="dim text-[12.5px] mt-1">Garde la structure (voix, précision produit, 5 plans, sons, négatifs). Change le produit, la personne et les phrases. Pour l&apos;adapter à ton produit sans te tromper : prompt 5 ci-dessous, Claude le réécrit pour toi.</div>
+      {open && (
+        <pre className="mt-3 text-[12.5px] leading-relaxed whitespace-pre-wrap rounded-md p-3" style={{ background: "var(--surface-3)", fontFamily: "inherit" }}>
+          {DEFAULT_VIDEO_EXAMPLE}
+        </pre>
+      )}
     </div>
   );
 }
@@ -219,7 +285,7 @@ export default function CreativesPage() {
           </section>
 
           <section className="card p-5 flex flex-col gap-3">
-            <SectionLabel n="03" title="Créatives exemples" />
+            <SectionLabel n="04" title="Créatives exemples (avec leur prompt)" />
             <DropZone label="Déposer des images ou vidéos exemples" hint="JPG, PNG, MP4. Elles sont visibles des élèves." accept="image/*,video/*" onFiles={(f) => void addFiles(f)} compact />
             {progress && <ProgressBar p={progress} />}
             <div className="grid gap-3 sm:grid-cols-2">
@@ -227,11 +293,19 @@ export default function CreativesPage() {
                 <div key={e.id} className="card-flat p-3 flex flex-col gap-2">
                   <input className="input" value={e.title} onChange={(ev) => setExample(i, { title: ev.target.value })} placeholder="Titre" />
                   <input className="input" value={e.url} onChange={(ev) => setExample(i, { url: ev.target.value })} placeholder="Lien (ou fichier déposé)" />
-                  <textarea className="input" rows={2} value={e.note} onChange={(ev) => setExample(i, { note: ev.target.value })} placeholder="Le prompt utilisé, ou pourquoi elle marche" />
+                  <textarea className="input" rows={2} value={e.note} onChange={(ev) => setExample(i, { note: ev.target.value })} placeholder="Pourquoi elle marche (une phrase)" />
+                  <textarea className="input" rows={6} value={e.prompt ?? ""} onChange={(ev) => setExample(i, { prompt: ev.target.value })} placeholder="Le prompt qui la reproduit (bouton « Copier le prompt » côté élève)" style={{ fontFamily: "inherit" }} />
                   <div className="flex items-center gap-2">
                     <select className="input !w-auto" value={e.kind} onChange={(ev) => setExample(i, { kind: ev.target.value as CreativeExample["kind"] })}>
                       <option value="image">Image</option>
                       <option value="video">Vidéo</option>
+                    </select>
+                    <select className="input !w-auto" value={e.ratio ?? ""} onChange={(ev) => setExample(i, { ratio: ev.target.value })}>
+                      <option value="">Ratio</option>
+                      <option value="3:4">3:4</option>
+                      <option value="1:1">1:1</option>
+                      <option value="9:16">9:16</option>
+                      <option value="16:9">16:9</option>
                     </select>
                     <span className="flex-1" />
                     <button type="button" className="btn btn-sm btn-ghost" onClick={() => setD("examples", draft.examples.filter((_, j) => j !== i))}>
@@ -241,13 +315,18 @@ export default function CreativesPage() {
                 </div>
               ))}
             </div>
-            <button type="button" className="btn btn-sm w-fit" onClick={() => setD("examples", [...draft.examples, { id: `ex-${Math.random().toString(36).slice(2, 10)}`, title: "", kind: "image", url: "", note: "" }])}>
-              + Ajouter un lien (Instagram, Drive, TikTok…)
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn btn-sm" onClick={() => setD("examples", [...draft.examples, { id: `ex-${Math.random().toString(36).slice(2, 10)}`, title: "", kind: "image", url: "", note: "", ratio: "", prompt: "" }])}>
+                + Ajouter un lien (Instagram, Drive, TikTok…)
+              </button>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setD("examples", DEFAULT_EXAMPLES)}>
+                Remettre les exemples par défaut
+              </button>
+            </div>
           </section>
 
           <section className="card p-5 flex flex-col gap-3">
-            <SectionLabel n="04" title="Prompts" />
+            <SectionLabel n="05" title="Prompts" />
             {draft.prompts.map((p, i) => (
               <div key={p.id} className="card-flat p-3 flex flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -342,9 +421,34 @@ export default function CreativesPage() {
             </div>
           </section>
 
-          {/* 03 / Exemples */}
+          {/* 03 / Les vidéos */}
           <section className="card p-5">
-            <SectionLabel n="03" title="Des exemples" />
+            <SectionLabel n="03" title="Les vidéos (Seedance 2.5), en deux temps" />
+            <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Une vidéo ne part jamais de rien : elle part d&apos;une image que tu as générée. Toujours en 9:16, 15 secondes, 5 plans de 3 secondes.</p>
+            <div className="grid gap-3 sm:grid-cols-3 mt-4">
+              <div className="card-flat p-4">
+                <div className="label-xs num">01 · Onglet Image</div>
+                <div className="text-[14px] font-semibold mt-1 leading-snug">L&apos;image de base</div>
+                <p className="muted text-[12.5px] mt-1 leading-relaxed">Une personne dans une scène, ton produit <strong>porté ou en main</strong>, bien visible. Ta photo de référence en entrée, ratio 9:16. Prompt écrit par Claude (prompt 5) ou l&apos;exemple ci-dessous.</p>
+              </div>
+              <div className="card-flat p-4">
+                <div className="label-xs num">02 · Onglet Vidéo</div>
+                <div className="text-[14px] font-semibold mt-1 leading-snug">Image + prompt vidéo</div>
+                <p className="muted text-[12.5px] mt-1 leading-relaxed">Tu mets <strong>l&apos;image que tu viens de faire</strong> en entrée, tu colles le prompt vidéo (modèle Seedance 2.5, 9:16). Le prompt décrit la voix, le produit, les 5 plans, les sons et ce qu&apos;il faut éviter.</p>
+              </div>
+              <div className="card-flat p-4">
+                <div className="label-xs num">03 · Tu gardes la meilleure</div>
+                <div className="text-[14px] font-semibold mt-1 leading-snug">Deux ou trois essais</div>
+                <p className="muted text-[12.5px] mt-1 leading-relaxed">Si le produit change de forme ou la voix est plate : relance avec le même prompt. Télécharge, range dans « creatives ».</p>
+              </div>
+            </div>
+            <VideoExample />
+          </section>
+
+          {/* 04 / Exemples */}
+          <section className="card p-5">
+            <SectionLabel n="04" title="Des exemples, avec leur prompt" />
+            <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Les créatives de Mady. Sous chacune, le prompt qui la reproduit : tu le copies, tu remplaces le produit, les textes et l&apos;offre par les tiens, et tu le colles dans l&apos;onglet Image avec ta photo de référence.</p>
             {c.examples.length === 0 ? (
               <p className="dim text-[13.5px] mt-3">{data.isAdmin ? "Dépose tes exemples avec « Modifier la page »." : "Exemples à venir."}</p>
             ) : (
@@ -359,7 +463,7 @@ export default function CreativesPage() {
           {/* 04 / Prompts */}
           <section className="card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <SectionLabel n="04" title="Les prompts à copier" />
+              <SectionLabel n="05" title="Les prompts à copier" />
               <div className="flex gap-1 p-1 rounded-md" style={{ background: "var(--surface-3)" }}>
                 {(["tous", "strategie", "image", "video"] as const).map((k) => (
                   <button key={k} type="button" onClick={() => setFilter(k)} className="tab-btn px-3 py-1 rounded text-[12.5px] font-medium" style={filter === k ? { background: "var(--surface)", boxShadow: "0 1px 2px rgb(0 0 0 / 0.08)" } : { color: "var(--muted)" }}>
