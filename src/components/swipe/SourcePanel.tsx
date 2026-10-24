@@ -103,17 +103,23 @@ export function SourcePanel({
     setTranslating(true);
     setError("");
     try {
-      const call = () => api<{ fr: string; language: string }>("/api/swipe/translate", { method: "POST", body: JSON.stringify({ swipeId: s.id, text: transcript }), timeoutMs: 120_000 });
-      let r: { fr: string; language: string };
-      try {
-        r = await call();
-      } catch (e) {
-        // 502 / 503 / 504 sans corps : le proxy a repondu a la place de l'application
-        // (conteneur en cours de redemarrage apres un deploiement). On laisse
-        // 8 secondes au serveur et on retente une fois avant d'afficher l'erreur.
-        if (!/serveur a été interrompu/.test((e as Error).message)) throw e;
-        await new Promise((res) => setTimeout(res, 8_000));
-        r = await call();
+      // La traduction tourne en fond sur le serveur : on l'interroge toutes les 2 s
+      // (aucune requete longue, donc le proxy ne peut plus la couper en 502).
+      const { jobId } = await api<{ jobId: string }>("/api/swipe/translate", { method: "POST", body: JSON.stringify({ swipeId: s.id, text: transcript }), timeoutMs: 30_000 });
+      const deadline = Date.now() + 4 * 60_000;
+      let r: { fr: string; language: string } | null = null;
+      while (!r) {
+        await new Promise((res) => setTimeout(res, 2_000));
+        if (Date.now() > deadline) throw new Error("La traduction n'a pas abouti en 4 minutes. Réessaie dans un instant.");
+        let st: { state: string; fr?: string; language?: string };
+        try {
+          st = await api<typeof st>(`/api/swipe/translate?job=${jobId}`, { timeoutMs: 20_000 });
+        } catch (e) {
+          // Coupure passagere (reseau, proxy) : on continue d'interroger, le job tourne toujours.
+          if (/serveur a été interrompu|Connexion au serveur impossible|n'a pas répondu/.test((e as Error).message)) continue;
+          throw e;
+        }
+        if (st.state === "done" && st.fr) r = { fr: st.fr, language: st.language ?? "" };
       }
       const original = s.transcriptSourceInput || transcript;
       setTranscript(r.fr);
