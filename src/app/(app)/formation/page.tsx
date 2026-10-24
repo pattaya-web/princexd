@@ -6,6 +6,7 @@ import { api } from "@/lib/client";
 import { ErrorNote, Spinner, useToast } from "@/components/ui";
 import { PortalFooter, PortalStepRow, SectionLabel, waHelpLink } from "@/components/formation/portal";
 import type { DashboardPayload } from "@/app/api/formation/dashboard/route";
+import { youtubeEmbedUrl, youtubeId } from "@/lib/formation";
 
 /**
  * Tableau de bord Scale X : la page d'accueil de l'élève.
@@ -96,8 +97,25 @@ export default function ScaleXDashboard() {
             <div className="flex items-center justify-between gap-3">
               <SectionLabel n="00" title="Démarrage" />
             </div>
+            {data.portal.welcomeVideoUrl && (
+              <div className="mt-3 rounded-lg overflow-hidden" style={{ background: "#000" }}>
+                {youtubeId(data.portal.welcomeVideoUrl) ? (
+                  <div style={{ position: "relative", paddingTop: "56.25%" }}>
+                    <iframe
+                      src={youtubeEmbedUrl(youtubeId(data.portal.welcomeVideoUrl)!)}
+                      title="Vidéo d'accompagnement"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
+                    />
+                  </div>
+                ) : (
+                  <video src={data.portal.welcomeVideoUrl} controls playsInline preload="metadata" className="w-full max-h-[60vh]" />
+                )}
+              </div>
+            )}
             <h2 className="text-[20px] font-semibold mt-3 leading-tight">Commence ici : formulaire, outils, installation, ta boutique.</h2>
-            <p className="muted text-[13.5px] mt-1 leading-relaxed">La vidéo de Mady, tous les liens, VS Code + Claude Code en 3 étapes sans code, les réglages Shopify, le Pixel.</p>
+            <p className="muted text-[13.5px] mt-1 leading-relaxed">Tous les liens, VS Code + Claude Code en 4 étapes sans code, tes 3 fenêtres de travail, les réglages Shopify, le Pixel.</p>
             <div className="flex flex-wrap items-center gap-3 mt-4">
               <Link href="/formation/demarrage" className="btn btn-primary btn-sm">
                 Ouvrir Démarrage

@@ -13,7 +13,7 @@ import type { CourseStep, DB, Settings, Student, StudentPortalSettings, StudentT
 export const DEFAULT_PORTAL: StudentPortalSettings = {
   bookingUrl: "",
   whatsapp: "",
-  helpText: "Tu bloques ? Demande d'abord à Claude (page Démarrage, section 07) : il règle la plupart des problèmes en direct. Mady, c'est pour les urgences et les validations : réserve ton créneau.",
+  helpText: "Tu bloques ? Demande d'abord à Claude (page Démarrage, section 09) : il règle la plupart des problèmes en direct. Mady, c'est pour les urgences et les validations : réserve ton créneau.",
   quote: "Plus vite tu lances, plus vite tu apprends. Le reste, c'est de l'optimisation.",
   quoteAuthor: "Mady",
   /** Vidéo d'accompagnement de Mady (YouTube non répertorié), remplaçable depuis Démarrage. */
