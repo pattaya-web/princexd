@@ -4,6 +4,8 @@ import { MAX_UPLOAD_BYTES, transcribe } from "@/lib/openai";
 import { DownloadError, downloadAudio, isSupportedUrl, toArrayBuffer } from "@/lib/ytdlp";
 import { ensureCreatorVideo, extractAudio } from "@/lib/video-source";
 import { jobStatusResponse, respondAsJobBuffered } from "@/lib/bg-jobs";
+import { hasGemini, transcribeYoutubeWithGemini } from "@/lib/gemini";
+import { parseVideoId } from "@/lib/youtube";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -54,7 +56,24 @@ async function handlePost(req: NextRequest) {
       const name = await ensureCreatorVideo(url);
       audio = await extractAudio(name);
     } catch {
-      audio = await downloadAudio(url);
+      try {
+        audio = await downloadAudio(url);
+      } catch (e) {
+        // YouTube refuse le serveur (« not a bot ») : Gemini lit la vidéo chez Google.
+        if (parseVideoId(url) && hasGemini()) {
+          const g = await transcribeYoutubeWithGemini(url);
+          if (savedId) {
+            const db = readDB();
+            const row = db.saved.find((r) => r.id === savedId);
+            if (row) {
+              row.transcript = g.text;
+              writeDB(db);
+            }
+          }
+          return NextResponse.json({ transcript: g.text, language: g.language, cached: false, via: "gemini" });
+        }
+        throw e;
+      }
     }
     const { data, filename } = audio;
     if (data.byteLength > MAX_UPLOAD_BYTES) {

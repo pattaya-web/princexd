@@ -101,6 +101,8 @@ export interface Settings {
   openaiApiKey: string;
   /** Modele de transcription (gpt-4o-mini-transcribe, whisper-1...). */
   transcribeModel: string;
+  /** Cle Gemini (Google AI Studio) : transcription des videos YouTube par leur URL, depuis le VPS que YouTube bloque. Priorite a GEMINI_API_KEY. */
+  geminiApiKey?: string;
   /** Cle Anthropic pour l'assistant du chat « Nouvel eleve ». Priorite a ANTHROPIC_API_KEY. */
   anthropicApiKey?: string;
   /** Espace de travail Anthropic (wrkspc_…), requis avec une cle utilisateur sk-ant-usr. Priorite a ANTHROPIC_WORKSPACE_ID. */
@@ -1760,8 +1762,8 @@ export interface YtVideo {
   transcript: string;
   /** Langue des sous-titres, vide tant que rien n'est récupéré. */
   transcriptLang: string;
-  /** « captions » (sous-titres YouTube), « whisper » (audio transcrit), vide sinon. */
-  transcriptSource: "captions" | "whisper" | "manual" | "";
+  /** « captions » (sous-titres YouTube), « gemini » (video lue par Gemini), « whisper » (audio transcrit), « manual », vide sinon. */
+  transcriptSource: "captions" | "gemini" | "whisper" | "manual" | "";
   /** Analyse + script produits par le modèle avec le prompt du scénariste. */
   script: string;
   scriptAt: string;

@@ -17,6 +17,8 @@ type View = Settings & {
   igAccessTokenMask?: string;
   igAccessTokenSource?: string;
   openaiApiKeyMask?: string;
+  geminiApiKeyMask?: string;
+  geminiApiKeySource?: string;
   anthropicApiKeyMask?: string;
   anthropicApiKeySource?: string;
   openaiApiKeySource?: string;
@@ -56,6 +58,7 @@ export default function ReglagesPage() {
   const [iclosedKey, setIclosedKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
   const [anthropicKey, setAnthropicKey] = useState("");
+  const [geminiKey, setGeminiKey] = useState("");
   const [elevenKey, setElevenKey] = useState("");
   const [hfSecret, setHfSecret] = useState("");
   const [sioKey, setSioKey] = useState("");
@@ -92,6 +95,10 @@ export default function ReglagesPage() {
       else delete payload.openaiApiKey;
       if (anthropicKey.trim()) payload.anthropicApiKey = anthropicKey.trim();
       else delete payload.anthropicApiKey;
+      if (geminiKey.trim()) payload.geminiApiKey = geminiKey.trim();
+      else delete payload.geminiApiKey;
+      delete (payload as Record<string, unknown>).geminiApiKeyMask;
+      delete (payload as Record<string, unknown>).geminiApiKeySource;
       delete (payload as Record<string, unknown>).anthropicApiKeyMask;
       delete (payload as Record<string, unknown>).anthropicApiKeySource;
       if (elevenKey.trim()) payload.elevenLabsApiKey = elevenKey.trim();
@@ -554,6 +561,27 @@ export default function ReglagesPage() {
                 La vidéo est envoyée telle quelle à OpenAI, dans la limite de <strong>25 Mo</strong> par fichier.
                 Une transcription est conservée : elle n&apos;est jamais refacturée deux fois pour le même reel.
               </InfoNote>
+            </div>
+          </Card>
+
+          <Card title="Transcription YouTube (Gemini)">
+            <div className="flex flex-col gap-3.5">
+              {s.geminiApiKeyMask ? (
+                <InfoNote>
+                  Clé active : <code className="mono">{s.geminiApiKeyMask}</code> — source :{" "}
+                  <strong>{s.geminiApiKeySource === "env" ? ".env.local" : "ces réglages"}</strong>. Les vidéos YouTube sont
+                  transcrites par Gemini directement depuis leur lien : plus besoin que le serveur accède à YouTube.
+                </InfoNote>
+              ) : (
+                <InfoNote>
+                  Aucune clé Gemini. YouTube bloque l&apos;adresse du serveur (« Sign in to confirm you&apos;re not a bot »), donc
+                  sans cette clé « Récupérer le transcript » échoue sur la plupart des vidéos. Crée une clé gratuite sur{" "}
+                  <strong>aistudio.google.com</strong> → « Get API key », colle-la ici.
+                </InfoNote>
+              )}
+              <Field label={s.geminiApiKeyMask ? "Remplacer la clé Gemini" : "Clé API Gemini"} hint="Laisse vide pour conserver la clé actuelle.">
+                <input className="input mono" type="password" placeholder="AIza…" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} />
+              </Field>
             </div>
           </Card>
 

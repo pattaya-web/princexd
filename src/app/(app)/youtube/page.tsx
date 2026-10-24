@@ -249,20 +249,38 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
     setBusy("transcript");
     setError("");
     try {
-      const r = await api<{ video: YtVideo; cached?: boolean; auto?: boolean }>(`/api/youtube/${v.id}/transcript`, {
-        job: true,
-        method: "POST",
-        body: JSON.stringify({ force }),
-        timeoutMs: 3 * 60_000,
-      });
-      onUpdate(r.video);
-      setTab("transcript");
-      toast(r.cached ? "Transcript déjà là." : `Transcript récupéré (sous-titres ${r.auto ? "automatiques" : "manuels"}).`);
+      const r = await api<{ video?: YtVideo; cached?: boolean; jobId?: string }>(`/api/youtube/${v.id}/transcript`, { method: "POST", body: JSON.stringify({ force }) });
+      if (r.video) {
+        onUpdate(r.video);
+        setTab("transcript");
+        toast("Transcript déjà là.");
+        return;
+      }
+      // Sous-titres, sinon Gemini : tâche de fond suivie toutes les 3 s.
+      setStep("Démarrage…");
+      for (;;) {
+        await new Promise((res) => setTimeout(res, 3000));
+        let st: { status: string; step?: string; result?: { video: YtVideo; source: string; auto?: boolean } };
+        try {
+          st = await api<typeof st>(`/api/youtube/${v.id}/transcript?job=${r.jobId}`, { timeoutMs: 20_000 });
+        } catch (e) {
+          if (/serveur a été interrompu|Connexion au serveur impossible|n'a pas répondu/.test((e as Error).message)) continue;
+          throw e;
+        }
+        if (st.step) setStep(st.step);
+        if (st.status === "done" && st.result) {
+          onUpdate(st.result.video);
+          setTab("transcript");
+          toast(st.result.source === "gemini" ? "Transcript récupéré par Gemini." : `Transcript récupéré (sous-titres ${st.result.auto ? "automatiques" : "manuels"}).`);
+          break;
+        }
+      }
     } catch (e) {
       setError((e as Error).message);
       setPasteOpen(true);
     } finally {
       setBusy("");
+      setStep("");
     }
   }
 
@@ -405,7 +423,7 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
           </div>
         )}
         {error && <ErrorNote>{error}</ErrorNote>}
-        {busy && <Spinner label={busy === "script" ? "Analyse puis script, dans ta façon de parler…" : busy === "whisper" ? step || "Audio téléchargé puis transcrit…" : "Lecture des sous-titres…"} />}
+        {busy && <Spinner label={busy === "script" ? "Analyse puis script, dans ta façon de parler…" : busy === "whisper" ? step || "Audio téléchargé puis transcrit…" : step || "Lecture des sous-titres…"} />}
 
         <Tabs<Tab>
           value={tab}
