@@ -140,6 +140,10 @@ export interface Settings {
   studentPortal?: Partial<StudentPortalSettings>;
   /** Page Créatives de la plateforme eleves : boutique exemple, creatives exemples, prompts. */
   studentCreatives?: Partial<StudentCreativesSettings>;
+  /** Pages Recherche produit et Ta boutique de la plateforme eleves (video BrandSearch, consignes, message pour Claude Code). */
+  studentMethod?: Partial<StudentMethodSettings>;
+  /** Le theme Shopify de Mady depose pour les eleves (zip dans data/formation/). */
+  studentTheme?: StudentThemeFile;
   /** Etapes par defaut de la marche a suivre posees une fois. */
   courseStepsSeededAt?: string;
   /** Version du texte des étapes par défaut posée en base (voir formation-steps.ts). */
@@ -824,6 +828,30 @@ export interface StudentCreativesSettings {
   method: string;
   examples: CreativeExample[];
   prompts: CreativePrompt[];
+}
+
+/** Reglages des pages Recherche produit et Ta boutique (Scale X), modifiables par l'admin depuis les pages. */
+export interface StudentMethodSettings {
+  /** Video de recherche produit avec BrandSearch (lien YouTube). */
+  productVideoUrl: string;
+  /** Nombre de produits que l'eleve envoie a Mady pour validation. */
+  productCount: number;
+  /** Consigne au-dessus du tableau des produits. */
+  productNote: string;
+  /** Ce que l'eleve doit savoir du theme (« la page est parfaite, change seulement les textes et les medias »). */
+  themeNote: string;
+  /** Message a coller a Claude Code dans VS Code pour poser le theme et remplacer le contenu. */
+  themePrompt: string;
+}
+
+/** Le theme Shopify de Mady, depose par l'admin et telechargeable par les eleves. */
+export interface StudentThemeFile {
+  /** Nom du fichier sur le disque (data/formation/theme-<id>.zip). */
+  stored: string;
+  /** Nom d'origine, rendu au telechargement. */
+  fileName: string;
+  size: number;
+  uploadedAt: string;
 }
 
 /** Reglages de la plateforme eleves (Formation → Parcours). */

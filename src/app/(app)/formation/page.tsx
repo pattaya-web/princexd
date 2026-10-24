@@ -16,6 +16,14 @@ import { youtubeEmbedUrl, youtubeId } from "@/lib/formation";
  * Mady), le formulaire d'onboarding et les dernières ressources PDF. Sobre
  * et numéroté, pour qu'un élève sache en trois secondes quoi faire ensuite.
  */
+/** Les 4 temps du parcours élève, dans l'ordre : installer, trouver le produit, créer les créatives, poser le thème. */
+const PATH = [
+  { href: "/formation/demarrage", title: "Installe tout", note: "VS Code, Claude Code, Shopify. Une fois." },
+  { href: "/formation/produit", title: "Trouve ton produit", note: "Vidéo BrandSearch, 10 produits à Mady, validation." },
+  { href: "/formation/creatives", title: "Fais tes créatives", note: "Studio IA : images 3:4, 1:1, 9:16 · vidéos 9:16." },
+  { href: "/formation/boutique", title: "Monte ta boutique", note: "Le thème de Mady + Claude Code. Ton produit dedans." },
+];
+
 export default function ScaleXDashboard() {
   const toast = useToast();
   const [data, setData] = useState<DashboardPayload | null>(null);
@@ -114,16 +122,21 @@ export default function ScaleXDashboard() {
                 )}
               </div>
             )}
-            <h2 className="text-[20px] font-semibold mt-3 leading-tight">Commence ici : formulaire, outils, installation, ta boutique.</h2>
-            <p className="muted text-[13.5px] mt-1 leading-relaxed">Tous les liens, VS Code + Claude Code en 4 étapes sans code, tes 3 fenêtres de travail, les réglages Shopify, le Pixel.</p>
+            <h2 className="text-[20px] font-semibold mt-3 leading-tight">Ton parcours, en 4 temps.</h2>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 mt-3">
+              {PATH.map((p, i) => (
+                <Link key={p.href} href={p.href} className="card-flat p-3 flex flex-col gap-1 hover:underline">
+                  <span className="label-xs num">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="text-[14px] font-semibold leading-snug">{p.title}</span>
+                  <span className="dim text-[12px] leading-snug">{p.note}</span>
+                </Link>
+              ))}
+            </div>
             <div className="flex flex-wrap items-center gap-3 mt-4">
               <Link href="/formation/demarrage" className="btn btn-primary btn-sm">
-                Ouvrir Démarrage
+                Commencer : Démarrage
               </Link>
-              <Link href="/formation/creatives" className="btn btn-sm btn-ghost">
-                Créatives &amp; prompts
-              </Link>
-              <Link href="/formation/demarrage#claude" className="text-[13px] font-medium hover:underline">
+              <Link href="/formation/demarrage#claude-aide" className="text-[13px] font-medium hover:underline">
                 Bloqué ? Demande à Claude →
               </Link>
             </div>

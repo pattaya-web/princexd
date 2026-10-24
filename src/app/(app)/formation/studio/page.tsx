@@ -79,11 +79,15 @@ export default function StudentStudioPage() {
           <p className="muted text-[13.5px] mt-3 leading-relaxed">Mady t&apos;a ouvert le Studio. Il te reste à poser ta clé KIE ci-dessous, puis tu entres.</p>
         ) : (
           <p className="muted text-[13.5px] mt-3 leading-relaxed">
-            Mady ouvre le Studio après l&apos;étape créatives (quand ton produit est validé et tes angles trouvés). En attendant, prépare tes prompts sur la page{" "}
+            Mady ouvre le Studio dès que ton produit est validé sur WhatsApp (page{" "}
+            <Link href="/formation/produit" className="underline">
+              Recherche produit
+            </Link>
+            ). En attendant, crée ton compte KIE (étape 02) et lis la page{" "}
             <Link href="/formation/creatives" className="underline">
               Créatives
-            </Link>{" "}
-            et crée ton compte KIE (étape 02) pour être prêt.
+            </Link>
+            .
           </p>
         )}
       </section>
@@ -138,7 +142,7 @@ export default function StudentStudioPage() {
       <section className="card p-5" style={{ borderColor: ready ? "var(--accent-ring)" : undefined }}>
         <SectionLabel n="03" title="Entrer dans le Studio" />
         <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">
-          Onglet <strong>Image</strong> : choisis GPT Image 2, importe ton image de référence produit, colle le prompt écrit par Claude (page Créatives), choisis le ratio, génère. Onglet <strong>Vidéo</strong> : pars d&apos;une image générée, colle le prompt vidéo, 5 à 10 secondes par clip. Les résultats arrivent dans la galerie en haut, tu les télécharges avec la flèche.
+          Onglet <strong>Image</strong> : choisis GPT Image 2, importe ta photo de référence produit, colle le prompt écrit par Claude (page Créatives), choisis le ratio <strong>3:4</strong>, <strong>1:1</strong> ou <strong>9:16</strong>, génère. Onglet <strong>Vidéo</strong> : pars d&apos;une image générée, colle le prompt vidéo, toujours en <strong>9:16</strong>, 5 à 10 secondes par clip. Les résultats arrivent dans la galerie en haut, tu les télécharges avec la flèche.
         </p>
         <div className="flex flex-wrap items-center gap-3 mt-4">
           {ready ? (

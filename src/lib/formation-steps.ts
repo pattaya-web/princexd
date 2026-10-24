@@ -81,32 +81,32 @@ const SEED: SeedV2[] = [
     link: "/formation/education",
   },
   {
-    was: /trouve 3 produits/i,
-    title: "Trouve 3 produits avec BrandSearch et envoie-les à Mady",
+    was: /trouve (3|10) produits/i,
+    title: "Trouve 10 produits avec BrandSearch et envoie le tableau à Mady",
     detail:
-      "Applique le guide Recherche produit. Pour chaque produit : lien du concurrent, prix de vente, pourquoi il marche (pubs actives, avis, tendance). Envoie les 3 à Mady sur WhatsApp, en un seul message.\n\n✅ Fait quand : Mady t'a répondu sur tes 3 produits.",
-    link: "",
+      "Page Recherche produit : regarde la vidéo BrandSearch, remplis le tableau (produit, lien, prix de vente, pourquoi il marche) et envoie-le à Mady sur WhatsApp en un seul message.\n\n✅ Fait quand : Mady a reçu tes 10 produits.",
+    link: "/formation/produit",
   },
   {
     was: /valide ton produit/i,
-    title: "Valide ton produit avec Mady (call)",
+    title: "Fais valider ton produit par Mady",
     detail:
-      "Réserve un call de validation : positionnement, prix, angle marketing, nom de marque. C'est à partir de là que la boutique se construit.\n\n✅ Fait quand : le produit est validé et tu as ton nom de marque.",
-    link: "/formation/appel",
-  },
-  {
-    was: /boutique est générée|boutique est generee|demande ta boutique/i,
-    title: "Construis ta boutique avec Claude Code",
-    detail:
-      "Dans VS Code, demande à Claude de construire ta page produit et ta page d'accueil avec les prompts des guides 04 et 05 (Education) : une section à la fois, tu vérifies dans l'aperçu (F5), puis « mets en ligne ». Ensuite : relis les textes, ajoute logo, nom de marque et politiques, active Shopify Payments et fais une commande test (Démarrage, section 07).\n\n✅ Fait quand : tu peux acheter sur ta boutique depuis ton téléphone.",
-    link: "/formation/education",
+      "Sur WhatsApp, Mady te dit lequel garder, le prix et l'angle. Il t'ouvre ensuite le Studio IA. Rien ne se construit avant cette validation.\n\n✅ Fait quand : le produit est validé et le Studio IA est ouvert pour toi.",
+    link: "/formation/produit",
   },
   {
     was: /cr[ée]e tes cr[ée]atives/i,
-    title: "Crée tes créatives avec l'IA",
+    title: "Crée tes créatives dans le Studio IA",
     detail:
-      "Page Créatives : angles → prompts (Claude ou GPT) → images et vidéos (Higgsfield ou Studio IA). Objectif : 3 vidéos + 3 images par produit, formats 9:16 et 4:5. Pas de perfection, on teste vite.\n\n✅ Fait quand : 6 créatives exportées dans un dossier, prêtes à envoyer.",
+      "Page Studio IA : compte KIE, crédits (20 à 30 €), ta clé. Page Créatives : Claude ou GPT t'écrit tes prompts, tu les colles dans l'onglet Image avec ta photo de référence (ratio 3:4, 1:1 ou 9:16), puis l'onglet Vidéo (9:16). Objectif : 3 vidéos + 3 images, rangées dans un dossier « creatives ».\n\n✅ Fait quand : tes 6 créatives sont dans le dossier.",
     link: "/formation/creatives",
+  },
+  {
+    was: /boutique est générée|boutique est generee|demande ta boutique|construis ta boutique|thème de mady/i,
+    title: "Mets le thème de Mady sur ta boutique avec Claude Code",
+    detail:
+      "Page Ta boutique : télécharge le thème, mets-le dans ton dossier MA-BOUTIQUE avec tes créatives, colle le message à Claude Code dans VS Code. Il remplace textes, images et vidéos par les tiens, section par section ; tu ne touches pas au design. Puis « mets en ligne », commande test (Démarrage, section 07).\n\n✅ Fait quand : tu peux acheter sur ta boutique depuis ton téléphone.",
+    link: "/formation/boutique",
   },
   {
     was: /pixel meta/i,
@@ -145,7 +145,7 @@ export function ensureCourseSteps(db: DB): boolean {
 }
 
 /** Version du texte des étapes par défaut. Monter ce numéro réécrit les étapes déjà en base (ids conservés). */
-const SEED_VERSION = 4;
+const SEED_VERSION = 5;
 
 /**
  * Met à jour les étapes déjà en base vers la dernière version du texte par
@@ -162,6 +162,8 @@ export function ensureGuideStepLink(db: DB): boolean {
     step.title = seed.title;
     step.detail = seed.detail;
     step.link = seed.link;
+    // L'ordre suit la méthode (depuis la v5 : créatives avant la boutique).
+    step.order = SEED.indexOf(seed);
     step.updatedAt = now;
   }
   db.settings.courseStepsSeedVersion = SEED_VERSION;

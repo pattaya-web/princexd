@@ -1,0 +1,252 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { api, useLocalState } from "@/lib/client";
+import { ErrorNote, Spinner, useToast } from "@/components/ui";
+import { PortalFooter, SectionLabel } from "@/components/formation/portal";
+import { youtubeEmbedUrl, youtubeId } from "@/lib/formation";
+import { emptyProductRows, PRODUCT_COLUMNS, productsAsText, type ProductRow } from "@/lib/formation-methode";
+import type { MethodPayload } from "@/app/api/formation/methode/route";
+import type { StudentMethodSettings } from "@/lib/types";
+
+/**
+ * Recherche produit (Scale X) : la vidéo BrandSearch de Mady, puis le
+ * tableau des 10 produits que l'élève remplit et envoie à Mady sur WhatsApp.
+ * Mady valide le produit avec lui, puis il passe aux créatives. Le tableau
+ * reste dans le navigateur de l'élève (pas de validation dans l'outil : elle
+ * se fait sur WhatsApp). L'admin modifie la vidéo et la consigne sur place.
+ */
+
+function waLink(phone: string, text: string): string {
+  let d = (phone ?? "").replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (d.length === 10 && d.startsWith("0")) d = `33${d.slice(1)}`;
+  if (!d) return "";
+  return `https://wa.me/${d}?text=${encodeURIComponent(text)}`;
+}
+
+export default function ProduitPage() {
+  const toast = useToast();
+  const [data, setData] = useState<MethodPayload | null>(null);
+  const [error, setError] = useState("");
+  const [edit, setEdit] = useState(false);
+  const [draft, setDraft] = useState<StudentMethodSettings | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [rows, setRows] = useLocalState<ProductRow[]>("scalex-produits", emptyProductRows(10));
+
+  const load = useCallback(async () => {
+    try {
+      setData(await api<MethodPayload>("/api/formation/methode"));
+      setError("");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const save = async () => {
+    if (!draft) return;
+    setSaving(true);
+    try {
+      const r = await api<{ method: StudentMethodSettings }>("/api/formation/methode", { method: "PATCH", body: JSON.stringify(draft) });
+      setData((d) => (d ? { ...d, method: r.method } : d));
+      setEdit(false);
+      toast("Page enregistrée : les élèves la voient.");
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (error) return <ErrorNote>{error}</ErrorNote>;
+  if (!data) return <Spinner label="Chargement…" />;
+
+  const m = data.method;
+  const count = m.productCount;
+  const table = rows.length === count ? rows : [...rows, ...emptyProductRows(Math.max(0, count - rows.length))].slice(0, count);
+  const filled = table.filter((r) => r.name.trim() || r.link.trim()).length;
+  const firstName = data.student?.firstName ?? "Mady";
+  const text = productsAsText(table, firstName);
+  const wa = waLink(data.whatsapp, text);
+  const vid = youtubeId(m.productVideoUrl);
+
+  const setCell = (i: number, key: keyof ProductRow, v: string) => setRows(table.map((r, j) => (j === i ? { ...r, [key]: v } : r)));
+
+  const copyTable = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Tableau copié. Colle-le à Mady sur WhatsApp.");
+    } catch {
+      toast("Copie impossible : sélectionne le texte à la main.", "err");
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      <header>
+        <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
+          Scale X / Recherche produit
+        </div>
+        <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.03em" }}>
+          Trouve ton produit.
+        </h1>
+        <p className="muted text-[14px] mt-1 max-w-[64ch]">
+          Une vidéo, {count} produits dans le tableau, tu envoies à Mady. Il valide avec toi, et tu passes aux créatives.
+        </p>
+        {data.preview && <div className="badge badge-warn w-fit !text-[11.5px] mt-3">Aperçu : tu vois Scale X comme {data.student?.name}.</div>}
+        {data.isAdmin && !edit && (
+          <button
+            type="button"
+            className="btn btn-sm mt-3"
+            onClick={() => {
+              setDraft({ ...m });
+              setEdit(true);
+            }}
+          >
+            Modifier la page
+          </button>
+        )}
+      </header>
+
+      {edit && draft && (
+        <section className="card p-5 flex flex-col gap-3">
+          <SectionLabel n="Admin" title="Réglages de la page" />
+          <label className="flex flex-col gap-1">
+            <span className="label-xs">Vidéo BrandSearch (lien YouTube)</span>
+            <input className="input" value={draft.productVideoUrl} onChange={(e) => setDraft({ ...draft, productVideoUrl: e.target.value })} placeholder="https://youtu.be/…" inputMode="url" />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="label-xs">Nombre de produits à envoyer</span>
+            <input className="input !w-[120px]" type="number" min={1} max={30} value={draft.productCount} onChange={(e) => setDraft({ ...draft, productCount: Number(e.target.value) || 10 })} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="label-xs">Consigne</span>
+            <textarea className="input" rows={3} value={draft.productNote} onChange={(e) => setDraft({ ...draft, productNote: e.target.value })} />
+          </label>
+          <p className="dim text-[12.5px]">Le numéro WhatsApp qui reçoit les tableaux se règle dans Formation → Parcours (réglages du portail).</p>
+          <div className="flex gap-2">
+            <button type="button" className="btn btn-primary" onClick={() => void save()} disabled={saving}>
+              {saving ? "Enregistrement…" : "Enregistrer"}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => setEdit(false)} disabled={saving}>
+              Annuler
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* 01 / La vidéo */}
+      <section className="card p-5" style={{ borderColor: "var(--accent-ring)" }}>
+        <SectionLabel n="01" title="Regarde la vidéo BrandSearch" />
+        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">{m.productNote}</p>
+        {vid ? (
+          <div className="mt-4 rounded-lg overflow-hidden" style={{ background: "#000" }}>
+            <div style={{ position: "relative", paddingTop: "56.25%" }}>
+              <iframe
+                src={youtubeEmbedUrl(vid)}
+                title="Recherche produit avec BrandSearch"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
+              />
+            </div>
+          </div>
+        ) : m.productVideoUrl ? (
+          <a href={m.productVideoUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm mt-4">
+            Ouvrir la vidéo ↗
+          </a>
+        ) : (
+          <div className="dim text-[12.5px] mt-4">Vidéo à venir.</div>
+        )}
+      </section>
+
+      {/* 02 / Le tableau */}
+      <section className="card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionLabel n="02" title={`Tes ${count} produits`} />
+          <span className="label-xs num">
+            {filled} / {count} remplis
+          </span>
+        </div>
+        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">
+          Une ligne par produit. Le lien, c&apos;est la pub ou la boutique qui le vend déjà (tu le trouves dans BrandSearch). Le tableau est gardé sur cet ordinateur, tu peux revenir le finir.
+        </p>
+        <div className="mt-4 overflow-x-auto -mx-2 px-2">
+          <table className="w-full text-[13px]" style={{ minWidth: 760 }}>
+            <thead>
+              <tr className="text-left">
+                <th className="label-xs pb-2 pr-2 w-[34px]">#</th>
+                {PRODUCT_COLUMNS.map((c) => (
+                  <th key={c.key} className="label-xs pb-2 pr-2">
+                    {c.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {table.map((r, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-2 num dim">{i + 1}</td>
+                  {PRODUCT_COLUMNS.map((c) => (
+                    <td key={c.key} className="py-1 pr-2">
+                      <input className="input !py-1.5 !text-[13px] w-full" value={r[c.key]} placeholder={i === 0 ? c.placeholder : ""} onChange={(e) => setCell(i, c.key, e.target.value)} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 mt-4">
+          {wa ? (
+            <a href={filled ? wa : undefined} target="_blank" rel="noreferrer" className={`btn btn-primary ${filled ? "" : "opacity-50 pointer-events-none"}`} aria-disabled={!filled}>
+              Envoyer mes {filled || count} produits à Mady sur WhatsApp
+            </a>
+          ) : (
+            <button type="button" className="btn btn-primary" onClick={() => void copyTable()} disabled={!filled}>
+              Copier le tableau pour WhatsApp
+            </button>
+          )}
+          {wa && (
+            <button type="button" className="btn btn-ghost" onClick={() => void copyTable()} disabled={!filled}>
+              Copier le tableau
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            onClick={() => {
+              if (window.confirm("Vider le tableau ?")) setRows(emptyProductRows(count));
+            }}
+          >
+            Vider
+          </button>
+        </div>
+        {!wa && <p className="dim text-[12.5px] mt-2">Colle le tableau dans ta conversation WhatsApp avec Mady.</p>}
+      </section>
+
+      {/* 03 / Validation */}
+      <section className="card p-5">
+        <SectionLabel n="03" title="Mady valide ton produit" />
+        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">
+          Sur WhatsApp, Mady te dit lequel garder (et pourquoi). Une fois le produit validé, il t&apos;ouvre le Studio IA et tu passes aux créatives. Pas de créatives, pas de boutique avant la validation : ça t&apos;évite de travailler pour rien.
+        </p>
+        <div className="flex flex-wrap items-center gap-3 mt-4">
+          <Link href="/formation/creatives" className="btn btn-sm">
+            Étape suivante : Créatives →
+          </Link>
+          <Link href="/formation/education" className="text-[13px] font-medium hover:underline">
+            Le guide Recherche produit (PDF)
+          </Link>
+        </div>
+      </section>
+
+      <PortalFooter quote="Le produit fait 80 % du résultat. Prends le temps de bien choisir, puis va vite." author="Mady" />
+    </div>
+  );
+}

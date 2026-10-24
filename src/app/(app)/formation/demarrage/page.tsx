@@ -361,6 +361,19 @@ export default function DemarragePage() {
         <Section key={s.id} s={s} os={os} setOs={setOs} done={guideDone} onToggle={(k, d) => void toggleGuide(k, d)} />
       ))}
 
+      <section className="card p-5 flex flex-col sm:flex-row sm:items-center gap-3" style={{ borderColor: "var(--accent-ring)" }}>
+        <div className="flex-1">
+          <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
+            ET MAINTENANT
+          </div>
+          <div className="text-[17px] font-semibold mt-1 leading-snug">Tout est installé ? Passe à la recherche produit.</div>
+          <div className="muted text-[13.5px] mt-1 leading-relaxed">La vidéo BrandSearch, tes 10 produits envoyés à Mady, la validation. Ensuite les créatives, puis le thème de Mady sur ta boutique.</div>
+        </div>
+        <Link href="/formation/produit" className="btn btn-primary shrink-0">
+          Recherche produit →
+        </Link>
+      </section>
+
       <section className="card-flat p-4 flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex-1 text-[13.5px] leading-relaxed">
           <strong>Bloqué ?</strong> Demande d&apos;abord à Claude (section 09), avec la capture d&apos;écran de l&apos;erreur. Si c&apos;est une vraie urgence, écris à Mady.

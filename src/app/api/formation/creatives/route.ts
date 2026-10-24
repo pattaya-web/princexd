@@ -12,6 +12,8 @@ export interface CreativesPayload {
   isAdmin: boolean;
   preview: boolean;
   creatives: StudentCreativesSettings;
+  /** Studio IA : ouvert par Mady pour cet élève, clé KIE posée. */
+  studio: { access: boolean; hasKey: boolean };
 }
 
 /** Page Créatives : boutique exemple, créatives exemples, prompts à copier. */
@@ -25,6 +27,7 @@ export async function GET(req: NextRequest) {
       isAdmin: session.isAdmin,
       preview: Boolean(session.impersonated),
       creatives: creativesSettings(db.settings),
+      studio: { access: student ? Boolean(student.studioAccess) : session.isAdmin, hasKey: Boolean((student?.kieApiKey ?? "").trim()) },
     };
   });
 }

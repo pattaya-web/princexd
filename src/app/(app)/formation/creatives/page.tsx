@@ -12,10 +12,11 @@ import type { CreativesPayload } from "@/app/api/formation/creatives/route";
 import type { CreativeExample, CreativePrompt, StudentCreativesSettings } from "@/lib/types";
 
 /**
- * Créatives (Scale X) : la boutique exemple de Mady, des créatives exemples,
- * la méthode, et les prompts que l'élève copie dans Claude ou GPT pour se
- * faire écrire ses prompts d'images, ses scripts UGC et ses prompts vidéo.
- * L'admin modifie tout depuis cette page (bouton « Modifier »).
+ * Créatives (Scale X) : après la validation du produit. L'accès au Studio IA
+ * (ouvert par Mady, crédits KIE à acheter), comment faire une créative
+ * (onglet Image : photo de référence + prompt, ratios 3:4 / 1:1 / 9:16,
+ * vidéo en 9:16), des exemples, et les prompts à copier dans Claude ou GPT
+ * pour qu'ils écrivent les prompts du Studio. L'admin modifie tout sur place.
  */
 
 const KIND_LABEL: Record<CreativePrompt["kind"], string> = { strategie: "Stratégie", image: "Image", video: "Vidéo" };
@@ -26,7 +27,7 @@ function PromptCard({ p }: { p: CreativePrompt }) {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(p.text);
-      toast("Prompt copié. Colle-le dans Claude ou GPT et remplis les crochets.");
+      toast(/studio/i.test(p.target) && !/claude|gpt/i.test(p.target) ? "Prompt copié. Colle-le dans le Studio IA." : "Prompt copié. Colle-le dans Claude ou GPT et remplis les crochets.");
     } catch {
       toast("Copie impossible : ouvre le prompt et sélectionne le texte.", "err");
     }
@@ -75,6 +76,18 @@ function ExampleCard({ e }: { e: CreativeExample }) {
             Ouvrir ↗
           </a>
         )}
+      </div>
+    </div>
+  );
+}
+
+function Ratio({ label, w, h, note }: { label: string; w: number; h: number; note: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="shrink-0 rounded-sm" style={{ width: w, height: h, background: "var(--accent)", opacity: 0.85 }} />
+      <div>
+        <div className="text-[14px] font-semibold num">{label}</div>
+        <div className="dim text-[12px]">{note}</div>
       </div>
     </div>
   );
@@ -148,6 +161,8 @@ export default function CreativesPage() {
 
   const c = data.creatives;
   const prompts = c.prompts.filter((p) => filter === "tous" || p.kind === filter);
+  const studio = data.studio;
+  const studioState = !studio.access ? "fermé" : !studio.hasKey ? "sans clé" : "prêt";
 
   const setD = <K extends keyof StudentCreativesSettings>(k: K, v: StudentCreativesSettings[K]) => draft && setDraft({ ...draft, [k]: v });
   const setExample = (i: number, patch: Partial<CreativeExample>) => draft && setD("examples", draft.examples.map((e, j) => (j === i ? { ...e, ...patch } : e)));
@@ -168,17 +183,17 @@ export default function CreativesPage() {
           Scale X / Créatives
         </div>
         <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.03em" }}>
-          Tes créatives, avec l&apos;IA.
+          Tes créatives, dans le Studio IA.
         </h1>
-        <p className="muted text-[14px] mt-1 max-w-[64ch]">La boutique exemple, des créatives qui marchent, la méthode, et les prompts à copier dans Claude ou GPT. Tu remplis les crochets, il t&apos;écrit tes prompts d&apos;images et de vidéos, tu génères.</p>
+        <p className="muted text-[14px] mt-1 max-w-[64ch]">Produit validé ? Mady t&apos;ouvre le Studio IA. Tu achètes tes crédits, tu demandes tes prompts à Claude ou GPT, tu génères : images en 3:4, 1:1 ou 9:16, vidéos en 9:16.</p>
         {data.preview && <div className="badge badge-warn w-fit !text-[11.5px] mt-3">Aperçu : tu vois Scale X comme {data.student?.name}.</div>}
         {data.isAdmin && !edit && (
           <div className="flex flex-wrap gap-2 mt-3">
             <button type="button" className="btn btn-sm" onClick={startEdit}>
               Modifier la page
             </button>
-            <Link href="/formation/parcours" className="btn btn-sm btn-ghost">
-              Parcours &amp; étapes
+            <Link href="/formation/eleves" className="btn btn-sm btn-ghost">
+              Ouvrir le Studio à un élève
             </Link>
           </div>
         )}
@@ -187,7 +202,7 @@ export default function CreativesPage() {
       {edit && draft ? (
         <div className="flex flex-col gap-4">
           <section className="card p-5 flex flex-col gap-3">
-            <SectionLabel n="01" title="Boutique exemple" />
+            <SectionLabel n="01" title="Boutique exemple (affichée sur Ta boutique)" />
             <label className="flex flex-col gap-1">
               <span className="label-xs">Lien de ta boutique exemple</span>
               <input className="input" value={draft.exampleShopUrl} onChange={(e) => setD("exampleShopUrl", e.target.value)} placeholder="https://…" inputMode="url" />
@@ -199,7 +214,12 @@ export default function CreativesPage() {
           </section>
 
           <section className="card p-5 flex flex-col gap-3">
-            <SectionLabel n="02" title="Créatives exemples" />
+            <SectionLabel n="02" title="Comment faire une créative (texte)" />
+            <textarea className="input" rows={10} value={draft.method} onChange={(e) => setD("method", e.target.value)} />
+          </section>
+
+          <section className="card p-5 flex flex-col gap-3">
+            <SectionLabel n="03" title="Créatives exemples" />
             <DropZone label="Déposer des images ou vidéos exemples" hint="JPG, PNG, MP4. Elles sont visibles des élèves." accept="image/*,video/*" onFiles={(f) => void addFiles(f)} compact />
             {progress && <ProgressBar p={progress} />}
             <div className="grid gap-3 sm:grid-cols-2">
@@ -207,7 +227,7 @@ export default function CreativesPage() {
                 <div key={e.id} className="card-flat p-3 flex flex-col gap-2">
                   <input className="input" value={e.title} onChange={(ev) => setExample(i, { title: ev.target.value })} placeholder="Titre" />
                   <input className="input" value={e.url} onChange={(ev) => setExample(i, { url: ev.target.value })} placeholder="Lien (ou fichier déposé)" />
-                  <textarea className="input" rows={2} value={e.note} onChange={(ev) => setExample(i, { note: ev.target.value })} placeholder="Pourquoi elle marche (une phrase)" />
+                  <textarea className="input" rows={2} value={e.note} onChange={(ev) => setExample(i, { note: ev.target.value })} placeholder="Le prompt utilisé, ou pourquoi elle marche" />
                   <div className="flex items-center gap-2">
                     <select className="input !w-auto" value={e.kind} onChange={(ev) => setExample(i, { kind: ev.target.value as CreativeExample["kind"] })}>
                       <option value="image">Image</option>
@@ -224,11 +244,6 @@ export default function CreativesPage() {
             <button type="button" className="btn btn-sm w-fit" onClick={() => setD("examples", [...draft.examples, { id: `ex-${Math.random().toString(36).slice(2, 10)}`, title: "", kind: "image", url: "", note: "" }])}>
               + Ajouter un lien (Instagram, Drive, TikTok…)
             </button>
-          </section>
-
-          <section className="card p-5 flex flex-col gap-3">
-            <SectionLabel n="03" title="Méthode" />
-            <textarea className="input" rows={9} value={draft.method} onChange={(e) => setD("method", e.target.value)} />
           </section>
 
           <section className="card p-5 flex flex-col gap-3">
@@ -252,7 +267,7 @@ export default function CreativesPage() {
                     Retirer
                   </button>
                 </div>
-                <input className="input" value={p.target} onChange={(ev) => setPrompt(i, { target: ev.target.value })} placeholder="Où le coller (ex. Claude ou GPT → puis Higgsfield)" />
+                <input className="input" value={p.target} onChange={(ev) => setPrompt(i, { target: ev.target.value })} placeholder="Où le coller (ex. Claude ou GPT → puis Studio IA)" />
                 <textarea className="input" rows={8} value={p.text} onChange={(ev) => setPrompt(i, { text: ev.target.value })} style={{ fontFamily: "inherit" }} />
               </div>
             ))}
@@ -277,22 +292,59 @@ export default function CreativesPage() {
         </div>
       ) : (
         <>
-          {/* 01 / Boutique exemple */}
-          <section className="card p-5">
-            <SectionLabel n="01" title="La boutique exemple" />
-            <p className="muted text-[14px] mt-3 leading-relaxed max-w-[64ch]">{c.exampleShopNote}</p>
-            {c.exampleShopUrl ? (
-              <a href={c.exampleShopUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm mt-4">
-                Ouvrir la boutique exemple ↗
-              </a>
-            ) : (
-              <div className="dim text-[12.5px] mt-4">{data.isAdmin ? "Ajoute le lien de ta boutique exemple avec « Modifier la page »." : "Lien à venir."}</div>
-            )}
+          {/* 01 / Studio IA */}
+          <section className="card p-5" style={{ borderColor: studioState === "prêt" ? "var(--accent-ring)" : undefined }}>
+            <div className="flex items-center justify-between gap-3">
+              <SectionLabel n="01" title="Ton accès au Studio IA" />
+              <span className={`badge !text-[10.5px] ${studioState === "prêt" ? "badge-good" : "badge-warn"}`}>{studioState === "prêt" ? "Prêt" : studioState === "sans clé" ? "Ouvert · clé à poser" : "Pas encore ouvert"}</span>
+            </div>
+            <ol className="list-decimal pl-5 mt-3 flex flex-col gap-1.5 text-[13.5px] leading-relaxed">
+              <li>
+                <strong>Mady t&apos;ouvre le Studio</strong> une fois ton produit validé sur WhatsApp. {!studio.access && "Pas encore fait ? Envoie-lui tes produits (page Recherche produit)."}
+              </li>
+              <li>
+                <strong>Tu achètes tes crédits</strong> sur kie.ai (20 à 30 € pour tes premières créatives) et tu colles ta clé sur la page Studio IA.
+              </li>
+              <li>
+                <strong>Tu génères</strong> : onglet Image pour les visuels, onglet Vidéo pour les vidéos. Tes résultats ne sont visibles que par toi.
+              </li>
+            </ol>
+            <div className="flex flex-wrap items-center gap-3 mt-4">
+              <Link href="/formation/studio" className="btn btn-primary btn-sm">
+                {studioState === "prêt" ? "Ouvrir le Studio IA" : studioState === "sans clé" ? "Poser ma clé KIE" : "Voir la page Studio IA"}
+              </Link>
+              {!studio.access && (
+                <Link href="/formation/produit" className="text-[13px] font-medium hover:underline">
+                  Recherche produit →
+                </Link>
+              )}
+            </div>
           </section>
 
-          {/* 02 / Créatives exemples */}
+          {/* 02 / Comment faire */}
           <section className="card p-5">
-            <SectionLabel n="02" title="Des créatives qui marchent" />
+            <SectionLabel n="02" title="Comment faire une créative" />
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] mt-3">
+              <Annex text={c.method} />
+              <div className="card-flat p-4 flex flex-col gap-4">
+                <div className="label-xs">Les formats, et rien d&apos;autre</div>
+                <div className="label-xs" style={{ color: "var(--accent)" }}>
+                  Images (statiques)
+                </div>
+                <Ratio label="3:4" w={30} h={40} note="Feed Facebook et Instagram" />
+                <Ratio label="1:1" w={36} h={36} note="Carré, boutique et feed" />
+                <Ratio label="9:16" w={24} h={42} note="Story, Reel, TikTok" />
+                <div className="label-xs mt-1" style={{ color: "var(--accent)" }}>
+                  Vidéos
+                </div>
+                <Ratio label="9:16" w={24} h={42} note="Toujours vertical" />
+              </div>
+            </div>
+          </section>
+
+          {/* 03 / Exemples */}
+          <section className="card p-5">
+            <SectionLabel n="03" title="Des exemples" />
             {c.examples.length === 0 ? (
               <p className="dim text-[13.5px] mt-3">{data.isAdmin ? "Dépose tes exemples avec « Modifier la page »." : "Exemples à venir."}</p>
             ) : (
@@ -302,14 +354,6 @@ export default function CreativesPage() {
                 ))}
               </div>
             )}
-          </section>
-
-          {/* 03 / Méthode */}
-          <section className="card p-5">
-            <SectionLabel n="03" title="La méthode" />
-            <div className="mt-3">
-              <Annex text={c.method} />
-            </div>
           </section>
 
           {/* 04 / Prompts */}
@@ -324,12 +368,23 @@ export default function CreativesPage() {
                 ))}
               </div>
             </div>
-            <p className="muted text-[13.5px] mt-2 leading-relaxed max-w-[64ch]">Dans l&apos;ordre : stratégie d&apos;abord (tes angles), puis images, puis vidéos. Chaque prompt se colle dans Claude ou GPT. Remplis les crochets avec ton produit, ta cible, ton angle. Le résultat, tu le colles ensuite dans l&apos;outil de génération indiqué.</p>
+            <p className="muted text-[13.5px] mt-2 leading-relaxed max-w-[64ch]">
+              Le plus important : tu ne rédiges pas tes prompts toi-même. Tu copies un prompt ci-dessous dans <strong>Claude ou GPT</strong>, tu remplis les crochets avec ton produit, et c&apos;est lui qui t&apos;écrit les prompts à coller dans le Studio IA. Les prompts marqués « Exemple » se collent directement dans le Studio.
+            </p>
             <div className="flex flex-col gap-3 mt-4">
               {prompts.map((p) => (
                 <PromptCard key={p.id} p={p} />
               ))}
             </div>
+          </section>
+
+          <section className="card-flat p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1 text-[13.5px] leading-relaxed">
+              <strong>Tes créatives sont prêtes ?</strong> Mets-les dans le dossier « creatives » de ton projet et passe à ta boutique : le thème de Mady, avec ton produit dedans.
+            </div>
+            <Link href="/formation/boutique" className="btn btn-sm shrink-0">
+              Étape suivante : Ta boutique →
+            </Link>
           </section>
         </>
       )}
