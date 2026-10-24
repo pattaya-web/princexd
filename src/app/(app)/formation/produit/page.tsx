@@ -18,6 +18,24 @@ import type { StudentMethodSettings } from "@/lib/types";
  * se fait sur WhatsApp). L'admin modifie la vidéo et la consigne sur place.
  */
 
+/** Les filtres BrandSearch de Mady (captures dans public/formation/brandsearch), tels qu'ils doivent être posés. */
+const BRANDSEARCH_SHOTS = [
+  { src: "/formation/brandsearch/filtres-marque.jpg", title: "Onglet Marque", note: "Épingle Marchés cibles, Trafic, Pubs Meta et Catalogue produits. Puis règle : Marchés cibles = US · Trafic 5k à 50k · Pubs Meta 25 à 90 · Catalogue produits 39 à 350 $." },
+  { src: "/formation/brandsearch/filtres-pub.jpg", title: "Onglet Pub", note: "Actifs uniq. activé (Partenariat et Abonnement éteints), Format = Tous. Le reste, tu n'y touches pas." },
+  { src: "/formation/brandsearch/filtre-date.jpg", title: "La date, en haut à droite", note: "Clique sur la date, choisis « Pub lancée » et prends les 3 derniers mois (ici du 1er août au 23 octobre). Tu veux des pubs récentes." },
+  { src: "/formation/brandsearch/filtres-actifs.jpg", title: "Résultat : 6 filtres actifs", note: "Marchés US · Prix 39 à 350 $ · Trafic 5k à 50k · Pubs actives 25 à 90 · Pub lancée sur 3 mois · Status Active ads. Enregistre-le en preset pour ne plus le refaire." },
+];
+
+/** Les 6 réglages, en clair, pour copier le preset à la main. */
+const BRANDSEARCH_FILTERS = [
+  ["Marchés cibles", "US"],
+  ["Prix du catalogue", "39 à 350 $"],
+  ["Trafic", "5k à 50k"],
+  ["Pubs Meta actives", "25 à 90"],
+  ["Pub lancée", "les 3 derniers mois"],
+  ["Status", "Active ads (Actifs uniq.)"],
+];
+
 function waLink(phone: string, text: string): string {
   let d = (phone ?? "").replace(/\D/g, "");
   if (d.startsWith("00")) d = d.slice(2);
@@ -96,7 +114,7 @@ export default function ProduitPage() {
           Trouve ton produit.
         </h1>
         <p className="muted text-[14px] mt-1 max-w-[64ch]">
-          Une vidéo, {count} produits dans le tableau, tu envoies à Mady. Il valide avec toi, et tu passes aux créatives.
+          Une vidéo, les bons filtres sur BrandSearch, {count} produits dans le tableau, tu envoies à Mady. Il valide avec toi, et tu passes aux créatives.
         </p>
         {data.preview && <div className="badge badge-warn w-fit !text-[11.5px] mt-3">Aperçu : tu vois Scale X comme {data.student?.name}.</div>}
         {data.isAdmin && !edit && (
@@ -165,10 +183,41 @@ export default function ProduitPage() {
         )}
       </section>
 
-      {/* 02 / Le tableau */}
+      {/* 02 / Les filtres BrandSearch */}
+      <section className="card p-5">
+        <SectionLabel n="02" title="Les filtres à mettre sur BrandSearch" />
+        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Exactement ces réglages, pas d&apos;autres. Fais-le une fois, enregistre en preset. Clique sur une capture pour l&apos;agrandir.</p>
+        <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-3 text-[13px]">
+          {BRANDSEARCH_FILTERS.map(([k, v]) => (
+            <span key={k}>
+              <span className="dim">{k} : </span>
+              <strong>{v}</strong>
+            </span>
+          ))}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 mt-4">
+          {BRANDSEARCH_SHOTS.map((sh, i) => (
+            <figure key={sh.src} className="card-flat overflow-hidden flex flex-col">
+              <a href={sh.src} target="_blank" rel="noreferrer" style={{ background: "var(--surface-3)" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={sh.src} alt={sh.title} className="w-full max-h-[360px] object-contain object-top" loading="lazy" />
+              </a>
+              <figcaption className="p-3">
+                <div className="text-[14px] font-semibold leading-snug">
+                  <span className="dim num mr-1.5">{i + 1}.</span>
+                  {sh.title}
+                </div>
+                <div className="muted text-[12.5px] mt-1 leading-relaxed">{sh.note}</div>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
+
+      {/* 03 / Le tableau */}
       <section className="card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionLabel n="02" title={`Tes ${count} produits`} />
+          <SectionLabel n="03" title={`Tes ${count} produits`} />
           <span className="label-xs num">
             {filled} / {count} remplis
           </span>
@@ -230,9 +279,9 @@ export default function ProduitPage() {
         {!wa && <p className="dim text-[12.5px] mt-2">Colle le tableau dans ta conversation WhatsApp avec Mady.</p>}
       </section>
 
-      {/* 03 / Validation */}
+      {/* 04 / Validation */}
       <section className="card p-5">
-        <SectionLabel n="03" title="Mady valide ton produit" />
+        <SectionLabel n="04" title="Mady valide ton produit" />
         <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">
           Sur WhatsApp, Mady te dit lequel garder (et pourquoi). Une fois le produit validé, il t&apos;ouvre le Studio IA et tu passes aux créatives. Pas de créatives, pas de boutique avant la validation : ça t&apos;évite de travailler pour rien.
         </p>
