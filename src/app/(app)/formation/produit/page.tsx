@@ -116,6 +116,11 @@ export default function ProduitPage() {
         <p className="muted text-[14px] mt-1 max-w-[64ch]">
           Une vidéo, les bons filtres sur BrandSearch, {count} produits dans le tableau, tu envoies à Mady. Il valide avec toi, et tu passes aux créatives.
         </p>
+        {data.brandsearchUrl && (
+          <a href={data.brandsearchUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm mt-3 w-fit">
+            Ouvrir BrandSearch (plan Starter) ↗
+          </a>
+        )}
         {data.preview && <div className="badge badge-warn w-fit !text-[11.5px] mt-3">Aperçu : tu vois Scale X comme {data.student?.name}.</div>}
         {data.isAdmin && !edit && (
           <button
@@ -187,6 +192,11 @@ export default function ProduitPage() {
       <section className="card p-5">
         <SectionLabel n="02" title="Les filtres à mettre sur BrandSearch" />
         <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Exactement ces réglages, pas d&apos;autres. Fais-le une fois, enregistre en preset. Clique sur une capture pour l&apos;agrandir.</p>
+        {data.brandsearchUrl && (
+          <a href={data.brandsearchUrl} target="_blank" rel="noreferrer" className="btn btn-sm mt-3 w-fit">
+            Ouvrir BrandSearch ↗
+          </a>
+        )}
         <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-3 text-[13px]">
           {BRANDSEARCH_FILTERS.map(([k, v]) => (
             <span key={k}>

@@ -6,6 +6,7 @@ import { methodSettings, readMethodSettings } from "@/lib/formation-methode";
 import { creativesSettings } from "@/lib/formation-creatives";
 import { portalSettings } from "@/lib/formation-steps";
 import { currentTheme } from "@/lib/formation-theme";
+import { onboardingSettings } from "@/lib/onboarding";
 import type { StudentMethodSettings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,8 @@ export interface MethodPayload {
   exampleShopUrl: string;
   /** Studio IA : ouvert par Mady pour cet élève, clé KIE posée. */
   studio: { access: boolean; hasKey: boolean };
+  /** BrandSearch avec le lien affilié de Mady (Élèves → Onboarding). */
+  brandsearchUrl: string;
 }
 
 /** Pages Recherche produit et Ta boutique : consignes, vidéo, thème, état du Studio. */
@@ -41,6 +44,7 @@ export async function GET(req: NextRequest) {
       theme: theme ? { fileName: theme.fileName, size: theme.size, uploadedAt: theme.uploadedAt, downloadUrl: "/api/formation/theme/file", bundled: theme.bundled } : null,
       exampleShopUrl: creativesSettings(db.settings).exampleShopUrl,
       studio: { access: student ? Boolean(student.studioAccess) : session.isAdmin, hasKey: Boolean((student?.kieApiKey ?? "").trim()) },
+      brandsearchUrl: onboardingSettings(db.settings).brainsearchUrl,
     };
   });
 }

@@ -51,7 +51,7 @@ export function activeSale(sales: Sale[], appt: Appointment | null): Sale | null
   return live.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null;
 }
 
-export function leadBusiness(lead: Lead, appts: Appointment[], sales: Sale[], defaultCurrency: string, tz = "Europe/Paris"): LeadBusiness {
+export function leadBusiness(lead: Lead, appts: Appointment[], sales: Sale[], defaultCurrency: string, tz = "Europe/Paris", names: Map<string, string> = new Map()): LeadBusiness {
   const appt = mainAppointment(appts);
   const sale = activeSale(sales, appt);
 
@@ -118,6 +118,12 @@ export function leadBusiness(lead: Lead, appts: Appointment[], sales: Sale[], de
     cashCollected,
     currency: sale?.currency || defaultCurrency,
     pipelineStage,
+    closerId: sale?.closerId || appt?.closerId || "",
+    closerName: names.get(sale?.closerId || appt?.closerId || "") ?? "",
+    setterName: names.get(sale?.setterId || appt?.setterId || lead.setterId || "") ?? "",
+    offer: sale?.offer ?? "",
+    soldAt: sale?.soldAt ?? "",
+    remaining: Math.max(0, revenue - cashCollected),
   };
 }
 
@@ -162,8 +168,9 @@ export function businessDataset(db: DB): BusinessDataset {
     for (const a of snap.adsets) names.adsets.set(a.id, { name: a.name, campaignId: a.campaignId });
     for (const ad of snap.ads) names.ads.set(ad.id, { name: ad.name, adsetId: ad.adsetId, campaignId: ad.campaignId });
   }
+  const memberNames = new Map(db.team.map((m) => [m.id, m.name]));
   const rows = leads.map((l) => {
-    const r = leadBusiness(l, apptsByLead.get(l.id) ?? [], salesByLead.get(l.id) ?? [], currency, tz);
+    const r = leadBusiness(l, apptsByLead.get(l.id) ?? [], salesByLead.get(l.id) ?? [], currency, tz, memberNames);
     // Les noms du media buying font foi ; ceux portes par le lead sont un repli.
     r.campaignName = names.campaigns.get(r.campaignId) ?? r.campaignName;
     r.adsetName = names.adsets.get(r.adsetId)?.name ?? r.adsetName;
@@ -502,12 +509,22 @@ export function aggregateBusiness(db: DB, opts: { range: DateRange; filters: Bus
   };
 }
 
+/** Cle speciale de `leadsForGroup` : les ventes derriere la tuile « Closés », vente la plus recente en premier. */
+export const CLOSED_DETAIL_KEY = "closed";
+
 /** Les leads derriere une ligne du tableau (ou derriere les totaux). */
 export function leadsForGroup(db: DB, opts: { range: DateRange; filters: BusinessFilters; groupBy: GroupBy; key: string }): LeadBusiness[] {
   const ds = businessDataset(db);
   const { range, filters, groupBy, key } = opts;
-  return ds.rows
-    .filter((r) => r.acquiredDay >= range.from && r.acquiredDay <= range.to && matches(r, filters))
+  const scoped = ds.rows.filter((r) => r.acquiredDay >= range.from && r.acquiredDay <= range.to && matches(r, filters));
+  // Les memes lignes que la tuile « Closés » du dashboard : meme cohorte, memes filtres, ventes gagnees.
+  if (key === CLOSED_DETAIL_KEY) {
+    return scoped
+      .filter((r) => r.saleStatus === "WON")
+      .sort((a, b) => b.soldAt.localeCompare(a.soldAt))
+      .slice(0, 500);
+  }
+  return scoped
     .filter((r) => {
       if (groupBy === "none" || key === "all") return true;
       if (groupBy === "source") return r.sourceChannel === key;

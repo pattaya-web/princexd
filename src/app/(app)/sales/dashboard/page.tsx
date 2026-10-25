@@ -12,7 +12,7 @@ import { fmtDate, fmtDateTime, fmtMoney, label as crmLabel } from "@/lib/format"
 import { RANGE_PRESETS, type RangePreset } from "@/lib/mediabuying/metrics";
 import { funnelLabel } from "@/lib/sales/attribution";
 import { BOOKING_STATUS_LABEL, SALE_STATUS_LABEL, type DueInstallment } from "@/lib/sales/business-types";
-import type { BusinessGroupRow, BusinessMetrics, BusinessReport, GroupBy, LeadBusiness } from "@/lib/sales/business";
+import { CLOSED_DETAIL_KEY, type BusinessGroupRow, type BusinessMetrics, type BusinessReport, type GroupBy, type LeadBusiness } from "@/lib/sales/business";
 import type { AttentionBlock } from "@/app/api/sales/dashboard/route";
 
 /* ------------------------------- Formats ------------------------------- */
@@ -31,10 +31,20 @@ const WARN = "var(--warning)";
 const BAD = "var(--critical)";
 
 /** Une case : un chiffre, un libelle, une ligne d'explication. Rien d'autre. */
-function Tile({ label, value, sub, color, big }: { label: string; value: ReactNode; sub?: ReactNode; color?: string; big?: boolean }) {
+function Tile({ label, value, sub, color, big, onClick }: { label: string; value: ReactNode; sub?: ReactNode; color?: string; big?: boolean; onClick?: () => void }) {
   return (
-    <div className="card px-4 py-3.5 min-w-0">
-      <div className="label-xs truncate">{label}</div>
+    <div
+      className={`card px-4 py-3.5 min-w-0 ${onClick ? "cursor-pointer hover:bg-[var(--surface-2)] transition-colors" : ""}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => (e.key === "Enter" || e.key === " ") && onClick() : undefined}
+      title={onClick ? "Voir le détail" : undefined}
+    >
+      <div className="label-xs truncate">
+        {label}
+        {onClick ? <span className="dim"> ↗</span> : null}
+      </div>
       <div className={`${big ? "text-[30px]" : "text-[24px]"} font-semibold num leading-none mt-2`} style={{ letterSpacing: "-0.03em", color }}>
         {value}
       </div>
@@ -105,7 +115,7 @@ export default function SalesDashboardPage() {
   const [report, setReport] = useState<BusinessReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [detail, setDetail] = useState<{ row: BusinessGroupRow | null; leads: LeadBusiness[] | null } | null>(null);
+  const [detail, setDetail] = useState<{ row: BusinessGroupRow | null; kind: "group" | "closed"; leads: LeadBusiness[] | null } | null>(null);
   const [view, setView] = useState<"table" | "pipeline">("table");
   const [ops, setOps] = useState<{ attention: AttentionBlock | null; followUps: { overdue: number } } | null>(null);
 
@@ -143,16 +153,32 @@ export default function SalesDashboardPage() {
     };
   }, [query]);
 
-  const openDetail = async (row: BusinessGroupRow | null) => {
-    setDetail({ row, leads: null });
+  const openDetail = async (row: BusinessGroupRow | null, kind: "group" | "closed" = "group") => {
+    setDetail({ row, kind, leads: null });
     try {
-      const r = await api<{ leads: LeadBusiness[] }>(`/api/sales/business?${query}&detail=${encodeURIComponent(row?.key ?? "all")}`);
-      setDetail({ row, leads: r.leads });
+      const key = kind === "closed" ? CLOSED_DETAIL_KEY : (row?.key ?? "all");
+      const r = await api<{ leads: LeadBusiness[] }>(`/api/sales/business?${query}&detail=${encodeURIComponent(key)}`);
+      setDetail({ row, kind, leads: r.leads });
     } catch (e) {
       setError((e as Error).message);
       setDetail(null);
     }
   };
+
+  /* Bilan par closer des ventes affichées : qui a closé combien, contrat et cash. */
+  const closedByCloser = useMemo(() => {
+    if (detail?.kind !== "closed" || !detail.leads) return [];
+    const m = new Map<string, { name: string; n: number; revenue: number; cash: number }>();
+    for (const l of detail.leads) {
+      const k = l.closerName || "Sans closer";
+      const cur = m.get(k) ?? { name: k, n: 0, revenue: 0, cash: 0 };
+      cur.n++;
+      cur.revenue += l.revenue;
+      cur.cash += l.cashCollected;
+      m.set(k, cur);
+    }
+    return [...m.values()].sort((a, b) => b.revenue - a.revenue);
+  }, [detail]);
 
   const set = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }));
   const o = report?.options;
@@ -341,7 +367,7 @@ export default function SalesDashboardPage() {
 
           <Section title="Ventes" hint="sur la période">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-              <Tile label="Closés" value={fmt(t.sales, "int", currency)} color={t.sales ? GOOD : undefined} sub={`Close rate ${fmt(t.closeRate, "pct", currency)}`} big />
+              <Tile label="Closés" value={fmt(t.sales, "int", currency)} color={t.sales ? GOOD : undefined} sub={`Close rate ${fmt(t.closeRate, "pct", currency)} · clique : qui a closé`} big onClick={() => void openDetail(null, "closed")} />
               <Tile label="CA (contrats)" value={fmt(t.revenue, "money", currency)} sub="valeur des contrats signés" />
               <Tile label="Cash encaissé" value={fmt(t.cashCollected, "money", currency)} color={t.cashCollected ? GOOD : undefined} sub="sur ces ventes" />
               <Tile label="Cash ce mois" value={fmt(cf.cashMonth, "money", currency)} sub="encaissé depuis le 1er" />
@@ -475,11 +501,73 @@ export default function SalesDashboardPage() {
         </>
       )}
 
-      <Modal open={detail !== null} onClose={() => setDetail(null)} title={detail?.row ? `${detail.row.label} · leads` : "Leads de la sélection"} wide>
+      <Modal open={detail !== null} onClose={() => setDetail(null)} title={detail?.kind === "closed" ? "Closés · qui a closé quoi" : detail?.row ? `${detail.row.label} · leads` : "Leads de la sélection"} wide>
         {!detail?.leads ? (
           <Spinner label="Chargement des leads…" />
         ) : detail.leads.length === 0 ? (
-          <Empty>Aucun lead.</Empty>
+          <Empty>{detail.kind === "closed" ? "Aucune vente sur la période (avec ces filtres)." : "Aucun lead."}</Empty>
+        ) : detail.kind === "closed" ? (
+          <div className="flex flex-col gap-4">
+            {/* Le bilan par closer, puis chaque vente. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {closedByCloser.map((c) => (
+                <div key={c.name} className="card-flat px-3.5 py-2.5">
+                  <div className="text-[13px] font-semibold truncate">{c.name}</div>
+                  <div className="dim text-[11.5px] num mt-0.5">
+                    {c.n} vente{c.n > 1 ? "s" : ""} · {fmtMoney(c.revenue, currency)} de contrats
+                  </div>
+                  <div className="text-[12.5px] num font-medium" style={{ color: GOOD }}>
+                    {fmtMoney(c.cash, currency)} encaissés
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="scroll-x">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Lead</th>
+                    <th>Closé le</th>
+                    <th>Closé par</th>
+                    <th>Offre</th>
+                    <th className="!text-right">Contrat</th>
+                    <th className="!text-right">Cash encaissé</th>
+                    <th className="!text-right">Reste</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.leads.map((l) => (
+                    <tr key={l.leadId}>
+                      <td>
+                        <Link href={`/sales/rendez-vous?view=closed&q=${encodeURIComponent(l.name)}`} className="text-[13px] font-medium link" title="Ouvrir dans le CRM">
+                          {l.name}
+                        </Link>
+                        {l.mock && <span className="dim text-[10px]"> démo</span>}
+                        <div className="dim text-[11px]">{l.handle || l.email || l.phone}</div>
+                      </td>
+                      <td className="num text-[12px] whitespace-nowrap">{l.soldAt ? fmtDate(l.soldAt) : "—"}</td>
+                      <td className="text-[12.5px] font-medium whitespace-nowrap">
+                        {l.closerName || <span className="dim">Sans closer</span>}
+                        {l.setterName && <div className="dim text-[10.5px]">setter {l.setterName}</div>}
+                      </td>
+                      <td className="text-[12px]">{l.offer || "—"}</td>
+                      <td className="text-right num font-semibold">{fmtMoney(l.revenue, l.currency)}</td>
+                      <td className="text-right num" style={{ color: l.cashCollected ? GOOD : undefined }}>{l.cashCollected ? fmtMoney(l.cashCollected, l.currency) : "—"}</td>
+                      <td className="text-right num" style={{ color: l.remaining ? WARN : undefined }}>{l.remaining ? fmtMoney(l.remaining, l.currency) : "soldé ✓"}</td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td colSpan={4} className="text-[12px] font-semibold">
+                      Total · {detail.leads.length} vente{detail.leads.length > 1 ? "s" : ""}
+                    </td>
+                    <td className="text-right num font-semibold">{fmtMoney(detail.leads.reduce((n, l) => n + l.revenue, 0), currency)}</td>
+                    <td className="text-right num font-semibold" style={{ color: GOOD }}>{fmtMoney(detail.leads.reduce((n, l) => n + l.cashCollected, 0), currency)}</td>
+                    <td className="text-right num font-semibold">{fmtMoney(detail.leads.reduce((n, l) => n + l.remaining, 0), currency)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         ) : (
           <div className="scroll-x">
             <table className="table">

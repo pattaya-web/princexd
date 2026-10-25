@@ -20,6 +20,17 @@ import type { Settings, StudentOnboardingSettings } from "./types";
 /** Même lien que le composant Shopify du générateur de boutiques. */
 const SHOPIFY_AFFILIATE = "https://shopify.pxf.io/MAVeZN";
 
+/** Lien affilié BrandSearch de Mady (code royalscale), posé le 2026-10-25. Partout où un élève ouvre BrandSearch. */
+export const BRANDSEARCH_AFFILIATE = "https://brandsearch.co?ref=royalscale";
+
+/** Une adresse BrandSearch sans code affilié (ancienne valeur enregistrée, ou brainsearch.co) : on y met le lien affilié. */
+function brandsearchLink(stored: string): string {
+  const v = stored.trim().replace(/brainsearch\.co/i, "brandsearch.co");
+  if (!v) return BRANDSEARCH_AFFILIATE;
+  if (/^https?:\/\/(www\.)?brandsearch\.co\/?$/i.test(v)) return BRANDSEARCH_AFFILIATE;
+  return v;
+}
+
 export const DEFAULT_ONBOARDING_MESSAGE = `Bienvenue dans l'accompagnement {{prenom}} 🔥
 
 T'as pris la bonne décision, maintenant on avance. Voici les 3 choses à faire AVANT notre premier call, dans l'ordre.
@@ -55,7 +66,7 @@ export const DEFAULT_ONBOARDING: StudentOnboardingSettings = {
   formUrl: "",
   shopifyUrl: SHOPIFY_AFFILIATE,
   claudeUrl: "https://claude.ai/upgrade",
-  brainsearchUrl: "https://brandsearch.co",
+  brainsearchUrl: BRANDSEARCH_AFFILIATE,
   message: DEFAULT_ONBOARDING_MESSAGE,
 };
 
@@ -66,8 +77,9 @@ export function onboardingSettings(settings: Pick<Settings, "studentOnboarding">
     formUrl: (s.formUrl ?? "").trim(),
     shopifyUrl: (s.shopifyUrl ?? "").trim() || DEFAULT_ONBOARDING.shopifyUrl,
     claudeUrl: (s.claudeUrl ?? "").trim() || DEFAULT_ONBOARDING.claudeUrl,
-    // L'outil s'appelle BrandSearch (brandsearch.co) : l'ancienne adresse enregistrée est corrigée à la lecture.
-    brainsearchUrl: ((s.brainsearchUrl ?? "").trim() || DEFAULT_ONBOARDING.brainsearchUrl).replace(/brainsearch\.co/i, "brandsearch.co"),
+    // L'outil s'appelle BrandSearch (brandsearch.co) : l'ancienne adresse enregistrée est corrigée à la lecture,
+    // et une adresse sans code affilié reçoit le lien affilié de Mady.
+    brainsearchUrl: brandsearchLink(s.brainsearchUrl ?? ""),
     message: ((s.message ?? "").trim() ? s.message! : DEFAULT_ONBOARDING_MESSAGE).replace(/BrainSearch/g, "BrandSearch"),
   };
 }

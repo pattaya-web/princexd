@@ -71,7 +71,7 @@ export function CrmBoard({ session, members, refreshKey, onChanged }: { session:
   const pathname = usePathname();
   const params = useSearchParams();
   const urlView = params.get("view");
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(params.get("q") ?? "");
   const [view, setView] = useState<QuickView>(urlView && VIEW_KEYS.has(urlView) ? (urlView as QuickView) : "todo");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
@@ -197,6 +197,29 @@ export function CrmBoard({ session, members, refreshKey, onChanged }: { session:
     return null;
   }, [list, view, searching]);
 
+  /* Bilan de la vue closes : combien de ventes, contrats, cash, reste, et qui a close quoi. */
+  const closedTotals = useMemo(() => {
+    if (view !== "closed" || searching) return null;
+    const sold = list.filter((r) => r.sale);
+    const byCloser = new Map<string, { name: string; n: number; contract: number; cash: number }>();
+    let contract = 0;
+    let cash = 0;
+    let remaining = 0;
+    for (const r of sold) {
+      const sale = r.sale!;
+      contract += sale.contractValue;
+      cash += sale.cashCollected;
+      remaining += sale.remaining;
+      const k = r.closerName || "Sans closer";
+      const cur = byCloser.get(k) ?? { name: k, n: 0, contract: 0, cash: 0 };
+      cur.n++;
+      cur.contract += sale.contractValue;
+      cur.cash += sale.cashCollected;
+      byCloser.set(k, cur);
+    }
+    return { n: sold.length, contract, cash, remaining, closers: [...byCloser.values()].sort((a, b) => b.contract - a.contract) };
+  }, [list, view, searching]);
+
   /* Totaux de la vue paiements : ce qui reste a rentrer, et ce qui est en retard. */
   const payTotals = useMemo(() => {
     if (view !== "payment" || searching) return null;
@@ -309,6 +332,36 @@ export function CrmBoard({ session, members, refreshKey, onChanged }: { session:
         </div>
       )}
 
+      {closedTotals && closedTotals.n > 0 && (
+        <div className="card-flat px-3.5 py-2.5 mb-3 flex flex-col gap-2">
+          <div className="flex items-center gap-4 flex-wrap text-[12.5px]">
+            <span>
+              <strong className="num">{closedTotals.n}</strong> <span className="dim">vente{closedTotals.n > 1 ? "s" : ""}</span>
+            </span>
+            <span>
+              <span className="dim">Contrats : </span>
+              <strong className="num">{fmtMoney(closedTotals.contract, currency)}</strong>
+            </span>
+            <span>
+              <span className="dim">Cash encaissé : </span>
+              <strong className="num" style={{ color: GOOD }}>{fmtMoney(closedTotals.cash, currency)}</strong>
+            </span>
+            <span>
+              <span className="dim">Reste à encaisser : </span>
+              <strong className="num" style={{ color: closedTotals.remaining ? WARN : undefined }}>{closedTotals.remaining ? fmtMoney(closedTotals.remaining, currency) : "rien ✓"}</strong>
+            </span>
+          </div>
+          {/* Qui a close quoi : une puce par closer. */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {closedTotals.closers.map((c) => (
+              <span key={c.name} className="badge !text-[11.5px] num" title={`${c.n} vente${c.n > 1 ? "s" : ""} · ${fmtMoney(c.contract, currency)} de contrats · ${fmtMoney(c.cash, currency)} encaissés`}>
+                <strong>{c.name}</strong> · {c.n} vente{c.n > 1 ? "s" : ""} · {fmtMoney(c.contract, currency)} · <span style={{ color: GOOD }}>{fmtMoney(c.cash, currency)} encaissés</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {payTotals && list.length > 0 && (
         <div className="flex items-center gap-4 flex-wrap mb-3 text-[12.5px] card-flat px-3.5 py-2">
           <span>
@@ -393,6 +446,9 @@ function LeadRow({ r, view, currency, busy, last, onStatus, onCall, onFuDone, on
   /* La ligne de detail : ce qui aide a agir, selon la situation. */
   const detail: { text: string; color?: string }[] = [];
   if (view === "todo" && r.todo) detail.push({ text: r.todo.reason, color: r.todo.rank <= 2 ? BAD : undefined });
+  if (r.sale && (view === "closed" || view === "all")) {
+    detail.push({ text: `Closé par ${r.closerName || "closer non renseigné"}${r.sale.soldAt ? ` · le ${fmtDay(r.sale.soldAt.slice(0, 10))}` : ""}${r.sale.offer ? ` · ${r.sale.offer}` : ""}`, color: GOOD });
+  }
   if (r.sale && (view === "payment" || view === "closed" || view === "all" || (view === "todo" && r.todo?.kind.startsWith("payment")))) {
     if (!(view === "todo" && r.todo?.kind.startsWith("payment"))) detail.push({ text: r.sale.paymentSummary, color: r.sale.paymentState === "overdue" ? BAD : undefined });
   }

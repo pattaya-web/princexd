@@ -57,6 +57,15 @@ export interface LeadBusiness {
   cashCollected: number;
   currency: string;
   pipelineStage: PipelineStage;
+  /* --- La vente, quand il y en a une : qui a closé, quoi, quand. Vides sinon. --- */
+  closerId: string;
+  closerName: string;
+  setterName: string;
+  offer: string;
+  /** Date de la vente (ISO). */
+  soldAt: string;
+  /** Contrat moins cash (net des remboursements), jamais négatif. */
+  remaining: number;
 }
 
 
