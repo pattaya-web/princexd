@@ -13,9 +13,10 @@ import type { Appointment, DB, Lead, Sale, SourceChannel } from "../types";
 import { leadIsOut } from "../types";
 import { dayIn } from "../mediabuying/metrics";
 import type { DateRange, MetaSnapshot } from "../mediabuying/types";
-import { mockBusinessData } from "./mock-leads";
+import { mockBusinessData, type MockBusiness } from "./mock-leads";
 import { backfillAttribution, ensureFunnelsV2, FUNNELS, funnelLabel, SOURCE_CHANNEL_LABEL } from "./attribution";
-import { CLOSED_DETAIL_KEY, PIPELINE_STAGES, type BookingStatus, type Cashflow, type DueInstallment, type LeadBusiness, type PipelineStage, type SaleStatusView, type ShowStatus } from "./business-types";
+import { CLOSED_DETAIL_KEY, PIPELINE_STAGES, type BookingStatus, type Cashflow, type DueInstallment, type LeadBusiness, type PipelineStage, type RemainingSale, type SaleStatusView, type ShowStatus } from "./business-types";
+import { paymentView } from "./installments";
 
 export * from "./business-types";
 import { writeDB } from "../db";
@@ -155,7 +156,9 @@ export function businessDataset(db: DB): BusinessDataset {
   }
   const currency = db.settings.salesCurrency || "EUR";
   const tz = "Europe/Paris";
-  const mock = mockBusinessData(db.metaConnections);
+  // Les leads de demonstration (compte Meta simule) ne comptent jamais dans
+  // les chiffres du business : seulement en dev, quand le mock est force.
+  const mock: MockBusiness = process.env.META_PROVIDER === "mock" ? mockBusinessData(db.metaConnections) : { leads: [], appointments: [], sales: [] };
   const leads = [...db.leads, ...mock.leads];
   const apptsByLead = new Map<string, Appointment[]>();
   for (const a of [...db.appointments, ...mock.appointments]) apptsByLead.set(a.leadId, [...(apptsByLead.get(a.leadId) ?? []), a]);
@@ -203,8 +206,10 @@ export interface BusinessMetrics {
   bookingRate: number | null;
   shows: number;
   noShows: number;
-  /** Calls encore a venir (planifies, pas encore passes). */
+  /** Calls encore a venir (planifies, date pas encore passee). */
   upcomingCalls: number;
+  /** Calls passes dont l'issue n'est pas posee (ni show, ni no-show) : ils ne comptent nulle part tant qu'on ne statue pas. */
+  pendingOutcome: number;
   showRate: number | null;
   sales: number;
   closeRate: number | null;
@@ -250,6 +255,8 @@ export interface BusinessReport {
   options: BusinessOptions;
   hasMock: boolean;
   metaConnected: boolean;
+  /** Date de depart des chiffres (reglage), vide = tout l'historique. */
+  statsSince: string;
 }
 
 const div = (a: number, b: number) => (b > 0 ? a / b : null);
@@ -261,6 +268,8 @@ function metricsOf(rows: LeadBusiness[], spend: number | null): BusinessMetrics 
   let shows = 0;
   let noShows = 0;
   let upcomingCalls = 0;
+  let pendingOutcome = 0;
+  const nowIso = new Date().toISOString();
   let sales = 0;
   let revenue = 0;
   let cashCollected = 0;
@@ -270,7 +279,10 @@ function metricsOf(rows: LeadBusiness[], spend: number | null): BusinessMetrics 
     if (r.bookingStatus && r.bookingStatus !== "CANCELLED") bookings++;
     if (r.bookingStatus === "SHOWED") shows++;
     if (r.bookingStatus === "NO_SHOW") noShows++;
-    if (r.bookingStatus === "SCHEDULED") upcomingCalls++;
+    if (r.bookingStatus === "SCHEDULED") {
+      if (r.appointmentAt && r.appointmentAt < nowIso) pendingOutcome++;
+      else upcomingCalls++;
+    }
     if (r.saleStatus === "WON") {
       sales++;
       revenue += r.revenue;
@@ -287,6 +299,7 @@ function metricsOf(rows: LeadBusiness[], spend: number | null): BusinessMetrics 
     shows,
     noShows,
     upcomingCalls,
+    pendingOutcome,
     showRate: shows + noShows > 0 ? (shows / (shows + noShows)) * 100 : null,
     sales,
     closeRate: shows > 0 ? (sales / shows) * 100 : null,
@@ -381,9 +394,11 @@ export function cashflowOf(db: DB, range: DateRange, tz = "Europe/Paris"): Cashf
       if (c.at >= monthStart && c.at <= today) out.cashMonth += c.amount;
     }
     const plan = s.schedule ?? [];
+    // « 2/2 » et pas « 2/1 » : le total compte le premier paiement meme s'il n'est pas dans le plan.
+    const of = paymentView(s, today).times;
     for (const i of plan) {
       if (i.paidAt || i.amount <= 0) continue;
-      const row: DueInstallment = { saleId: s.id, appointmentId: s.appointmentId, leadId: s.leadId, leadName: leadName.get(s.leadId) ?? "Lead", dueAt: i.dueAt, amount: i.amount, n: i.n, of: plan.length, overdue: i.dueAt < today };
+      const row: DueInstallment = { saleId: s.id, appointmentId: s.appointmentId, leadId: s.leadId, leadName: leadName.get(s.leadId) ?? "Lead", dueAt: i.dueAt, amount: i.amount, n: i.n, of, overdue: i.dueAt < today };
       if (row.overdue) out.overdue.push(row);
       else if (i.dueAt <= in30) out.upcoming.push(row);
     }
@@ -393,6 +408,44 @@ export function cashflowOf(db: DB, range: DateRange, tz = "Europe/Paris"): Cashf
   out.overdueTotal = out.overdue.reduce((n, r) => n + r.amount, 0);
   out.upcomingTotal = out.upcoming.reduce((n, r) => n + r.amount, 0);
   return out;
+}
+
+/**
+ * Les ventes pas soldees, toutes (le « Reste à encaisser » ne depend pas de
+ * la periode) : qui doit combien, ou en est le plan, et ce qu'il manque.
+ * En retard d'abord, puis sans plan (a corriger), puis par prochaine echeance.
+ */
+export function remainingSales(db: DB, tz = "Europe/Paris"): RemainingSale[] {
+  const today = dayIn(tz);
+  const leadName = new Map(db.leads.map((l) => [l.id, l.name]));
+  const names = new Map(db.team.map((m) => [m.id, m.name]));
+  const rank: Record<string, number> = { overdue: 0, due: 1, unspecified: 2, open: 3, awaiting: 4, scheduled: 5, paid: 6 };
+  const out: RemainingSale[] = [];
+  for (const s of db.sales) {
+    if (s.status === "cancelled") continue;
+    const v = paymentView(s, today);
+    if (v.remaining <= 0) continue;
+    out.push({
+      saleId: s.id,
+      appointmentId: s.appointmentId,
+      leadId: s.leadId,
+      leadName: leadName.get(s.leadId) ?? "Lead",
+      closerName: names.get(s.closerId) ?? "",
+      offer: s.offer,
+      soldAt: s.soldAt,
+      contractValue: v.contractValue,
+      cashCollected: v.cashCollected,
+      remaining: v.remaining,
+      currency: s.currency || db.settings.salesCurrency || "EUR",
+      state: v.state,
+      summary: v.summary,
+      nextDueAt: v.nextDueAt,
+      nextDueAmount: v.nextDueAmount,
+      times: v.times,
+      paidCount: v.paidCount,
+    });
+  }
+  return out.sort((a, b) => (rank[a.state] ?? 9) - (rank[b.state] ?? 9) || (a.nextDueAt || "9999").localeCompare(b.nextDueAt || "9999") || b.remaining - a.remaining);
 }
 
 export function aggregateBusiness(db: DB, opts: { range: DateRange; filters: BusinessFilters; groupBy: GroupBy }): BusinessReport {
@@ -506,7 +559,86 @@ export function aggregateBusiness(db: DB, opts: { range: DateRange; filters: Bus
     },
     hasMock: ds.rows.some((r) => r.mock),
     metaConnected: db.metaConnections.length > 0,
+    statsSince: db.settings.salesStatsSince ?? "",
   };
+}
+
+/** La periode effective : rien avant la date de depart des chiffres. */
+export function applyStatsSince(db: DB, range: DateRange): DateRange {
+  const since = db.settings.salesStatsSince ?? "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(since) || range.from >= since) return range;
+  return { ...range, from: since };
+}
+
+/* ------------------------------- Export CSV --------------------------- */
+
+const csvCell = (v: unknown): string => {
+  const s = v === null || v === undefined ? "" : String(v);
+  return /[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+const csvMoney = (n: number) => n.toFixed(2).replace(".", ",");
+const csvPct = (n: number | null) => (n === null ? "" : `${n.toFixed(1).replace(".", ",")} %`);
+const csvDay = (iso: string) => (iso ? iso.slice(0, 10) : "");
+
+/**
+ * Toute la data du Sales Dashboard en CSV (separateur « ; », lisible par
+ * Excel en francais) : les totaux de la periode en tete, puis un lead par
+ * ligne avec son call, son issue, sa vente, son closer. Memes regles que les
+ * tuiles : meme periode, memes filtres, meme date de depart.
+ */
+export function businessCsv(db: DB, opts: { range: DateRange; filters: BusinessFilters }): string {
+  const ds = businessDataset(db);
+  const { range, filters } = opts;
+  const names = new Map(db.team.map((m) => [m.id, m.name]));
+  const rows = ds.rows.filter((r) => r.acquiredDay >= range.from && r.acquiredDay <= range.to && matches(r, filters)).sort((a, b) => b.acquiredAt.localeCompare(a.acquiredAt));
+  const t = metricsOf(rows, null);
+  const lines: string[][] = [
+    ["Période", range.from, range.to],
+    ["Leads", String(t.leads)],
+    ["Rendez-vous", String(t.bookings)],
+    ["Shows", String(t.shows)],
+    ["No-shows", String(t.noShows)],
+    ["Show rate", csvPct(t.showRate)],
+    ["Calls à statuer", String(t.pendingOutcome)],
+    ["Calls à venir", String(t.upcomingCalls)],
+    ["Closés", String(t.sales)],
+    ["Close rate (closés / shows)", csvPct(t.closeRate)],
+    ["CA (contrats)", csvMoney(t.revenue)],
+    ["Cash encaissé", csvMoney(t.cashCollected)],
+    [],
+    ["Lead", "Pseudo", "Email", "Téléphone", "Pays", "Arrivé le", "Source", "Funnel", "Campagne", "Ad set", "Créative", "Statut CRM", "Setter", "Call le", "Booking", "Show", "Issue", "Closer", "Closé le", "Offre", "Contrat", "Cash encaissé", "Reste", "Devise"],
+  ];
+  const leadById = new Map(db.leads.map((l) => [l.id, l]));
+  for (const r of rows) {
+    const lead = leadById.get(r.leadId);
+    lines.push([
+      r.name,
+      r.handle,
+      r.email,
+      r.phone,
+      lead?.country ?? "",
+      csvDay(r.acquiredAt),
+      SOURCE_CHANNEL_LABEL[r.sourceChannel] ?? r.sourceChannel,
+      funnelLabel(r.funnelSource),
+      r.campaignName || r.campaignId,
+      r.adsetName || r.adsetId,
+      r.adName || r.adId,
+      r.crmStage,
+      r.setterName || names.get(lead?.setterId ?? "") || "",
+      csvDay(r.appointmentAt),
+      r.bookingStatus ?? "",
+      r.showStatus ?? "",
+      r.saleStatus,
+      r.closerName,
+      csvDay(r.soldAt),
+      r.offer,
+      r.saleStatus === "WON" ? csvMoney(r.revenue) : "",
+      r.saleStatus === "WON" ? csvMoney(r.cashCollected) : "",
+      r.saleStatus === "WON" ? csvMoney(r.remaining) : "",
+      r.saleStatus === "WON" ? r.currency : "",
+    ]);
+  }
+  return lines.map((l) => l.map(csvCell).join(";")).join("\r\n");
 }
 
 /** Les leads derriere une ligne du tableau (ou derriere les totaux). */

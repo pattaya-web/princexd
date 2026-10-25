@@ -4,6 +4,7 @@
  */
 
 import type { Lead, SourceChannel } from "../types";
+import type { PaymentState } from "./installments";
 
 export type BookingStatus = "SCHEDULED" | "CANCELLED" | "NO_SHOW" | "SHOWED";
 export type ShowStatus = "PENDING" | "SHOWED" | "NO_SHOW";
@@ -88,6 +89,30 @@ export interface DueInstallment {
 }
 
 /** Tresorerie des ventes reelles : ce qui est encaisse, ce qui reste, et quand. */
+/** Une vente pas soldee, lisible depuis la tuile « Reste à encaisser » : qui doit quoi, et ou en est le plan. */
+export interface RemainingSale {
+  saleId: string;
+  appointmentId: string;
+  leadId: string;
+  leadName: string;
+  closerName: string;
+  offer: string;
+  /** ISO. */
+  soldAt: string;
+  contractValue: number;
+  cashCollected: number;
+  remaining: number;
+  currency: string;
+  state: PaymentState;
+  /** Phrase prete a afficher (« 2e échéance 1 500 € le 05/11 (dans 24 j) »). */
+  summary: string;
+  /** Prochaine echeance impayee (AAAA-MM-JJ), vide si rien n'est planifie. */
+  nextDueAt: string;
+  nextDueAmount: number;
+  times: number;
+  paidCount: number;
+}
+
 export interface Cashflow {
   /** Cash encaisse sur la periode (ventes + encaissements dates dans la periode). */
   cashInRange: number;

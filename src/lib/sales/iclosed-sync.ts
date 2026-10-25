@@ -155,6 +155,39 @@ function createUnassigned(db: DB, input: AppointmentInput, closerId: string) {
     entityId: appointment.id,
     summary: `Rendez-vous iClosed pour ${lead.name || lead.handle} — setter à attribuer`,
   });
+  return appointment.id;
+}
+
+/**
+ * Un call iClosed jamais vu entre dans le CRM : son lead (cree s'il est
+ * inconnu, par pseudo, email, telephone ou nom), son rendez-vous, son
+ * setter (signature du lien, lead declare, reglages) et son closer. Sert
+ * aux calls a venir comme aux calls passes rattrapes par la synchro des
+ * issues. Renvoie l'identifiant du rendez-vous, vide si le call est
+ * inexploitable.
+ */
+function createFromCall(db: DB, call: IclosedCall, report: { created: number; unassignedSetter: number; unassignedCloser: number }): string {
+  const known = matchLead(db, call);
+  const setterId = setterFromUtm(db, call) || known?.setterId || pickSetter(db);
+  const closerId = pickCloser(db, call);
+  const input = fromIclosedCall(call, { setterId, closerId });
+  if (!input) return "";
+  if (known) input.leadId = known.id;
+  // Jamais de pseudo invente (debut d'email, nom…) : s'il n'est pas dans
+  // le questionnaire ni sur un lead connu, il reste vide et se saisit
+  // a la main sur la fiche.
+  if (!input.igUsername) input.igUsername = known?.igUsername || "";
+  let id: string;
+  if (setterId) {
+    id = createAppointment(SYSTEM, input).appointment.id;
+  } else {
+    id = createUnassigned(db, input, closerId);
+    writeDB(db);
+    report.unassignedSetter += 1;
+  }
+  if (!closerId) report.unassignedCloser += 1;
+  report.created += 1;
+  return id;
 }
 
 export async function syncIclosedUpcoming(opts: { force?: boolean } = {}): Promise<IclosedSyncReport> {
@@ -242,29 +275,7 @@ export async function syncIclosedUpcoming(opts: { force?: boolean } = {}): Promi
           continue;
         }
 
-        /*
-         * Qui a chauffe le prospect : la signature du lien d'abord, puis le
-         * lead declare par un setter, puis les reglages.
-         */
-        const known = matchLead(db, call);
-        const setterId = setterFromUtm(db, call) || known?.setterId || pickSetter(db);
-        const closerId = pickCloser(db, call);
-        const input = fromIclosedCall(call, { setterId, closerId });
-        if (!input) continue;
-        if (known) input.leadId = known.id;
-        // Jamais de pseudo invente (debut d'email, nom…) : s'il n'est pas dans
-        // le questionnaire ni sur un lead connu, il reste vide et se saisit
-        // a la main sur la fiche.
-        if (!input.igUsername) input.igUsername = known?.igUsername || "";
-        if (setterId) {
-          createAppointment(SYSTEM, input);
-        } else {
-          createUnassigned(db, input, closerId);
-          writeDB(db);
-          report.unassignedSetter += 1;
-        }
-        if (!closerId) report.unassignedCloser += 1;
-        report.created += 1;
+        createFromCall(db, call, report);
       }
 
       saveSettings({ salesLastSyncAt: new Date().toISOString() });
@@ -342,12 +353,15 @@ export function applyIclosedOutcome(
 }
 
 const OUTCOME_COOLDOWN_MS = 15 * 60_000;
-const OUTCOME_WINDOW_MS = 14 * 86_400_000;
+/** Fenetre des calls passes relus : assez large pour rattraper un call jamais importe (reserve pendant une coupure, avant la synchro…). */
+const OUTCOME_WINDOW_MS = 60 * 86_400_000;
 
 export interface IclosedOutcomeReport {
   skipped: "no-key" | "off" | "cooldown" | null;
   examined: number;
   applied: number;
+  /** Calls passes jamais importes, entres dans le CRM avec leur lead (meme no-show). */
+  created: number;
   salesCreated: number;
   salesWithoutAmount: string[];
 }
@@ -362,7 +376,7 @@ let outcomesInflight: Promise<IclosedOutcomeReport> | null = null;
  * posee a la main dans le CRM (statut final) n'est jamais ecrasee.
  */
 export async function syncIclosedOutcomes(opts: { force?: boolean } = {}): Promise<IclosedOutcomeReport> {
-  const none = (skipped: IclosedOutcomeReport["skipped"]): IclosedOutcomeReport => ({ skipped, examined: 0, applied: 0, salesCreated: 0, salesWithoutAmount: [] });
+  const none = (skipped: IclosedOutcomeReport["skipped"]): IclosedOutcomeReport => ({ skipped, examined: 0, applied: 0, created: 0, salesCreated: 0, salesWithoutAmount: [] });
   if (outcomesInflight) {
     const r = await outcomesInflight.catch(() => null);
     if (!opts.force && r) return r;
@@ -375,15 +389,31 @@ export async function syncIclosedOutcomes(opts: { force?: boolean } = {}): Promi
       const last = settings.salesLastOutcomeSyncAt ? Date.parse(settings.salesLastOutcomeSyncAt) : 0;
       if (!opts.force && Date.now() - last < OUTCOME_COOLDOWN_MS) return none("cooldown");
 
-      const calls = await fetchCalls("PAST", 2, 50);
+      const calls = await fetchCalls("PAST", 4, 50);
       const report = none(null);
       const since = Date.now() - OUTCOME_WINDOW_MS;
+      const scratch = { created: 0, unassignedSetter: 0, unassignedCloser: 0 };
       for (const call of calls) {
         if (!call.dateTimeUTC || Date.parse(call.dateTimeUTC) < since) continue;
         report.examined += 1;
-        const db = readDB();
-        const appt = findByIclosedId(db, String(call.id));
-        if (!appt || FINAL_STATUSES.includes(appt.status)) continue;
+        let db = readDB();
+        // Supprime a la main par l'admin : on ne le fait pas revenir.
+        if ((db.settings.salesDeletedIclosedEventIds ?? []).includes(String(call.id))) continue;
+        let appt = findByIclosedId(db, String(call.id));
+        if (!appt) {
+          /*
+           * Call passe jamais importe : il entre dans le CRM avec son lead,
+           * quelle que soit son issue (show, no-show, rien). Le contact est
+           * alors dans les leads, relancable, et le call compte dans les
+           * chiffres une fois statue.
+           */
+          if (!createFromCall(db, call, scratch)) continue;
+          report.created += 1;
+          db = readDB();
+          appt = findByIclosedId(db, String(call.id));
+          if (!appt) continue;
+        }
+        if (FINAL_STATUSES.includes(appt.status)) continue;
         const status = mapOutcome(call);
         if (!status || status === "rescheduled" || status === appt.status) continue;
         applyIclosedOutcome(SYSTEM, appt.id, call, report);

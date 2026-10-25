@@ -11,7 +11,8 @@ import { api, useLocalState } from "@/lib/client";
 import { fmtDate, fmtDateTime, fmtMoney, label as crmLabel } from "@/lib/format";
 import { RANGE_PRESETS, type RangePreset } from "@/lib/mediabuying/metrics";
 import { funnelLabel } from "@/lib/sales/attribution";
-import { BOOKING_STATUS_LABEL, CLOSED_DETAIL_KEY, SALE_STATUS_LABEL, type DueInstallment } from "@/lib/sales/business-types";
+import { BOOKING_STATUS_LABEL, CLOSED_DETAIL_KEY, SALE_STATUS_LABEL, type DueInstallment, type RemainingSale } from "@/lib/sales/business-types";
+import { PAYMENT_STATE_LABEL } from "@/lib/sales/installments";
 import type { BusinessGroupRow, BusinessMetrics, BusinessReport, GroupBy, LeadBusiness } from "@/lib/sales/business";
 import type { AttentionBlock } from "@/app/api/sales/dashboard/route";
 
@@ -116,8 +117,37 @@ export default function SalesDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<{ row: BusinessGroupRow | null; kind: "group" | "closed"; leads: LeadBusiness[] | null } | null>(null);
+  /* La tuile « Reste à encaisser » : qui doit quoi. null = fermee, [] en chargement. */
+  const [remaining, setRemaining] = useState<RemainingSale[] | null>(null);
+  const [remainingLoading, setRemainingLoading] = useState(false);
+  const openRemaining = async () => {
+    setRemaining([]);
+    setRemainingLoading(true);
+    try {
+      const r = await api<{ sales: RemainingSale[] }>(`/api/sales/business?${query}&detail=remaining`);
+      setRemaining(r.sales);
+    } catch (e) {
+      setError((e as Error).message);
+      setRemaining(null);
+    } finally {
+      setRemainingLoading(false);
+    }
+  };
   const [view, setView] = useState<"table" | "pipeline">("table");
   const [ops, setOps] = useState<{ attention: AttentionBlock | null; followUps: { overdue: number } } | null>(null);
+  /* « Compter depuis le » : la date de depart des chiffres, un reglage global. */
+  const [since, setSince] = useState("");
+  const [tick, setTick] = useState(0);
+  const saveSince = async (v: string) => {
+    setSince(v);
+    if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+    try {
+      await api("/api/settings", { method: "PATCH", body: JSON.stringify({ salesStatsSince: v }) });
+      setTick((t) => t + 1);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
 
   const loadOps = () => api<{ attention: AttentionBlock | null; followUps: { overdue: number } }>("/api/sales/dashboard?period=month").then(setOps).catch(() => undefined);
   useEffect(() => {
@@ -134,8 +164,9 @@ export default function SalesDashboardPage() {
       if (custom.to) p.set("to", custom.to);
     }
     for (const [k, v] of Object.entries(filters)) if (v) p.set(k, v);
+    if (tick) p.set("v", String(tick));
     return p.toString();
-  }, [preset, custom, filters, groupBy]);
+  }, [preset, custom, filters, groupBy, tick]);
 
   useEffect(() => {
     let alive = true;
@@ -144,6 +175,7 @@ export default function SalesDashboardPage() {
       .then((r) => {
         if (!alive) return;
         setReport(r);
+        setSince(r.statsSince ?? "");
         setError(null);
       })
       .catch((e: Error) => alive && setError(e.message))
@@ -250,6 +282,13 @@ export default function SalesDashboardPage() {
             <button className={`btn btn-sm ${filtersOpen || activeFilters ? "btn-primary" : ""}`} onClick={() => setFiltersOpen((v) => !v)}>
               Filtres{activeFilters ? ` (${activeFilters})` : ""}
             </button>
+            <label className="flex items-center gap-1.5 text-[12px] dim" title="Tout ce qui est avant cette date est ignoré (leads, calls, no-shows, ventes) : pour repartir sur une base propre. Vide = tout l'historique.">
+              compter depuis le
+              <input type="date" className="input !h-[30px] !w-auto !text-[12.5px]" value={since} onChange={(e) => void saveSince(e.target.value)} />
+            </label>
+            <a className="btn btn-sm" href={`/api/sales/business?${query}&export=csv`} download title="Toute la data de la période : totaux, puis un lead par ligne (call, issue, vente, closer)">
+              Exporter CSV
+            </a>
             {loading && <span className="spinner" />}
           </div>
         }
@@ -341,27 +380,18 @@ export default function SalesDashboardPage() {
         </Card>
       )}
 
-      {ops && ops.followUps.overdue > 0 && (
-        <Link href="/sales/rendez-vous?view=followup" className="block mb-4">
-          <div className="rounded-lg px-3.5 py-2.5 text-[12.5px] flex items-center gap-2" style={{ background: "color-mix(in srgb, var(--warning) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--warning) 35%, transparent)" }}>
-            <strong className="num">{ops.followUps.overdue}</strong>
-            relance{ops.followUps.overdue > 1 ? "s" : ""} en retard — à traiter avant que le lead refroidisse.
-          </div>
-        </Link>
-      )}
-      {ops?.attention && <AttentionCard block={ops.attention} />}
-
       {!report && loading && <Spinner label="Calcul du dashboard…" />}
       {report && t && cf && (
         <>
           <Section title="Calls" hint="sur la période">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
               <Tile label="Leads" value={fmt(t.leads, "int", currency)} sub={`${fmt(t.qualifiedLeads, "int", currency)} qualifiés`} />
               <Tile label="Rendez-vous" value={fmt(t.bookings, "int", currency)} sub={`Booking rate ${fmt(t.bookingRate, "pct", currency)}`} />
               <Tile label="Shows" value={fmt(t.shows, "int", currency)} color={t.shows ? GOOD : undefined} sub="venus au call" />
               <Tile label="No-shows" value={fmt(t.noShows, "int", currency)} color={t.noShows ? BAD : undefined} sub="pas venus" />
               <Tile label="Show rate" value={fmt(t.showRate, "pct", currency)} color={t.showRate === null ? undefined : t.showRate >= 70 ? GOOD : t.showRate >= 50 ? WARN : BAD} sub="shows / calls passés" big />
-              <Tile label="À venir" value={fmt(t.upcomingCalls, "int", currency)} sub="calls planifiés" />
+              <Tile label="À statuer" value={fmt(t.pendingOutcome, "int", currency)} color={t.pendingOutcome ? WARN : undefined} sub="calls passés sans issue" onClick={() => window.open("/sales/rendez-vous?view=todo", "_self")} />
+              <Tile label="À venir" value={fmt(t.upcomingCalls, "int", currency)} sub="calls pas encore passés" />
             </div>
           </Section>
 
@@ -371,10 +401,21 @@ export default function SalesDashboardPage() {
               <Tile label="CA (contrats)" value={fmt(t.revenue, "money", currency)} sub="valeur des contrats signés" />
               <Tile label="Cash encaissé" value={fmt(t.cashCollected, "money", currency)} color={t.cashCollected ? GOOD : undefined} sub="sur ces ventes" />
               <Tile label="Cash ce mois" value={fmt(cf.cashMonth, "money", currency)} sub="encaissé depuis le 1er" />
-              <Tile label="Reste à encaisser" value={fmt(cf.remainingTotal, "money", currency)} color={cf.remainingTotal ? WARN : undefined} sub="toutes ventes actives" />
+              <Tile label="Reste à encaisser" value={fmt(cf.remainingTotal, "money", currency)} color={cf.remainingTotal ? WARN : undefined} sub="toutes ventes actives · clique : qui doit quoi" onClick={() => void openRemaining()} />
               <Tile label="Ventes pas soldées" value={fmt(cf.pendingSales, "int", currency)} color={cf.overdueTotal ? WARN : undefined} sub={cf.overdueTotal ? `dont ${fmtMoney(cf.overdueTotal, currency)} en retard` : "échéances à venir, à jour"} />
             </div>
           </Section>
+
+          {/* Les alertes (relances, à confirmer) viennent APRÈS les chiffres : les chiffres d'abord. */}
+          {ops && ops.followUps.overdue > 0 && (
+            <Link href="/sales/rendez-vous?view=followup" className="block mb-4">
+              <div className="rounded-lg px-3.5 py-2.5 text-[12.5px] flex items-center gap-2" style={{ background: "color-mix(in srgb, var(--warning) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--warning) 35%, transparent)" }}>
+                <strong className="num">{ops.followUps.overdue}</strong>
+                relance{ops.followUps.overdue > 1 ? "s" : ""} en retard — à traiter avant que le lead refroidisse.
+              </div>
+            </Link>
+          )}
+          {ops?.attention && <AttentionCard block={ops.attention} />}
 
           <Section title="Échéances" hint="d'après les échéanciers saisis sur les ventes">
             <div className="grid lg:grid-cols-2 gap-3">
@@ -500,6 +541,79 @@ export default function SalesDashboardPage() {
           {report.hasMock && <div className="dim text-[11px]">Les chiffres incluent les leads de démonstration du compte Meta simulé ; ils disparaîtront avec le vrai compte.</div>}
         </>
       )}
+
+      <Modal open={remaining !== null} onClose={() => setRemaining(null)} title="Reste à encaisser · qui doit quoi" wide>
+        {remainingLoading ? (
+          <Spinner label="Chargement des ventes…" />
+        ) : !remaining || remaining.length === 0 ? (
+          <Empty>Tout est soldé ✓</Empty>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="dim text-[12px]">
+              Clique sur un nom pour ouvrir sa fiche dans le CRM : « Encaissé ✓ » sur une échéance reçue, ou « Corriger la vente » si le contrat, l&apos;encaissé ou les dates sont faux.
+            </div>
+            <div className="scroll-x">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Lead</th>
+                    <th>Closé le</th>
+                    <th>Closer</th>
+                    <th>État</th>
+                    <th className="!text-right">Contrat</th>
+                    <th className="!text-right">Encaissé</th>
+                    <th className="!text-right">Reste</th>
+                    <th>Prochaine échéance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {remaining.map((s) => {
+                    const tone = s.state === "overdue" ? BAD : s.state === "due" || s.state === "open" || s.state === "unspecified" ? WARN : undefined;
+                    return (
+                      <tr key={s.saleId}>
+                        <td>
+                          <Link href={`/sales/rendez-vous?view=payment&q=${encodeURIComponent(s.leadName)}`} className="text-[13px] font-medium link" title="Ouvrir dans le CRM pour encaisser ou corriger">
+                            {s.leadName}
+                          </Link>
+                          {s.offer && <div className="dim text-[11px]">{s.offer}</div>}
+                        </td>
+                        <td className="num text-[12px] whitespace-nowrap">{s.soldAt ? fmtDate(s.soldAt) : "—"}</td>
+                        <td className="text-[12px] whitespace-nowrap">{s.closerName || "—"}</td>
+                        <td className="text-[12px] font-semibold whitespace-nowrap" style={{ color: tone }}>
+                          {PAYMENT_STATE_LABEL[s.state]}
+                          {s.state === "open" && <div className="dim text-[10.5px] font-normal">aucune échéance planifiée → Corriger la vente</div>}
+                        </td>
+                        <td className="text-right num">{fmtMoney(s.contractValue, s.currency)}</td>
+                        <td className="text-right num" style={{ color: s.cashCollected ? GOOD : undefined }}>{fmtMoney(s.cashCollected, s.currency)}</td>
+                        <td className="text-right num font-semibold" style={{ color: tone ?? WARN }}>{fmtMoney(s.remaining, s.currency)}</td>
+                        <td className="text-[12px]">
+                          {s.nextDueAt ? (
+                            <>
+                              <span className="num">{fmtDate(`${s.nextDueAt}T12:00:00Z`)}</span> · <span className="num font-semibold">{fmtMoney(s.nextDueAmount, s.currency)}</span>
+                              <div className="dim text-[10.5px]">{s.summary}</div>
+                            </>
+                          ) : (
+                            <span className="dim">{s.summary || "—"}</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr>
+                    <td colSpan={4} className="text-[12px] font-semibold">
+                      Total · {remaining.length} vente{remaining.length > 1 ? "s" : ""} pas soldée{remaining.length > 1 ? "s" : ""}
+                    </td>
+                    <td className="text-right num font-semibold">{fmtMoney(remaining.reduce((n, s) => n + s.contractValue, 0), currency)}</td>
+                    <td className="text-right num font-semibold" style={{ color: GOOD }}>{fmtMoney(remaining.reduce((n, s) => n + s.cashCollected, 0), currency)}</td>
+                    <td className="text-right num font-semibold" style={{ color: WARN }}>{fmtMoney(remaining.reduce((n, s) => n + s.remaining, 0), currency)}</td>
+                    <td />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal open={detail !== null} onClose={() => setDetail(null)} title={detail?.kind === "closed" ? "Closés · qui a closé quoi" : detail?.row ? `${detail.row.label} · leads` : "Leads de la sélection"} wide>
         {!detail?.leads ? (

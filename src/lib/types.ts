@@ -267,6 +267,12 @@ export interface Settings {
   /** Salim supprime de partout, tout a mon nom (2026-10-25). Applique une seule fois. */
   salesSalimPurgedAt?: string;
   /**
+   * Date de depart des chiffres du Sales Dashboard (AAAA-MM-JJ). Tout ce qui
+   * est avant est ignore : leads, calls, no-shows, ventes. Pour repartir sur
+   * une base propre sans toucher a l'historique.
+   */
+  salesStatsSince?: string;
+  /**
    * Attribution des leads LP. « pool » (le choix par defaut) : personne, les
    * leads sont a tous les setters et le premier qui appelle le prend.
    * « default » : le setter par defaut. « round-robin » : tour de role.
