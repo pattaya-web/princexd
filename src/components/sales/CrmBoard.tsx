@@ -166,11 +166,31 @@ export function CrmBoard({ session, members, refreshKey, onChanged }: { session:
     </label>
   );
 
+  /* Doublon, test, erreur : le lead part avec ses rendez-vous, sa vente et ses relances. */
+  const removeLead = async (r: CrmRow) => {
+    const parts: string[] = [];
+    if (r.appointmentId) parts.push("son rendez-vous");
+    if (r.sale) parts.push(`sa vente de ${fmtMoney(r.sale.contractValue, currency)} (le chiffre d'affaires redescend d'autant)`);
+    const what = parts.length ? ` et ${parts.join(" et ")}` : "";
+    if (!window.confirm(`Supprimer définitivement ${r.name}${what} ? Un call iClosed supprimé ne reviendra pas par la synchro.`)) return;
+    setBusy(r.leadId);
+    try {
+      await api(`/api/sales/leads/${r.leadId}`, { method: "DELETE" });
+      toast(`${r.name} supprimé.`);
+      changed();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy("");
+    }
+  };
+
   const rowProps = (r: CrmRow) => ({
     r,
     view: searching ? ("all" as QuickView) : view,
     currency,
     busy: busy === r.leadId,
+    onDelete: session.isAdmin ? () => void removeLead(r) : undefined,
     onStatus: () => setOpenLead(r.leadId),
     onCall: () => (r.appointmentId ? setOpenAppt(r.appointmentId) : setOpenLead(r.leadId)),
     onFuDone: () => fuAction(r, { status: "done" }, "Relance faite."),
@@ -439,7 +459,7 @@ export function CrmBoard({ session, members, refreshKey, onChanged }: { session:
  * qu'il faut faire ou savoir (echeance, relance, call), qui s'en occupe,
  * derniere action, et les boutons. Tout est lisible sans ouvrir la fiche.
  */
-function LeadRow({ r, view, currency, busy, last, onStatus, onCall, onFuDone, onFuContact }: { r: CrmRow; view: QuickView; currency: string; busy: boolean; last: boolean; onStatus: () => void; onCall: () => void; onFuDone: () => void; onFuContact: () => void }) {
+function LeadRow({ r, view, currency, busy, last, onStatus, onCall, onFuDone, onFuContact, onDelete }: { r: CrmRow; view: QuickView; currency: string; busy: boolean; last: boolean; onStatus: () => void; onCall: () => void; onFuDone: () => void; onFuContact: () => void; onDelete?: () => void }) {
   const [copied, setCopied] = useState(false);
   const color = TONE_COLOR[r.tone];
 
@@ -546,6 +566,11 @@ function LeadRow({ r, view, currency, busy, last, onStatus, onCall, onFuDone, on
         <button className="btn btn-sm btn-primary !h-[28px]" onClick={onStatus} title="Statuer : show, en attente, no-show, closé, perdu, paiement…">
           Statuer
         </button>
+        {onDelete && (
+          <button className="btn btn-ghost btn-sm !h-[28px] !px-2" style={{ color: "var(--critical)" }} disabled={busy} onClick={onDelete} title="Supprimer ce lead (doublon, test) avec ses rendez-vous et sa vente" aria-label="Supprimer">
+            ✕
+          </button>
+        )}
       </div>
     </div>
   );

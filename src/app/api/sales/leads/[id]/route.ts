@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { newId, readDB, writeDB } from "@/lib/db";
-import { canSee, Forbidden, readSession, requireSales } from "@/lib/sales/access";
+import { canSee, Forbidden, readSession, requireAdmin, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
 import { CHANNEL_LABEL } from "@/lib/sales/templates";
@@ -94,6 +94,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       sale: sale ? { ...sale, closerName: names.get(sale.closerId) ?? "", payment: paymentView(sale) } : null,
       cancelledSale: cancelledSale ? { id: cancelledSale.id, contractValue: cancelledSale.contractValue, currency: cancelledSale.currency, updatedAt: cancelledSale.updatedAt, notes: cancelledSale.notes } : null,
       canOutcome: session.isAdmin || sessionHas(session, "closer"),
+      canDelete: session.isAdmin,
       today: parisDay(),
       appointments: db.appointments
         .filter((a) => a.leadId === lead.id)
@@ -115,6 +116,70 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       timeline: leadTimeline(db, lead, names, meta?.adName),
       logs: db.activityLogs.filter((l) => l.entity === "lead" && l.entityId === lead.id).slice(0, 40),
     };
+  });
+}
+
+/**
+ * Suppression d'un lead (admin) : un doublon, un test, une erreur de saisie.
+ *
+ * Tout ce qui pend au lead part avec lui : rendez-vous, ventes (le chiffre
+ * d'affaires et les commissions redescendent d'autant), relances. Un call
+ * venu d'iClosed est memorise comme supprime pour que la synchro ne le
+ * recree pas ; un contact Systeme.io aussi. Un eleve rattache a ce lead
+ * garde sa fiche, seuls les liens vers le lead, la vente et le rendez-vous
+ * sont effaces. Rien n'est recuperable ensuite : l'interface confirme avant.
+ */
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return handle(async () => {
+    const session = requireAdmin(readSession(req));
+    const { id } = await ctx.params;
+    const db = readDB();
+    const lead = db.leads.find((l) => l.id === id);
+    if (!lead) throw new Error("Lead introuvable.");
+
+    const appts = db.appointments.filter((a) => a.leadId === id);
+    const apptIds = new Set(appts.map((a) => a.id));
+    const sales = db.sales.filter((s) => s.leadId === id || apptIds.has(s.appointmentId));
+    const saleIds = new Set(sales.map((s) => s.id));
+
+    db.leads = db.leads.filter((l) => l.id !== id);
+    db.appointments = db.appointments.filter((a) => a.leadId !== id);
+    db.sales = db.sales.filter((s) => !saleIds.has(s.id));
+    db.followUps = db.followUps.filter((f) => f.leadId !== id && !apptIds.has(f.appointmentId));
+
+    // Les synchros ne doivent pas ramener ce qu'on vient d'enlever.
+    const iclosedIds = appts.map((a) => a.iclosedEventId).filter(Boolean);
+    if (iclosedIds.length) {
+      const skip = new Set(db.settings.salesDeletedIclosedEventIds ?? []);
+      for (const x of iclosedIds) skip.add(x);
+      db.settings.salesDeletedIclosedEventIds = [...skip].slice(-500);
+    }
+    if (lead.systemeioId) {
+      const ignored = new Set(db.settings.systemeioIgnoredIds ?? []);
+      ignored.add(String(lead.systemeioId));
+      db.settings.systemeioIgnoredIds = [...ignored];
+    }
+    // L'eleve reste, sans ses liens vers ce qui n'existe plus.
+    for (const st of db.students) {
+      if (st.leadId === id) st.leadId = undefined;
+      if (st.saleId && saleIds.has(st.saleId)) st.saleId = undefined;
+      if (st.appointmentId && apptIds.has(st.appointmentId)) st.appointmentId = undefined;
+    }
+
+    const who = session.memberName || "Moi";
+    const money = sales.map((s) => `${s.contractValue} ${s.currency}`).join(", ");
+    db.activityLogs.unshift({
+      id: newId(),
+      at: new Date().toISOString(),
+      actorId: session.memberId,
+      actorName: who,
+      action: "lead.deleted",
+      entity: "lead",
+      entityId: id,
+      summary: `${who} a supprimé le lead ${lead.name}${lead.phone ? ` (${lead.phone})` : ""}${appts.length ? ` avec ${appts.length} rendez-vous` : ""}${sales.length ? ` et ${sales.length} vente${sales.length > 1 ? "s" : ""} (${money})` : ""}`,
+    });
+    writeDB(db);
+    return { ok: true, appointments: appts.length, sales: sales.length };
   });
 }
 

@@ -33,6 +33,8 @@ interface Payload {
   /** Derniere vente annulee (client qui n'a pas paye), s'il n'y a pas de vente en cours. */
   cancelledSale: { id: string; contractValue: number; currency: string; updatedAt: string; notes: string } | null;
   canOutcome: boolean;
+  /** Admin : le lead peut etre supprime (doublon, test). */
+  canDelete?: boolean;
   today: string;
   /** Noms et creative Meta d'apres l'instantane du media buying. */
   meta: LeadMeta | null;
@@ -135,6 +137,28 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
 
   const l = data?.lead;
 
+  /* Doublon, test, erreur : tout part (rendez-vous, vente, relances). On dit ce qui part avant. */
+  const remove = async () => {
+    if (!id || !data) return;
+    const parts: string[] = [];
+    if (data.appointments.length) parts.push(`${data.appointments.length} rendez-vous`);
+    if (data.sale) parts.push(`sa vente de ${data.sale.contractValue} ${data.sale.currency} (le chiffre d'affaires redescend d'autant)`);
+    const what = parts.length ? ` et ${parts.join(" et ")}` : "";
+    if (!window.confirm(`Supprimer définitivement ${data.lead.name}${what} ? Un call iClosed supprimé ne reviendra pas par la synchro.`)) return;
+    setSaving(true);
+    try {
+      await api(`/api/sales/leads/${id}`, { method: "DELETE" });
+      toast(`${data.lead.name} supprimé.`);
+      setDirty(false);
+      onChanged();
+      onClose();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Modal
       open={id !== null}
@@ -146,6 +170,11 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
       title={l ? l.name : "Fiche contact"}
       footer={
         <>
+          {data?.canDelete && (
+            <button className="btn btn-ghost mr-auto" style={{ color: "var(--critical)" }} onClick={() => void remove()} disabled={saving} title="Doublon, test, erreur : supprime le lead avec ses rendez-vous et sa vente">
+              Supprimer
+            </button>
+          )}
           <button className="btn" onClick={onClose}>
             Fermer
           </button>
