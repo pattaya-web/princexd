@@ -43,6 +43,7 @@ interface StoredResponse {
 
 const jobs = new Map<string, JobState<unknown>>();
 const TTL = 20 * 60_000;
+const JOB_MAX_MS = 15 * 60_000;
 export const JOB_HEADER = "x-bg-job";
 
 function sweep() {
@@ -55,7 +56,9 @@ export function startJob<T>(run: (setStep: (step: string) => void) => Promise<T>
   const id = newId();
   const job: JobState<T> = { status: "running", step: "Démarrage…", startedAt: Date.now() };
   jobs.set(id, job);
-  void run((step) => { job.step = step; })
+  // Garde-fou : une tache qui ne rend rien en 15 minutes est declaree en echec, la page arrete d attendre.
+  const cap = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Tâche abandonnée après 15 minutes sans réponse. Relance.")), JOB_MAX_MS));
+  void Promise.race([run((step) => { job.step = step; }), cap])
     .then((result) => { job.result = result; job.status = "done"; })
     .catch((e: Error) => { job.error = e.message || "Échec."; job.status = "error"; });
   return id;
