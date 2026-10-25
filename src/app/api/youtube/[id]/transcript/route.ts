@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
 import { jobStatusResponse, startJob } from "@/lib/bg-jobs";
-import { GeminiError, hasGemini, transcribeYoutubeWithGemini } from "@/lib/gemini";
+import { GeminiError, hasGemini, transcribeYoutubeFull } from "@/lib/gemini";
 import { OpenAiError, transcribe } from "@/lib/openai";
 import { downloadAudio, toArrayBuffer } from "@/lib/ytdlp";
-import { fetchCaptions, YoutubeError } from "@/lib/youtube";
+import { fetchCaptions, fetchDuration, YoutubeError } from "@/lib/youtube";
 import type { YtVideo } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -35,12 +35,23 @@ function saveTranscript(id: string, text: string, lang: string, source: YtVideo[
   return v;
 }
 
-/** Gemini lit la vidéo chez Google : la seule voie qui ne dépend pas de l'adresse du serveur. */
+/** Une transcription peut durer : vidéo de 3 h = 9 morceaux, trois à la fois, 8 min au pire chacun. */
+const TRANSCRIPT_JOB_MAX_MS = 45 * 60_000;
+
+/**
+ * Gemini lit la vidéo chez Google : la seule voie qui ne dépend pas de
+ * l'adresse du serveur. En entier, quelle que soit la longueur : une vidéo
+ * longue est découpée en morceaux de 20 minutes recollés dans l'ordre.
+ */
 async function viaGemini(v: YtVideo, setStep: (s: string) => void): Promise<TranscriptResult> {
-  setStep("Transcription de la vidéo par Gemini (1 à 3 min)…");
-  const r = await transcribeYoutubeWithGemini(v.url);
-  console.log(`[youtube/transcript] gemini ok (${r.model}, ${r.text.length} car.) ${v.videoId}`);
-  return { video: saveTranscript(v.id, r.text, r.language, "gemini"), source: "gemini" };
+  let durationSec = v.durationSec || 0;
+  if (!durationSec) {
+    setStep("Durée de la vidéo…");
+    durationSec = await fetchDuration(v.videoId);
+  }
+  const r = await transcribeYoutubeFull(v.url, durationSec, setStep);
+  console.log(`[youtube/transcript] gemini ok (${r.model}, ${r.text.length} car., ${durationSec ? `${Math.round(durationSec / 60)} min` : "durée inconnue"}${r.truncated ? ", COUPÉ" : ""}) ${v.videoId}`);
+  return { video: saveTranscript(v.id, r.text, r.language, "gemini", durationSec || undefined), source: "gemini" };
 }
 
 /**
@@ -119,10 +130,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ video: saveTranscript(id, text.slice(0, 200_000), "", "manual") });
   }
 
-  if (body.whisper) return NextResponse.json({ jobId: startJob((setStep) => runWhisper(v, setStep)) }, { status: 202 });
+  if (body.whisper) return NextResponse.json({ jobId: startJob((setStep) => runWhisper(v, setStep), { maxMs: TRANSCRIPT_JOB_MAX_MS }) }, { status: 202 });
 
   if (v.transcript.trim() && !body.force) return NextResponse.json({ video: v, cached: true });
-  return NextResponse.json({ jobId: startJob((setStep) => runAuto(v, setStep)) }, { status: 202 });
+  return NextResponse.json({ jobId: startJob((setStep) => runAuto(v, setStep), { maxMs: TRANSCRIPT_JOB_MAX_MS }) }, { status: 202 });
 }
 
 /** `?job=` : état de la tâche en cours (sous-titres / Gemini / audio). */

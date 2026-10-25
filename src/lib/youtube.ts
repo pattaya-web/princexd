@@ -176,6 +176,12 @@ export interface Captions {
   durationSec: number;
 }
 
+/** La durée de la vidéo en secondes, 0 si YouTube ne la donne pas au serveur. Ne lève jamais. */
+export async function fetchDuration(videoId: string): Promise<number> {
+  const player = await playerAndroid(videoId);
+  return Number(player?.videoDetails?.lengthSeconds ?? 0) || 0;
+}
+
 /** Les sous-titres de la vidéo, ou null si elle n'en a aucun. Lève une erreur si YouTube bloque. */
 export async function fetchCaptions(videoId: string): Promise<Captions | null> {
   let tracks: CaptionTrack[] = [];

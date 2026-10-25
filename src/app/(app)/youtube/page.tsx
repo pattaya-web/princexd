@@ -258,9 +258,9 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
       }
       // Sous-titres, sinon Gemini : tâche de fond suivie toutes les 3 s.
       setStep("Démarrage…");
-      const deadline = Date.now() + 10 * 60_000;
+      const deadline = Date.now() + 45 * 60_000;
       for (;;) {
-        if (Date.now() > deadline) throw new Error("Toujours rien après 10 minutes : relance, ou colle le transcript à la main.");
+        if (Date.now() > deadline) throw new Error("Toujours rien après 45 minutes : relance, ou colle le transcript à la main.");
         await new Promise((res) => setTimeout(res, 3000));
         let st: { status: string; step?: string; result?: { video: YtVideo; source: string; auto?: boolean } };
         try {
@@ -293,9 +293,9 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
     setStep("Démarrage…");
     try {
       const { jobId } = await api<{ jobId: string }>(`/api/youtube/${v.id}/transcript`, { method: "POST", body: JSON.stringify({ whisper: true }) });
-      const deadline = Date.now() + 10 * 60_000;
+      const deadline = Date.now() + 45 * 60_000;
       for (;;) {
-        if (Date.now() > deadline) throw new Error("Toujours rien après 10 minutes : relance, ou colle le transcript à la main.");
+        if (Date.now() > deadline) throw new Error("Toujours rien après 45 minutes : relance, ou colle le transcript à la main.");
         await new Promise((r) => setTimeout(r, 3000));
         const st = await api<{ status: string; step?: string; result?: { video: YtVideo }; error?: string }>(`/api/youtube/${v.id}/transcript?job=${jobId}`);
         if (st.step) setStep(st.step);
@@ -465,7 +465,7 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
             </pre>
           </div>
         ) : (
-          <InfoNote>Les sous-titres YouTube arrivent en quelques secondes. Sans sous-titres, l&apos;audio est transcrit (1 à 3 minutes).</InfoNote>
+          <InfoNote>Les sous-titres YouTube arrivent en quelques secondes. Sinon Gemini lit la vidéo en entier : une vidéo longue est découpée en parties de 20 minutes, transcrites trois à la fois (compte 1 à 3 minutes par tranche de 20 minutes).</InfoNote>
         )}
       </div>
     </Modal>
