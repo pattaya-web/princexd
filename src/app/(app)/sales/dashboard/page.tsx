@@ -641,6 +641,7 @@ export default function SalesDashboardPage() {
                 <thead>
                   <tr>
                     <th>Lead</th>
+                    <th>Provenance</th>
                     <th>Closé le</th>
                     <th>Closé par</th>
                     <th>Offre</th>
@@ -659,11 +660,18 @@ export default function SalesDashboardPage() {
                         {l.mock && <span className="dim text-[10px]"> démo</span>}
                         <div className="dim text-[11px]">{l.handle || l.email || l.phone}</div>
                       </td>
-                      <td className="num text-[12px] whitespace-nowrap">{l.soldAt ? fmtDate(l.soldAt) : "—"}</td>
-                      <td className="text-[12.5px] font-medium whitespace-nowrap">
-                        {l.closerName || <span className="dim">Sans closer</span>}
-                        {l.setterName && <div className="dim text-[10.5px]">setter {l.setterName}</div>}
+                      <td className="text-[12px]">
+                        <SourceChip channel={l.sourceChannel} />
+                        <div className="dim text-[11px]">{funnelLabel(l.funnelSource)}</div>
+                        {(l.campaignName || l.adName) && (
+                          <div className="dim text-[10.5px] truncate max-w-[220px]" title={[l.campaignName, l.adsetName, l.adName].filter(Boolean).join(" · ")}>
+                            {[l.campaignName, l.adName].filter(Boolean).join(" · ")}
+                          </div>
+                        )}
+                        {l.setterName && <div className="text-[10.5px]" style={{ color: "var(--accent)" }}>setting {l.setterName}</div>}
                       </td>
+                      <td className="num text-[12px] whitespace-nowrap">{l.soldAt ? fmtDate(l.soldAt) : "—"}</td>
+                      <td className="text-[12.5px] font-medium whitespace-nowrap">{l.closerName || <span className="dim">Sans closer</span>}</td>
                       <td className="text-[12px]">{l.offer || "—"}</td>
                       <td className="text-right num font-semibold">{fmtMoney(l.revenue, l.currency)}</td>
                       <td className="text-right num" style={{ color: l.cashCollected ? GOOD : undefined }}>{l.cashCollected ? fmtMoney(l.cashCollected, l.currency) : "—"}</td>
@@ -671,7 +679,7 @@ export default function SalesDashboardPage() {
                     </tr>
                   ))}
                   <tr>
-                    <td colSpan={4} className="text-[12px] font-semibold">
+                    <td colSpan={5} className="text-[12px] font-semibold">
                       Total · {detail.leads.length} vente{detail.leads.length > 1 ? "s" : ""}
                     </td>
                     <td className="text-right num font-semibold">{fmtMoney(detail.leads.reduce((n, l) => n + l.revenue, 0), currency)}</td>

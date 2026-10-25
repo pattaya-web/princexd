@@ -59,10 +59,16 @@ const digits = (s: string) => s.replace(/\D/g, "");
 function setterFromUtm(db: DB, call: IclosedCall): string {
   const values = (call.utm ?? []).map((u) => norm(u.utmValue ?? "")).filter(Boolean);
   if (!values.length) return "";
+  const firstName = (name: string) => (name.trim().toLowerCase().split(/\s+/)[0] ?? "").replace(/[^a-z0-9]/g, "");
   for (const m of db.team) {
     if (!active(m) || !memberRoles(m).includes("setter")) continue;
     const keys = [m.username, m.id, m.name].filter(Boolean).map((k) => norm(String(k)));
     if (values.some((v) => keys.includes(v))) return m.id;
+  }
+  // Signature par prenom (lien de l'admin : utm_content=mady), seulement s'il est unique.
+  for (const v of values) {
+    const same = db.team.filter((m) => active(m) && memberRoles(m).includes("setter") && firstName(m.name) === v.replace(/[^a-z0-9]/g, ""));
+    if (same.length === 1) return same[0].id;
   }
   return "";
 }

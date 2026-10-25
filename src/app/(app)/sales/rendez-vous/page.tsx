@@ -22,6 +22,25 @@ export default function AppointmentsPage() {
   const { session, members, period, setPeriod, version, bump } = useSales();
   const toast = useToast();
 
+  /* Mon lien de reservation signe (utm_content = moi) : copie, pret a envoyer en DM. */
+  const copyMyLink = async () => {
+    try {
+      const r = await api<{ link: string; configured: boolean; memberName?: string }>("/api/sales/my-link");
+      if (!r.link) {
+        toast(r.configured ? "Lien indisponible pour ce compte." : "Colle d'abord le lien du calendrier iClosed dans Comptes.", "err");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(r.link);
+        toast(`Lien copié${r.memberName ? ` (signé ${r.memberName})` : ""} : envoie-le tel quel, la réservation te sera attribuée.`);
+      } catch {
+        window.prompt("Copie ce lien :", r.link);
+      }
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
   const [adding, setAdding] = useState(false);
   /* L'ancien tableau des rendez-vous reste disponible, replie. */
   const [table, setTable] = useState(false);
@@ -117,6 +136,11 @@ export default function AppointmentsPage() {
         subtitle="Tous les leads, leur statut, et « Statuer » pour poser l'issue de chaque call : show, en attente, no-show, closé, perdu, paiement."
         actions={
           <>
+            {(session.isAdmin || sessionHas(session, "setter")) && (
+              <button className="btn" onClick={() => void copyMyLink()} title="Mon lien de réservation signé à mon nom : une réservation prise dessus m'est attribuée (setting)">
+                Mon lien d&apos;appel
+              </button>
+            )}
             <button className="btn" onClick={() => setTable((v) => !v)} title="Liste détaillée des rendez-vous par période">
               {table ? "Masquer le tableau" : "Vue tableau"}
             </button>
