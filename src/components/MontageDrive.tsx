@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCollection } from "@/lib/client";
 import { formatBytes } from "@/lib/upload-client";
 import { DropZone, ProgressBar, uploadMany, type Progress } from "./upload-ui";
@@ -96,6 +96,31 @@ function MediaTile({ m, onRemove }: { m: MediaRef; onRemove?: () => void }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Télécharge tous les fichiers locaux d'un coup, avec leur nom d'origine :
+ * un lien de téléchargement par fichier, déclenché à la suite (le navigateur
+ * demande une fois « autoriser plusieurs téléchargements »). Les liens
+ * externes (Drive, WeTransfer) s'ouvrent dans un onglet.
+ */
+function downloadAll(items: MediaRef[]) {
+  items.forEach((m, i) => {
+    setTimeout(() => {
+      const a = document.createElement("a");
+      if (isLocal(m.url)) {
+        a.href = `${m.url}?download=1&name=${encodeURIComponent(m.name)}`;
+        a.download = m.name;
+      } else {
+        a.href = m.url;
+        a.target = "_blank";
+        a.rel = "noreferrer";
+      }
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }, i * 700);
+  });
 }
 
 function MediaGrid({ items, onRemove }: { items: MediaRef[]; onRemove?: (url: string) => void }) {
@@ -280,11 +305,41 @@ function FolderDetail({
           {role === "owner" && job.status === "poste" && (
             <button className="btn btn-sm ml-auto" onClick={() => void onPatch({ status: "livre" })}>Remettre en livrée</button>
           )}
+          {role === "owner" && (job.status === "livre" || job.status === "poste") && (
+            <button
+              className="btn btn-sm"
+              onClick={() => {
+                if (!window.confirm(`Remettre « ${job.title} » dans « À monter » pour le monteur ? Le montage déjà livré reste dans le dossier.`)) return;
+                void onPatch({ status: "a-monter" });
+                toast("Dossier remis à monter : le monteur le revoit dans sa liste.");
+              }}
+              title="Le dossier repasse dans la liste du monteur (rushs, consignes et montage livré conservés)"
+            >
+              ↩ Remettre à monter
+            </button>
+          )}
         </div>
 
         {progress && <ProgressBar p={progress} />}
 
-        <Section title="Rushs" hint={`${rushes.length} fichier${rushes.length > 1 ? "s" : ""}`}>
+        <Section
+          title="Rushs"
+          hint={`${rushes.length} fichier${rushes.length > 1 ? "s" : ""}`}
+          action={
+            rushes.length > 0 ? (
+              <button
+                className="btn btn-sm"
+                onClick={() => {
+                  downloadAll(rushes);
+                  toast(`${rushes.length} rush${rushes.length > 1 ? "s" : ""} en cours de téléchargement, avec ${rushes.length > 1 ? "leurs noms" : "son nom"} d'origine.`);
+                }}
+                title="Récupérer tous les rushs originaux de ce dossier, en un clic"
+              >
+                ↓ Récupérer les rushs originaux{rushes.length > 1 ? ` (${rushes.length})` : ""}
+              </button>
+            ) : undefined
+          }
+        >
           <div className="flex flex-col gap-2">
             <MediaGrid items={rushes} onRemove={role === "owner" ? removeMedia : undefined} />
             {role === "owner" && (
@@ -584,6 +639,19 @@ export function MontageDrive({ role }: { role: "owner" | "editor" }) {
 
   const job = rows.find((j) => j.id === openId) ?? null;
   const list = byTab[tab];
+
+  // ?job=<id> (lien « Rushs » d'un Reel) : le dossier s'ouvre tout seul, sur son onglet.
+  useEffect(() => {
+    if (loading || typeof window === "undefined") return;
+    const wanted = new URLSearchParams(window.location.search).get("job");
+    if (!wanted) return;
+    const j = rows.find((x) => x.id === wanted);
+    if (!j) return;
+    setTab(TAB_OF[j.status]);
+    setOpenId(j.id);
+    window.history.replaceState(null, "", window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   if (loading) return <Card><Spinner label="Chargement du drive…" /></Card>;
   if (error) return <ErrorNote>{error}</ErrorNote>;

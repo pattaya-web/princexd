@@ -186,7 +186,7 @@ export function WeekBlock({ variant = "full", editor = false }: { variant?: "ful
                     <SpeakersBadge speakers={row.script?.speakers} />
                     <span className="ml-auto flex items-center gap-1.5">
                       {row.editJobId ? (
-                        <Link href="/monteur" className="btn btn-sm" title={`Dossier « ${row.editJobTitle} »`}>
+                        <Link href={`/monteur?job=${encodeURIComponent(row.editJobId)}`} className="btn btn-sm" title={`Ouvre le dossier « ${row.editJobTitle} » : rushs originaux à récupérer, consignes, montage livré`}>
                           📁 Rushs
                         </Link>
                       ) : (
