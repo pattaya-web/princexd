@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client";
 import { fmtDateTime, fmtMoney, isoToParisInput, parisToIso } from "@/lib/format";
-import { addDays, buildSchedule, DEFAULT_EXPECTED_DAYS, PAYMENT_STATE_LABEL, PAYMENT_STATE_TONE, parisToday, type PaymentView } from "@/lib/sales/installments";
+import { addDays, addMonths, buildSchedule, DEFAULT_EXPECTED_DAYS, PAYMENT_STATE_LABEL, PAYMENT_STATE_TONE, parisToday, type PaymentView } from "@/lib/sales/installments";
 import { Field, useToast } from "@/components/ui";
 import { StatusBadge } from "./bits";
 import { useSales } from "./context";
@@ -42,7 +42,7 @@ export interface OutcomeAppointment {
 }
 
 type CallStatus = "completed" | "follow-up" | "closed-won" | "no-show" | "closed-lost" | "rescheduled";
-type Mode = "" | "closed-won" | "follow-up" | "closed-lost" | "rescheduled" | "collect" | "unpaid" | "specify" | "callback";
+type Mode = "" | "closed-won" | "follow-up" | "closed-lost" | "rescheduled" | "collect" | "unpaid" | "specify" | "callback" | "fix";
 
 const LOST: { key: string; label: string }[] = [
   { key: "too-expensive", label: "Trop cher" },
@@ -115,6 +115,11 @@ export function OutcomePanel({
   const [specTimes, setSpecTimes] = useState("2");
   const [specFirst, setSpecFirst] = useState("");
   const [specExpected, setSpecExpected] = useState(addDays(parisToday(), DEFAULT_EXPECTED_DAYS));
+  /* Corriger la vente : contrat, total encaissé, nombre de fois, prochaine échéance. */
+  const [fixContract, setFixContract] = useState("");
+  const [fixCash, setFixCash] = useState("");
+  const [fixTimes, setFixTimes] = useState("1");
+  const [fixNextAt, setFixNextAt] = useState("");
 
   const closers = members.filter((m) => m.roles.includes("closer") && m.status !== "inactif");
   const last = appointments[0];
@@ -221,6 +226,55 @@ export function OutcomePanel({
 
   const pay = sale?.payment ?? null;
   const schedule = (sale?.schedule ?? []).slice().sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+
+  /* Ouvre la correction avec les valeurs actuelles : on ne retape que ce qui est faux. */
+  const openFix = () => {
+    if (!pay) return;
+    setFixContract(String(pay.contractValue));
+    setFixCash(String(pay.cashCollected));
+    setFixTimes(String(Math.max(1, pay.times)));
+    setFixNextAt(schedule.find((it) => !it.paidAt)?.dueAt ?? addMonths(today, 1));
+    setMode("fix");
+  };
+
+  /*
+   * Le plan corrigé : ce qui est déjà encaissé compte pour la première
+   * échéance, le reste est réparti à parts égales à partir de la date
+   * choisie, un mois d'écart. Envoyé tel quel au serveur (plan explicite).
+   */
+  const fixPlan = useMemo(() => {
+    const c = n(fixContract);
+    const paid = Math.min(n(fixCash), c);
+    const remaining = Math.round((c - paid) * 100) / 100;
+    const paidNow = paid > 0 ? 1 : 0;
+    const future = Math.max(remaining > 0 ? 1 : 0, (Math.max(1, Number(fixTimes) || 1)) - paidNow);
+    if (c <= 0 || remaining <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(fixNextAt)) return [] as { n: number; dueAt: string; amount: number; paidAt: string }[];
+    const base = Math.floor((remaining / future) * 100) / 100;
+    return Array.from({ length: future }, (_, i) => ({
+      n: paidNow + i + 1,
+      dueAt: addMonths(fixNextAt, i),
+      amount: i === future - 1 ? Math.round((remaining - base * (future - 1)) * 100) / 100 : base,
+      paidAt: "",
+    }));
+  }, [fixContract, fixCash, fixTimes, fixNextAt]);
+
+  const sendFix = () => {
+    const c = n(fixContract);
+    const paid = Math.min(n(fixCash), c);
+    const times = Math.max(1, Number(fixTimes) || 1);
+    void saleCall(
+      "PATCH",
+      {
+        contractValue: c,
+        cashCollected: paid,
+        installments: Math.max(times, fixPlan.length + (paid > 0 ? 1 : 0)),
+        paymentType: paid >= c ? "paid-in-full" : times > 1 ? "installments" : "other",
+        paymentExpectedAt: paid <= 0 ? fixNextAt : "",
+        schedule: fixPlan,
+      },
+      "Vente corrigée.",
+    );
+  };
   const stateColor = pay ? TONE_COLOR[PAYMENT_STATE_TONE[pay.state]] : undefined;
 
   const btn = `btn btn-sm ${compact ? "!h-[30px]" : "!h-[32px]"}`;
@@ -481,6 +535,59 @@ export function OutcomePanel({
               </div>
             </div>
           </div>
+
+          {canPay && mode !== "fix" && (
+            <div>
+              <button className="btn btn-sm btn-ghost !h-[26px] !px-2" disabled={busy} onClick={openFix} title="Le contrat, l'encaissé ou l'échéancier est faux : corrige-le ici">
+                ✎ Corriger la vente
+              </button>
+            </div>
+          )}
+
+          {mode === "fix" && (
+            <div className="rounded-[8px] px-3 py-2.5 flex flex-col gap-2" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+              <div className="text-[12.5px] font-semibold">Corriger la vente</div>
+              <div className="flex items-end gap-2 flex-wrap">
+                <Field label={`Contrat (${currency})`}>
+                  <input className="input !h-[34px] !w-[120px] num" inputMode="decimal" value={fixContract} onChange={(e) => setFixContract(e.target.value)} autoFocus />
+                </Field>
+                <Field label={`Déjà encaissé (${currency})`}>
+                  <input className="input !h-[34px] !w-[120px] num" inputMode="decimal" value={fixCash} onChange={(e) => setFixCash(e.target.value)} />
+                </Field>
+                <Field label="Payé en">
+                  <select className="select !h-[34px]" value={fixTimes} onChange={(e) => setFixTimes(e.target.value)}>
+                    {[1, 2, 3, 4, 6, 12].map((k) => (
+                      <option key={k} value={String(k)}>
+                        {k} fois
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                {n(fixContract) - Math.min(n(fixCash), n(fixContract)) > 0 && (
+                  <Field label={n(fixCash) > 0 ? "Prochaine échéance le" : "1er paiement attendu le"}>
+                    <input type="date" className="input !h-[34px] !w-auto num" value={fixNextAt} onChange={(e) => setFixNextAt(e.target.value)} />
+                  </Field>
+                )}
+              </div>
+              <div className="dim text-[12px]">
+                {n(fixContract) <= 0
+                  ? "Indique la valeur du contrat."
+                  : n(fixCash) > n(fixContract)
+                    ? "L'encaissé dépasse le contrat."
+                    : fixPlan.length === 0
+                      ? `${fmtMoney(n(fixContract), currency)} de contrat, soldé.`
+                      : `${fmtMoney(Math.min(n(fixCash), n(fixContract)), currency)} encaissés · ${fixPlan.map((it) => `${fmtMoney(it.amount, currency)} le ${fmtDay(it.dueAt)}`).join(" · ")}`}
+              </div>
+              <div className="flex items-center gap-2">
+                <button className="btn btn-primary !h-[34px]" disabled={busy || n(fixContract) <= 0 || n(fixCash) > n(fixContract) || (n(fixContract) > n(fixCash) && !/^\d{4}-\d{2}-\d{2}$/.test(fixNextAt))} onClick={sendFix}>
+                  Enregistrer la correction
+                </button>
+                <button className="btn btn-ghost !h-[34px]" onClick={() => setMode("")}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
 
           {pay.state === "unspecified" && canPay && (
             <div className="rounded-[8px] px-3 py-2.5 flex flex-col gap-2" style={{ background: "color-mix(in srgb, var(--warning) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--warning) 35%, transparent)" }}>
