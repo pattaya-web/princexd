@@ -24,8 +24,8 @@ export function geminiKey(): string {
 
 export const hasGemini = () => Boolean(geminiKey());
 
-/** Modèles essayés dans l'ordre : le premier qui répond gagne (les noms bougent d'une saison à l'autre). */
-const MODELS = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"];
+/** Modèles essayés dans l'ordre : le premier qui répond gagne (les noms bougent d'une saison à l'autre ; vérifié le 2026-10-25 : gemini-2.5-flash n'est plus ouvert aux nouveaux comptes, 3.8-flash recommandé). */
+const MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash"];
 
 const PROMPT = `Transcribe this video's speech verbatim, in its original language. Keep every sentence, including hesitations that carry meaning; do not summarize, do not translate, do not add commentary or timestamps. If two people speak, prefix each line with "A:" or "B:". Group the text into short paragraphs (one idea per paragraph). Start your answer with one line "LANGUAGE: <two-letter code>" then an empty line, then the transcript only. If there is no speech at all, answer "LANGUAGE: none" and nothing else.`;
 
