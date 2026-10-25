@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { CollectionName, DB, Settings } from "./types";
-import { applySoloCloser } from "./sales/closers";
+import { applySoloCloser, purgeSalim } from "./sales/closers";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
@@ -269,6 +269,29 @@ export function readDB(): DB {
       summary: `Équipe réorganisée : ${lines.join(" · ")}`,
     });
     settings.salesSoloCloserAt = now;
+    writeDB(cache.db);
+  }
+  /*
+   * Salim supprime de partout (2026-10-25) : ses ventes, rendez-vous, leads
+   * et relances passent sous mon nom, sa fiche sort de l'equipe. Voir
+   * lib/sales/closers.ts ; la date sert de verrou.
+   */
+  if (!settings.salesSalimPurgedAt) {
+    const now = new Date().toISOString();
+    const lines = purgeSalim(cache.db, now);
+    if (lines.length) {
+      cache.db.activityLogs.unshift({
+        id: newId(),
+        at: now,
+        actorId: "",
+        actorName: "Système",
+        action: "team.purged",
+        entity: "member",
+        entityId: cache.db.settings.salesOwnerMemberId ?? "",
+        summary: `Équipe nettoyée : ${lines.join(" · ")}`,
+      });
+    }
+    settings.salesSalimPurgedAt = now;
     writeDB(cache.db);
   }
   return cache.db;

@@ -264,6 +264,8 @@ export interface Settings {
    * devient le seul closer et le closer par defaut. Applique une seule fois.
    */
   salesSoloCloserAt?: string;
+  /** Salim supprime de partout, tout a mon nom (2026-10-25). Applique une seule fois. */
+  salesSalimPurgedAt?: string;
   /**
    * Attribution des leads LP. « pool » (le choix par defaut) : personne, les
    * leads sont a tous les setters et le premier qui appelle le prend.

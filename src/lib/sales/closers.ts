@@ -118,3 +118,64 @@ export function applySoloCloser(db: DB, newId: () => string, now: string): strin
   out.push(`Closer par défaut : ${me.name} · ${appts} rendez-vous à venir, ${leads} leads et ${fus} relances repris`);
   return out;
 }
+
+/**
+ * Seconde bascule unique (2026-10-25) : Salim disparait de partout.
+ *
+ * La premiere bascule avait garde sa fiche et ses ventes signees a son nom.
+ * Le proprietaire a tranche : ces closes sont les siens. Tout ce qui portait
+ * l'identifiant de Salim (ventes, rendez-vous, leads, relances, eleves,
+ * reglages, journal) passe sous le compte « Mady (moi) », et sa fiche est
+ * retiree de l'equipe. Les resumes du journal gardent leur texte : c'est de
+ * l'histoire, pas une attribution.
+ *
+ * Renvoie un resume lisible, pour le journal.
+ */
+export function purgeSalim(db: DB, now: string): string[] {
+  const first = (m: TeamMember) => m.name.trim().toLowerCase().split(/\s+/)[0] ?? "";
+  const gone = db.team.filter((m) => first(m) === "salim");
+  if (!gone.length) return [];
+  const goneIds = new Set(gone.map((m) => m.id));
+  const me = db.team.find((m) => m.id === db.settings.salesOwnerMemberId && !goneIds.has(m.id)) ?? db.team.find((m) => first(m) === "mady" && !goneIds.has(m.id));
+  if (!me) return [];
+
+  /* Chaque reference a Salim, ou qu'elle soit, devient une reference a moi. */
+  const counts = new Map<string, number>();
+  const bump = (k: string) => counts.set(k, (counts.get(k) ?? 0) + 1);
+  const walk = (node: unknown, where: string): unknown => {
+    if (typeof node === "string") {
+      if (goneIds.has(node)) {
+        bump(where);
+        return me.id;
+      }
+      return node;
+    }
+    if (Array.isArray(node)) return node.map((x) => walk(x, where));
+    if (node && typeof node === "object") {
+      const o = node as Record<string, unknown>;
+      for (const k of Object.keys(o)) o[k] = walk(o[k], where);
+      return o;
+    }
+    return node;
+  };
+  const dbo = db as unknown as Record<string, unknown>;
+  for (const key of Object.keys(dbo)) {
+    if (key === "team") continue;
+    dbo[key] = walk(dbo[key], key);
+  }
+  // Le journal : l'acteur devient moi, le texte reste.
+  for (const l of db.activityLogs) if (l.actorId === me.id && /^salim$/i.test(l.actorName ?? "")) l.actorName = me.name;
+  for (const a of db.appointments) {
+    for (const h of a.history ?? []) if (h.actorId === me.id && /^salim$/i.test(h.actorName ?? "")) h.actorName = me.name;
+    if (a.closerId === me.id || a.setterId === me.id) a.updatedAt = now;
+  }
+  for (const s of db.sales) if (s.closerId === me.id || s.setterId === me.id) s.updatedAt = now;
+
+  db.team = db.team.filter((m) => !goneIds.has(m.id));
+  db.settings.salesDefaultCloserId = me.id;
+  db.settings.salesOwnerMemberId = me.id;
+
+  const sales = db.sales.filter((s) => s.closerId === me.id).length;
+  const detail = [...counts.entries()].map(([k, n]) => `${k} ${n}`).join(", ");
+  return [`${gone.map((m) => m.name).join(", ")} supprimé de l'équipe`, `tout passe sous ${me.name} (${detail || "aucune référence"}) · ${sales} ventes à mon nom`];
+}
