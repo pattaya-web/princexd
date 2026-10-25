@@ -11,8 +11,8 @@ import { api, useLocalState } from "@/lib/client";
 import { fmtDate, fmtDateTime, fmtMoney, label as crmLabel } from "@/lib/format";
 import { RANGE_PRESETS, type RangePreset } from "@/lib/mediabuying/metrics";
 import { funnelLabel } from "@/lib/sales/attribution";
-import { BOOKING_STATUS_LABEL, SALE_STATUS_LABEL, type DueInstallment } from "@/lib/sales/business-types";
-import { CLOSED_DETAIL_KEY, type BusinessGroupRow, type BusinessMetrics, type BusinessReport, type GroupBy, type LeadBusiness } from "@/lib/sales/business";
+import { BOOKING_STATUS_LABEL, CLOSED_DETAIL_KEY, SALE_STATUS_LABEL, type DueInstallment } from "@/lib/sales/business-types";
+import type { BusinessGroupRow, BusinessMetrics, BusinessReport, GroupBy, LeadBusiness } from "@/lib/sales/business";
 import type { AttentionBlock } from "@/app/api/sales/dashboard/route";
 
 /* ------------------------------- Formats ------------------------------- */

@@ -21,6 +21,9 @@ export const PIPELINE_STAGES: { key: PipelineStage; label: string }[] = [
   { key: "CLOSED_LOST", label: "Closed lost" },
 ];
 
+/** Cle speciale de `?detail=` (business.ts, leadsForGroup) : les ventes derriere la tuile « Closés », vente la plus recente en premier. */
+export const CLOSED_DETAIL_KEY = "closed";
+
 export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = { SCHEDULED: "Planifié", CANCELLED: "Annulé", NO_SHOW: "No-show", SHOWED: "Showed" };
 export const SALE_STATUS_LABEL: Record<SaleStatusView, string> = { PENDING: "En attente", WON: "Gagné", LOST: "Perdu", FOLLOW_UP: "Follow-up" };
 

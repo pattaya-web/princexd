@@ -15,7 +15,7 @@ import { dayIn } from "../mediabuying/metrics";
 import type { DateRange, MetaSnapshot } from "../mediabuying/types";
 import { mockBusinessData } from "./mock-leads";
 import { backfillAttribution, ensureFunnelsV2, FUNNELS, funnelLabel, SOURCE_CHANNEL_LABEL } from "./attribution";
-import { PIPELINE_STAGES, type BookingStatus, type Cashflow, type DueInstallment, type LeadBusiness, type PipelineStage, type SaleStatusView, type ShowStatus } from "./business-types";
+import { CLOSED_DETAIL_KEY, PIPELINE_STAGES, type BookingStatus, type Cashflow, type DueInstallment, type LeadBusiness, type PipelineStage, type SaleStatusView, type ShowStatus } from "./business-types";
 
 export * from "./business-types";
 import { writeDB } from "../db";
@@ -508,9 +508,6 @@ export function aggregateBusiness(db: DB, opts: { range: DateRange; filters: Bus
     metaConnected: db.metaConnections.length > 0,
   };
 }
-
-/** Cle speciale de `leadsForGroup` : les ventes derriere la tuile « Closés », vente la plus recente en premier. */
-export const CLOSED_DETAIL_KEY = "closed";
 
 /** Les leads derriere une ligne du tableau (ou derriere les totaux). */
 export function leadsForGroup(db: DB, opts: { range: DateRange; filters: BusinessFilters; groupBy: GroupBy; key: string }): LeadBusiness[] {
