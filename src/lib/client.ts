@@ -142,9 +142,11 @@ export function invalidate(name?: CollectionName) {
  */
 export function useCollection<T extends { id: string }>(
   name: CollectionName,
-  opts: { light?: boolean } = {},
+  opts: { light?: boolean; skip?: boolean } = {},
 ) {
   const light = Boolean(opts.light);
+  /** `skip` : ne rien charger (collection fermée à ce rôle) ; les lignes restent vides. */
+  const skip = Boolean(opts.skip);
   const key = light ? `${name}:light` : name;
 
   const [rows, setRows] = useState<T[]>(() => (CACHE.get(key) as T[]) ?? []);
@@ -154,17 +156,21 @@ export function useCollection<T extends { id: string }>(
   // Copie persistante : affichee des le montage, en attendant le serveur.
   // (Apres l'hydratation, pour que serveur et client rendent la meme chose.)
   useEffect(() => {
-    if (CACHE.has(key)) return;
+    if (skip || CACHE.has(key)) return;
     const saved = readPersisted(key) as T[] | null;
     if (saved && saved.length) {
       CACHE.set(key, saved);
       setRows(saved);
       setLoading(false);
     }
-  }, [key]);
+  }, [key, skip]);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
+    if (skip) {
+      setLoading(false);
+      return;
+    }
     try {
       const data = await api<T[]>(`/api/data/${name}${light ? "?light=1" : ""}`);
       CACHE.set(key, data);
@@ -176,7 +182,7 @@ export function useCollection<T extends { id: string }>(
     } finally {
       setLoading(false);
     }
-  }, [name, key, light]);
+  }, [name, key, light, skip]);
 
   useEffect(() => {
     void reload();

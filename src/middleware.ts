@@ -69,7 +69,23 @@ const STUDENT_ADMIN_PAGES = ["/formation/modules", "/formation/eleves", "/format
  * lib/studio-tenant) et ses propres generations ; /api/kie/upload est hors
  * middleware et verifie la session lui-meme.
  */
-const STUDENT_APIS = ["/api/formation/", "/api/sales/session", "/api/version", "/api/kie/generate", "/api/kie/task", "/api/kie/credits", "/api/kie/download", "/api/thumb", "/api/data/generations"];
+const STUDENT_APIS = [
+  "/api/formation/",
+  "/api/sales/session",
+  "/api/version",
+  "/api/kie/generate",
+  "/api/kie/task",
+  "/api/kie/credits",
+  "/api/kie/download",
+  "/api/thumb",
+  "/api/data/generations",
+  // Swap vidéo et Création (lib/studio) : chaque route filtre par propriétaire et tourne sur sa clé KIE.
+  "/api/studio/jobs",
+  "/api/studio/create",
+  "/api/studio/quote",
+  "/api/studio/enhance",
+  "/api/studio/frame",
+];
 
 /* --- Equipe commerciale --- */
 const SALES_PAGES = ["/sales"];

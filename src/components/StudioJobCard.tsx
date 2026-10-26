@@ -23,6 +23,8 @@ import { loadVoices } from "@/lib/client";
  */
 
 export interface JobActions {
+  /** Studio d'un élève : les actions voix (ElevenLabs, clés du compte) sont masquées. */
+  student?: boolean;
   onOpen: (job: StudioJob) => void;
   onRedo: (job: StudioJob) => void;
   onUseAsReference: (job: StudioJob) => void;
@@ -192,14 +194,16 @@ export function StudioJobCard({ job, actions }: { job: StudioJob; actions: JobAc
                   <button className="px-3 py-2 text-[12px] text-left hover:bg-[var(--surface-2)]" onClick={() => { setMenu(false); actions.onUseAsReference(job); }}>
                     Utiliser comme nouvelle référence
                   </button>
-                  {job.voiceMode === "transform" && (
+                  {job.voiceMode === "transform" && !actions.student && (
                     <button className="px-3 py-2 text-[12px] text-left hover:bg-[var(--surface-2)]" onClick={() => { setMenu(false); actions.onRetry(job, "voice"); }}>
                       Réessayer la voix
                     </button>
                   )}
-                  <button className="px-3 py-2 text-[12px] text-left hover:bg-[var(--surface-2)]" onClick={() => { setMenu(false); actions.onChangeVoice(job); }}>
-                    {job.voiceMode === "transform" ? "Changer de voix" : "Ajouter une voix"}
-                  </button>
+                  {!actions.student && (
+                    <button className="px-3 py-2 text-[12px] text-left hover:bg-[var(--surface-2)]" onClick={() => { setMenu(false); actions.onChangeVoice(job); }}>
+                      {job.voiceMode === "transform" ? "Changer de voix" : "Ajouter une voix"}
+                    </button>
+                  )}
                   <button className="px-3 py-2 text-[12px] text-left hover:bg-[var(--surface-2)]" style={{ color: "var(--critical)" }} onClick={() => { setMenu(false); actions.onDelete(job); }}>
                     Supprimer
                   </button>
@@ -264,7 +268,7 @@ export function StudioJobPreview({ job, actions, onClose }: { job: StudioJob; ac
         <>
           {!simple && <button className="btn mr-auto" onClick={() => { onClose(); actions.onRedo(job); }}>⟳ Refaire</button>}
           <button className="btn" onClick={() => { onClose(); actions.onUseAsReference(job); }}>Utiliser comme référence</button>
-          {!simple && (
+          {!simple && !actions.student && (
             <button className="btn" onClick={() => { onClose(); actions.onChangeVoice(job); }}>
               {job.voiceMode === "transform" ? "Changer de voix" : "Ajouter une voix"}
             </button>

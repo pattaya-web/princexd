@@ -1,4 +1,5 @@
-import { newId, readDB, writeDB } from "@/lib/db";
+import { newId, readDB, withKieKey, writeDB } from "@/lib/db";
+import { keyForOwner } from "@/lib/studio-tenant";
 import { AUTO_PRIORITY, MAX_CONCURRENT_GENERATIONS, MAX_VARIANTS, PROVIDER_IDS, PROVIDERS, STALE_STEP_MS } from "./config";
 import { providerRejects } from "./select-provider";
 import type { ProviderId } from "./types";
@@ -54,6 +55,14 @@ export function listJobs(): StudioJob[] {
   return readDB().studioJobs;
 }
 
+/** Les jobs d'un propriétaire : l'élève ne voit que les siens, l'admin et le monteur ceux du compte (sans propriétaire). */
+export function listJobsFor(ownerId: string): StudioJob[] {
+  return listJobs().filter((j) => (j.ownerId ?? "") === ownerId);
+}
+
+/** Le job appartient-il à ce périmètre ? */
+export const ownsJob = (job: StudioJob, ownerId: string) => (job.ownerId ?? "") === ownerId;
+
 export function getJob(id: string): StudioJob | null {
   return readDB().studioJobs.find((j) => j.id === id) ?? null;
 }
@@ -68,10 +77,10 @@ async function patchJob(id: string, patch: Partial<StudioJob>): Promise<StudioJo
   return db.studioJobs[i];
 }
 
-export function deleteJob(id: string) {
+export function deleteJob(id: string, ownerId?: string) {
   const db = readDB();
   const before = db.studioJobs.length;
-  db.studioJobs = db.studioJobs.filter((j) => j.id !== id);
+  db.studioJobs = db.studioJobs.filter((j) => j.id !== id || (ownerId !== undefined && !ownsJob(j, ownerId)));
   if (db.studioJobs.length !== before) writeDB(db);
   return before !== db.studioJobs.length;
 }
@@ -82,13 +91,21 @@ function validSource(url: string) {
   return Boolean(localMediaPath(url)) || isAllowedRemote(url);
 }
 
-export function createJobs(req: TransformRequest): StudioJob[] {
+/**
+ * `ownerId` : l'élève pour qui le job tourne (Studio IA par élève). Ses jobs
+ * s'exécutent avec SA clé KIE et ne sont visibles que de lui. Ce qui passe
+ * par les clés du compte (voix ElevenLabs / OpenAI, Genjutsu chez Higgsfield)
+ * lui est fermé : la voix d'origine est gardée, Genjutsu refusé.
+ */
+export function createJobs(req: TransformRequest, ownerId = ""): StudioJob[] {
   if (!req.sourceVideo || !validSource(req.sourceVideo)) throw new JobError("Vidéo source manquante ou invalide.");
   if (!req.referenceImage || !validSource(req.referenceImage)) throw new JobError("Image de référence manquante ou invalide.");
   if (req.provider !== "auto" && !PROVIDER_IDS.includes(req.provider)) throw new JobError("Modèle inconnu.");
+  if (ownerId && req.provider === "genjutsu") throw new JobError("Ce modèle n'est pas disponible dans ton Studio : choisis Auto ou un autre modèle.");
   if (!TRANSFORMS.has(req.transform)) throw new JobError("Type de transformation inconnu.");
   if (!STYLES.has(req.style)) throw new JobError("Style inconnu.");
   if (!VOICE_MODES.has(req.voiceMode)) throw new JobError("Mode audio inconnu.");
+  if (ownerId && req.voiceMode === "transform") req = { ...req, voiceMode: "keep", voiceId: "", voiceName: "" };
   if (req.voiceMode === "transform" && !req.voiceId?.trim()) throw new JobError("Choisis une voix ElevenLabs.");
   if (!RESOLUTIONS.has(req.resolution)) throw new JobError("Résolution inconnue.");
   if (!ASPECTS.has(req.aspectRatio)) throw new JobError("Format inconnu.");
@@ -123,6 +140,7 @@ export function createJobs(req: TransformRequest): StudioJob[] {
     const t = now();
     const job: StudioJob = {
       id: newId(),
+      ...(ownerId ? { ownerId } : {}),
       type: "video-transform",
       batchId,
       provider: q.provider,
@@ -186,7 +204,27 @@ function fail(id: string, error: string, extra: Partial<StudioJob> = {}) {
   return patchJob(id, { status: "failed", error, completedAt: now(), ...extra });
 }
 
+/**
+ * Exécute une étape avec la clé KIE du propriétaire du job : celle de l'élève
+ * (ses crédits) quand le job lui appartient, celle du compte sinon. Toutes
+ * les étapes (envoi des fichiers, génération, sondage, synchro labiale)
+ * passent par `getApiKey()`, donc par ce contexte.
+ */
+async function withJobKey<T>(job: StudioJob, fn: () => Promise<T>): Promise<T | undefined> {
+  if (!job.ownerId) return fn();
+  const key = keyForOwner(readDB(), job.ownerId);
+  if (!key) {
+    await fail(job.id, "Ta clé KIE est introuvable : ajoute-la dans Scale X → Studio IA → Ma clé, puis réessaie.");
+    return undefined;
+  }
+  return withKieKey(key, fn);
+}
+
 async function runStart(job: StudioJob) {
+  await withJobKey(job, () => runStartInner(job));
+}
+
+async function runStartInner(job: StudioJob) {
   if (locks.has(job.id)) return;
   locks.add(job.id);
   try {
@@ -224,6 +262,10 @@ async function runStart(job: StudioJob) {
  * bouton « Réessayer la voix » côté interface.
  */
 async function runFinish(job: StudioJob) {
+  await withJobKey(job, () => runFinishInner(job));
+}
+
+async function runFinishInner(job: StudioJob) {
   if (locks.has(job.id)) return;
   locks.add(job.id);
   try {
@@ -333,6 +375,10 @@ async function runFinish(job: StudioJob) {
 }
 
 async function pollOne(job: StudioJob) {
+  await withJobKey(job, () => pollOneInner(job));
+}
+
+async function pollOneInner(job: StudioJob) {
   if (!job.providerJobId) return;
   let r;
   try {
@@ -460,10 +506,15 @@ export async function retryJob(
   id: string,
   scope: "all" | "voice",
   voice?: { voiceId: string; voiceName: string; voiceAmbience?: StudioJob["voiceAmbience"]; lipSync?: boolean; voiceMode?: "keep" | "transform" },
+  ownerId?: string,
 ): Promise<StudioJob> {
   const job = getJob(id);
-  if (!job) throw new JobError("Job introuvable.", 404);
+  if (!job || (ownerId !== undefined && !ownsJob(job, ownerId))) throw new JobError("Job introuvable.", 404);
   if (locks.has(id)) throw new JobError("Ce job est déjà en cours de traitement.", 409);
+  // Studio d'un élève : pas de voix transformée (clés ElevenLabs / OpenAI du compte).
+  if (job.ownerId && (voice?.voiceId || voice?.voiceMode === "transform" || (scope === "voice" && job.voiceMode === "transform"))) {
+    throw new JobError("La voix transformée n'est pas disponible dans ton Studio.");
+  }
 
   if (scope === "voice") {
     if (!job.videoOutput && !job.remoteVideoUrl) throw new JobError("Pas encore de vidéo générée : relance la génération.");

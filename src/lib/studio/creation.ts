@@ -41,7 +41,7 @@ export function estimatedSeconds(script: string, durationSec: number): number {
   return Math.min(CREATION.maxDurationSec, Math.max(CREATION.minDurationSec, Math.ceil(script.trim().length / 15)));
 }
 
-export function createCreationJobs(req: CreateRequest): StudioJob[] {
+export function createCreationJobs(req: CreateRequest, ownerId = ""): StudioJob[] {
   if (!req.startImage || !validSource(req.startImage)) throw new CreationError("Image de départ manquante ou invalide.");
   const raw = (req.script ?? "").trim();
   if (!raw) throw new CreationError("Écris ce que la personne doit dire.");
@@ -79,6 +79,7 @@ export function createCreationJobs(req: CreateRequest): StudioJob[] {
     const t = now();
     const job: StudioJob = {
       id: newId(),
+      ...(ownerId ? { ownerId } : {}),
       type: "creation",
       batchId,
       provider: "seedance25",

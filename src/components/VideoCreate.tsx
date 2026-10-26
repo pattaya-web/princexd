@@ -58,7 +58,8 @@ const DURATIONS: { value: number; label: string }[] = [
   { value: 30, label: "30 s" },
 ];
 
-export function VideoCreate({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: (jobs: StudioJob[]) => void }) {
+/** `student` : Studio d'un élève, sans la dictée (transcription sur la clé OpenAI du compte). */
+export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJob[]; onQueued: (jobs: StudioJob[]) => void; student?: boolean }) {
   const toast = useToast();
   const characters = useCollection<StudioCharacter>("studioCharacters");
 
@@ -265,9 +266,11 @@ export function VideoCreate({ jobs, onQueued }: { jobs: StudioJob[]; onQueued: (
             onChange={(e) => setScript(e.target.value)}
             disabled={busy}
           />
-          <div className="flex justify-end -mt-1">
-            <DictateButton onText={(t) => setScript((v) => (v ? `${v} ${t}` : t))} disabled={busy} />
-          </div>
+          {!student && (
+            <div className="flex justify-end -mt-1">
+              <DictateButton onText={(t) => setScript((v) => (v ? `${v} ${t}` : t))} disabled={busy} />
+            </div>
+          )}
           {parsed.detected && (
             <InfoNote>
               Prompt détecté : <b>{parsed.spoken.length} caractères dits</b> (≈ {scriptSeconds} s). Le reste du texte pilote la caméra, les gestes et le son, et remplace les consignes par défaut.

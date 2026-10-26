@@ -265,21 +265,34 @@ function SourceZone({
 
 /* ------------------------------ Composant ------------------------------ */
 
+/**
+ * `student` : Studio d'un élève. Tout tourne sur sa clé KIE ; ce qui passe
+ * par les clés du compte est masqué : voix ElevenLabs, dictée, Genjutsu
+ * (Higgsfield), personnages enregistrés du compte.
+ */
 export function VideoSwap({
   prefill,
   prefillKey,
   jobs,
   onQueued,
   onAdvanced,
+  student = false,
 }: {
   prefill: SwapPrefill | null;
   prefillKey: number;
   jobs: StudioJob[];
   onQueued: (jobs: StudioJob[]) => void;
   onAdvanced: () => void;
+  student?: boolean;
 }) {
   const toast = useToast();
-  const characters = useCollection<StudioCharacter>("studioCharacters");
+  const allCharacters = useCollection<StudioCharacter>("studioCharacters", { skip: student });
+  const characters = useMemo(
+    () => (student ? { ...allCharacters, rows: [] as StudioCharacter[] } : allCharacters),
+    [student, allCharacters],
+  );
+  const providerIds = useMemo(() => (student ? PROVIDER_IDS.filter((id) => id !== "genjutsu") : PROVIDER_IDS), [student]);
+  const voiceModes = useMemo(() => (student ? VOICE_MODES.filter((m) => m !== "transform") : VOICE_MODES), [student]);
 
   const [image, setImage] = useState<Media | null>(null);
   /** Vues supplementaires du meme personnage (profil, dos, tenue), 2 au plus. */
@@ -374,8 +387,16 @@ export function VideoSwap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefillKey]);
 
+  /* Élève : ni voix transformée ni Genjutsu, quoi qu'ait mémorisé le navigateur. */
+  useEffect(() => {
+    if (!student) return;
+    if (voiceMode === "transform") setVoiceMode("keep");
+    if (provider === "genjutsu") setProvider("auto");
+  }, [student, voiceMode, provider, setVoiceMode, setProvider]);
+
   /* Voix ElevenLabs, chargées à la demande. */
   useEffect(() => {
+    if (student) return;
     if ((voiceMode !== "transform" && !simple) || voices !== null) return;
     void (async () => {
       try {
@@ -389,7 +410,7 @@ export function VideoSwap({
         setVoicesError((e as Error).message);
       }
     })();
-  }, [voiceMode, voices]);
+  }, [voiceMode, voices, simple, student]);
 
   /* Devis serveur, à chaque changement utile. */
   useEffect(() => {
@@ -773,7 +794,7 @@ export function VideoSwap({
    * defaut d'ElevenLabs sonnent faux sur une diction francaise : ecartees.
    */
   const isAnglo = (v: VoiceInfo) => /american|british|australian|irish|canadian/i.test(v.accent);
-  const simpleVoices = (voices ?? [])
+  const simpleVoices = (student ? [] : (voices ?? []))
     .filter((v) => v.category === "cloned" || v.category === "generated" || (!isAnglo(v) && v.category !== "premade"))
     .sort((a, b) => Number(b.category === "cloned") - Number(a.category === "cloned"));
 
@@ -890,7 +911,7 @@ export function VideoSwap({
               <button type="button" className="btn btn-sm !h-[24px] !text-[11px]" onClick={() => void enhance()} disabled={disabledAll || enhancing || !video} title="Analyse ta vidéo et tes références, puis écrit une consigne structurée (plan par plan, décor, lumière) avec les balises @Video 1 / @Image N">
                 {enhancing ? <span className="spinner" /> : "✨ Rédiger la consigne"}
               </button>
-              <DictateButton className="!h-[24px] !text-[11px]" onText={(t) => setUserPrompt((v) => (v ? `${v} ${t}` : t))} disabled={disabledAll} />
+              {!student && <DictateButton className="!h-[24px] !text-[11px]" onText={(t) => setUserPrompt((v) => (v ? `${v} ${t}` : t))} disabled={disabledAll} />}
               {userPrompt && <button type="button" className="btn btn-sm btn-ghost !h-[24px] !text-[11px]" onClick={() => setUserPrompt("")} disabled={disabledAll}>Effacer</button>}
             </div>
           </div>
@@ -898,7 +919,7 @@ export function VideoSwap({
           <div className="flex items-center gap-2 flex-wrap">
             <select className="select !w-auto !h-[32px] !text-[12px] !py-0" value={provider} disabled={disabledAll} onChange={(e) => setProvider(e.target.value as ProviderChoice)} title="Modèle">
               <option value="auto">Auto ✨{quote && provider === "auto" ? ` (${quote.providerLabel})` : ""}</option>
-              {PROVIDER_IDS.map((id) => (
+              {providerIds.map((id) => (
                 <option key={id} value={id}>{PROVIDERS[id].label}</option>
               ))}
             </select>
@@ -1177,7 +1198,7 @@ export function VideoSwap({
           onChange={(e) => setUserPrompt(e.target.value)}
         />
         <div className="flex justify-end -mt-1">
-          <DictateButton onText={(t) => setUserPrompt((v) => (v ? `${v} ${t}` : t))} disabled={disabledAll} />
+          {!student && <DictateButton onText={(t) => setUserPrompt((v) => (v ? `${v} ${t}` : t))} disabled={disabledAll} />}
         </div>
       </Field>
 
@@ -1190,7 +1211,7 @@ export function VideoSwap({
       <Field label="Son">
         <div className="flex flex-col gap-2.5">
           <div className="flex gap-1.5 flex-wrap">
-            {VOICE_MODES.map((m) => (
+            {voiceModes.map((m) => (
               <Chip key={m} active={voiceMode === m} onClick={() => setVoiceMode(m)} disabled={disabledAll}>
                 {VOICE_MODE_LABEL[m]}{m === "transform" ? " ✨" : ""}
               </Chip>
@@ -1319,7 +1340,7 @@ export function VideoSwap({
           <span className="label-xs">Modèle</span>
           <select className="select !w-auto !h-[34px] !text-[12px] !py-0" value={provider} disabled={disabledAll} onChange={(e) => setProvider(e.target.value as ProviderChoice)}>
             <option value="auto">Auto ✨{quote && provider === "auto" ? ` (${quote.providerLabel})` : ""}</option>
-            {PROVIDER_IDS.map((id) => (
+            {providerIds.map((id) => (
               <option key={id} value={id}>{PROVIDERS[id].label}</option>
             ))}
           </select>

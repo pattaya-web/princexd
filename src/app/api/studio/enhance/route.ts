@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MediaError } from "@/lib/studio/media";
 import { EnhanceError, enhancePrompt } from "@/lib/studio/prompt-enhancer";
+import { scopeError, studioScope, withScope } from "@/lib/studio-tenant";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -16,15 +17,24 @@ export async function POST(req: NextRequest) {
     userPrompt?: string;
   } | null;
   if (!body?.sourceVideo) return NextResponse.json({ error: "Dépose d'abord ta vidéo." }, { status: 400 });
+  const sourceVideo = body.sourceVideo;
+  // Élève : la rédaction tourne sur sa clé KIE.
+  let scope;
   try {
-    const prompt = await enhancePrompt({
-      sourceVideo: body.sourceVideo,
+    scope = studioScope(req);
+  } catch (e) {
+    const { error, status } = scopeError(e);
+    return NextResponse.json({ error }, { status });
+  }
+  try {
+    const prompt = await withScope(scope, () => enhancePrompt({
+      sourceVideo,
       referenceImages: Array.isArray(body.referenceImages) ? body.referenceImages : [],
       productImages: Array.isArray(body.productImages) ? body.productImages : [],
       productDescription: body.productDescription,
       sceneImage: body.sceneImage,
       userPrompt: body.userPrompt,
-    });
+    }));
     return NextResponse.json({ prompt });
   } catch (e) {
     const err = e as EnhanceError | MediaError;

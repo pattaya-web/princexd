@@ -5,6 +5,7 @@ import { DictateButton } from "@/components/Dictate";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api, useCollection, useLocalState } from "@/lib/client";
+import { setUploadViaKie } from "@/lib/upload-client";
 import { useSession } from "@/lib/sales/client";
 import { getModel, MODELS, modelsOfKind, type ModelDef, type ModelKind } from "@/lib/models";
 import {
@@ -89,6 +90,11 @@ function StudioInner() {
   const isEditor = session?.role === "editor";
   /* Eleve (Studio IA par eleve) : image et video seulement, avec sa cle KIE ; pas de swap, de voix ni de dictee (cles du compte). */
   const isStudent = session?.role === "student";
+  // Élève : les fichiers du Swap et de la Création partent sur le stockage KIE avec sa clé.
+  useEffect(() => {
+    setUploadViaKie(isStudent);
+    return () => setUploadViaKie(false);
+  }, [isStudent]);
   const [guideClosed, setGuideClosed] = useLocalState("studio-editor-guide-closed", false);
   const [modelId, setModelId] = useState(() => firstOfKind("image").id);
   const [input, setInput] = useState<Record<string, unknown>>(() => defaultsFor(firstOfKind("image")));
@@ -137,7 +143,7 @@ function StudioInner() {
     if (seeded.current) return;
     const prompt = params.get("prompt");
     const wanted = params.get("kind");
-    if (wanted === "talk") {
+    if (wanted === "talk" && !isStudent) {
       setTalkTab(true);
     } else if (wanted === "create") {
       setCreateTab(true);
@@ -181,18 +187,6 @@ function StudioInner() {
   const reuse = useCallback(
     (url: string, from: "image" | "video") => {
       const name = url.split("/").pop() ?? (from === "video" ? "vidéo" : "image");
-      if (isStudent) {
-        // Pas de swap pour l'eleve : l'image part dans le premier modele video (image → video).
-        const first = firstOfKind("video");
-        const slot = first.fields.find((f) => f.type === "file" || f.type === "files");
-        setKind("video");
-        setSwap(false);
-        setModelId(first.id);
-        setInput({ ...defaultsFor(first), ...(slot ? { [slot.key]: slot.type === "files" ? [url] : url } : {}) });
-        toast(from === "video" ? "Vidéo posée dans le formulaire." : "Image posée comme image de départ de la vidéo.");
-        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-        return;
-      }
       setKind("swap");
       setSwap(false);
       setAdvancedSwap(false);
@@ -201,7 +195,7 @@ function StudioInner() {
       toast(from === "video" ? "Envoyée comme vidéo originale." : "Envoyée comme image de référence.");
       window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
     },
-    [toast, isStudent],
+    [toast],
   );
 
   /**
@@ -290,7 +284,6 @@ function StudioInner() {
     let alive = true;
     // Le dock sonde deja la file : sa derniere liste suffit, sinon un appel.
     const cached = readStudioJobsCache();
-    if (isStudent) return;
     if (cached) setJobs(cached);
     else {
       fetchStudioJobs(2000)
@@ -303,10 +296,12 @@ function StudioInner() {
     };
     window.addEventListener(STUDIO_JOBS_EVENT, onStudio);
     return () => { alive = false; window.removeEventListener(STUDIO_JOBS_EVENT, onStudio); };
-  }, [isStudent]);
+  }, []);
 
   const jobActions = useMemo<JobActions>(
     () => ({
+      // Studio d'un élève : pas de voix ElevenLabs (clés du compte).
+      student: isStudent,
       onOpen: (j) => setJobPreview(j.id),
       onRedo: (j) => {
         setKind("swap");
@@ -348,7 +343,7 @@ function StudioInner() {
         await api(`/api/studio/jobs?id=${encodeURIComponent(j.id)}`, { method: "DELETE" }).catch((e: Error) => toast(e.message, "err"));
       },
     }),
-    [toast],
+    [toast, isStudent],
   );
 
   const jobCounts = useMemo(() => {
@@ -562,7 +557,10 @@ function StudioInner() {
                 }}
                 options={
                   isStudent
-                    ? (["image", "video"] as ModelKind[]).map((k) => ({ value: k as StudioTab, label: KIND_LABEL[k] }))
+                    ? [
+                        ...(["image", "video", "swap"] as ModelKind[]).map((k) => ({ value: k as StudioTab, label: KIND_LABEL[k] })),
+                        { value: "create" as StudioTab, label: "Création" },
+                      ]
                     : [
                         ...(["image", "video", "swap"] as ModelKind[]).map((k) => ({ value: k as StudioTab, label: KIND_LABEL[k] })),
                         { value: "create" as StudioTab, label: "Création" },
@@ -592,7 +590,7 @@ function StudioInner() {
               )}
               {isStudent && (
                 <div className="rounded-[10px] px-3.5 py-2.5 text-[12.5px] leading-relaxed" style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--accent) 25%, transparent)" }}>
-                  <strong>Ton Studio.</strong> Les générations tournent sur ta clé KIE (tes crédits) et toi seul vois tes résultats. Les prompts sont sur la page{" "}
+                  <strong>Ton Studio.</strong> Image, Vidéo, Swap vidéo et Création tournent sur ta clé KIE (tes crédits) et toi seul vois tes résultats. Les prompts sont sur la page{" "}
                   <a href="/formation/creatives" className="underline">Créatives</a> : Claude t&apos;écrit le prompt, tu le colles ici avec ton image de référence. Clé et solde :{" "}
                   <a href="/formation/studio" className="underline">Studio IA</a>.
                 </div>
@@ -603,16 +601,17 @@ function StudioInner() {
                 </button>
               )}
 
-              {talkTab ? (
+              {talkTab && !isStudent ? (
                 <TalkingPhoto jobs={jobs} onQueued={(created) => setJobs((prev) => [...created, ...prev])} />
               ) : createTab ? (
-                <VideoCreate jobs={jobs} onQueued={(created) => setJobs((prev) => [...created, ...prev])} />
+                <VideoCreate jobs={jobs} student={isStudent} onQueued={(created) => setJobs((prev) => [...created, ...prev])} />
               ) : swap && kind === "image" ? (
                 <FaceSwap onQueued={(g) => setRows((prev) => [g, ...prev])} />
               ) : kind === "swap" && !advancedSwap ? (
                 <VideoSwap
                   prefill={prefill}
                   prefillKey={prefillKey}
+                  student={isStudent}
                   jobs={jobs}
                   onQueued={(created) => setJobs((prev) => [...created, ...prev])}
                   onAdvanced={() => setAdvancedSwap(true)}

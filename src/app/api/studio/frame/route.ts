@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJob } from "@/lib/studio/jobs";
+import { getJob, ownsJob } from "@/lib/studio/jobs";
 import { ensureLocal, firstFrame, MediaError } from "@/lib/studio/media";
+import { scopeError, studioScope } from "@/lib/studio-tenant";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -10,11 +11,18 @@ export const maxDuration = 60;
  * JPEG : « Utiliser comme nouvelle référence » part de là.
  */
 export async function POST(req: NextRequest) {
+  let scope;
+  try {
+    scope = studioScope(req);
+  } catch (e) {
+    const { error, status } = scopeError(e);
+    return NextResponse.json({ error }, { status });
+  }
   const { jobId, url } = (await req.json().catch(() => ({}))) as { jobId?: string; url?: string };
   let source = url ?? "";
   if (jobId) {
     const job = getJob(jobId);
-    if (!job) return NextResponse.json({ error: "Job introuvable." }, { status: 404 });
+    if (!job || !ownsJob(job, scope.ownerId)) return NextResponse.json({ error: "Job introuvable." }, { status: 404 });
     source = job.finalOutput || job.videoOutput || job.remoteVideoUrl;
   }
   if (!source) return NextResponse.json({ error: "Aucune vidéo." }, { status: 400 });

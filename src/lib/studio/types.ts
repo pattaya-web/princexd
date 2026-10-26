@@ -132,6 +132,8 @@ export interface CreateRequest {
 
 export interface StudioJob {
   id: string;
+  /** Élève propriétaire (Studio IA par élève) ; absent = Studio du compte (admin, monteur). */
+  ownerId?: string;
   type: "video-transform" | "talking-photo" | "creation";
   /** Variantes lancées d'un coup : même batchId. */
   batchId: string;

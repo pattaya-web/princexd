@@ -923,7 +923,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Hors du <main> : il ne doit pas etre remonte a chaque navigation. */}
-      {!isVa && <JobsDock studioJobs={!isStudent} />}
+      {!isVa && <JobsDock studioJobs />}
       {/* Chat « Nouvel élève » (admin seulement) : bulle en bas à droite, sauf sur la page du chat. */}
       {session?.isAdmin && !pathname.startsWith("/eleves/nouveau") && <NewStudentChat variant="widget" />}
       <NewVersionBanner />

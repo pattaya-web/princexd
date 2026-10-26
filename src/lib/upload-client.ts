@@ -212,7 +212,41 @@ async function sendChunked(file: File, onProgress?: ProgressFn): Promise<Uploade
  * Sur iOS, ou pour un fichier que le serveur declare illisible, on repasse
  * par un envoi multipart (le serveur verifie l'entete du fichier recu).
  */
+/*
+ * Studio IA d'un élève : ses fichiers ne vont pas sur le disque du serveur
+ * (/api/upload lui est fermé) mais sur le stockage KIE avec sa clé, via
+ * /api/kie/upload. La page Studio bascule ce mode selon le rôle.
+ */
+let viaKie = false;
+export function setUploadViaKie(on: boolean) {
+  viaKie = on;
+}
+
+/** 100 Mo : la limite de /api/kie/upload et des modèles. */
+const KIE_MAX = 100 * 1024 * 1024;
+
+async function sendToKie(file: File, onProgress?: ProgressFn): Promise<Uploaded> {
+  if (file.size > KIE_MAX) throw new Error(`Fichier trop lourd (${Math.round(file.size / 1e6)} Mo). Limite : 100 Mo.`);
+  const form = new FormData();
+  form.append("file", file, file.name);
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const { status, body: reply } = await request("/api/kie/upload", form, null, (loaded, total) => onProgress?.(loaded / total));
+      if (status >= 200 && status < 300 && reply.url) {
+        return { name: reply.name ?? file.name, url: reply.url, size: reply.size ?? file.size };
+      }
+      if (transient(status) && attempt < 3) throw new Lost(`Envoi refusé (HTTP ${status}).`);
+      throw refusal(status, reply);
+    } catch (e) {
+      if (!(e instanceof Lost) || attempt >= 3) throw e;
+      onProgress?.(0, "Connexion instable, nouvel essai…");
+      await new Promise((r) => setTimeout(r, 2000 * attempt));
+    }
+  }
+}
+
 export async function uploadFile(file: File, onProgress?: ProgressFn): Promise<Uploaded> {
+  if (viaKie) return sendToKie(file, onProgress);
   // Gros rush : par morceaux, seule facon de passer Cloudflare (voir CHUNKED_FROM).
   if (file.size > CHUNKED_FROM) return sendChunked(file, onProgress);
   const small = file.size <= MULTIPART_MAX;
