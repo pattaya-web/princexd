@@ -45,7 +45,7 @@ function followUpView(f: FollowUp, today: string): CrmFollowUp {
   const tomorrow = parisDay(1);
   const bucket: FollowUpBucket = day < today ? "overdue" : day === today ? "today" : day === tomorrow ? "tomorrow" : "later";
   const lastMsg = [...(f.log ?? [])].reverse().find((e) => e.kind === "contact" || e.kind === "note");
-  return { id: f.id, dueAt: f.dueAt, notes: f.notes, step: f.step, lastContactAt: f.lastContactAt ?? "", lastMessage: lastMsg?.note ?? "", bucket };
+  return { id: f.id, dueAt: f.dueAt, notes: f.notes, step: f.step, heat: f.heat, lastContactAt: f.lastContactAt ?? "", lastMessage: lastMsg?.note ?? "", bucket };
 }
 
 const money = (n: number, currency: string) => `${Math.round(n).toLocaleString("fr-FR")} ${currency === "EUR" ? "€" : currency}`;

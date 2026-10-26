@@ -241,8 +241,12 @@ export function readableProviderError(provider: StudioJob["provider"], raw: stri
     why = cfg ? `durée de vidéo hors limites (${cfg.minDurationSec}–${cfg.maxDurationSec} s).` : "durée hors limites.";
   } else if (m.includes("size") || m.includes("large")) {
     why = "fichier trop lourd.";
-  } else if (m.includes("insufficient") || m.includes("credit")) {
-    why = "crédits KIE insuffisants.";
+  } else if (m.includes("insufficient") || m.includes("credit") || m.includes("balance is too low") || m.includes("top up")) {
+    // Genjutsu est facture par Higgsfield en dollars : le solde KIE n'y est pour rien.
+    why =
+      provider === "genjutsu"
+        ? "solde Higgsfield insuffisant (facturé par Higgsfield, pas en crédits KIE : recharge sur console.higgsfield.ai, puis « Réessayer »)."
+        : "crédits KIE insuffisants.";
   } else if (m.includes("nsfw") || m.includes("sensitive") || m.includes("policy")) {
     why = "contenu refusé par le filtre du modèle.";
   } else if (m.includes("timeout") || m.includes("timed out")) {

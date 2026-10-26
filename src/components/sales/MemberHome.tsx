@@ -9,7 +9,7 @@ import { OffersCard } from "./OffersCard";
 import { TelegramCard } from "./TelegramCard";
 import { InstallmentAlerts } from "./InstallmentAlerts";
 import { useEffect } from "react";
-import type { WorkSession } from "@/lib/types";
+import { LINK_CHANNELS, LINK_CHANNEL_LABEL, type LinkChannel, type WorkSession } from "@/lib/types";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { Card, Empty, ErrorNote, Field, Modal, Spinner, useToast } from "@/components/ui";
 import { ConfirmationSelect, IgHandle, StatusBadge } from "./bits";
@@ -664,7 +664,7 @@ function DailyTasks({ version }: { version: number }) {
   );
 }
 
-/* -------------------- Prospects envoyés vers le calendrier -------------------- */
+/* ------------------------------ Liens envoyés ------------------------------ */
 
 interface Declared {
   id: string;
@@ -672,17 +672,24 @@ interface Declared {
   igUsername: string;
   phone: string;
   email: string;
+  setterName: string;
   declaredAt: string;
+  via: LinkChannel | "";
+  why: string;
   appointmentAt: string;
   appointmentStatus: string;
   closerName: string;
 }
 
+type DeclaredFilter = "all" | "pending" | "booked";
+
 /**
- * Le setter declare a qui il a envoye le lien du calendrier. Quand la
- * reservation iClosed arrive, le tool la rapproche (pseudo Instagram du
- * questionnaire, email, telephone, nom) et le rendez-vous lui est attribue :
- * la ligne passe de « en attente » a la date du call.
+ * Les liens de calendrier envoyes par le setter : a qui, quand, comment,
+ * pourquoi, et ce que c'est devenu. Quand la reservation iClosed arrive, le
+ * tool la rapproche (pseudo Instagram du questionnaire, email, telephone,
+ * nom) et le rendez-vous lui est attribue : la ligne passe de « en attente »
+ * a « a réservé », puis suit le call (fait, closé, no-show…). On declare ici
+ * (prospect Instagram) ou depuis la liste Leads (bouton « Lien envoyé »).
  */
 function DeclaredProspects({ version, onChanged }: { version: number; onChanged: () => void }) {
   const toast = useToast();
@@ -691,23 +698,31 @@ function DeclaredProspects({ version, onChanged }: { version: number; onChanged:
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [note, setNote] = useState("");
+  const [via, setVia] = useState<LinkChannel>("instagram");
+  const [why, setWhy] = useState("");
   const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState<DeclaredFilter>("all");
+  const [showAll, setShowAll] = useState(false);
   const { data, reload } = useSalesData<{ declared: Declared[] }>(`/api/sales/leads?declared=1&v=${version}`);
   const rows = data?.declared ?? [];
   const pending = rows.filter((r) => !r.appointmentAt);
+  const booked = rows.filter((r) => Boolean(r.appointmentAt));
+  const rate = rows.length ? Math.round((booked.length / rows.length) * 100) : 0;
+  const list = filter === "pending" ? pending : filter === "booked" ? booked : rows;
+  const shown = showAll ? list : list.slice(0, 12);
+  const dayMs = 86_400_000;
 
   const submit = async () => {
     setBusy(true);
     try {
-      await api("/api/sales/leads", { method: "POST", body: JSON.stringify({ igUsername: ig, name, phone, email, note }) });
+      await api("/api/sales/leads", { method: "POST", body: JSON.stringify({ igUsername: ig, name, phone, email, via, why }) });
       toast("Noté. Dès qu'il réserve, le rendez-vous te sera attribué.");
       setAdding(false);
       setIg("");
       setName("");
       setPhone("");
       setEmail("");
-      setNote("");
+      setWhy("");
       void reload();
       onChanged();
     } catch (e) {
@@ -717,10 +732,16 @@ function DeclaredProspects({ version, onChanged }: { version: number; onChanged:
     }
   };
 
+  const chip = (key: DeclaredFilter, label: string, n: number) => (
+    <button type="button" className={`btn btn-sm !h-[26px] !text-[11.5px] ${filter === key ? "btn-primary" : ""}`} onClick={() => setFilter(key)}>
+      {label} <span className="num">{n}</span>
+    </button>
+  );
+
   return (
     <Card
-      title="Prospects à qui j'ai envoyé le calendrier"
-      subtitle="Déclare chaque prospect Instagram à qui tu envoies le lien : quand il réserve, le rendez-vous t'est attribué automatiquement."
+      title="Liens envoyés · à qui, comment, pourquoi"
+      subtitle="Chaque lien de calendrier que tu envoies, et ce qu'il devient : en attente, a réservé, call fait, closé."
       padded={false}
       actions={
         <button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
@@ -728,36 +749,78 @@ function DeclaredProspects({ version, onChanged }: { version: number; onChanged:
         </button>
       }
     >
+      {rows.length > 0 && (
+        <div className="px-3.5 py-2 flex items-center gap-1.5 flex-wrap" style={{ borderBottom: "1px solid var(--border)" }}>
+          {chip("all", "Tous", rows.length)}
+          {chip("pending", "En attente", pending.length)}
+          {chip("booked", "Ont réservé", booked.length)}
+          <span className="dim text-[11.5px] ml-auto num">
+            {booked.length}/{rows.length} ont réservé · {rate} %
+          </span>
+        </div>
+      )}
       {!rows.length ? (
         <Empty>
-          Personne pour l&apos;instant. Dès que tu envoies ton lien à quelqu&apos;un sur Instagram, note-le ici avec son
-          pseudo.
+          Personne pour l&apos;instant. Dès que tu envoies ton lien à quelqu&apos;un (Instagram, WhatsApp…), note-le ici, ou
+          clique « Lien envoyé » sur le lead dans la liste Leads.
         </Empty>
+      ) : !shown.length ? (
+        <Empty>Rien dans ce filtre.</Empty>
       ) : (
         <ul>
-          {rows.slice(0, 12).map((r, i) => (
-            <li
-              key={r.id}
-              className="px-3.5 py-2.5 flex items-center gap-3 flex-wrap"
-              style={{ borderBottom: i < Math.min(rows.length, 12) - 1 ? "1px solid var(--border)" : "none" }}
-            >
-              <span className="min-w-0 flex-1 basis-[200px]">
-                <span className="block text-[13px] font-medium truncate">{r.name}</span>
-                <span className="dim text-[11.5px]">
-                  {r.igUsername ? <IgHandle username={r.igUsername} muted /> : null}
-                  {r.igUsername ? " · " : ""}envoyé {relative(r.declaredAt)}
+          {shown.map((r, i) => {
+            const waiting = !r.appointmentAt;
+            const sinceDays = Math.floor((Date.now() - Date.parse(r.declaredAt)) / dayMs);
+            return (
+              <li key={r.id} className="px-3.5 py-2.5 flex items-start gap-3 flex-wrap" style={{ borderBottom: i < shown.length - 1 ? "1px solid var(--border)" : "none" }}>
+                <span className="min-w-0 flex-1 basis-[220px]">
+                  <span className="block text-[13px] font-medium truncate">
+                    {r.name}
+                    {r.igUsername ? (
+                      <span className="dim font-normal text-[11.5px]">
+                        {" "}
+                        · <IgHandle username={r.igUsername} muted />
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="dim text-[11.5px] block">
+                    Envoyé {relative(r.declaredAt)} · {fmtDualDateTime(r.declaredAt)}
+                    {r.via ? ` · ${LINK_CHANNEL_LABEL[r.via]}` : ""}
+                    {r.phone ? ` · ${r.phone}` : ""}
+                  </span>
+                  {r.why && (
+                    <span className="block text-[12px] mt-0.5 whitespace-pre-wrap" style={{ color: "var(--text-2)" }}>
+                      Pourquoi : {r.why}
+                    </span>
+                  )}
                 </span>
-              </span>
-              {r.appointmentAt ? (
-                <span className="text-[12px] font-medium" style={{ color: "var(--emerald)" }}>
-                  ✓ Call le {fmtDualDateTime(r.appointmentAt)}{r.closerName ? ` avec ${r.closerName}` : ""}
+                <span className="shrink-0 flex flex-col items-end gap-1">
+                  {waiting ? (
+                    <>
+                      <span className="badge badge-warn !text-[10.5px] !py-0">en attente de réservation</span>
+                      {sinceDays >= 2 && <span className="text-[11px]" style={{ color: "var(--warning)" }}>{sinceDays} j sans réservation · relance-le</span>}
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-[12px] font-medium" style={{ color: "var(--emerald)" }}>
+                        ✓ A réservé · call le {fmtDualDateTime(r.appointmentAt)}
+                        {r.closerName ? ` avec ${r.closerName}` : ""}
+                      </span>
+                      {r.appointmentStatus && <StatusBadge status={r.appointmentStatus as AppointmentRow["status"]} />}
+                    </>
+                  )}
                 </span>
-              ) : (
-                <span className="badge badge-warn !text-[10.5px] !py-0">en attente de réservation</span>
-              )}
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
+      )}
+      {list.length > 12 && (
+        <div className="px-3.5 py-2 text-center" style={{ borderTop: "1px solid var(--border)" }}>
+          <button type="button" className="link text-[12px]" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? "Réduire" : `Voir tout (${list.length})`}
+          </button>
+        </div>
       )}
       {pending.length > 0 && (
         <div className="dim text-[11.5px] px-3.5 py-2" style={{ borderTop: "1px solid var(--border)" }}>
@@ -794,8 +857,17 @@ function DeclaredProspects({ version, onChanged }: { version: number; onChanged:
           <Field label="Email (optionnel)">
             <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
-          <Field label="Note pour le closer (optionnel)" className="sm:col-span-2">
-            <textarea className="input w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ce qu'il cherche, son budget, son objection…" />
+          <Field label="Comment" className="sm:col-span-2">
+            <div className="flex gap-1.5 flex-wrap">
+              {LINK_CHANNELS.map((c) => (
+                <button key={c} type="button" className={`btn btn-sm ${via === c ? "btn-primary" : ""}`} onClick={() => setVia(c)}>
+                  {LINK_CHANNEL_LABEL[c]}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Pourquoi (ce qu'il cherche, son contexte)" hint="Repris dans ta liste et dans les notes du closer." className="sm:col-span-2">
+            <textarea className="input w-full" rows={2} value={why} onChange={(e) => setWhy(e.target.value)} placeholder="Veut lancer une boutique, budget, objection, dispo…" />
           </Field>
         </div>
       </Modal>

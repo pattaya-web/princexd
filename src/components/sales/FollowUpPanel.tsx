@@ -5,7 +5,7 @@ import { api } from "@/lib/client";
 import { fmtDateTime, fmtDualDateTime, label, relative } from "@/lib/format";
 import { useToast } from "@/components/ui";
 import { SlotPicker } from "./bits";
-import type { FollowUp } from "@/lib/types";
+import { FOLLOWUP_HEATS, FOLLOWUP_HEAT_ICON, FOLLOWUP_HEAT_LABEL, type FollowUp, type FollowUpHeat } from "@/lib/types";
 
 /** Reports rapides : +1, +2, +3, +5 jours, +1 et +2 semaines. */
 const QUICK: { label: string; days: number }[] = [
@@ -30,6 +30,21 @@ function plusDays(from: string, days: number): string {
 }
 
 const KIND_ICON = { contact: "✉", reschedule: "↻", note: "✎", status: "✓" } as const;
+const HEAT_COLOR: Record<FollowUpHeat, string> = { hot: "var(--critical)", warm: "var(--warning)", cold: "var(--accent)" };
+
+/** Choix de la chaleur du prospect : chaud, tiede, froid, ou rien. */
+function HeatPicker({ value, onChange }: { value: FollowUpHeat | ""; onChange: (h: FollowUpHeat | "") => void }) {
+  return (
+    <div className="flex gap-1 items-center flex-wrap">
+      <span className="dim text-[11px]">Il est :</span>
+      {FOLLOWUP_HEATS.map((h) => (
+        <button key={h} type="button" className={`btn btn-sm !h-[26px] ${value === h ? "btn-primary" : ""}`} onClick={() => onChange(value === h ? "" : h)}>
+          {FOLLOWUP_HEAT_ICON[h]} {FOLLOWUP_HEAT_LABEL[h]}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Les relances d'un rendez-vous, modifiables : date (report rapide ou
@@ -42,6 +57,8 @@ export function FollowUpPanel({ appointmentId, followUps, canEdit, onChanged }: 
   const [editing, setEditing] = useState<string | null>(null);
   const [slot, setSlot] = useState("");
   const [notes, setNotes] = useState("");
+  const [heat, setHeat] = useState<FollowUpHeat | "">("");
+  const [newHeat, setNewHeat] = useState<FollowUpHeat | "">("");
   const [msg, setMsg] = useState<Record<string, string>>({});
   const [adding, setAdding] = useState(false);
   const [newAt, setNewAt] = useState("");
@@ -93,11 +110,12 @@ export function FollowUpPanel({ appointmentId, followUps, canEdit, onChanged }: 
     if (!newAt) return toast("Choisis la date de la relance.", "err");
     setBusy("new");
     try {
-      await api("/api/sales/followups", { method: "POST", body: JSON.stringify({ appointmentId, dueAt: newAt, notes: newNotes.trim() }) });
+      await api("/api/sales/followups", { method: "POST", body: JSON.stringify({ appointmentId, dueAt: newAt, notes: newNotes.trim(), heat: newHeat || undefined }) });
       toast(`Relance programmée : ${fmtDualDateTime(newAt)}.`);
       setAdding(false);
       setNewAt("");
       setNewNotes("");
+      setNewHeat("");
       onChanged();
     } catch (e) {
       toast((e as Error).message, "err");
@@ -152,7 +170,8 @@ export function FollowUpPanel({ appointmentId, followUps, canEdit, onChanged }: 
             ))}
           </div>
           <SlotPicker value={newAt} onChange={setNewAt} compact />
-          <input className="input !h-[32px] !text-[12.5px]" value={newNotes} placeholder="Quoi relancer : « attend l'accord de son associé », « renvoyer le lien »…" onChange={(e) => setNewNotes(e.target.value)} />
+          <HeatPicker value={newHeat} onChange={setNewHeat} />
+          <input className="input !h-[32px] !text-[12.5px]" value={newNotes} placeholder="Ce qu'il a dit : « attend l'accord de son associé », « renvoyer le lien »…" onChange={(e) => setNewNotes(e.target.value)} />
           <div className="flex gap-1.5 justify-end">
             <button className="btn btn-sm" onClick={() => setAdding(false)} disabled={busy === "new"}>Annuler</button>
             <button className="btn btn-sm btn-primary" onClick={() => void create()} disabled={busy === "new" || !newAt}>
@@ -176,6 +195,11 @@ export function FollowUpPanel({ appointmentId, followUps, canEdit, onChanged }: 
                   <div className="text-[12.5px] font-semibold num" style={{ color: tone }}>
                     {fmtDualDateTime(f.dueAt)}
                     <span className="dim font-normal"> · {relative(f.dueAt)}</span>
+                    {f.heat && (
+                      <span className="badge !text-[10px] !py-0 ml-2" style={{ color: HEAT_COLOR[f.heat], borderColor: `color-mix(in srgb, ${HEAT_COLOR[f.heat]} 40%, transparent)` }}>
+                        {FOLLOWUP_HEAT_ICON[f.heat]} {FOLLOWUP_HEAT_LABEL[f.heat]}
+                      </span>
+                    )}
                     {f.step === 1 && <span className="badge !text-[10px] !py-0 ml-2">Relance 1/2</span>}
                     {f.step === 2 && <span className="badge badge-warn !text-[10px] !py-0 ml-2">Dernière relance</span>}
                     {overdue && <span className="badge badge-danger !text-[10px] !py-0 ml-2">en retard</span>}
@@ -202,6 +226,7 @@ export function FollowUpPanel({ appointmentId, followUps, canEdit, onChanged }: 
                         setEditing(f.id);
                         setSlot(f.dueAt);
                         setNotes(f.notes);
+                        setHeat(f.heat ?? "");
                       }}
                     >
                       ✎ Modifier
@@ -221,7 +246,8 @@ export function FollowUpPanel({ appointmentId, followUps, canEdit, onChanged }: 
                     ))}
                   </div>
                   <SlotPicker value={slot} onChange={setSlot} compact />
-                  <textarea className="textarea !min-h-[60px] !text-[12.5px]" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes de la relance" />
+                  <HeatPicker value={heat} onChange={setHeat} />
+                  <textarea className="textarea !min-h-[60px] !text-[12.5px]" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ce qu'il a dit pendant le call" />
                   <div className="flex gap-1.5 justify-between flex-wrap">
                     <span className="flex gap-1.5">
                       {f.status === "pending" ? (
@@ -239,7 +265,7 @@ export function FollowUpPanel({ appointmentId, followUps, canEdit, onChanged }: 
                       <button
                         className="btn btn-sm btn-primary"
                         disabled={busy === f.id || !slot}
-                        onClick={() => void patch(f.id, { dueAt: slot, notes }, slot !== f.dueAt ? `Relance reportée au ${fmtDualDateTime(slot)}.` : "Relance mise à jour.").then(() => setEditing(null))}
+                        onClick={() => void patch(f.id, { dueAt: slot, notes, heat }, slot !== f.dueAt ? `Relance reportée au ${fmtDualDateTime(slot)}.` : "Relance mise à jour.").then(() => setEditing(null))}
                       >
                         {busy === f.id ? <span className="spinner" /> : "Enregistrer"}
                       </button>

@@ -510,8 +510,12 @@ export interface Lead {
   callbackAt?: string;
   /** Relance prevue par le setter apres un message (ISO) : le lead revient dans la liste a cette date. */
   followUpAt?: string;
-  /** Declare par un setter (« j'ai envoye le lien du calendrier ») : date de la declaration. */
+  /** Declare par un setter (« j'ai envoye le lien du calendrier ») : date du dernier envoi. */
   declaredAt?: string;
+  /** Comment le lien a ete envoye (DM Instagram, WhatsApp, SMS…). */
+  declaredVia?: LinkChannel;
+  /** Pourquoi : ce que le prospect cherche, le contexte de l'envoi. */
+  declaredWhy?: string;
   /* --- Regle de reprise (2026-10-14) : une conversation sans action d'un setter
    *     pendant `salesTakeoverMin` minutes peut etre reprise par un autre. --- */
   /** Moment ou le setter actuel a pris le lead (premier appel, ou reprise). */
@@ -2217,7 +2221,27 @@ export interface FollowUp {
   lastContactAt?: string;
   /** Sequence : 1 = premiere relance (J+1), 2 = derniere relance (J+3). Sans valeur : relance libre. */
   step?: 1 | 2;
+  /** Temperature du prospect a la sortie du call : chaud, tiede, froid. */
+  heat?: FollowUpHeat;
 }
+
+/** Canal par lequel un setter a envoye le lien du calendrier. */
+export type LinkChannel = "instagram" | "whatsapp" | "sms" | "email" | "phone" | "other";
+export const LINK_CHANNELS: LinkChannel[] = ["instagram", "whatsapp", "sms", "email", "phone", "other"];
+export const LINK_CHANNEL_LABEL: Record<LinkChannel, string> = {
+  instagram: "DM Instagram",
+  whatsapp: "WhatsApp",
+  sms: "SMS",
+  email: "Email",
+  phone: "Au téléphone",
+  other: "Autre",
+};
+
+/** Chaleur d'un prospect en attente : ce qu'on note en statuant le call. */
+export type FollowUpHeat = "hot" | "warm" | "cold";
+export const FOLLOWUP_HEATS: FollowUpHeat[] = ["hot", "warm", "cold"];
+export const FOLLOWUP_HEAT_LABEL: Record<FollowUpHeat, string> = { hot: "Chaud", warm: "Tiède", cold: "Froid" };
+export const FOLLOWUP_HEAT_ICON: Record<FollowUpHeat, string> = { hot: "🔥", warm: "🌤", cold: "❄️" };
 
 export interface FollowUpLog {
   at: string;

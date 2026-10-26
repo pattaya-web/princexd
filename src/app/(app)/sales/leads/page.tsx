@@ -14,7 +14,7 @@ import { renderTemplate, sortedTemplates, waLink } from "@/lib/sales/templates";
 import type { CallBucket, CallLeadRow } from "@/app/api/sales/leads/route";
 import { fmtIdle } from "@/lib/sales/takeover";
 import type { PublicMember } from "@/lib/sales/repo";
-import type { LeadCallStatus, MessageTemplate, SalesFunnel, SourceChannel } from "@/lib/types";
+import { LINK_CHANNELS, LINK_CHANNEL_LABEL, type LeadCallStatus, type LinkChannel, type MessageTemplate, type SalesFunnel, type SourceChannel } from "@/lib/types";
 
 /* ------------------------------- Couleurs ------------------------------ */
 
@@ -207,6 +207,8 @@ export default function LeadsPage() {
   const [booking, setBooking] = useState<CallLeadRow | null>(null);
   const [callbackFor, setCallbackFor] = useState<CallLeadRow | null>(null);
   const [cancelPending, setCancelPending] = useState(false);
+  /* « Lien envoyé » : a qui, comment, pourquoi — la ligne entre dans la liste « Liens envoyés » du setter. */
+  const [linkFor, setLinkFor] = useState<CallLeadRow | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [busy, setBusy] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
@@ -746,6 +748,9 @@ export default function LeadsPage() {
                                         📋 Script
                                       </button>
                                     )}
+                                    <button className="btn btn-sm !h-[32px]" disabled={isBusy} onClick={() => setLinkFor(l)} title="J'ai envoyé mon lien de calendrier à ce lead : noter comment et pourquoi. Quand il réserve, le rendez-vous m'est attribué.">
+                                      🔗 Lien envoyé
+                                    </button>
                                     <button className="btn btn-sm !h-[32px]" disabled={isBusy} onClick={() => choose(l, "callback")}>
                                       ⏰ À rappeler
                                     </button>
@@ -812,6 +817,26 @@ export default function LeadsPage() {
       )}
 
 
+      {linkFor && (
+        <LinkSentModal
+          lead={linkFor}
+          onClose={() => setLinkFor(null)}
+          onPick={async (via, why) => {
+            const l = linkFor;
+            setLinkFor(null);
+            setBusy(l.id);
+            try {
+              await api(`/api/sales/leads/${l.id}`, { method: "PATCH", body: JSON.stringify({ action: "link-sent", via, why }) });
+              toast(`Lien noté pour ${l.name}. Tu le retrouves dans « Liens envoyés » sur ton accueil ; sa réservation te sera attribuée.`);
+              refresh();
+            } catch (e) {
+              toast((e as Error).message, "err");
+            } finally {
+              setBusy("");
+            }
+          }}
+        />
+      )}
       {callbackFor && (
         <CallbackModal
           lead={callbackFor}
@@ -981,6 +1006,59 @@ function FunnelsModal({ funnels, reoptinFunnel, onClose, onSaved }: { funnels: S
         <p className="dim text-[12px] mt-2">
           Un contact déjà inscrit chez Systeme.io qui se réinscrit (par exemple via la pub) arrive par le webhook avec l&apos;URL de sa première inscription, pas celle du jour. Pour avoir la page exacte, ajoute dans le funnel Systeme.io une règle d&apos;automatisation « formulaire d&apos;étape soumis → envoyer un webhook » vers <span className="mono">/api/webhooks/systemeio</span> : ce réglage ne sert alors plus.
         </p>
+      </div>
+    </Modal>
+  );
+}
+
+/* ------------------------------ Lien envoyé ------------------------------ */
+
+/** « J'ai envoyé mon lien à ce lead » : comment, et pourquoi (ce qu'il cherche). */
+function LinkSentModal({ lead, onClose, onPick }: { lead: CallLeadRow; onClose: () => void; onPick: (via: LinkChannel, why: string) => Promise<void> }) {
+  const [via, setVia] = useState<LinkChannel>(lead.phone ? "whatsapp" : "instagram");
+  const [why, setWhy] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Lien envoyé à ${lead.name}`}
+      footer={
+        <>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Annuler
+          </button>
+          <button
+            className="btn btn-primary"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await onPick(via, why.trim());
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? <span className="spinner" /> : "Noter l'envoi"}
+          </button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <Field label="Comment">
+          <div className="flex gap-1.5 flex-wrap">
+            {LINK_CHANNELS.map((c) => (
+              <button key={c} type="button" className={`btn btn-sm ${via === c ? "btn-primary" : ""}`} onClick={() => setVia(c)}>
+                {LINK_CHANNEL_LABEL[c]}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <Field label="Pourquoi (ce qu'il cherche, son contexte)" hint="Repris dans ta liste « Liens envoyés » et dans les notes du closer.">
+          <textarea className="input w-full" rows={3} value={why} onChange={(e) => setWhy(e.target.value)} placeholder="Veut lancer une boutique mode, budget 2 000 €, dispo le soir…" autoFocus />
+        </Field>
+        <div className="dim text-[12px]">Rien n&apos;est envoyé par l&apos;outil : tu notes ce que tu as déjà fait. Quand il réserve avec ton lien, le rendez-vous t&apos;est attribué et la ligne passe « a réservé ».</div>
       </div>
     </Modal>
   );

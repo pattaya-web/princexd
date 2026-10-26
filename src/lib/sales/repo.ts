@@ -14,6 +14,7 @@
 import { newId, readDB, writeDB } from "../db";
 import { fmtDualDateTime } from "../format";
 import { buildSchedule, mergePaid } from "./installments";
+import { FOLLOWUP_HEAT_LABEL } from "../types";
 import type {
   ActivityLog,
   Appointment,
@@ -25,6 +26,7 @@ import type {
   CommissionRule,
   DB,
   FollowUp,
+  FollowUpHeat,
   Lead,
   LostReason,
   PaymentType,
@@ -306,7 +308,7 @@ export interface OutcomeInput {
     paymentUnspecified?: boolean;
   };
   /** Renseigne pour un follow-up ou une reprogrammation. */
-  followUp?: { dueAt: string; notes: string; closerId?: string };
+  followUp?: { dueAt: string; notes: string; closerId?: string; heat?: FollowUpHeat };
   /** Nouvelle date, pour une reprogrammation. */
   rescheduledAt?: string;
   /** Recap post-call (closé, pitché, infos, budget, action a venir). */
@@ -426,6 +428,7 @@ export function recordOutcome(session: Session, id: string, input: OutcomeInput)
       createdBy: session.memberId,
       createdAt: now,
       completedAt: "",
+      ...(input.followUp.heat ? { heat: input.followUp.heat } : {}),
     };
     db.followUps.unshift(followUp);
     log(db, session, {
@@ -735,7 +738,7 @@ export function completeFollowUp(session: Session, id: string, status: FollowUp[
 export function updateFollowUp(
   session: Session,
   id: string,
-  patch: { status?: FollowUp["status"]; dueAt?: string; notes?: string; note?: string; contact?: boolean },
+  patch: { status?: FollowUp["status"]; dueAt?: string; notes?: string; note?: string; contact?: boolean; heat?: FollowUpHeat | "" },
 ): FollowUp {
   const db = readDB();
   const fu = db.followUps.find((f) => f.id === id);
@@ -764,6 +767,11 @@ export function updateFollowUp(
   if (patch.notes !== undefined && patch.notes !== fu.notes) {
     fu.notes = patch.notes.slice(0, 2000);
     summaries.push("notes modifiées");
+  }
+  if (patch.heat !== undefined && (patch.heat || undefined) !== fu.heat) {
+    if (patch.heat) fu.heat = patch.heat;
+    else delete fu.heat;
+    summaries.push(patch.heat ? `prospect ${FOLLOWUP_HEAT_LABEL[patch.heat].toLowerCase()}` : "chaleur retirée");
   }
   if (patch.note?.trim()) {
     const note = patch.note.trim().slice(0, 500);
@@ -1096,6 +1104,8 @@ export interface QuickOutcomeInput {
   lostReason?: LostReason | "";
   /** Relance (« en attente ») : date ISO ; vide = dans deux jours. */
   followUpAt?: string;
+  /** Relance : chaleur du prospect a la sortie du call. */
+  heat?: FollowUpHeat;
   /** Reprogrammation : nouvelle date ISO du call. */
   rescheduledAt?: string;
   /** Closer a qui rattacher le call (admin) ; un closer est rattache a lui-meme. */
@@ -1175,7 +1185,7 @@ export function quickOutcome(session: Session, leadId: string, input: QuickOutco
     closerNotes: input.note?.trim() ? input.note.trim() : undefined,
     lostReason: input.status === "closed-lost" ? input.lostReason || "other" : "",
     sale: input.status === "closed-won" ? input.sale : undefined,
-    followUp: input.status === "follow-up" ? { dueAt: input.followUpAt || new Date(Date.now() + 2 * 86_400_000).toISOString(), notes: input.note?.trim() ?? "", closerId } : undefined,
+    followUp: input.status === "follow-up" ? { dueAt: input.followUpAt || new Date(Date.now() + 2 * 86_400_000).toISOString(), notes: input.note?.trim() ?? "", closerId, heat: input.heat } : undefined,
     rescheduledAt: input.status === "rescheduled" ? input.rescheduledAt : undefined,
   };
   // Le recap garde ce qui a deja ete note ; « pitche » est acquis des qu'on a parle au lead.

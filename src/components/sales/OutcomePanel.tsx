@@ -7,7 +7,7 @@ import { addDays, addMonths, buildSchedule, DEFAULT_EXPECTED_DAYS, PAYMENT_STATE
 import { Field, useToast } from "@/components/ui";
 import { StatusBadge } from "./bits";
 import { useSales } from "./context";
-import type { AppointmentStatus, Sale } from "@/lib/types";
+import { FOLLOWUP_HEATS, FOLLOWUP_HEAT_ICON, FOLLOWUP_HEAT_LABEL, type AppointmentStatus, type FollowUpHeat, type Sale } from "@/lib/types";
 
 /* ------------------------------- Couleurs -------------------------------- */
 
@@ -106,6 +106,8 @@ export function OutcomePanel({
   /* Perdu / en attente / reprogrammé / rappel */
   const [reason, setReason] = useState("need-to-think");
   const [followUpAt, setFollowUpAt] = useState(isoToParisInput(new Date(Date.now() + 2 * 86_400_000)));
+  /* Chaleur du prospect en sortant du call : affichee dans la cloche au moment de le relancer. */
+  const [heat, setHeat] = useState<FollowUpHeat>("hot");
   const [rescheduledAt, setRescheduledAt] = useState(isoToParisInput(new Date(Date.now() + 86_400_000)));
   const [callbackAt, setCallbackAt] = useState(isoToParisInput(new Date(Date.now() + 86_400_000)));
   /* Encaissement libre */
@@ -161,7 +163,7 @@ export function OutcomePanel({
       });
       const msg: Record<CallStatus, string> = {
         completed: "Show noté : call fait, pas encore de décision.",
-        "follow-up": "En attente : relance programmée.",
+        "follow-up": "Relance programmée : elle remontera dans la cloche le jour J.",
         "closed-won": r.sale ? `Closé ✓ ${fmtMoney(r.sale.contractValue, r.sale.currency)}.` : "Closé ✓",
         "no-show": "No-show noté.",
         "closed-lost": "Perdu noté.",
@@ -308,8 +310,8 @@ export function OutcomePanel({
           <button className={btn} disabled={busy} onClick={() => void send("completed")} title="Le prospect est venu, l'offre a été présentée, pas encore de décision">
             Show · pitché
           </button>
-          <button className={btn} disabled={busy} onClick={() => setMode(mode === "follow-up" ? "" : "follow-up")} title="En réflexion ou R2 à caler : une relance est programmée">
-            ⏳ En attente
+          <button className={btn} disabled={busy} onClick={() => setMode(mode === "follow-up" ? "" : "follow-up")} title="« Je réfléchis », « je te réponds dans deux semaines » : une relance est programmée, elle remontera dans la cloche le jour J">
+            ⏳ À relancer
           </button>
           <button className={btn} disabled={busy} onClick={() => setMode(mode === "rescheduled" ? "" : "rescheduled")} title="Le call est décalé à une autre date">
             ↻ Reprogrammer
@@ -433,23 +435,49 @@ export function OutcomePanel({
       )}
 
       {mode === "follow-up" && (
-        <div className="flex items-end gap-2 flex-wrap pt-1" style={{ borderTop: "1px solid var(--border)" }}>
-          <Field label="Relancer le">
-            <input type="datetime-local" className="input !h-[34px] !w-auto" value={followUpAt} onChange={(e) => setFollowUpAt(e.target.value)} />
-          </Field>
-          <div className="flex gap-1 pb-[2px]">
-            {[1, 2, 3, 7].map((d) => (
-              <button key={d} type="button" className="btn btn-sm !h-[34px]" onClick={() => setFollowUpAt(isoToParisInput(new Date(Date.now() + d * 86_400_000)).slice(0, 10) + "T10:00")}>
-                J+{d}
-              </button>
-            ))}
+        <div className="flex flex-col gap-2 pt-1" style={{ borderTop: "1px solid var(--border)" }}>
+          <div className="flex items-end gap-2 flex-wrap">
+            <Field label="Il est">
+              <div className="flex gap-1">
+                {FOLLOWUP_HEATS.map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    className={`btn btn-sm !h-[34px] ${heat === h ? "btn-primary" : ""}`}
+                    onClick={() => setHeat(h)}
+                    title={h === "hot" ? "Chaud : il veut, il lui manque un détail" : h === "warm" ? "Tiède : intéressé, mais hésite" : "Froid : peu de chances, on relance quand même"}
+                  >
+                    {FOLLOWUP_HEAT_ICON[h]} {FOLLOWUP_HEAT_LABEL[h]}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Field label="Le rappeler le">
+              <input type="datetime-local" className="input !h-[34px] !w-auto" value={followUpAt} onChange={(e) => setFollowUpAt(e.target.value)} />
+            </Field>
+            <div className="flex gap-1 pb-[2px] flex-wrap">
+              {[
+                { label: "J+1", days: 1 },
+                { label: "J+2", days: 2 },
+                { label: "J+3", days: 3 },
+                { label: "1 sem", days: 7 },
+                { label: "2 sem", days: 14 },
+                { label: "1 mois", days: 30 },
+              ].map((d) => (
+                <button key={d.label} type="button" className="btn btn-sm !h-[34px]" onClick={() => setFollowUpAt(isoToParisInput(new Date(Date.now() + d.days * 86_400_000)).slice(0, 10) + "T10:00")}>
+                  {d.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <Field label="Note (optionnel)" className="flex-1 min-w-[180px]">
-            <input className="input !h-[34px]" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Doit en parler à sa femme, R2 jeudi…" />
-          </Field>
-          <button className="btn btn-primary !h-[34px]" disabled={busy || !followUpAt} onClick={() => void send("follow-up", { followUpAt: parisToIso(followUpAt) })}>
-            Programmer
-          </button>
+          <div className="flex items-end gap-2 flex-wrap">
+            <Field label="Ce qu'il a dit" hint="Repris tel quel dans la cloche le jour de la relance." className="flex-1 min-w-[220px]">
+              <input className="input !h-[34px]" value={note} onChange={(e) => setNote(e.target.value)} placeholder="« Je réfléchis, je te réponds dans une semaine », « doit en parler à sa femme »…" />
+            </Field>
+            <button className="btn btn-primary !h-[34px]" disabled={busy || !followUpAt} onClick={() => void send("follow-up", { followUpAt: parisToIso(followUpAt), heat })}>
+              Programmer la relance
+            </button>
+          </div>
         </div>
       )}
 

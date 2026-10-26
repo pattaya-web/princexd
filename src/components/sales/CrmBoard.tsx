@@ -13,7 +13,7 @@ import { LeadSheet } from "./LeadSheet";
 import { SourceChip } from "./AttributionBlock";
 import { TONE_COLOR } from "./OutcomePanel";
 import type { PublicMember } from "@/lib/sales/repo";
-import type { Session } from "@/lib/types";
+import { FOLLOWUP_HEAT_ICON, FOLLOWUP_HEAT_LABEL, type Session } from "@/lib/types";
 
 /* --------------------------------- Couleurs ------------------------------ */
 
@@ -82,13 +82,13 @@ export function CrmBoard({ session, members, refreshKey, onChanged }: { session:
   const { data, loading, error, reload } = useSalesData<CrmPayload>(`/api/sales/crm?v=${refreshKey}`, { every: 60_000 });
 
   // ?open=<rendez-vous> : la cloche et le dashboard arrivent ici ; ?lead=<id> ouvre la fiche du lead.
+  // Relu a chaque changement d'URL : depuis la cloche, un clic ouvre la fiche meme si on est deja sur la page.
   useEffect(() => {
     const open = params.get("open");
     const lead = params.get("lead");
     if (open) setOpenAppt(open);
     if (lead) setOpenLead(lead);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [params]);
   useEffect(() => {
     if (urlView && VIEW_KEYS.has(urlView)) setView(urlView as QuickView);
   }, [urlView]);
@@ -474,7 +474,8 @@ function LeadRow({ r, view, currency, busy, last, onStatus, onCall, onFuDone, on
   }
   if (r.followUp && view !== "payment") {
     const d = r.followUp.bucket === "overdue" ? "en retard" : r.followUp.bucket === "today" ? "aujourd'hui" : r.followUp.bucket === "tomorrow" ? "demain" : `le ${fmtDay(r.followUp.dueAt.slice(0, 10))}`;
-    if (!(view === "todo" && r.todo?.kind === "followup-overdue")) detail.push({ text: `Relance ${d}${r.followUp.notes ? ` · ${r.followUp.notes}` : ""}`, color: BUCKET_COLOR[r.followUp.bucket] });
+    const heat = r.followUp.heat ? `${FOLLOWUP_HEAT_ICON[r.followUp.heat]} ${FOLLOWUP_HEAT_LABEL[r.followUp.heat]} · ` : "";
+    if (!(view === "todo" && r.todo?.kind === "followup-overdue")) detail.push({ text: `${heat}Relance ${d}${r.followUp.notes ? ` · ${r.followUp.notes}` : ""}`, color: BUCKET_COLOR[r.followUp.bucket] });
   }
   if (r.appointmentAt && (view === "upcoming" || view === "noshow" || view === "all" || view === "lost") && !r.sale) {
     detail.push({ text: `Call ${fmtDateTime(r.appointmentAt)}${r.confirmation === "confirmed" ? " · confirmé" : r.confirmation === "awaiting" ? " · message envoyé, pas de réponse" : r.confirmation === "no-answer" ? " · pas de réponse" : view === "upcoming" ? " · à confirmer" : ""}` });

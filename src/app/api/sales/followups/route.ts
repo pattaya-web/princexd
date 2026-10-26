@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { newId, readDB, writeDB } from "@/lib/db";
 import { readSession, requireSales } from "@/lib/sales/access";
 import { handle, required } from "@/lib/sales/http";
-import type { FollowUp } from "@/lib/types";
+import { FOLLOWUP_HEATS, type FollowUp, type FollowUpHeat } from "@/lib/types";
 import { startFollowUpSequence } from "@/lib/sales/repo";
 
 export const dynamic = "force-dynamic";
@@ -103,6 +103,7 @@ export async function POST(req: NextRequest) {
       createdBy: session.memberId,
       createdAt: new Date().toISOString(),
       completedAt: "",
+      ...(FOLLOWUP_HEATS.includes(body.heat as FollowUpHeat) ? { heat: body.heat as FollowUpHeat } : {}),
     };
     db.followUps.unshift(followUp);
     db.activityLogs.unshift({

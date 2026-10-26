@@ -3,7 +3,7 @@
  * La derivation des lignes vit dans crm.ts.
  */
 
-import type { AppointmentConfirmation, AppointmentStatus, Lead, LeadCallStatus, SourceChannel } from "../types";
+import type { AppointmentConfirmation, AppointmentStatus, FollowUpHeat, Lead, LeadCallStatus, SourceChannel } from "../types";
 import type { PaymentState } from "./installments";
 
 export type QuickView = "todo" | "upcoming" | "followup" | "payment" | "closed" | "noshow" | "lost" | "all";
@@ -53,6 +53,7 @@ export interface CrmFollowUp {
   dueAt: string;
   notes: string;
   step?: 1 | 2;
+  heat?: FollowUpHeat;
   lastContactAt: string;
   lastMessage: string;
   bucket: FollowUpBucket;

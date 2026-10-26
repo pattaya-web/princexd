@@ -5,7 +5,7 @@ import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
 import { CHANNEL_LABEL } from "@/lib/sales/templates";
 import { fmtDateTime, parisDay, parisToIso } from "@/lib/format";
-import { leadIsOut, type DB, type Lead, type LeadCallStatus, type TemplateChannel } from "@/lib/types";
+import { leadIsOut, LINK_CHANNELS, LINK_CHANNEL_LABEL, type DB, type Lead, type LeadCallStatus, type LinkChannel, type TemplateChannel } from "@/lib/types";
 import { leadTimeline } from "@/lib/sales/timeline";
 import { paymentView } from "@/lib/sales/installments";
 import { fmtIdle, takeoverState } from "@/lib/sales/takeover";
@@ -43,7 +43,7 @@ function resolveMeta(db: DB, lead: Lead): LeadMeta | null {
   return out;
 }
 
-type Action = "status" | "reopen" | "attempt" | "reached" | "lost" | "note" | "assign" | "contact" | "message" | "takeover";
+type Action = "status" | "reopen" | "attempt" | "reached" | "lost" | "note" | "assign" | "contact" | "message" | "takeover" | "link-sent";
 
 const STATUSES: LeadCallStatus[] = ["no-answer", "message-sent", "callback", "reached", "not-interested", "wrong-number", "no-whatsapp", "cold"];
 
@@ -217,6 +217,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       channel?: TemplateChannel;
       /** "tomorrow" | "3d" | "none" | date-heure ISO. */
       next?: string;
+      /** Action « link-sent » : comment le lien du calendrier a ete envoye, et pourquoi. */
+      via?: string;
+      why?: string;
     };
 
     const db = readDB();
@@ -444,6 +447,35 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           lead.nextActionAt = followUpAt.slice(0, 10);
         }
         summary = `${channel} envoyé${templateName ? ` · Template : ${templateName}` : ""} · Par : ${who}${followUpAt ? ` · Relance le ${fmtDateTime(followUpAt)}` : ""}`;
+        break;
+      }
+      case "link-sent": {
+        /*
+         * « Lien envoyé » : le setter a envoye son lien de calendrier a ce
+         * lead (WhatsApp, DM, SMS…). Le lead entre dans sa liste « Liens
+         * envoyés » (accueil setter) avec le canal et le pourquoi ; quand la
+         * reservation iClosed arrive, elle s'y rapproche et la ligne passe
+         * « a réservé ». Le lead reste joint : on attend sa reservation.
+         */
+        claim();
+        const via = LINK_CHANNELS.includes(body.via as LinkChannel) ? (body.via as LinkChannel) : "whatsapp";
+        const why = (body.why ?? "").trim().slice(0, 1000);
+        lead.declaredAt = now.toISOString();
+        lead.declaredVia = via;
+        if (why) {
+          lead.declaredWhy = why;
+          if (!(lead.notes ?? "").includes(why)) lead.notes = [lead.notes, why].filter(Boolean).join("\n");
+        }
+        if (!lead.callStatus || lead.callStatus === "no-answer" || lead.callStatus === "message-sent" || lead.callStatus === "callback" || leadIsOut(lead.callStatus)) {
+          lead.callStatus = "reached";
+          lead.callbackAt = "";
+        }
+        if (lead.stage === "nouveau" || lead.stage === "contacte" || lead.stage === "closed-lost") lead.stage = "conversation";
+        lead.lastCallAt = now.toISOString();
+        lead.followUpAt = "";
+        lead.nextAction = "Attendre sa réservation";
+        lead.nextActionAt = today;
+        summary = `${who} a envoyé le lien du calendrier à ${lead.name} (${LINK_CHANNEL_LABEL[via]})${why ? ` · ${why}` : ""}`;
         break;
       }
       case "takeover":

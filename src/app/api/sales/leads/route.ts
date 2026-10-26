@@ -4,7 +4,7 @@ import { canSee, readSession, requireAdmin, requireSales } from "@/lib/sales/acc
 import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
 import { getSystemeioKey, syncSystemeio } from "@/lib/systemeio";
-import { leadIsOut, type Lead } from "@/lib/types";
+import { LINK_CHANNELS, LINK_CHANNEL_LABEL, type LinkChannel, leadIsOut, type Lead } from "@/lib/types";
 import { applyTouch, backfillMetaIds } from "@/lib/sales/attribution";
 import { takeoverDelayMin, takeoverState } from "@/lib/sales/takeover";
 
@@ -234,6 +234,8 @@ export async function GET(req: NextRequest) {
             email: l.email ?? "",
             setterName: l.setterId ? (names.get(l.setterId) ?? "—") : "",
             declaredAt: l.declaredAt ?? l.createdAt,
+            via: l.declaredVia ?? "",
+            why: l.declaredWhy ?? "",
             appointmentAt: appt?.scheduledAt ?? "",
             appointmentStatus: appt?.status ?? "",
             closerName: appt?.closerId ? (names.get(appt.closerId) ?? "") : "",
@@ -444,7 +446,7 @@ export async function DELETE(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return handle(async () => {
     const session = requireSales(readSession(req));
-    const body = (await req.json().catch(() => ({}))) as { igUsername?: string; name?: string; phone?: string; email?: string; note?: string; setterId?: string };
+    const body = (await req.json().catch(() => ({}))) as { igUsername?: string; name?: string; phone?: string; email?: string; note?: string; setterId?: string; via?: string; why?: string };
     const db = readDB();
     const setterId = session.isAdmin && body.setterId ? body.setterId : session.memberId;
     if (!setterId || !db.team.some((m) => m.id === setterId)) throw new Error("Setter introuvable.");
@@ -499,8 +501,15 @@ export async function POST(req: NextRequest) {
     }
     // Contact Instagram : premiere source s'il n'en a pas, simple interaction sinon.
     applyTouch(lead, { hint: "instagram-dm" }, now);
-    if (!lead.declaredAt) lead.declaredAt = now;
-    if (body.note?.trim()) lead.notes = [lead.notes, body.note.trim()].filter(Boolean).join("\n");
+    // Comment et pourquoi : ce que le setter retrouve dans sa liste « Liens envoyés ».
+    lead.declaredAt = now;
+    const via = LINK_CHANNELS.includes(body.via as LinkChannel) ? (body.via as LinkChannel) : "instagram";
+    lead.declaredVia = via;
+    const why = String(body.why ?? body.note ?? "").trim().slice(0, 1000);
+    if (why) {
+      lead.declaredWhy = why;
+      if (!(lead.notes ?? "").includes(why)) lead.notes = [lead.notes, why].filter(Boolean).join("\n");
+    }
     db.activityLogs.unshift({
       id: newId(),
       at: now,
@@ -509,7 +518,7 @@ export async function POST(req: NextRequest) {
       action: "lead.declared",
       entity: "lead",
       entityId: lead.id,
-      summary: `${session.memberName || "Moi"} a envoyé le lien du calendrier à ${lead.handle || lead.name}`,
+      summary: `${session.memberName || "Moi"} a envoyé le lien du calendrier à ${lead.handle || lead.name} (${LINK_CHANNEL_LABEL[via]})${why ? ` · ${why}` : ""}`,
     });
     writeDB(db);
     return { lead };

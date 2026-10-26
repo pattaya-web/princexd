@@ -5,7 +5,7 @@ import { handle, num } from "@/lib/sales/http";
 import { LOST_REASONS } from "@/lib/sales/constants";
 import { quickOutcome, type QuickOutcomeInput, type QuickOutcomeStatus } from "@/lib/sales/repo";
 import { addDays, DEFAULT_EXPECTED_DAYS, parisToday } from "@/lib/sales/installments";
-import type { LostReason, PaymentType } from "@/lib/types";
+import { FOLLOWUP_HEATS, type FollowUpHeat, type LostReason, type PaymentType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +38,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (status === "follow-up") {
       const at = typeof body.followUpAt === "string" ? new Date(body.followUpAt) : null;
       input.followUpAt = at && !Number.isNaN(at.getTime()) ? at.toISOString() : "";
+      // Chaleur du prospect : ce qu'on note en sortant du call, affichee dans la cloche.
+      const heat = body.heat as FollowUpHeat;
+      if (FOLLOWUP_HEATS.includes(heat)) input.heat = heat;
     }
 
     if (status === "rescheduled") {
