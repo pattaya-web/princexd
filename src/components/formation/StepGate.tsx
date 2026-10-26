@@ -75,7 +75,7 @@ export function StepGate({ tab, children }: { tab: GateTab; children: ReactNode 
       setGate(r);
       window.dispatchEvent(new Event(GATE_EVENT));
       if (r.preview) toast("Aperçu : la progression de l'élève n'est pas modifiée.");
-      else if (done) toast(next ? `Étape terminée. « ${next.label} » est débloqué.` : "Étape terminée. Bravo.");
+      else if (done) toast(next ? `Étape validée. Suivant : ${next.label}.` : "🚀 Campagnes lancées : 100 %. Bravo.");
     } catch (e) {
       toast((e as Error).message, "err");
     } finally {
@@ -91,7 +91,7 @@ export function StepGate({ tab, children }: { tab: GateTab; children: ReactNode 
           {me.done ? (
             <>
               <div className="text-[14.5px] font-semibold" style={{ color: "var(--good)" }}>
-                ✓ Étape terminée
+                {next ? "✓ Étape terminée" : "🚀 Campagnes lancées · 100 %"}
               </div>
               <div className="flex items-center gap-2">
                 {next && (

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { JobsDock } from "./JobsDock";
 import { NewStudentChat } from "./NewStudentChat";
 import { AlertsBell } from "./sales/AlertsBell";
-import type { GateTabState } from "@/lib/formation-gate";
+import { gateProgress, type GateTabState } from "@/lib/formation-gate";
 import { ScaleXBackdrop, ScaleXCursor, ScaleXLogo } from "./formation/ScaleXSkin";
 import { useBrollFresh } from "./BrollLibrary";
 import { usePathname } from "next/navigation";
@@ -783,6 +783,20 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="px-5 h-[60px] flex items-center shrink-0">
           {isStudent ? <ScaleXLogo height={22} /> : <Brand />}
         </div>
+        {/* Élève : sa progression, 100 % quand ses campagnes sont lancées. */}
+        {isStudent && gateTabs.length > 0 && (
+          <div className="px-5 pb-3 shrink-0" title={`${gateTabs.filter((t) => t.done).length} étape${gateTabs.filter((t) => t.done).length > 1 ? "s" : ""} sur ${gateTabs.length}`}>
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="label-xs">{gateProgress(gateTabs) === 100 ? "🚀 Lancé" : "Ta progression"}</span>
+              <span className="num font-semibold" style={{ color: gateProgress(gateTabs) === 100 ? "var(--good)" : "var(--accent)" }}>
+                {gateProgress(gateTabs)} %
+              </span>
+            </div>
+            <div className="sx-progress mt-1.5" style={{ height: 6 }}>
+              <span style={{ width: `${gateProgress(gateTabs)}%`, ...(gateProgress(gateTabs) === 100 ? { background: "var(--good)", animation: "none" } : {}) }} />
+            </div>
+          </div>
+        )}
 
         <nav className="flex-1 overflow-y-auto px-3 pb-3">
           {/*

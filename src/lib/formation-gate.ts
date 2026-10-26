@@ -21,7 +21,7 @@ export const GATE_TABS: { key: GateTab; href: string; label: string; doneLabel: 
   { key: "produit", href: "/formation/produit", label: "Recherche produit", doneLabel: "Mon produit est validé par Mady" },
   { key: "boutique", href: "/formation/boutique", label: "Création de la boutique", doneLabel: "Ma boutique est en ligne" },
   { key: "creatives", href: "/formation/creatives", label: "Créatives", doneLabel: "Mes créatives sont prêtes" },
-  { key: "meta", href: "/formation/meta", label: "Campagnes Meta", doneLabel: "Ma première campagne est lancée" },
+  { key: "meta", href: "/formation/meta", label: "Campagnes Meta", doneLabel: "Mes campagnes sont lancées 🚀" },
 ];
 
 export const isGateTab = (v: unknown): v is GateTab => GATE_TABS.some((t) => t.key === v);
@@ -35,6 +35,11 @@ export interface GateTabState {
   done: boolean;
   /** Ce qu'il manque quand c'est verrouillé : l'étape à finir avant, ou la validation de Mady. */
   blockedBy: { kind: "approval" } | { kind: "tab"; key: GateTab; href: string; label: string } | null;
+}
+
+/** Avancement de l'élève, 0 → 100 % quand « Mes campagnes sont lancées » est coché. */
+export function gateProgress(tabs: Pick<GateTabState, "done">[]): number {
+  return tabs.length ? Math.round((tabs.filter((t) => t.done).length / tabs.length) * 100) : 0;
 }
 
 export interface GateState {

@@ -8,6 +8,7 @@ import { GATE_EVENT } from "@/components/formation/StepGate";
 import type { DashboardPayload } from "@/app/api/formation/dashboard/route";
 import type { GatePayload } from "@/app/api/formation/gate/route";
 import { youtubeEmbedUrl, youtubeId } from "@/lib/formation";
+import { gateProgress } from "@/lib/formation-gate";
 
 /**
  * Accueil Scale X : la vidéo de bienvenue de Mady, puis la première étape,
@@ -66,6 +67,19 @@ export default function ScaleXDashboard() {
         <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight" style={{ letterSpacing: "-0.03em" }}>
           Bienvenue, {name}.
         </h1>
+        {gate.hasStudent && (
+          <div className="mt-3 max-w-[420px]">
+            <div className="flex items-center justify-between text-[12px]">
+              <span className="label-xs">{gateProgress(gate.tabs) === 100 ? "🚀 Campagnes lancées" : "Ta progression"}</span>
+              <span className="num font-semibold" style={{ color: gateProgress(gate.tabs) === 100 ? "var(--good)" : "var(--accent)" }}>
+                {gateProgress(gate.tabs)} %
+              </span>
+            </div>
+            <div className="sx-progress mt-1.5">
+              <span style={{ width: `${gateProgress(gate.tabs)}%`, ...(gateProgress(gate.tabs) === 100 ? { background: "var(--good)", animation: "none" } : {}) }} />
+            </div>
+          </div>
+        )}
         {data.preview && <div className="badge badge-warn w-fit !text-[11.5px] mt-3">Aperçu : tu vois Scale X comme {data.student?.name}. Rien n&apos;est enregistré.</div>}
         {data.isAdmin && !data.student && (
           <div className="flex flex-wrap gap-2 mt-3">
