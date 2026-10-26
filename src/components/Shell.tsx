@@ -495,11 +495,9 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
   {
     section: "Education",
     items: [
-      { href: "/formation", label: "Plateforme élèves", icon: "▶" },
-      { href: "/formation/modules", label: "Modules vidéo", icon: "▤" },
       { href: "/formation/eleves", label: "Accès élèves", icon: "⚿" },
+      { href: "/formation", label: "Vue élève", icon: "▶" },
       { href: "/formation/ressources", label: "Ressources (PDF)", icon: "▣" },
-      { href: "/formation/parcours", label: "Parcours & étapes", icon: "☑" },
     ],
   },
   {
@@ -555,16 +553,13 @@ const SIMPLE_NAV: typeof NAV = [
       { href: "/sales/dashboard", label: "Sales Dashboard", icon: "◎" },
       { href: "/sales/leads", label: "Leads", icon: "☏" },
       { href: "/sales/rendez-vous", label: "CRM", icon: "▤" },
-      { href: "/sales/messages", label: "Messages", icon: "✉" },
     ],
   },
   {
     section: "Élèves",
     items: [
-      { href: "/formation", label: "Scale X (plateforme)", icon: "▶" },
-      { href: "/formation/modules", label: "Modules vidéo", icon: "▤" },
-      { href: "/formation/parcours", label: "Parcours & étapes", icon: "☑" },
-      { href: "/formation/eleves", label: "Accès & suivi élèves", icon: "⚿" },
+      { href: "/formation/eleves", label: "Accès élèves", icon: "⚿" },
+      { href: "/formation", label: "Vue élève", icon: "▶" },
       { href: "/eleves/onboarding", label: "Onboarding élèves", icon: "✉" },
       { href: "/boutiques", label: "Générateur boutique", icon: "🛍" },
     ],
