@@ -6,7 +6,8 @@ import { api } from "@/lib/client";
 import { ErrorNote, Spinner, useToast } from "@/components/ui";
 import { PortalFooter, SectionLabel } from "@/components/formation/portal";
 import { DropZone } from "@/components/upload-ui";
-import { DEFAULT_THEME_PROMPT, fmtBytes } from "@/lib/formation-methode";
+import { DEFAULT_THEME_PROMPT, fmtBytes, parseVideoSteps } from "@/lib/formation-methode";
+import { youtubeEmbedUrl, youtubeId } from "@/lib/formation";
 import type { MethodPayload } from "@/app/api/formation/methode/route";
 import type { StudentMethodSettings, StudentThemeFile } from "@/lib/types";
 
@@ -120,6 +121,9 @@ export default function BoutiquePage() {
   const m = data.method;
   const zipName = data.theme?.fileName ?? "aesthetic-lab-template.zip";
   const prompt = m.themePrompt.replace("[NOM-DU-ZIP].zip", zipName);
+  const vid = youtubeId(m.shopVideoUrl);
+  const videoSteps = parseVideoSteps(m.shopVideoSteps);
+  const summaryParas = m.shopVideoSummary.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
 
   return (
     <div className="flex flex-col gap-5">
@@ -165,6 +169,18 @@ export default function BoutiquePage() {
             </div>
           )}
           <label className="flex flex-col gap-1">
+            <span className="label-xs">Vidéo « la boutique avec Claude » (lien YouTube, vide = pas de vidéo)</span>
+            <input className="input" value={draft.shopVideoUrl} onChange={(e) => setDraft({ ...draft, shopVideoUrl: e.target.value })} placeholder="https://youtu.be/…" inputMode="url" />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="label-xs">Résumé de la vidéo (sous le lecteur ; une ligne vide = nouveau paragraphe)</span>
+            <textarea className="input" rows={6} value={draft.shopVideoSummary} onChange={(e) => setDraft({ ...draft, shopVideoSummary: e.target.value })} placeholder="Ce que Mady explique dans la vidéo, en quelques phrases." />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="label-xs">Les étapes de la vidéo (une par ligne, « Titre : détail »)</span>
+            <textarea className="input" rows={8} value={draft.shopVideoSteps} onChange={(e) => setDraft({ ...draft, shopVideoSteps: e.target.value })} placeholder={"Télécharge le thème : le zip, tel quel, dans MA-BOUTIQUE\nColle le message à Claude : …"} style={{ fontFamily: "inherit" }} />
+          </label>
+          <label className="flex flex-col gap-1">
             <span className="label-xs">Ce que l&apos;élève doit savoir</span>
             <textarea className="input" rows={4} value={draft.themeNote} onChange={(e) => setDraft({ ...draft, themeNote: e.target.value })} />
           </label>
@@ -183,6 +199,63 @@ export default function BoutiquePage() {
               Remettre le message par défaut
             </button>
           </div>
+        </section>
+      )}
+
+      {/* 00 / La vidéo : Mady crée la boutique avec Claude, puis le résumé et les étapes. */}
+      {(vid || m.shopVideoUrl || summaryParas.length > 0 || videoSteps.length > 0) && (
+        <section className="card p-5">
+          <SectionLabel n="00" title="Regarde Mady créer la boutique avec Claude" />
+          <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Toute la méthode en vidéo, du zip à la boutique en ligne. Regarde-la une fois en entier, puis suis les étapes 01 à 05 ci-dessous avec ton produit.</p>
+          {vid ? (
+            <div className="relative w-full mt-4 rounded-md overflow-hidden" style={{ aspectRatio: "16 / 9", background: "#000" }}>
+              <iframe
+                key={vid}
+                className="absolute inset-0 w-full h-full"
+                src={youtubeEmbedUrl(vid)}
+                title="Créer ta boutique avec Claude Code"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          ) : m.shopVideoUrl ? (
+            <a href={m.shopVideoUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm mt-4">
+              Voir la vidéo ↗
+            </a>
+          ) : null}
+          {summaryParas.length > 0 && (
+            <div className="mt-4">
+              <div className="label-xs">En résumé</div>
+              <div className="flex flex-col gap-2 mt-2 text-[13.5px] leading-relaxed max-w-[70ch]">
+                {summaryParas.map((p, i) => (
+                  <p key={i} className="whitespace-pre-wrap">
+                    {p}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+          {videoSteps.length > 0 && (
+            <div className="mt-4">
+              <div className="label-xs">Les étapes à suivre, comme dans la vidéo</div>
+              <div className="flex flex-col mt-1">
+                {videoSteps.map((s, i) => (
+                  <div key={`${i}-${s.title}`} className="flex gap-3.5 py-3 border-b last:border-b-0" style={{ borderColor: "var(--border)" }}>
+                    <div className="shrink-0 w-[28px] h-[28px] rounded-md flex items-center justify-center text-[12.5px] font-bold" style={{ background: "var(--accent)", color: "var(--accent-on)" }}>
+                      {i + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[14px] font-semibold leading-snug">{s.title}</div>
+                      {s.text && <div className="muted text-[13px] mt-0.5 leading-relaxed">{s.text}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {data.isAdmin && summaryParas.length === 0 && videoSteps.length === 0 && (
+            <div className="dim text-[12.5px] mt-3">Le résumé et les étapes de la vidéo se remplissent avec « Modifier la page ».</div>
+          )}
         </section>
       )}
 

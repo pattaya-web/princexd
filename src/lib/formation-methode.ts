@@ -40,6 +40,9 @@ export const DEFAULT_METHOD: StudentMethodSettings = {
   themeNote:
     "Aesthetic Lab, c'est ma page qui convertit, livrée vide : les textes et les sections sont là, les médias sont des aplats gris à remplacer. Elle est parfaite : tu ne touches ni à la structure, ni au design. Tu changes seulement les textes, les images, les vidéos et le produit pour que ce soit le tien. C'est Claude Code qui fait le travail avec Shopify CLI, dans VS Code : tu lui donnes le fichier et le message ci-dessous.",
   themePrompt: DEFAULT_THEME_PROMPT,
+  shopVideoUrl: "https://youtu.be/gjm9FH_ewho",
+  shopVideoSummary: "",
+  shopVideoSteps: "",
 };
 
 export function methodSettings(settings: Pick<Settings, "studentMethod">): StudentMethodSettings {
@@ -51,7 +54,23 @@ export function methodSettings(settings: Pick<Settings, "studentMethod">): Stude
     productNote: (s.productNote ?? "").trim() || DEFAULT_METHOD.productNote,
     themeNote: (s.themeNote ?? "").trim() || DEFAULT_METHOD.themeNote,
     themePrompt: (s.themePrompt ?? "").trim() || DEFAULT_THEME_PROMPT,
+    // Vide enregistre = pas de video : l'admin peut la retirer sans que la valeur par defaut revienne.
+    shopVideoUrl: s.shopVideoUrl === undefined ? DEFAULT_METHOD.shopVideoUrl : s.shopVideoUrl.trim(),
+    shopVideoSummary: (s.shopVideoSummary ?? "").trim() || DEFAULT_METHOD.shopVideoSummary,
+    shopVideoSteps: (s.shopVideoSteps ?? "").trim() || DEFAULT_METHOD.shopVideoSteps,
   };
+}
+
+/** Les etapes de la video, une par ligne ; « Titre : detail » ou « Titre — detail » se decoupe en titre + texte. */
+export function parseVideoSteps(text: string): { title: string; text: string }[] {
+  return text
+    .split(/\r?\n/)
+    .map((l) => l.replace(/^\s*(?:\d+[.)]|[-•*])\s*/, "").trim())
+    .filter(Boolean)
+    .map((l) => {
+      const m = l.match(/^(.{3,80}?)\s*(?::|—|–| - )\s*(.+)$/);
+      return m ? { title: m[1].trim(), text: m[2].trim() } : { title: l, text: "" };
+    });
 }
 
 /** Lecture des réglages envoyés par l'admin : champs propres, bornés. */
@@ -64,6 +83,9 @@ export function readMethodSettings(raw: Partial<StudentMethodSettings>): Student
     productNote: str(raw.productNote, 2000),
     themeNote: str(raw.themeNote, 2000),
     themePrompt: str(raw.themePrompt, 8000),
+    shopVideoUrl: str(raw.shopVideoUrl, 500),
+    shopVideoSummary: str(raw.shopVideoSummary, 6000),
+    shopVideoSteps: str(raw.shopVideoSteps, 6000),
   };
 }
 

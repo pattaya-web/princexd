@@ -860,6 +860,12 @@ export interface StudentMethodSettings {
   themeNote: string;
   /** Message a coller a Claude Code dans VS Code pour poser le theme et remplacer le contenu. */
   themePrompt: string;
+  /** Video « Ta boutique » : Mady cree la boutique avec Claude Code (lien YouTube). */
+  shopVideoUrl: string;
+  /** Resume de la video, sous le lecteur (texte libre, paragraphes). */
+  shopVideoSummary: string;
+  /** Les etapes a suivre telles que dites dans la video : une etape par ligne, « Titre : detail » accepte. */
+  shopVideoSteps: string;
 }
 
 /** Le theme Shopify de Mady, depose par l'admin et telechargeable par les eleves. */
