@@ -487,7 +487,7 @@ export default function CreativesPage() {
               <strong>Tes créatives sont prêtes ?</strong> Mets-les dans le dossier « creatives » de ton projet et passe à ta boutique : le thème de Mady, avec ton produit dedans.
             </div>
             <Link href="/formation/boutique" className="btn btn-sm shrink-0">
-              Étape suivante : Ta boutique →
+              Étape suivante : Création de la boutique →
             </Link>
           </section>
         </>

@@ -719,7 +719,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 { href: "/formation/produit", label: "Recherche produit", icon: "◎" },
                 { href: "/formation/creatives", label: "Créatives", icon: "✦" },
                 { href: "/formation/studio", label: "Studio IA", icon: "◐" },
-                { href: "/formation/boutique", label: "Ta boutique", icon: "⌂" },
+                { href: "/formation/boutique", label: "Création de la boutique", icon: "⌂" },
                 { href: "/formation/education", label: "Education", icon: "🎓" },
                 { href: "/formation/etapes", label: "Mes étapes", icon: "☑" },
                 { href: "/formation/sops", label: "Ressources", icon: "▤" },

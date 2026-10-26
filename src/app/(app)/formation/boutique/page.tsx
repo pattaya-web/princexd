@@ -129,7 +129,7 @@ export default function BoutiquePage() {
     <div className="flex flex-col gap-5">
       <header>
         <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
-          Scale X / Ta boutique
+          Scale X / Création de la boutique
         </div>
         <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.03em" }}>
           Le thème de Mady, sur ta boutique.
