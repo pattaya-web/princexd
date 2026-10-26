@@ -79,6 +79,10 @@ function publicView(s: Settings) {
     vaPasswordHash: "",
     vaPasswordSet: Boolean(process.env.VA_PASSWORD?.trim() || s.vaPasswordHash),
     vaSource: process.env.VA_USERNAME?.trim() && process.env.VA_PASSWORD?.trim() ? "env" : s.vaPasswordHash ? "reglages" : "absente",
+    // Compte admin : le hash ne sort jamais, seulement l'identifiant et la presence du mot de passe.
+    ownerUsername: s.ownerUsername ?? "",
+    ownerPasswordHash: "",
+    ownerPasswordSet: Boolean(s.ownerPasswordHash),
     // Bot Telegram : le jeton ne sort jamais, seulement son masque et sa provenance.
     telegramBotToken: "",
     telegramBotTokenMask: mask(tgKey),
@@ -153,6 +157,19 @@ export async function PATCH(req: NextRequest) {
   delete raw.vaPasswordSet;
   delete raw.vaSource;
   if (typeof body.vaUsername === "string") body.vaUsername = body.vaUsername.trim().toLowerCase();
+  // Compte admin : meme traitement, hache a l'arrivee. Vide = on garde.
+  if (typeof raw.ownerPassword === "string") {
+    if (raw.ownerPassword.trim()) {
+      if (raw.ownerPassword.trim().length < 8) {
+        return NextResponse.json({ error: "Le mot de passe admin doit faire au moins 8 caractères." }, { status: 400 });
+      }
+      body.ownerPasswordHash = hashPassword(raw.ownerPassword.trim());
+    }
+    delete raw.ownerPassword;
+  }
+  delete raw.ownerPasswordSet;
+  if (body.ownerPasswordHash === "") delete body.ownerPasswordHash;
+  if (typeof body.ownerUsername === "string") body.ownerUsername = body.ownerUsername.trim().toLowerCase();
   // Cookies : vide = on garde ; « CLEAR » = on efface.
   if (typeof body.igCookies === "string") {
     if (body.igCookies === "CLEAR") body.igCookies = "";

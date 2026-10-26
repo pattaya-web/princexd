@@ -30,6 +30,7 @@ type View = Settings & {
   systemeioWebhookSecretSet?: boolean;
   vaPasswordSet?: boolean;
   vaSource?: string;
+  ownerPasswordSet?: boolean;
   higgsfieldKeySource?: string;
   telegramBotTokenMask?: string;
   telegramBotTokenSource?: string;
@@ -54,6 +55,8 @@ export default function ReglagesPage() {
   const [s, setS] = useState<View | null>(null);
   /** Mot de passe de la VA : saisi ici, hache par le serveur, jamais relu. */
   const [vaPassword, setVaPassword] = useState("");
+  /** Mot de passe admin : meme principe, hache par le serveur. */
+  const [ownerPassword, setOwnerPassword] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [iclosedKey, setIclosedKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
@@ -113,6 +116,9 @@ export default function ReglagesPage() {
       delete (payload as Record<string, unknown>).telegramBotTokenSource;
       delete payload.systemeioWebhookSecret;
       if (vaPassword.trim()) (payload as Record<string, unknown>).vaPassword = vaPassword.trim();
+      if (ownerPassword.trim()) (payload as Record<string, unknown>).ownerPassword = ownerPassword.trim();
+      delete (payload as Record<string, unknown>).ownerPasswordSet;
+      delete (payload as Record<string, unknown>).ownerPasswordHash;
       const next = await api<View>("/api/settings", { method: "PATCH", body: JSON.stringify(payload) });
       setS(next);
       setApiKey("");
@@ -121,6 +127,7 @@ export default function ReglagesPage() {
       setElevenKey("");
       setHfSecret("");
       setVaPassword("");
+      setOwnerPassword("");
       setTgToken("");
       toast("Réglages enregistrés.");
     } catch (e) {
@@ -815,6 +822,44 @@ export default function ReglagesPage() {
 
               <TelegramAdminPanel configured={Boolean(s.telegramBotTokenMask)} />
             </div>
+          </Card>
+
+          {/* Mon compte admin : identifiant + mot de passe pour entrer sur le site
+              en ligne. Tant qu'il n'est pas renseigne, c'est OWNER_PASSWORD (Coolify)
+              qui ouvre la porte, identifiant ignore. */}
+          <Card
+            title="Mon compte admin"
+            subtitle="Identifiant et mot de passe pour me connecter sur mvdyprince.fr. Un seul compte admin : le mien."
+          >
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Field label="Identifiant">
+                <input
+                  className="input"
+                  value={s.ownerUsername ?? ""}
+                  placeholder="mady"
+                  autoCapitalize="none"
+                  autoComplete="off"
+                  onChange={(e) => set("ownerUsername", e.target.value)}
+                />
+              </Field>
+              <Field
+                label={s.ownerPasswordSet ? "Nouveau mot de passe" : "Mot de passe"}
+                hint={s.ownerPasswordSet ? "Un mot de passe est déjà enregistré : laisse vide pour le garder." : "8 caractères minimum."}
+              >
+                <input
+                  className="input"
+                  type="password"
+                  value={ownerPassword}
+                  autoComplete="new-password"
+                  onChange={(e) => setOwnerPassword(e.target.value)}
+                />
+              </Field>
+            </div>
+            <p className="text-[12.5px] dim mt-3">
+              {s.ownerPasswordSet
+                ? "Compte actif : à la connexion, il faut cet identifiant et ce mot de passe. L'ancien mot de passe seul n'ouvre plus la porte."
+                : "Pas encore de compte : la connexion se fait avec le mot de passe seul défini dans Coolify (OWNER_PASSWORD)."}
+            </p>
           </Card>
 
           {/* La VA de prospection Instagram : un seul espace (/va/outreach).

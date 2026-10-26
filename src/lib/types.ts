@@ -212,6 +212,13 @@ export interface Settings {
    */
   vaUsername?: string;
   vaPasswordHash?: string;
+  /**
+   * Compte administrateur (moi) sur le site en ligne : identifiant + mot de
+   * passe hache, definis dans Reglages. Des qu'il est renseigne, il remplace
+   * le mot de passe seul de l'environnement (OWNER_PASSWORD) a la connexion.
+   */
+  ownerUsername?: string;
+  ownerPasswordHash?: string;
   /** Message que la VA copie-colle en DM Instagram. Ecrit par l'admin. */
   outreachMessage?: string;
   /** Objectif de DM envoyes par jour (contacts passes en « Contacted »). 50 par defaut. */

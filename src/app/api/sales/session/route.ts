@@ -10,7 +10,8 @@ import {
   readSession,
   sessionFor,
   issueVaToken,
-  verifyOwnerPassword,
+  verifyOwnerLogin,
+  ownerAccount,
   verifyPassword,
   verifyVaLogin,
 } from "@/lib/sales/access";
@@ -131,9 +132,9 @@ export async function POST(req: NextRequest) {
     return res;
   }
 
-  // Proprietaire (site en ligne) : le mot de passe seul suffit, l'identifiant
-  // est ignore. Verifie en premier, a temps constant.
-  if (ownerAuthEnabled() && verifyOwnerPassword(password)) {
+  // Proprietaire (site en ligne) : compte admin de Reglages (identifiant +
+  // mot de passe) s'il existe, sinon le mot de passe seul de l'environnement.
+  if (verifyOwnerLogin(username, password)) {
     const res = NextResponse.json({
       ok: true,
       role: "owner",
@@ -175,7 +176,7 @@ export async function POST(req: NextRequest) {
   if (!username && !code) {
     // Mot de passe seul et refuse : c'etait une tentative proprietaire.
     if (ownerAuthEnabled() && password) {
-      return NextResponse.json({ error: "Mot de passe incorrect." }, { status: 401 });
+      return NextResponse.json({ error: ownerAccount() ? "Identifiant et mot de passe requis." : "Mot de passe incorrect." }, { status: 401 });
     }
     return NextResponse.json({ error: "Identifiant requis." }, { status: 400 });
   }

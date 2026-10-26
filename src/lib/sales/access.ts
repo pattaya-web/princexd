@@ -128,6 +128,26 @@ export function verifyOwnerPassword(password: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+/**
+ * Compte admin nominatif, defini dans Reglages (identifiant + mot de passe
+ * hache). Des qu'il existe, c'est lui qui ouvre la porte : le mot de passe
+ * seul de l'environnement ne suffit plus. Sans compte, comportement
+ * historique : OWNER_PASSWORD, identifiant ignore.
+ */
+export function ownerAccount(): { username: string; passwordHash: string } | null {
+  const s = readDB().settings;
+  const username = normalizeUsername(s.ownerUsername ?? "");
+  if (!username || !s.ownerPasswordHash) return null;
+  return { username, passwordHash: s.ownerPasswordHash };
+}
+
+export function verifyOwnerLogin(username: string, password: string): boolean {
+  if (!ownerAuthEnabled() || !password) return false;
+  const account = ownerAccount();
+  if (!account) return verifyOwnerPassword(password);
+  return normalizeUsername(username) === account.username && verifyPassword(password, account.passwordHash);
+}
+
 export function issueOwnerToken(): string {
   return issueToken({ role: "owner", memberId: "", memberName: "Moi" });
 }
