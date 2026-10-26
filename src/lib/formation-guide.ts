@@ -1,11 +1,12 @@
 /**
  * Guide Démarrage de la plateforme élèves (Scale X).
  *
- * Écrit pour un débutant complet : pas de jargon, pas de commande à taper.
- * L'élève installe VS Code, y met l'extension Claude Code, ouvre son dossier
- * et PARLE à Claude : c'est Claude qui installe et connecte le reste. Trois
- * fenêtres ouvertes (VS Code, admin Shopify, sa boutique) et F5 pour voir.
- * Module pur, utilisable serveur et navigateur.
+ * Écrit pour un débutant complet, d'après la vidéo de Mady « Création de
+ * boutique Shopify avec Claude » (2026-10-26) : VS Code, Claude Code, les
+ * accès Shopify (adresse, app Dev Dashboard installée, Client ID + secret),
+ * le dossier avec le zip du thème, le premier message, le fichier .env, la
+ * publication, le live, puis les modifications en parlant. Pas de commande
+ * à taper. Module pur, utilisable serveur et navigateur.
  */
 
 export const GUIDE_PDF_URL = "/formation/guide-installation-claude-code-shopify.pdf";
@@ -44,16 +45,24 @@ export interface GuideSection {
   fixes?: { problem: string; fix: string }[];
 }
 
-const MSG_INSTALL = `Salut Claude. Je lance une boutique Shopify et je ne sais pas coder. Ce dossier est vide : c'est ici qu'on va travailler sur ma boutique.
-Mon adresse Shopify : MA-BOUTIQUE.myshopify.com
-Fais tout toi-même, étape par étape : installe sur mon ordinateur ce qu'il faut pour travailler sur un thème Shopify (Shopify CLI et ce dont il a besoin), connecte-toi à ma boutique, récupère le thème qui est en ligne dans ce dossier, puis lance l'aperçu de la boutique et donne-moi le lien à ouvrir.
-Quand tu as besoin que je fasse quelque chose (me connecter dans le navigateur, cliquer sur Autoriser), dis-le moi en une phrase simple. Explique-moi chaque étape comme à un débutant complet.`;
+const MSG_START = `Salut Claude, j'ai besoin de créer une boutique Shopify avec toi.
+Dans ce dossier il y a le thème template de mon coach (le fichier .zip).
+J'ai en ma possession le Client ID et le Client secret de mon app Shopify, et l'adresse de ma boutique.
+Je veux connecter Shopify à cette session pour qu'on bosse ensemble et que je voie les modifications du thème en live sur ma boutique.
+Dis-moi ce que tu as besoin que je fasse, étape par étape, comme à un débutant complet.`;
 
-const MSG_CHECK = `Vérifie que tout est prêt : tu vois bien les fichiers du thème dans ce dossier, tu es connecté à ma boutique, et l'aperçu fonctionne. Dis-moi « C'est prêt » et donne-moi le lien de l'aperçu. Ne modifie rien pour l'instant.`;
+const MSG_ENV_DONE = `C'est bon : j'ai renommé .env.example en .env, j'ai rempli l'adresse .myshopify.com, le Client ID et le Client secret.
+Dis-moi les prochaines étapes. Je veux bosser sur ma boutique en live avec toi et que tu fasses les modifications.
+Commence par pousser le thème sur la boutique.`;
 
-const MSG_EDIT = `Sur la page d'accueil, change le titre de la bannière en « [ton titre] » et le texte en dessous en « [ton texte] ». Montre-moi dans l'aperçu avant de mettre en ligne.`;
+const MSG_APP_OK = `C'est bon, l'app est installée sur ma boutique. On avance.`;
 
-const MSG_LIVE = `C'est bon pour moi. Mets ces modifications en ligne sur ma boutique.`;
+const MSG_LIVE = `J'ai publié le thème et il n'y a plus de mot de passe sur la boutique.
+Je ne veux pas de lien de prévisualisation : je veux que chaque modification se pousse en live sur le thème publié, et que je voie le changement en faisant F5 sur ma boutique.`;
+
+const MSG_EDIT = `Enlève la section de la page d'accueil où il y a écrit « [le texte de la section] ».`;
+
+const MSG_UNDO = `Annule ce que tu viens de faire et remets la section que tu as enlevée.`;
 
 export const GUIDE_SECTIONS: GuideSection[] = [
   {
@@ -77,123 +86,194 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     id: "claude",
     n: "02",
     title: "Mets Claude Code dans VS Code (5 min)",
-    intro: "Claude Code, c'est l'extension qui fait le travail. Tu lui parles en français, il fait.",
+    intro: "Claude Code, c'est lui qui fait le travail. Tu lui parles en français, il fait.",
     steps: [
       {
         title: "Ouvre les extensions",
-        text: "Dans la barre de gauche de VS Code, clique sur l'icône faite de 4 petits carrés (Extensions). Une barre de recherche apparaît en haut.",
+        text: "Dans la barre de gauche de VS Code, tout en bas, clique sur Extensions (l'icône faite de 4 petits carrés). Une barre de recherche apparaît.",
       },
       {
         title: "Tape « Claude Code » et installe",
-        text: "Dans la recherche, tape Claude Code. Clique sur le résultat « Claude Code » (éditeur : Anthropic), puis sur le bouton bleu Install.",
+        text: "Prends « Claude Code for VS Code » (éditeur : Anthropic) et clique sur Installer. Une fois installé, ferme l'onglet : en haut à droite, un bouton « Claude Code » est apparu.",
         link: { label: "Voir l'extension Claude Code", href: "https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code" },
       },
       {
-        title: "Connecte-toi avec ton compte Claude Max",
-        text: "Une nouvelle icône Claude apparaît dans la barre de gauche. Clique dessus, puis sur Se connecter : ton navigateur s'ouvre, tu te connectes avec le compte Claude Max que tu as pris, tu reviens dans VS Code. C'est fait une fois pour toutes.",
-        link: { label: "Prendre Claude Max si ce n'est pas fait", href: "https://claude.ai/upgrade" },
+        title: "Connecte ton compte Claude",
+        text: "Clique sur Claude Code, puis Se connecter : ton navigateur s'ouvre, tu te connectes, tu reviens dans VS Code. Il te faut un abonnement payant : Mady conseille la formule à 90 € par mois (la 200 € n'est pas nécessaire).",
+        link: { label: "Prendre l'abonnement Claude", href: "https://claude.ai/upgrade" },
+      },
+      {
+        title: "Choisis le modèle",
+        text: "En bas de la fenêtre Claude Code, choisis le modèle Fable 5.1 ou Opus 5.5. Le réglage « Effort », tu le laisses tel quel.",
+        note: { kind: "info", title: "Plein écran", text: "Tu peux ouvrir Claude Code en grand avec l'icône en haut à droite de son panneau : plus confortable pour travailler." },
+      },
+    ],
+  },
+  {
+    id: "acces",
+    n: "03",
+    title: "Récupère les accès de ta boutique Shopify (10 min)",
+    intro: "Trois choses à avoir sous la main avant de parler à Claude : l'adresse de ta boutique, le Client ID et le Client secret de ton app. Et l'app doit être installée.",
+    steps: [
+      {
+        title: "Ton adresse .myshopify.com",
+        text: "Dans Shopify, en bas à gauche : Paramètres. Tout en haut, sous le nom de ta boutique, il y a l'adresse qui finit par .myshopify.com (par exemple ma-boutique.myshopify.com). Copie-la quelque part.",
+        link: { label: "Ouvrir mes paramètres Shopify", href: "https://admin.shopify.com/settings" },
+      },
+      {
+        title: "Crée ton app dans le Dev Dashboard",
+        text: "Paramètres > Applications et canaux de vente > Développer des applications > Créer des apps dans le Dev Dashboard. Dans le Dev Dashboard : Apps > Create app > Start from Dev Dashboard, un nom (par exemple « Ma boutique »), Create.",
+        link: { label: "Ouvrir Applications et canaux de vente", href: "https://admin.shopify.com/settings/apps/development" },
+      },
+      {
+        title: "Donne-lui les accès et publie une version",
+        text: "Dans l'app : Versions > Create version. Dans Scopes, coche les accès aux thèmes et aux produits (read_themes, write_themes, read_products, write_products, write_content). Release.",
+        note: { kind: "info", title: "Si Claude réclame un accès de plus", text: "Tu reviens ici, tu coches l'accès, Release, puis tu réinstalles l'app (étape suivante). Rien de cassé." },
+      },
+      {
+        title: "Installe l'app sur ta boutique",
+        text: "Sur la page de l'app, carte Installs > Install app : choisis ta boutique, Install. C'est l'étape que les élèves oublient : sans elle, Shopify répond « app not installed » et Claude est bloqué.",
+        note: { kind: "danger", title: "Obligatoire", text: "Une app créée mais pas installée ne sert à rien. Vérifie que ta boutique apparaît dans Installs." },
+      },
+      {
+        title: "Copie le Client ID et le Client secret",
+        text: "App settings > Credentials : copie le Client ID et le Client secret (bouton Afficher). Garde-les dans un fichier texte, tu vas les coller dans une minute. Ne les colle jamais dans le chat de Claude.",
       },
     ],
   },
   {
     id: "dossier",
-    n: "03",
-    title: "Crée ton dossier et ouvre-le dans VS Code (2 min)",
+    n: "04",
+    title: "Crée ton dossier avec le thème de Mady (2 min)",
     steps: [
       {
-        title: "Crée un dossier vide",
-        text: "Dans Documents, crée un dossier qui s'appelle MA-BOUTIQUE (clic droit > Nouveau dossier). Il reste vide, c'est normal : Claude va le remplir.",
+        title: "Un dossier sur le Bureau",
+        text: "Sur Mac ou Windows, crée un dossier sur ton Bureau : « Prénom boutique » (par exemple « Kevin boutique »).",
       },
       {
-        title: "Ouvre ce dossier dans VS Code",
-        text: "Dans VS Code : menu Fichier > Ouvrir le dossier, choisis MA-BOUTIQUE, puis clique sur « Oui, je fais confiance aux auteurs ». Le nom du dossier apparaît en haut à gauche.",
+        title: "Glisse le thème dedans",
+        text: "Télécharge le thème Aesthetic Lab de Mady (page Création de la boutique, ou le zip qu'il t'a envoyé sur WhatsApp). Glisse le fichier .zip dans ton dossier, tel quel : tu ne l'ouvres pas, tu ne le décompresses pas.",
+        link: { label: "Télécharger le thème", href: "/formation/boutique" },
+      },
+      {
+        title: "Ouvre le dossier dans VS Code",
+        text: "Dans VS Code : File (Fichier) en haut à gauche > Open Folder (Ouvrir un dossier) > choisis « Prénom boutique ». Clique « Oui, je fais confiance ». Le nom du dossier apparaît en haut à gauche. Tu peux fermer l'onglet Welcome.",
       },
     ],
   },
   {
     id: "premier-message",
-    n: "04",
-    title: "Parle à Claude : il installe et connecte tout (15 min)",
-    intro: "Tu ne tapes aucune commande. Tu copies ce message, tu remplaces MA-BOUTIQUE par ton adresse Shopify, et tu laisses Claude faire.",
+    n: "05",
+    title: "Parle à Claude : il connecte ta boutique (15 min)",
+    intro: "Pas de recette magique : tu lui parles comme à un pote. Shift + Entrée pour aller à la ligne, Entrée pour envoyer. Peu de fautes, du contexte à chaque message.",
     steps: [
       {
-        title: "Trouve ton adresse Shopify",
-        text: "Dans ton admin Shopify : Paramètres (en bas à gauche) > Domaines. C'est l'adresse qui finit par .myshopify.com, par exemple ma-boutique.myshopify.com. Copie-la.",
-        link: { label: "Ouvrir mes domaines Shopify", href: "https://admin.shopify.com/settings/domains" },
+        title: "Ton premier message",
+        text: "Ouvre Claude Code (bouton en haut à droite), colle ce message, Entrée.",
+        cmds: [MSG_START],
+        note: { kind: "info", title: "Ce qui défile, tu t'en fiches", text: "Claude vérifie le dossier, Node, Shopify CLI, décompresse le thème. Toi tu lis seulement son résumé à la fin, et ce qu'il te demande." },
       },
       {
-        title: "Colle ce message à Claude",
-        text: "Clique sur l'icône Claude à gauche dans VS Code, colle le message ci-dessous dans la zone de texte (bouton Copier), remplace MA-BOUTIQUE par ton adresse, Entrée.",
-        cmds: [MSG_INSTALL],
+        title: "Renomme .env.example en .env",
+        text: "Claude te dit de ne pas coller tes secrets dans le chat et de remplir un fichier. Dans la colonne de gauche (Explorateur), repère le fichier « .env.example », clic droit > Rename, et renomme-le « .env » (exactement, avec le point).",
       },
       {
-        title: "Dis oui quand il demande",
-        text: "Claude va installer des choses et te demander la permission à chaque fois : clique sur Yes / Autoriser. À un moment, ton navigateur s'ouvre pour te connecter à Shopify : connecte-toi, choisis ta boutique, clique sur Autoriser, et reviens dans VS Code. Ça prend 5 à 15 minutes, tu n'as rien d'autre à faire.",
-        note: { kind: "warn", title: "Un message rouge ?", text: "Ne ferme rien. Fais une capture d'écran et colle-la à Claude en écrivant : « Voilà l'erreur, corrige et continue ». Il se débrouille." },
+        title: "Remplis le fichier .env",
+        text: "Ouvre .env. Ligne SHOPIFY_FLAG_STORE : colle ton adresse .myshopify.com. Puis l'option B : colle ton Client ID et ton Client secret (ceux de l'étape 03). Enlève les espaces en trop. Ctrl + S (Cmd + S sur Mac) pour enregistrer.",
+        note: { kind: "warn", title: "Jamais dans le chat", text: "Le Client secret va dans le fichier .env, pas dans un message à Claude." },
       },
       {
-        title: "Vérifie que c'est prêt",
-        text: "Quand Claude a fini, colle-lui ce message :",
-        cmds: [MSG_CHECK],
-        note: { kind: "ok", title: "C'est bon quand", text: "Claude répond « C'est prêt » et te donne un lien (souvent http://127.0.0.1:9292). Tu l'ouvres : c'est ta boutique, en aperçu, sur ton ordinateur." },
+        title: "Dis-le à Claude",
+        text: "Retour dans le chat (tu peux le dicter au micro) :",
+        cmds: [MSG_ENV_DONE],
+      },
+      {
+        title: "Si Shopify répond « app not installed »",
+        text: "Ton app n'est pas installée sur ta boutique. Dans Shopify : Paramètres > Applications et canaux de vente > Développer des applications > ouvre ton app > Installs > Install app. Puis dis-le à Claude :",
+        cmds: [MSG_APP_OK],
+        note: { kind: "ok", title: "C'est bon quand", text: "Claude dit qu'il envoie le thème sur la boutique, non publié (ton thème actuel reste intact), et que c'est fait." },
+      },
+    ],
+  },
+  {
+    id: "publier",
+    n: "06",
+    title: "Publie le thème et passe en live (5 min)",
+    steps: [
+      {
+        title: "Publie le thème dans Shopify",
+        text: "Shopify > Boutique en ligne > Thèmes : le thème « Aesthetic » de Mady est apparu dans la liste (Claude vient de l'envoyer). Clique sur les trois points > Publier.",
+        link: { label: "Ouvrir mes thèmes", href: "https://admin.shopify.com/themes" },
+      },
+      {
+        title: "Enlève le mot de passe",
+        text: "Boutique en ligne > Préférences > enlève le mot de passe. Si Shopify te demande d'abord de vérifier les informations de ton entreprise, fais-le, puis lance la boutique : elle devient publique.",
+      },
+      {
+        title: "Dis à Claude que c'est en ligne, et exige le live",
+        text: "Il va parfois te proposer un lien de prévisualisation : refuse, tu veux le live sur le thème publié. S'il insiste, répète-le, il relance la synchro.",
+        cmds: [MSG_LIVE],
+        note: { kind: "ok", title: "Claude et Shopify sont connectés", text: "À partir de là, tout se fait en parlant. Chaque modification arrive sur ta boutique : F5 et c'est là." },
       },
     ],
   },
   {
     id: "trois-fenetres",
-    n: "05",
-    title: "Ta façon de travailler : 3 fenêtres ouvertes",
-    intro: "C'est comme ça que tu bosses sur ta boutique, tous les jours. Toujours ces 3 fenêtres.",
+    n: "07",
+    title: "Ta façon de travailler : 3 onglets + Claude",
+    intro: "Comme Mady dans la vidéo : tu demandes à gauche, tu regardes à droite.",
     steps: [
       {
-        title: "Fenêtre 1 : VS Code avec Claude Code",
-        text: "C'est là que tu parles. Tu lui dis ce que tu veux changer sur ta boutique, en français, comme à une personne. Il modifie le thème.",
-      },
-      {
-        title: "Fenêtre 2 : ton admin Shopify",
-        text: "admin.shopify.com, avec les onglets à gauche : Commandes, Produits, Clients, Boutique en ligne. C'est là que tu gères tes produits, tes commandes, tes réglages, et que tu peux aussi modifier le thème à la souris (Boutique en ligne > Thèmes > Personnaliser).",
+        title: "Trois onglets dans ton navigateur",
+        text: "1. Le tableau de bord Shopify (admin.shopify.com), pour te balader. 2. L'éditeur de thème (Boutique en ligne > Thèmes > Personnaliser), pour rattraper un détail à la souris. 3. Ta boutique en ligne, celle que tes clients voient.",
         link: { label: "Ouvrir mon admin Shopify", href: "https://admin.shopify.com" },
       },
       {
-        title: "Fenêtre 3 : ta boutique",
-        text: "Le lien d'aperçu que Claude t'a donné (ou ta boutique en ligne). Après chaque modification de Claude, tu appuies sur F5 (actualiser) et tu vois le résultat en direct.",
-      },
-      {
-        title: "Mets-les côte à côte",
-        text: "VS Code à gauche, ton navigateur à droite avec deux onglets (admin Shopify et ta boutique). Tu demandes à gauche, tu regardes à droite.",
+        title: "Écran partagé",
+        text: "Si ton écran est assez grand : VS Code avec Claude à gauche, le navigateur à droite. À chaque modification de Claude, F5 sur ta boutique.",
       },
     ],
   },
   {
     id: "modifier",
-    n: "06",
-    title: "Modifier ta boutique avec Claude, et mettre en ligne",
-    intro: "Une modification = un message. Tu vérifies dans l'aperçu, puis tu dis « mets en ligne ».",
+    n: "08",
+    title: "Modifier ta boutique avec Claude",
+    intro: "Une demande à la fois. Tu demandes, F5, tu vérifies. Si ce n'est pas ça, tu le lui dis.",
     steps: [
       {
-        title: "Demande une modification",
-        text: "Exemple, à adapter :",
+        title: "Enlever une section",
+        text: "Exemple de la vidéo : les exemples de produits de Mady n'ont rien à voir avec le tien, tu les enlèves.",
         cmds: [MSG_EDIT],
       },
       {
-        title: "Regarde dans l'aperçu",
-        text: "Fenêtre 3, F5. Si ce n'est pas ça, dis-lui simplement ce qui ne va pas : « plus gros », « en noir », « remonte cette section au-dessus des avis ». Il recommence.",
+        title: "Annuler",
+        text: "Tu t'es trompé ? Il remet comme avant.",
+        cmds: [MSG_UNDO],
       },
       {
-        title: "Mets en ligne",
-        text: "Quand c'est bon :",
-        cmds: [MSG_LIVE],
-        note: { kind: "info", title: "Deux façons de modifier, pas de conflit", text: "Tu peux aussi changer des textes et des images à la souris dans Shopify (Personnaliser). Les deux marchent. Règle simple : les textes et images dans Shopify, tout ce qui touche à la structure ou au design avec Claude." },
+        title: "Menus, police, textes",
+        text: "- « Change les menus : enlève Glow up, Our protocol, Track my order, mets Accueil, Collection, Contact »\n- « Je ne suis pas fan de cette police, mets-la plus grasse et plus espacée »\n- « Réécris le titre de la bannière pour mon produit : [ton produit] »",
       },
       {
-        title: "Ce que tu peux lui demander",
-        text: "- « Ajoute une section avis clients sous le produit »\n- « Rends le bouton Acheter plus visible sur mobile »\n- « Mets mes couleurs : fond blanc, boutons #1F6F5B »\n- « Fais une page Livraison et retours avec ce texte : … »\n- « Ma page est lente sur téléphone, améliore ça »\n- « Traduis la boutique en anglais »",
+        title: "Ton logo",
+        text: "Fais-le sur Canva en 450 × 150 px, simple. Glisse le fichier dans la fenêtre Claude Code et dis : « Voilà mon logo, mets-le sur ma boutique à la place de l'actuel ».",
+        link: { label: "Ouvrir Canva", href: "https://www.canva.com" },
+      },
+      {
+        title: "Tes couleurs, à partir d'un concurrent",
+        text: "Installe l'extension ColorZilla, prends la couleur principale de la boutique de ton concurrent direct, colle le code couleur à Claude : « Je veux cette couleur pour les titres, sur un fond blanc, et trouve une deuxième couleur un peu plus claire qui va avec ».",
+        link: { label: "ColorZilla pour Chrome", href: "https://chromewebstore.google.com/detail/colorzilla/bhlhnicpbhignbdhedgjhgdocnmhomnp" },
+      },
+      {
+        title: "Les images et les textes de ton produit",
+        text: "Tes images produit, tu les fais dans le Studio IA (page Créatives) et tu les mets dans un sous-dossier « creatives ». Pour le copywriting, colle l'adresse de ton concurrent : « Analyse cette boutique, c'est mon concurrent direct. Réadapte mon thème avec un copywriting pour mon produit ».",
+        note: { kind: "info", title: "L'éditeur de thème en secours", text: "Boutique en ligne > Thèmes > Personnaliser permet de remettre une section ou de corriger un détail à la souris. Ce n'est pas le but, Claude fait tout, mais c'est là." },
       },
     ],
   },
   {
     id: "parametrer",
-    n: "07",
+    n: "09",
     title: "Les réglages Shopify pour pouvoir vendre (30 min)",
     intro: "À faire une fois, dans l'admin Shopify > Paramètres. Sans ça, personne ne peut te payer.",
     steps: [
@@ -219,13 +299,13 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       {
         title: "Fais une commande test",
         text: "Boutique en ligne > Préférences : enlève le mot de passe. Puis, depuis ton téléphone, achète un produit sur ta boutique comme un client. Tu dois recevoir l'e-mail de commande.",
-        note: { kind: "info", title: "Tu n'as pas envie de cliquer partout ?", text: "Installe Claude pour Chrome (section 09) et dis-lui : « Ouvre mes paramètres Shopify et configure la livraison : zone France, livraison offerte ». Il clique à ta place, tu regardes." },
+        note: { kind: "info", title: "Tu n'as pas envie de cliquer partout ?", text: "Installe Claude pour Chrome (section 11) et dis-lui : « Ouvre mes paramètres Shopify et configure la livraison : zone France, livraison offerte ». Il clique à ta place, tu regardes." },
       },
     ],
   },
   {
     id: "pixel",
-    n: "08",
+    n: "10",
     title: "Le Pixel Meta (pour que tes pubs marchent)",
     intro: "Le Pixel dit à Meta qui achète. Sans lui, tes pubs n'apprennent rien. À faire avant ta première campagne.",
     steps: [
@@ -247,7 +327,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
   },
   {
     id: "claude-aide",
-    n: "09",
+    n: "11",
     title: "Bloqué ? Demande à Claude, pas à Mady",
     intro: "Claude règle 80 % des problèmes en direct. Mady, c'est pour les urgences et les validations.",
     steps: [
