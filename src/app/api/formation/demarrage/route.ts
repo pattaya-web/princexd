@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
     const ob = onboardingSettings(db.settings);
     // Les liens nécessaires, et rien d'autre (le formulaire et la vidéo sont sur l'accueil).
     const links = [
+      { label: "Visual Studio Code", href: "https://code.visualstudio.com/download", note: "l'application, gratuite · Windows et Mac" },
       { label: "BrandSearch", href: ob.brainsearchUrl, note: "recherche produit · lien de Mady" },
       { label: "Claude Max", href: ob.claudeUrl, note: "c'est lui qui construit ta boutique" },
       { label: "Shopify", href: ob.shopifyUrl, note: "1 € les premiers mois · lien de Mady" },

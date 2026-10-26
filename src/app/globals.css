@@ -1099,3 +1099,65 @@ b {
     animation: none;
   }
 }
+
+
+/* ---------------------------------------------------------------
+   Process d'installation (Démarrage) : rangées qui se déplient en
+   douceur, coches qui rebondissent, barre de progression vivante.
+   --------------------------------------------------------------- */
+.sx-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sx-fold[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+.sx-fold > div {
+  overflow: hidden;
+}
+.sx-chevron {
+  transition: transform 0.3s ease;
+}
+.sx-row-open {
+  box-shadow: 0 12px 32px -16px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.sx-check {
+  transition: background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+.sx-check:hover {
+  transform: scale(1.06);
+}
+.sx-check-done {
+  animation: sx-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes sx-pop {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.sx-step {
+  animation: rise 0.35s ease both;
+}
+.sx-step-next {
+  box-shadow: 0 10px 28px -18px var(--accent);
+}
+.sx-progress {
+  height: 8px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.sx-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #ffffff));
+  background-size: 200% 100%;
+  animation: sx-shimmer 2.4s linear infinite;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes sx-shimmer {
+  from { background-position: 0% 0; }
+  to { background-position: 200% 0; }
+}

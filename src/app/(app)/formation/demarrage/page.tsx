@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { ErrorNote, Spinner, useToast } from "@/components/ui";
-import { Annex } from "@/components/formation/Annex";
 import { StepGate } from "@/components/formation/StepGate";
+import { InstallProcess } from "@/components/formation/InstallProcess";
 import { PortalFooter, SectionLabel, waHelpLink } from "@/components/formation/portal";
-import { GUIDE_SECTIONS, type GuideNote, type GuideSection, type GuideStep } from "@/lib/formation-guide";
+import { GUIDE_SECTIONS } from "@/lib/formation-guide";
 import { DropZone, ProgressBar, uploadMany, type Progress } from "@/components/upload-ui";
 import type { DemarragePayload } from "@/app/api/formation/demarrage/route";
 
@@ -19,163 +19,6 @@ import type { DemarragePayload } from "@/app/api/formation/demarrage/route";
  * thème Aesthetic Lab et le Pixel Meta, et enfin le bouton « Demande ta
  * boutique à Mady ». Tout est copiable, l'élève avance seul.
  */
-
-const NOTE_COLORS: Record<GuideNote["kind"], string> = {
-  info: "var(--accent)",
-  ok: "var(--good)",
-  warn: "var(--warning)",
-  danger: "var(--bad)",
-};
-
-function Note({ note }: { note: GuideNote }) {
-  const c = NOTE_COLORS[note.kind];
-  return (
-    <div className="rounded-md px-3.5 py-2.5 text-[13.5px] leading-relaxed" style={{ borderLeft: `3px solid ${c}`, background: `color-mix(in srgb, ${c} 8%, transparent)` }}>
-      <div className="font-semibold" style={{ color: c }}>
-        {note.title}
-      </div>
-      <div className="mt-0.5">{note.text}</div>
-    </div>
-  );
-}
-
-function Cmd({ text }: { text: string }) {
-  const toast = useToast();
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast("Copié. Colle-le à Claude dans VS Code.");
-    } catch {
-      toast("Copie impossible : sélectionne le texte à la main.", "err");
-    }
-  };
-  return (
-    <div className="flex items-stretch gap-2 rounded-md overflow-hidden border" style={{ borderColor: "var(--border)", background: "var(--surface-3)" }}>
-      <div className="flex-1 min-w-0 px-3 py-2 text-[13.5px] leading-relaxed whitespace-pre-wrap break-words">
-        <div className="label-xs mb-1" style={{ color: "var(--accent)" }}>
-          À copier-coller à Claude
-        </div>
-        {text}
-      </div>
-      <button type="button" onClick={() => void copy()} className="btn btn-sm !rounded-none shrink-0" style={{ borderLeft: "1px solid var(--border)" }}>
-        Copier
-      </button>
-    </div>
-  );
-}
-
-function Step({ step, index, done, onToggle }: { step: GuideStep; index: number; done: boolean; onToggle: () => void }) {
-  return (
-    <div className="flex gap-3.5 py-4 border-b last:border-b-0" style={{ borderColor: "var(--border)", opacity: done ? 0.68 : 1 }}>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label={done ? "Décocher" : "Marquer comme faite"}
-        title={done ? "Fait. Clique pour décocher." : "Clique quand c'est fait."}
-        className="shrink-0 w-[30px] h-[30px] rounded-md flex items-center justify-center text-[13px] font-bold transition-colors"
-        style={{ background: done ? "var(--good)" : "var(--accent)", color: "var(--accent-on)" }}
-      >
-        {done ? "✓" : index}
-      </button>
-      <div className="min-w-0 flex-1 flex flex-col gap-2.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[15.5px] font-semibold leading-snug" style={{ textDecoration: done ? "line-through" : "none" }}>
-            {step.title}
-          </span>
-          <button type="button" onClick={onToggle} className="text-[12px] font-medium hover:underline" style={{ color: done ? "var(--good)" : "var(--accent)" }}>
-            {done ? "Fait" : "Marquer fait"}
-          </button>
-        </div>
-        <Annex text={step.text} className="!text-[13.5px]" />
-        {step.cmds?.map((c) => (
-          <Cmd key={c} text={c} />
-        ))}
-        {step.link && (
-          <a href={step.link.href} target="_blank" rel="noreferrer" className="btn btn-sm w-fit">
-            {step.link.label} ↗
-          </a>
-        )}
-        {step.note && <Note note={step.note} />}
-      </div>
-    </div>
-  );
-}
-
-function Section({ s, os, setOs, done, onToggle }: { s: GuideSection; os: "windows" | "mac"; setOs: (v: "windows" | "mac") => void; done: Set<string>; onToggle: (key: string, done: boolean) => void }) {
-  const steps = s.os ? s.os[os] : (s.steps ?? []);
-  const keyOf = (i: number) => `${s.id}:${s.os ? os : ""}:${i}`;
-  const doneCount = steps.filter((_, i) => done.has(keyOf(i))).length;
-  return (
-    <section id={s.id} className="card p-5 scroll-mt-4">
-      <div className="flex items-center justify-between gap-3">
-        <SectionLabel n={s.n} title={s.title} />
-        {steps.length > 0 && (
-          <span className={`label-xs num ${doneCount === steps.length ? "" : "dim"}`} style={doneCount === steps.length ? { color: "var(--good)" } : undefined}>
-            {doneCount} / {steps.length} {doneCount === steps.length ? "✓" : ""}
-          </span>
-        )}
-      </div>
-      <h2 className="text-[22px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.02em" }}>
-        {s.title}
-      </h2>
-      {s.intro && <p className="muted text-[14px] mt-2 leading-relaxed">{s.intro}</p>}
-      {s.notes && (
-        <div className="flex flex-col gap-2 mt-4">
-          {s.notes.map((n) => (
-            <Note key={n.title} note={n} />
-          ))}
-        </div>
-      )}
-      {s.defs && (
-        <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2 mt-4">
-          {s.defs.map((d) => (
-            <div key={d.term}>
-              <dt className="text-[13.5px] font-semibold">{d.term}</dt>
-              <dd className="muted text-[13px] leading-relaxed mt-0.5">{d.text}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      {s.os && (
-        <div className="flex gap-1 mt-4 p-1 rounded-md w-fit" style={{ background: "var(--surface-3)" }}>
-          {(["windows", "mac"] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setOs(k)}
-              className="tab-btn px-3.5 py-1.5 rounded text-[13px] font-medium"
-              style={os === k ? { background: "var(--surface)", boxShadow: "0 1px 2px rgb(0 0 0 / 0.08)" } : { color: "var(--muted)" }}
-            >
-              {k === "windows" ? "Windows" : "Mac"}
-            </button>
-          ))}
-        </div>
-      )}
-      {steps.length > 0 && (
-        <div className="mt-2">
-          {steps.map((st, i) => (
-            <Step key={st.title} step={st} index={i + 1} done={done.has(keyOf(i))} onToggle={() => onToggle(keyOf(i), !done.has(keyOf(i)))} />
-          ))}
-        </div>
-      )}
-      {s.fixes && (
-        <div className="mt-4">
-          <div className="label-xs mb-2">Si quelque chose ne fonctionne pas</div>
-          <ul className="flex flex-col gap-1.5 text-[13.5px]">
-            {s.fixes.map((f) => (
-              <li key={f.problem}>
-                <span className="font-semibold" style={{ color: "var(--warning)" }}>
-                  {f.problem} :
-                </span>{" "}
-                {f.fix}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </section>
-  );
-}
 
 export default function DemarragePage() {
   const toast = useToast();
@@ -261,7 +104,7 @@ export default function DemarragePage() {
         <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.03em" }}>
           Commence ici.
         </h1>
-        <p className="muted text-[14px] mt-1 max-w-[62ch]">Dans l&apos;ordre : le formulaire, VS Code, Claude Code, ta boutique. Pas de code, pas de commande : tu parles à Claude, il fait. Coche chaque étape quand elle est faite (clique sur son numéro).</p>
+        <p className="muted text-[14px] mt-1">Installe tes outils, étape par étape. Tu parles à Claude, il fait le reste.</p>
         {data.preview && <div className="badge badge-warn w-fit !text-[11.5px] mt-3">Aperçu : tu vois Scale X comme {data.student?.name}. Rien n&apos;est enregistré.</div>}
         {data.isAdmin && !data.student && (
           <div className="flex flex-wrap gap-2 mt-3">
@@ -326,19 +169,11 @@ export default function DemarragePage() {
         )}
       </section>
 
-      {/* Sommaire */}
-      <nav className="card-flat p-4 flex flex-wrap gap-x-4 gap-y-1.5 text-[13px]">
-        {GUIDE_SECTIONS.map((s) => (
-          <a key={s.id} href={`#${s.id}`} className="font-medium hover:underline">
-            <span className="dim num mr-1">{s.n}</span>
-            {s.title}
-          </a>
-        ))}
-      </nav>
-
-      {GUIDE_SECTIONS.map((s) => (
-        <Section key={s.id} s={s} os={os} setOs={setOs} done={guideDone} onToggle={(k, d) => void toggleGuide(k, d)} />
-      ))}
+      {/* 01 / Le process d'installation, une rangée par étape, dépliable. */}
+      <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
+        01 / INSTALLATION, ÉTAPE PAR ÉTAPE
+      </div>
+      <InstallProcess sections={GUIDE_SECTIONS} os={os} setOs={setOs} done={guideDone} onToggle={(k, d) => void toggleGuide(k, d)} />
 
       <section className="card p-5 flex flex-col sm:flex-row sm:items-center gap-3" style={{ borderColor: "var(--accent-ring)" }}>
         <div className="flex-1">
@@ -346,7 +181,6 @@ export default function DemarragePage() {
             ET MAINTENANT
           </div>
           <div className="text-[17px] font-semibold mt-1 leading-snug">Tout est installé ? Passe à la recherche produit.</div>
-          <div className="muted text-[13.5px] mt-1 leading-relaxed">La vidéo BrandSearch, tes 10 produits envoyés à Mady, la validation. Ensuite les créatives, puis le thème de Mady sur ta boutique.</div>
         </div>
         <Link href="/formation/produit" className="btn btn-primary shrink-0">
           Recherche produit →
@@ -355,16 +189,11 @@ export default function DemarragePage() {
 
       <section className="card-flat p-4 flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex-1 text-[13.5px] leading-relaxed">
-          <strong>Bloqué ?</strong> Demande d&apos;abord à Claude (section 09), avec la capture d&apos;écran de l&apos;erreur. Si c&apos;est une vraie urgence, écris à Mady.
+          <strong>Bloqué ?</strong> Demande à Claude avec la capture d&apos;écran de l&apos;erreur. Vraie urgence : Mady.
         </div>
         {wa && (
           <a href={wa} target="_blank" rel="noreferrer" className="btn btn-sm shrink-0">
-            Urgence : WhatsApp Mady
-          </a>
-        )}
-        {data.bookingUrl && (
-          <a href={data.bookingUrl} target="_blank" rel="noreferrer" className="btn btn-sm btn-ghost shrink-0">
-            Réserver un call
+            WhatsApp Mady
           </a>
         )}
       </section>
