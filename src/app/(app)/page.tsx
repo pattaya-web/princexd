@@ -10,6 +10,7 @@ import { bestSlots, filterByKeywords, followerSeries, statsByDimension, verdictF
 import { fmtCompact, fmtDateTime, fmtEur, fmtInt, label, mondayISO, relative, todayISO, WEEKDAYS } from "@/lib/format";
 import { SkPage } from "@/components/Skeleton";
 import { WeekBlock } from "@/components/WeekBlock";
+import { OnboardingInbox } from "@/components/formation/OnboardingInbox";
 import type {
   CallEvent,
   ProdFolder,
@@ -301,6 +302,8 @@ export default function DashboardPage() {
           )}
 
           <div className="grid gap-4">
+            {/* Élèves qui viennent de remplir le formulaire d'onboarding : rien si personne. */}
+            <OnboardingInbox />
             <Card
               title="À faire aujourd'hui"
               actions={<Link href="/todo" className="btn btn-sm">Ouvrir</Link>}

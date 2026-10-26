@@ -108,7 +108,7 @@ export default function ScaleXDashboard() {
         <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
           ÉTAPE 1 / FORMULAIRE D&apos;ONBOARDING
         </div>
-        <p className="text-[14.5px] mt-2 leading-relaxed">5 minutes, une fois. Obligatoire pour débloquer la suite.</p>
+        <p className="text-[14.5px] mt-2 leading-relaxed">5 minutes, une fois. Obligatoire avant de commencer.</p>
         <div className="flex flex-wrap items-center gap-2 mt-4">
           {data.formUrl ? (
             <a href={data.formUrl} target="_blank" rel="noreferrer" className={`btn ${approved || requested ? "" : "btn-primary"}`}>
@@ -123,20 +123,16 @@ export default function ScaleXDashboard() {
             </button>
           )}
         </div>
-        {approved ? (
+        {(approved || requested) && (
           <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
-            <span className="text-[14px] font-semibold" style={{ color: "var(--good)" }}>
-              ✓ Validé par Mady
+            <span className="text-[13.5px] font-semibold" style={{ color: approved ? "var(--good)" : "var(--text-2)" }}>
+              {approved ? "✓ Mady a bien reçu ton formulaire" : "✓ Formulaire envoyé, Mady est prévenue"}
             </span>
             <Link href={gate.next?.href ?? "/formation/demarrage"} className="btn btn-primary btn-sm">
               {gate.next ? `Continuer : ${gate.next.label} →` : "Démarrage →"}
             </Link>
           </div>
-        ) : requested ? (
-          <div className="mt-4 pt-4 text-[13.5px]" style={{ borderTop: "1px solid var(--border)" }}>
-            ⏳ Formulaire noté. Mady vérifie et débloque <strong>Démarrage</strong>.
-          </div>
-        ) : null}
+        )}
       </section>
     </div>
   );

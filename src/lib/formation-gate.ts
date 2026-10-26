@@ -1,14 +1,18 @@
 import type { Student } from "./types";
 
 /**
- * Verrouillage du parcours Scale X (octobre 2026).
+ * Parcours Scale X (octobre 2026).
  *
- * Chaque onglet du menu est une étape qui se débloque quand la précédente
- * est marquée faite par l'élève. La toute première (Démarrage) ne s'ouvre
- * qu'après validation de Mady : l'élève remplit le formulaire d'onboarding,
- * demande l'accès, Mady confirme qu'elle a bien le formulaire et débloque.
- * Module pur : serveur (API) et navigateur (menu, pages).
+ * Tous les onglets sont ouverts (choix de Mady le 2026-10-26 : « une vue où
+ * tout est débloqué »). Chaque page garde son bouton « j'ai terminé » pour
+ * suivre l'avancement, et le formulaire d'onboarding reste l'étape 1 : quand
+ * l'élève dit l'avoir rempli, Mady reçoit une notification sur son tableau
+ * de bord et la marque « vu ». La mécanique de verrou en chaîne est gardée
+ * derrière `LOCK_CHAIN`, au cas où. Module pur : serveur et navigateur.
  */
+
+/** Vrai pour verrouiller les onglets en chaîne (Démarrage après validation de Mady, puis un onglet après l'autre). */
+export const LOCK_CHAIN = false;
 
 export type GateTab = "demarrage" | "produit" | "boutique" | "creatives" | "meta";
 
@@ -52,7 +56,7 @@ export function gateState(student: Pick<Student, "accessRequestedAt" | "accessAp
     const prev = i > 0 ? GATE_TABS[i - 1] : null;
     let unlocked: boolean;
     let blockedBy: GateTabState["blockedBy"] = null;
-    if (opts.admin && !student) unlocked = true;
+    if (!LOCK_CHAIN || (opts.admin && !student)) unlocked = true;
     else if (!prev) {
       unlocked = approved;
       if (!unlocked) blockedBy = { kind: "approval" };

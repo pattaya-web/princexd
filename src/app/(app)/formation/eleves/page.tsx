@@ -83,14 +83,13 @@ export default function StudentAccessPage() {
     }
   };
 
-  /* Parcours : l'élève a dit avoir rempli le formulaire d'onboarding ; Mady débloque Démarrage. */
+  /* Formulaire d'onboarding : l'élève a dit l'avoir rempli ; Mady le marque vu (l'élève le voit sur son accueil). */
   const toggleApproval = async (s: StudentAccessRow) => {
     const approve = !s.accessApprovedAt;
-    if (!approve && !window.confirm(`Reverrouiller le parcours de ${s.name} ? Il ne verra plus que l'accueil et le formulaire.`)) return;
     setBusyId(s.id);
     try {
       await api(`/api/formation/access/${s.id}`, { method: "PATCH", body: JSON.stringify({ accessApproved: approve }) });
-      toast(approve ? `Parcours débloqué pour ${s.name} : Démarrage est ouvert.` : `Parcours reverrouillé pour ${s.name}.`);
+      toast(approve ? `Formulaire de ${s.name} marqué vu.` : `Formulaire de ${s.name} remis « à voir ».`);
       await load();
     } catch (e) {
       toast((e as Error).message, "err");
@@ -184,7 +183,7 @@ export default function StudentAccessPage() {
                   <th className="text-left">Identifiant</th>
                   <th className="text-left">Accès</th>
                   <th className="text-left">Studio IA</th>
-                  <th className="text-left">Parcours</th>
+                  <th className="text-left">Formulaire · parcours</th>
                   <th className="text-left">Guides</th>
                   <th className="text-left">Étapes</th>
                   <th className="text-left">Dernière visite</th>
@@ -226,18 +225,20 @@ export default function StudentAccessPage() {
                     <td>
                       {s.accessApprovedAt ? (
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="badge badge-good !text-[10.5px] !py-0">Débloqué · {s.tabsDone}/5 étapes</span>
+                          <span className="badge badge-good !text-[10.5px] !py-0">Formulaire vu · {s.tabsDone}/5 étapes</span>
                           <button type="button" className="btn btn-ghost btn-sm !h-[24px] !text-[11px]" onClick={() => void toggleApproval(s)} disabled={busyId === s.id}>
-                            Reverrouiller
+                            Non vu
+                          </button>
+                        </div>
+                      ) : s.accessRequestedAt ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="badge badge-warn !text-[10.5px] !py-0">📝 formulaire rempli · à voir</span>
+                          <button type="button" className="btn btn-sm btn-primary !h-[24px] !text-[11px]" onClick={() => void toggleApproval(s)} disabled={busyId === s.id} title="Je l'ai bien reçu : l'élève le voit sur son accueil">
+                            ✓ Vu
                           </button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {s.accessRequestedAt ? <span className="badge badge-warn !text-[10.5px] !py-0">📝 formulaire rempli · à valider</span> : <span className="dim text-[12px]">formulaire pas encore rempli</span>}
-                          <button type="button" className={`btn btn-sm !h-[24px] !text-[11px] ${s.accessRequestedAt ? "btn-primary" : ""}`} onClick={() => void toggleApproval(s)} disabled={busyId === s.id} title="Confirme que tu as bien son formulaire d'onboarding : Démarrage s'ouvre">
-                            Débloquer
-                          </button>
-                        </div>
+                        <span className="dim text-[12px]">formulaire pas rempli · {s.tabsDone}/5 étapes</span>
                       )}
                     </td>
                     <td className="num">

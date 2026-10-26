@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       if (!student.accessRequestedAt) {
         student.accessRequestedAt = now;
         writeDB(db);
-        notifyOwner(`🎓 <b>${escTelegram(student.name)}</b> a rempli le formulaire d'onboarding et demande l'accès à Démarrage.\nValide dans Élèves → Accès élèves (bouton « Débloquer »).`);
+        notifyOwner(`📝 <b>${escTelegram(student.name)}</b> a rempli le formulaire d'onboarding.\nÀ voir sur ton tableau de bord (bouton « Vu »).`);
       }
       return view();
     }
