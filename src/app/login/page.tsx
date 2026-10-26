@@ -2,48 +2,67 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/client";
 import { forgetSession } from "@/lib/sales/client";
 import { Brand } from "@/components/Shell";
 
 /**
- * Connexion de l'equipe.
+ * Connexion.
  *
- * Page volontairement nue et hors du Shell : un setter n'a pas besoin de voir
- * le menu du tool avant d'etre identifie. Le proprietaire, lui, n'a jamais a
- * passer par ici — sans cookie, il est deja chez lui.
+ * Page volontairement nue et hors du Shell : personne n'a besoin de voir le
+ * menu du tool avant d'etre identifie.
  *
- * Identifiant + mot de passe, definis par l'admin dans « Comptes ». Un
- * membre cree avant cette evolution peut encore saisir son ancien code dans
- * le champ identifiant, mot de passe vide.
+ * Un seul champ au depart : l'identifiant. Les eleves de Scale X entrent
+ * avec lui seul, et un champ « mot de passe » les faisait bloquer (« c'est
+ * quoi le mot de passe ? »). Le champ n'apparait que si le serveur le
+ * reclame (`needPassword`) : admin, equipe commerciale, monteur avec compte,
+ * ancienne fiche eleve qui en a un.
  */
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [needPassword, setNeedPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() && !password) return;
+    if (!username.trim()) return;
     setLoading(true);
     setError("");
     try {
-      const res = await api<{ redirect: string; memberName: string }>("/api/sales/session", {
-        method: "POST",
-        body: JSON.stringify({ username: username.trim(), password }),
-      });
+      let res: Response;
+      try {
+        res = await fetch("/api/sales/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: username.trim(), password: needPassword ? password : "" }),
+        });
+      } catch {
+        throw new Error("Connexion au serveur impossible. Vérifie ta connexion et réessaie.");
+      }
+      const data = (await res.json().catch(() => ({}))) as { redirect?: string; error?: string; needPassword?: boolean };
+      if (!res.ok) {
+        if (data.needPassword && !needPassword) {
+          // Pas une erreur pour l'utilisateur : on ouvre juste le second champ.
+          setNeedPassword(true);
+          setLoading(false);
+          return;
+        }
+        throw new Error(data.error || "Connexion refusée.");
+      }
       // Le cache de session porte l'ancien role : le vider evite d'atterrir
       // sur un ecran calcule pour la personne precedente.
       forgetSession();
-      router.push(res.redirect);
+      router.push(data.redirect || "/");
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
       setLoading(false);
     }
   };
+
+  const disabled = loading || !username.trim() || (needPassword && !password);
 
   return (
     <main className="min-h-screen flex flex-col px-4" style={{ background: "var(--bg)" }}>
@@ -54,13 +73,12 @@ export default function LoginPage() {
       <div className="flex-1 grid place-items-center pb-16">
         <div className="w-full max-w-[380px] rise">
           <form className="card p-7" style={{ borderRadius: "var(--radius-lg)" }} onSubmit={submit}>
-            <span className="label-xs block mb-3">Espace équipe</span>
+            <span className="label-xs block mb-3">Connexion</span>
             <h1 className="text-[26px] font-medium leading-[1.1]" style={{ letterSpacing: "-0.03em" }}>
               Bienvenue.
             </h1>
             <p className="muted text-[14px] mt-2 mb-6 leading-relaxed">
-              Connecte-toi avec l&apos;identifiant et le mot de passe qui t&apos;ont été transmis.
-              Élève Scale X : ton identifiant suffit, laisse le mot de passe vide. Monteur : ton code d&apos;accès dans « Mot de passe » suffit. Admin : identifiant et mot de passe définis dans Réglages.
+              {needPassword ? "Ce compte a un mot de passe : saisis-le pour continuer." : "Entre l'identifiant qui t'a été transmis."}
             </p>
 
             <label className="block">
@@ -68,25 +86,34 @@ export default function LoginPage() {
               <input
                 className="input !h-[42px] !text-[14px]"
                 value={username}
-                placeholder="noa.h"
-                onChange={(e) => setUsername(e.target.value)}
+                placeholder="prenom.nom"
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  if (needPassword) {
+                    setNeedPassword(false);
+                    setPassword("");
+                  }
+                }}
                 autoFocus
                 autoCapitalize="none"
                 autoComplete="username"
               />
             </label>
 
-            <label className="block mt-3.5">
-              <span className="label-xs block mb-2">Mot de passe</span>
-              <input
-                className="input !h-[42px] !text-[14px]"
-                type="password"
-                value={password}
-                placeholder="••••••••"
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-              />
-            </label>
+            {needPassword && (
+              <label className="block mt-3.5">
+                <span className="label-xs block mb-2">Mot de passe</span>
+                <input
+                  className="input !h-[42px] !text-[14px]"
+                  type="password"
+                  value={password}
+                  placeholder="••••••••"
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  autoFocus
+                />
+              </label>
+            )}
 
             {error && (
               <p className="text-[12.5px] mt-3 leading-snug" style={{ color: "var(--critical)" }}>
@@ -94,12 +121,8 @@ export default function LoginPage() {
               </p>
             )}
 
-            <button
-              className="btn btn-primary w-full mt-5 !h-[42px] !text-[14px]"
-              type="submit"
-              disabled={loading || (!username.trim() && !password)}
-            >
-              {loading ? <span className="spinner" /> : "Se connecter"}
+            <button className="btn btn-primary w-full mt-5 !h-[42px] !text-[14px]" type="submit" disabled={disabled}>
+              {loading ? <span className="spinner" /> : needPassword ? "Se connecter" : "Continuer"}
             </button>
           </form>
 

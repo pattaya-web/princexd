@@ -203,6 +203,11 @@ export async function POST(req: NextRequest) {
 
   if (!matched) {
     if (disabled) return NextResponse.json({ error: "Ce compte a été désactivé." }, { status: 403 });
+    // Identifiant seul et pas d'eleve derriere : la page de connexion n'affiche
+    // le champ mot de passe qu'a ce moment-la (admin, equipe, ancienne fiche eleve).
+    if (username && !password) {
+      return NextResponse.json({ error: "Ce compte a un mot de passe.", needPassword: true }, { status: 401 });
+    }
     return NextResponse.json({ error: "Identifiant ou mot de passe incorrect." }, { status: 401 });
   }
 
