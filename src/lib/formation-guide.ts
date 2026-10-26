@@ -237,37 +237,19 @@ export const GUIDE_SECTIONS: GuideSection[] = [
   {
     id: "modifier",
     n: "08",
-    title: "Modifier ta boutique avec Claude",
+    title: "Ta première modification, pour voir",
     intro: "Une demande à la fois. Tu demandes, F5, tu vérifies. Si ce n'est pas ça, tu le lui dis.",
     steps: [
       {
-        title: "Enlever une section",
+        title: "Enlève une section",
         text: "Exemple de la vidéo : les exemples de produits de Mady n'ont rien à voir avec le tien, tu les enlèves.",
         cmds: [MSG_EDIT],
       },
       {
-        title: "Annuler",
-        text: "Tu t'es trompé ? Il remet comme avant.",
+        title: "Annule",
+        text: "Tu t'es trompé ? Il remet comme avant. Tu viens de comprendre le principe : tu parles, il fait.",
         cmds: [MSG_UNDO],
-      },
-      {
-        title: "Menus, police, textes",
-        text: "- « Change les menus : enlève Glow up, Our protocol, Track my order, mets Accueil, Collection, Contact »\n- « Je ne suis pas fan de cette police, mets-la plus grasse et plus espacée »\n- « Réécris le titre de la bannière pour mon produit : [ton produit] »",
-      },
-      {
-        title: "Ton logo",
-        text: "Fais-le sur Canva en 450 × 150 px, simple. Glisse le fichier dans la fenêtre Claude Code et dis : « Voilà mon logo, mets-le sur ma boutique à la place de l'actuel ».",
-        link: { label: "Ouvrir Canva", href: "https://www.canva.com" },
-      },
-      {
-        title: "Tes couleurs, à partir d'un concurrent",
-        text: "Installe l'extension ColorZilla, prends la couleur principale de la boutique de ton concurrent direct, colle le code couleur à Claude : « Je veux cette couleur pour les titres, sur un fond blanc, et trouve une deuxième couleur un peu plus claire qui va avec ».",
-        link: { label: "ColorZilla pour Chrome", href: "https://chromewebstore.google.com/detail/colorzilla/bhlhnicpbhignbdhedgjhgdocnmhomnp" },
-      },
-      {
-        title: "Les images et les textes de ton produit",
-        text: "Tes images produit, tu les fais dans le Studio IA (page Créatives) et tu les mets dans un sous-dossier « creatives ». Pour le copywriting, colle l'adresse de ton concurrent : « Analyse cette boutique, c'est mon concurrent direct. Réadapte mon thème avec un copywriting pour mon produit ».",
-        note: { kind: "info", title: "L'éditeur de thème en secours", text: "Boutique en ligne > Thèmes > Personnaliser permet de remettre une section ou de corriger un détail à la souris. Ce n'est pas le but, Claude fait tout, mais c'est là." },
+        note: { kind: "ok", title: "La suite", text: "Logo, menus, couleurs, images, textes, page produit : tout est sur la page Création de la boutique, avec la vidéo de Mady." },
       },
     ],
   },

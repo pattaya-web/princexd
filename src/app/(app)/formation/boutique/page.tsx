@@ -20,13 +20,13 @@ import type { StudentMethodSettings, StudentThemeFile } from "@/lib/types";
  * le zip et modifier les textes sur place.
  */
 
-/** Ce que Claude Code fait, dans l'ordre, une fois le message collé. L'élève ne tape aucune commande. */
+/** Ce que Claude Code fait, dans l'ordre, une fois le message collé (le flux de la vidéo). L'élève ne tape aucune commande. */
 const CLAUDE_STEPS = [
   { title: "Il décompresse le thème", text: "Le zip devient un dossier « theme » dans ton projet, avec les dossiers assets, sections, templates… Tu n'y touches pas." },
-  { title: "Il le branche sur ta boutique avec Shopify CLI", text: "Il lance l'aperçu du thème (shopify theme dev) et te donne un lien qui commence par http://127.0.0.1:9292. Tu l'ouvres : c'est ta boutique avec le thème de Mady, en aperçu, chez toi." },
-  { title: "Il remplace le contenu, section par section", text: "Nom de marque, e-mail support, textes du hero, bénéfices, avis, FAQ, pied de page. Tes images et vidéos du dossier « creatives » à la place des aplats gris. Ton produit à la place des exemples." },
-  { title: "Tu vérifies dans l'aperçu (F5)", text: "À chaque section il te dit ce qu'il a changé. Un texte ne te plaît pas : « réécris ce titre, plus court ». Une image manque : il te dit laquelle et dans quel format." },
-  { title: "Tu dis « OK, mets en ligne »", text: "Il envoie le thème sur ta boutique (shopify theme push) et le publie. Ta boutique est à jour. Puis commande test et Pixel." },
+  { title: "Il se connecte à ta boutique avec le fichier .env", text: "Tu renommes .env.example en .env et tu y colles ton adresse .myshopify.com, ton Client ID et ton Client secret (Démarrage, étape 03). Jamais dans le chat. S'il dit « app not installed », tu installes l'app dans le Dev Dashboard et tu lui dis « c'est bon »." },
+  { title: "Il envoie le thème, tu le publies", text: "Le thème « Aesthetic » apparaît dans Shopify > Boutique en ligne > Thèmes : tu cliques Publier, tu enlèves le mot de passe. Tu lui dis : « publié, plus de mot de passe, je veux le live sur le thème publié, pas de lien de prévisualisation »." },
+  { title: "Il remplace le contenu, section par section", text: "Nom de marque, e-mail support, textes du hero, bénéfices, avis, FAQ, pied de page. Tes images et vidéos du dossier « creatives » à la place des aplats gris. Ton produit à la place des exemples. Tu valides chaque section." },
+  { title: "Tu vérifies sur ta boutique (F5)", text: "Chaque modification arrive en live sur ta boutique. Un texte ne te plaît pas : « réécris ce titre, plus court ». Une image manque : il te dit laquelle et dans quel format. Puis commande test et Pixel." },
 ];
 
 /** Les emplacements que le thème attend : ce que l'élève prépare à l'avance. */
@@ -224,7 +224,7 @@ export default function BoutiquePage() {
         <SectionLabel n="02" title="Prépare ton dossier" />
         <ol className="list-decimal pl-5 mt-3 flex flex-col gap-1.5 text-[13.5px] leading-relaxed">
           <li>
-            Ouvre ton dossier <strong>MA-BOUTIQUE</strong> (celui de Démarrage, déjà ouvert dans VS Code).
+            Ouvre ton dossier <strong>« Prénom boutique »</strong> (celui de Démarrage, sur ton Bureau, déjà ouvert dans VS Code).
           </li>
           <li>
             Glisse le fichier <strong>{zipName}</strong> dedans, tel quel.
@@ -251,7 +251,7 @@ export default function BoutiquePage() {
             Copier le message
           </button>
         </div>
-        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Dans VS Code, panneau Claude Code. Remplis les crochets avec ton produit avant d&apos;envoyer. Ensuite tu dis oui quand il demande, et tu regardes l&apos;aperçu.</p>
+        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Dans VS Code, panneau Claude Code. Remplis les crochets avec ton produit avant d&apos;envoyer. Ensuite tu dis oui quand il demande, et tu regardes ta boutique.</p>
         <pre className="mt-3 text-[13px] leading-relaxed whitespace-pre-wrap rounded-md p-3" style={{ background: "var(--surface-3)", fontFamily: "inherit" }}>
           {prompt}
         </pre>
@@ -260,7 +260,7 @@ export default function BoutiquePage() {
       {/* 04 / Ce que Claude fait */}
       <section className="card p-5">
         <SectionLabel n="04" title="Ce qui se passe ensuite (Shopify CLI, c'est Claude qui s'en occupe)" />
-        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Tu ne tapes aucune commande. Tu lis ce qu&apos;il fait, tu dis oui, tu vérifies dans l&apos;aperçu. Si un message rouge apparaît : capture d&apos;écran, « voilà l&apos;erreur, corrige et continue ».</p>
+        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Tu ne tapes aucune commande. Tu lis ce qu&apos;il fait, tu dis oui, tu vérifies sur ta boutique avec F5. Si un message rouge apparaît : capture d&apos;écran, « voilà l&apos;erreur, corrige et continue ».</p>
         <div className="flex flex-col mt-3">
           {CLAUDE_STEPS.map((s, i) => (
             <div key={s.title} className="flex gap-3.5 py-3 border-b last:border-b-0" style={{ borderColor: "var(--border)" }}>

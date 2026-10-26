@@ -17,17 +17,20 @@ Mon produit : [nom, ce que c'est, ce qu'il fait, prix de vente, prix barré]
 Ma marque : [nom de marque] · e-mail support : [support@…]
 Ma cible : [qui achète et pourquoi]
 Mes images et vidéos : dans le sous-dossier « creatives »
+Mes accès Shopify (Client ID et Client secret de mon app Dev Dashboard, app déjà installée sur la boutique) : je les mets dans le fichier .env, jamais dans ce chat.
 
 Fais tout toi-même avec Shopify CLI, je ne tape aucune commande :
 1. Décompresse le zip dans un dossier « theme » et lis le README.md.
-2. Connecte-le à ma boutique et lance l'aperçu (shopify theme dev --store [mon-adresse].myshopify.com). Donne-moi le lien d'aperçu à ouvrir.
-3. Remplace UNIQUEMENT le contenu, dans cet ordre, en me montrant chaque étape dans l'aperçu avant de passer à la suivante :
+2. Connecte-toi à ma boutique avec le fichier .env (renomme .env.example en .env et dis-moi quoi y coller : SHOPIFY_FLAG_STORE, Client ID, Client secret). Si Shopify répond « app not installed », dis-le moi : j'installe l'app depuis le Dev Dashboard et on continue.
+3. Envoie le thème sur ma boutique sans le publier (shopify theme push --unpublished), dis-moi quand je peux le publier dans Shopify > Boutique en ligne > Thèmes.
+4. Une fois publié et le mot de passe retiré : travaille en live sur le thème publié. Pas de lien de prévisualisation : je fais F5 sur ma boutique et je vois le changement.
+5. Remplace UNIQUEMENT le contenu, dans cet ordre, une section à la fois, et attends mon OK entre chaque :
    - Réglages du thème : nom de marque (wordmark), favicon, e-mail support, liens clés (produit principal, collection principale).
    - Hero : ma vidéo 9:16 (ou mon image) du dossier creatives à la place des aplats gris, titre et sous-titre pour mon produit.
    - Sections bénéfices, comment ça marche, avant / après, avis, FAQ, pied de page : réécris tous les textes pour mon produit, en français, même longueur que les textes existants ; mets mes images à la place des placeholders ; propose-moi 6 avis clients crédibles à valider.
    - Page produit : garde un seul template produit, supprime les exemples (jawliner, patch, tape, peptide…), crée mon produit (titre, description, prix, prix barré, images) et les métachamps aesthetic_lab que le README décrit.
    - Dis-moi les images ou vidéos qui manquent, à quel endroit, et dans quel format (3:4, 1:1, 9:16, 16:9) : je les génère dans mon Studio IA.
-4. Quand je dis « OK, mets en ligne » : envoie le thème sur ma boutique (shopify theme push --unpublished), publie-le, et vérifie que la page d'accueil et la page produit s'affichent bien sur mobile.
+6. Vérifie que la page d'accueil et la page produit s'affichent bien sur mobile.
 
 Si une erreur apparaît, corrige-la et continue. Explique-moi chaque étape en une phrase simple, sans jargon.`;
 
@@ -48,26 +51,18 @@ Les 3 règles de Mady : 1) Claude est ton meilleur ami, toutes les questions que
 Il te faut : VS Code installé, l'extension « Claude Code for VS Code », un abonnement Claude payant (Mady conseille la formule à 90 € par mois, la version à 200 € n'est pas nécessaire), le zip du thème envoyé par Mady, et le Client ID + Client secret de ton app Shopify (ceux que tu as envoyés à Mady). Modèle à choisir dans Claude Code : Fable 5.1 ou Opus 5.5.
 
 À savoir aussi : en dehors de VS Code, l'application Claude sur ton ordinateur peut prendre le contrôle de ton écran et faire des tâches à ta place (créer ton Pixel Meta, ajouter un produit sur Shopify, changer une description). VS Code + Claude Code, c'est uniquement pour construire la boutique. La fin de la vidéo montre la suite : récupérer la couleur et les images d'un concurrent pour aller vite, puis faire tes propres images produit dans le Studio IA et adapter tout le copywriting à ton produit.`,
-  shopVideoSteps: `Crée ton dossier sur le Bureau : sur Mac ou Windows, un dossier nommé « Prénom boutique » (par exemple « Kevin boutique »). Glisse dedans le fichier .zip du thème que Mady t'a envoyé, tel quel, sans l'ouvrir ni le décompresser.
-Installe VS Code et ouvre ton dossier : télécharge Visual Studio Code si tu ne l'as pas. Dans VS Code : Fichier (File) en haut à gauche, puis « Open Folder » (Ouvrir un dossier), et choisis « Prénom boutique ». Tu peux fermer l'onglet « Welcome ».
-Installe Claude Code : colonne de gauche, l'icône « Extensions » (tout en bas). Tape « Claude Code », prends « Claude Code for VS Code » et clique Installer. Une fois installé, un bouton « Claude Code » apparaît en haut à droite : clique dessus. Connecte-toi avec ton compte Claude (abonnement payant, Mady conseille la formule à 90 € par mois).
-Choisis le modèle : dans la fenêtre Claude Code, sélectionne Fable 5.1 ou Opus 5.5. Le réglage « Effort », tu le laisses tel quel.
-Écris ton premier message à Claude : « Salut Claude, j'ai besoin de créer une boutique Shopify avec toi. Dans le dossier il y a le thème template de mon coach. J'ai en ma possession le Client ID et le Client secret de mon app Shopify. Je veux connecter Shopify à cette session pour qu'on bosse ensemble et que je voie les modifications du thème en live. » Shift + Entrée pour aller à la ligne, Entrée pour envoyer. (Tu peux aussi coller le message complet de la section 03 ci-dessous.)
-Laisse-le vérifier et lis seulement son résumé : il regarde le dossier, vérifie que Node et Shopify CLI sont installés, décompresse le thème et inspecte sa structure. Les lignes techniques qui défilent, tu t'en fiches : tu lis le résumé qu'il écrit à la fin et ce qu'il te demande.
-Renomme .env.example en .env : il te dit de ne jamais coller tes secrets dans le chat et de remplir un fichier. Dans la colonne de gauche (Explorateur), repère le fichier « .env.example », clic droit, « Rename », et renomme-le « .env » exactement.
-Remplis le fichier .env : ligne SHOPIFY_FLAG_STORE, colle l'adresse de ta boutique qui finit par .myshopify.com (dans Shopify : Paramètres en bas à gauche, l'adresse est écrite juste sous le nom de la boutique). Puis l'option B : colle ton Client ID et ton Client secret (ceux de ton app Shopify, envoyés à Mady sur WhatsApp). Enlève les espaces en trop, puis Ctrl + S (Cmd + S sur Mac) pour enregistrer.
-Dis-le à Claude et demande la suite : « C'est bon, j'ai renommé .env.example en .env, j'ai rempli l'adresse .myshopify.com, le Client ID et le Client secret. Dis-moi les prochaines étapes, je veux bosser sur ma boutique en live avec toi. Commence par pousser le thème sur la boutique. »
-Si Shopify refuse (« app not installed ») : ton app n'est pas installée sur ta boutique. Dans Shopify : Paramètres, Applications et canaux de vente, « Développer des applications » (Dev Dashboard), ouvre ton app et clique « Installer ». Reviens dans VS Code et dis à Claude : « C'est bon, l'app est installée, on avance. »
-Publie le thème : Claude envoie le thème de Mady sur ta boutique sans le publier (ton thème actuel reste intact). Dans Shopify, Boutique en ligne, Thèmes : le thème « Aesthetic » apparaît dans la liste, clique « Publier ». Si Shopify te demande de vérifier les informations de ton entreprise pour enlever le mot de passe, fais-le, puis lance la boutique (elle passe en public, sans mot de passe).
-Dis à Claude que la boutique est publiée : « J'ai publié la boutique, il n'y a plus de mot de passe. Je veux que chaque modification se pousse en live sur le thème publié, et que je voie le changement en faisant F5. » S'il te propose à la place un lien de prévisualisation, refuse et répète : tu veux le live sur le thème publié, il relance la synchro.
-Organise ton écran : trois onglets dans ton navigateur (le tableau de bord Shopify, l'éditeur de thème « Personnaliser », et ta boutique en ligne), et si ton écran est grand, VS Code à gauche avec Claude, le navigateur à droite. À chaque modification de Claude, F5 sur la boutique.
-Maintenant tu parles, il fait : « Enlève la section où il y a écrit Jaw trainer, pimple patch, nose tape. » « Annule ce que tu viens de faire, remets la section. » « Change les menus : enlève Glow up, Our protocol, Track my order, remplace par Accueil, Collection, Contact. » « Je ne suis pas fan de cette police, mets-la plus grasse et plus espacée. » Une demande à la fois, F5, tu vérifies.
-Ton logo : fais-le sur Canva en 450 × 150 px, simple. Glisse le fichier dans la fenêtre Claude Code et dis : « Voilà mon logo, mets-le sur ma boutique à la place de l'actuel et publie. »
-Tes couleurs, à partir d'un concurrent : installe l'extension de navigateur ColorZilla, prends la couleur principale de la boutique de ton concurrent direct, colle le code couleur à Claude : « Je veux cette couleur comme couleur principale des titres, sur un fond blanc, et trouve-moi une deuxième couleur un peu plus claire qui va avec, deux couleurs qui dominent sur du blanc. »
-Les images produit : pour aller vite, les images d'un concurrent se récupèrent avec l'extension CSS Peeper (onglet Assets), mais tes vraies images produit, tu les fais dans le Studio IA (page Créatives). Mets-les dans le sous-dossier « creatives » et dis à Claude où les placer.
-Le copywriting à partir du concurrent : colle l'adresse de la boutique du concurrent à Claude : « Analyse cette boutique, c'est mon concurrent direct. Réadapte mon thème actuel avec un copywriting pour mon produit. » Puis tu corriges section par section dans l'aperçu.
-L'éditeur de thème Shopify en secours : « Personnaliser » dans Shopify permet de rattraper un détail à la souris, ou de remettre une section (par exemple « Product Bubble »). Ce n'est pas le but, Claude fait tout, mais c'est là si besoin.
-Si ça bloque, tu parles : capture d'écran du message rouge, « voilà l'erreur, corrige et continue ». Claude répond à toutes tes questions, même les plus bêtes. Et Mady reste dispo sur WhatsApp.`,
+  shopVideoSteps: `Avant de commencer : Claude et Shopify doivent déjà être connectés (Démarrage, étapes 03 à 06 : accès de ta boutique, dossier avec le zip, premier message, fichier .env, thème publié, live). Si ce n'est pas fait, commence par là.
+Organise ton écran : trois onglets (tableau de bord Shopify, éditeur de thème « Personnaliser », ta boutique en ligne) et VS Code avec Claude à gauche. À chaque modification, F5 sur la boutique.
+Enlève ce qui n'est pas ton produit : « Enlève la section de la page d'accueil où il y a écrit Jaw trainer, pimple patch, nose tape ». Tu t'es trompé ? « Annule ce que tu viens de faire, remets la section ».
+Les menus : « Change les menus : enlève Glow up, Our protocol, Track my order, remplace par Accueil, Collection, Contact ».
+La police : « Je ne suis pas fan de cette police, mets-la plus grasse et plus espacée ». Une demande à la fois, F5, tu vérifies.
+Ton logo : fais-le sur Canva en 450 × 150 px, simple. Glisse le fichier dans la fenêtre Claude Code : « Voilà mon logo, mets-le sur ma boutique à la place de l'actuel ».
+Tes couleurs, à partir d'un concurrent : extension ColorZilla, prends la couleur principale de la boutique de ton concurrent direct, colle le code couleur à Claude : « Je veux cette couleur comme couleur principale des titres, sur un fond blanc, et trouve-moi une deuxième couleur un peu plus claire qui va avec ».
+Les images produit : pour aller vite, les images d'un concurrent se récupèrent avec l'extension CSS Peeper (onglet Assets), mais tes vraies images, tu les fais dans le Studio IA (page Créatives). Mets-les dans le sous-dossier « creatives » et dis à Claude où les placer.
+Le copywriting : colle l'adresse de la boutique du concurrent à Claude : « Analyse cette boutique, c'est mon concurrent direct. Réadapte mon thème actuel avec un copywriting pour mon produit ». Puis tu corriges section par section.
+Ta page produit : « Garde un seul produit, supprime les exemples, crée le mien : titre, description, prix, prix barré, mes images ». Puis commande test depuis ton téléphone.
+L'éditeur de thème Shopify en secours : « Personnaliser » permet de remettre une section ou de corriger un détail à la souris. Ce n'est pas le but, Claude fait tout, mais c'est là.
+Si ça bloque, tu parles : capture d'écran du message rouge, « voilà l'erreur, corrige et continue ». Claude répond à toutes tes questions. Et Mady reste dispo sur WhatsApp.`,
   creativesVideoUrl: "",
   creativesVideoSummary: "",
   creativesVideoSteps: "",

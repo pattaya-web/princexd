@@ -105,7 +105,7 @@ const SEED: SeedV2[] = [
     was: /boutique est générée|boutique est generee|demande ta boutique|construis ta boutique|thème de mady/i,
     title: "Mets le thème de Mady sur ta boutique avec Claude Code",
     detail:
-      "Page Ta boutique : télécharge le thème, mets-le dans ton dossier MA-BOUTIQUE avec tes créatives, colle le message à Claude Code dans VS Code. Il remplace textes, images et vidéos par les tiens, section par section ; tu ne touches pas au design. Puis « mets en ligne », commande test (Démarrage, section 07).\n\n✅ Fait quand : tu peux acheter sur ta boutique depuis ton téléphone.",
+      "Page Ta boutique : télécharge le thème, mets-le dans ton dossier « Prénom boutique » avec tes créatives, colle le message à Claude Code dans VS Code. Il remplace textes, images et vidéos par les tiens, section par section ; tu ne touches pas au design. Puis « mets en ligne », commande test (Démarrage, section 07).\n\n✅ Fait quand : tu peux acheter sur ta boutique depuis ton téléphone.",
     link: "/formation/boutique",
   },
   {
