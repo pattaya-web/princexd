@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui";
 import { SectionLabel } from "./portal";
 import { youtubeEmbedUrl, youtubeId } from "@/lib/formation";
 import { parseVideoSteps } from "@/lib/formation-methode";
+import { VideoLock } from "./VideoLock";
 import type { MethodPayload } from "@/app/api/formation/methode/route";
 import type { StudentMethodSettings } from "@/lib/types";
 
@@ -122,20 +123,24 @@ export function VideoLesson({
       )}
 
       {vid ? (
-        <div className="relative w-full mt-4 rounded-md overflow-hidden" style={{ aspectRatio: "16 / 9", background: "#000" }}>
-          <iframe
-            key={vid}
-            className="absolute inset-0 w-full h-full"
-            src={youtubeEmbedUrl(vid)}
-            title={title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          />
-        </div>
+        <VideoLock>
+          <div className="relative w-full mt-4 rounded-md overflow-hidden" style={{ aspectRatio: "16 / 9", background: "#000" }}>
+            <iframe
+              key={vid}
+              className="absolute inset-0 w-full h-full"
+              src={youtubeEmbedUrl(vid)}
+              title={title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
+          </div>
+        </VideoLock>
       ) : value.url ? (
-        <a href={value.url} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm mt-4">
-          Voir la vidéo ↗
-        </a>
+        <VideoLock>
+          <a href={value.url} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm mt-4">
+            Voir la vidéo ↗
+          </a>
+        </VideoLock>
       ) : (
         <div className="mt-4 rounded-md px-4 py-6 text-center dim text-[13px]" style={{ background: "var(--surface-2)" }}>
           {isAdmin ? "Pas encore de vidéo : « Modifier la vidéo » pour coller le lien YouTube." : placeholder || "La vidéo arrive bientôt."}
@@ -149,7 +154,7 @@ export function VideoLesson({
             <span className="dim text-[12px] font-normal">ce que Mady explique dans la vidéo</span>
             <span className="ml-auto dim text-[12px]">▾ ouvrir</span>
           </summary>
-          <div className="flex flex-col gap-2 px-3.5 pb-3.5 text-[13.5px] leading-relaxed max-w-[70ch]">
+          <div className="flex flex-col gap-2 px-3.5 pb-3.5 text-[14px] leading-relaxed">
             {paras.map((p, i) => (
               <p key={i} className="whitespace-pre-wrap">
                 {p}

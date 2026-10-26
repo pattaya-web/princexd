@@ -919,3 +919,183 @@ b {
     white-space: nowrap;
   }
 }
+
+
+/* ---------------------------------------------------------------
+   Scale X (espace élève) : bleu du logo, fond nuit, halos qui dérivent,
+   surfaces en verre, point bleu sous le curseur. Posé par le Shell sur
+   le conteneur racine quand la session est celle d'un élève.
+   --------------------------------------------------------------- */
+.sx-skin {
+  color-scheme: dark;
+  --bg: #070b14;
+  --surface: rgba(14, 21, 36, 0.72);
+  --surface-2: rgba(20, 30, 50, 0.72);
+  --surface-3: rgba(28, 41, 66, 0.78);
+  --border: rgba(120, 165, 230, 0.16);
+  --border-strong: rgba(120, 165, 230, 0.34);
+  --text: #eef3fb;
+  --text-2: #aab8cf;
+  --text-3: #71809b;
+  --accent: #1b74c9;
+  --accent-hover: #2a86de;
+  --accent-soft: rgba(27, 116, 201, 0.16);
+  --accent-ring: rgba(27, 116, 201, 0.5);
+  --accent-on: #ffffff;
+  --grad-accent: linear-gradient(135deg, #1b74c9 0%, #4fa3ff 100%);
+  --chart-surface: rgba(14, 21, 36, 0.72);
+  --grid: rgba(120, 165, 230, 0.12);
+  --good: #4ade80;
+  --emerald: #4ade80;
+  --warning: #fbbf24;
+  --critical: #f87171;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 16px 48px -16px rgb(27 116 201 / 0.35), 0 2px 8px -2px rgb(0 0 0 / 0.5);
+  background: var(--bg);
+  color: var(--text);
+  position: relative;
+  isolation: isolate;
+  cursor: none;
+}
+.sx-skin a,
+.sx-skin button,
+.sx-skin input,
+.sx-skin textarea,
+.sx-skin select,
+.sx-skin summary,
+.sx-skin label,
+.sx-skin iframe,
+.sx-skin video {
+  cursor: none;
+}
+.sx-skin .card,
+.sx-skin .card-flat {
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+.sx-skin .card {
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.sx-skin h1 {
+  background: linear-gradient(92deg, #ffffff 0%, #dbe9fb 55%, #7fb8f5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Les halos : trois taches de bleu qui dérivent lentement derrière tout. */
+.sx-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(1200px 800px at 85% -10%, rgba(27, 116, 201, 0.22), transparent 60%),
+    radial-gradient(900px 700px at -10% 110%, rgba(79, 163, 255, 0.16), transparent 60%),
+    #070b14;
+}
+.sx-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.55;
+  will-change: transform;
+  mix-blend-mode: screen;
+}
+.sx-blob-1 {
+  width: 56vmax;
+  height: 56vmax;
+  left: -12vmax;
+  top: -18vmax;
+  background: radial-gradient(circle at 40% 40%, rgba(27, 116, 201, 0.9), rgba(27, 116, 201, 0) 65%);
+  animation: sx-drift-1 26s ease-in-out infinite alternate;
+}
+.sx-blob-2 {
+  width: 48vmax;
+  height: 48vmax;
+  right: -14vmax;
+  top: 20vh;
+  background: radial-gradient(circle at 60% 50%, rgba(79, 163, 255, 0.75), rgba(79, 163, 255, 0) 65%);
+  animation: sx-drift-2 32s ease-in-out infinite alternate;
+}
+.sx-blob-3 {
+  width: 44vmax;
+  height: 44vmax;
+  left: 20vw;
+  bottom: -22vmax;
+  background: radial-gradient(circle at 50% 50%, rgba(14, 76, 150, 0.9), rgba(14, 76, 150, 0) 65%);
+  animation: sx-drift-3 38s ease-in-out infinite alternate;
+}
+.sx-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/></svg>");
+  mix-blend-mode: overlay;
+}
+@keyframes sx-drift-1 {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(14vw, 12vh, 0) scale(1.15); }
+}
+@keyframes sx-drift-2 {
+  from { transform: translate3d(0, 0, 0) scale(1.05); }
+  to { transform: translate3d(-12vw, 18vh, 0) scale(0.9); }
+}
+@keyframes sx-drift-3 {
+  from { transform: translate3d(0, 0, 0) scale(0.95); }
+  to { transform: translate3d(10vw, -14vh, 0) scale(1.2); }
+}
+
+/* Le curseur : un point bleu net, et un anneau doux qui le suit avec retard. */
+.sx-dot,
+.sx-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 9999;
+  pointer-events: none;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.sx-dot {
+  width: 9px;
+  height: 9px;
+  background: #4fa3ff;
+  box-shadow: 0 0 10px 2px rgba(79, 163, 255, 0.75), 0 0 28px 6px rgba(27, 116, 201, 0.35);
+  transition: opacity 0.25s ease, width 0.12s ease, height 0.12s ease;
+}
+.sx-dot.sx-dot-press {
+  width: 14px;
+  height: 14px;
+}
+.sx-ring {
+  width: 34px;
+  height: 34px;
+  border: 1.5px solid rgba(79, 163, 255, 0.45);
+  background: radial-gradient(circle, rgba(79, 163, 255, 0.12), transparent 70%);
+}
+@media (pointer: coarse) {
+  .sx-skin,
+  .sx-skin a,
+  .sx-skin button,
+  .sx-skin input,
+  .sx-skin textarea,
+  .sx-skin select,
+  .sx-skin summary,
+  .sx-skin label,
+  .sx-skin iframe,
+  .sx-skin video {
+    cursor: auto;
+  }
+  .sx-dot,
+  .sx-ring {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-blob {
+    animation: none;
+  }
+}

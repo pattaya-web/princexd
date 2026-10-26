@@ -5,6 +5,7 @@ import { JobsDock } from "./JobsDock";
 import { NewStudentChat } from "./NewStudentChat";
 import { AlertsBell } from "./sales/AlertsBell";
 import type { GateTabState } from "@/lib/formation-gate";
+import { ScaleXBackdrop, ScaleXCursor, ScaleXLogo } from "./formation/ScaleXSkin";
 import { useBrollFresh } from "./BrollLibrary";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -757,7 +758,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         : SIMPLE_NAV;
 
   return (
-    <div className="min-h-screen flex">
+    <div className={`min-h-screen flex ${isStudent ? "sx-skin" : ""}`}>
+      {isStudent && <ScaleXBackdrop />}
+      {isStudent && <ScaleXCursor />}
       {open && (
         <div
           className="fixed inset-0 z-30 md:hidden"
@@ -775,10 +778,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
         className={`fixed md:sticky top-0 z-40 h-screen w-[236px] shrink-0 flex flex-col transition-transform md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
-        style={{ background: "var(--bg)", borderRight: "1px solid var(--border)" }}
+        style={isStudent ? { background: "rgba(7, 11, 20, 0.55)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderRight: "1px solid var(--border)" } : { background: "var(--bg)", borderRight: "1px solid var(--border)" }}
       >
         <div className="px-5 h-[60px] flex items-center shrink-0">
-          {isStudent ? <Brand mark="SX" name="Scale X" /> : <Brand />}
+          {isStudent ? <ScaleXLogo height={22} /> : <Brand />}
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 pb-3">
