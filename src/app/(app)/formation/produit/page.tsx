@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api, useLocalState } from "@/lib/client";
 import { ErrorNote, Spinner, useToast } from "@/components/ui";
+import { StepGate } from "@/components/formation/StepGate";
 import { PortalFooter, SectionLabel } from "@/components/formation/portal";
 import { youtubeEmbedUrl, youtubeId } from "@/lib/formation";
 import { emptyProductRows, PRODUCT_COLUMNS, productsAsText, type ProductRow } from "@/lib/formation-methode";
@@ -105,6 +106,7 @@ export default function ProduitPage() {
   };
 
   return (
+    <StepGate tab="produit">
     <div className="flex flex-col gap-5">
       <header>
         <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
@@ -307,5 +309,6 @@ export default function ProduitPage() {
 
       <PortalFooter quote="Le produit fait 80 % du résultat. Prends le temps de bien choisir, puis va vite." author="Mady" />
     </div>
+    </StepGate>
   );
 }

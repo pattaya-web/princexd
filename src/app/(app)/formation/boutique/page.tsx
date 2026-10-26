@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { ErrorNote, Spinner, useToast } from "@/components/ui";
+import { StepGate } from "@/components/formation/StepGate";
 import { PortalFooter, SectionLabel } from "@/components/formation/portal";
 import { DropZone } from "@/components/upload-ui";
 import { DEFAULT_THEME_PROMPT, fmtBytes } from "@/lib/formation-methode";
@@ -122,6 +123,7 @@ export default function BoutiquePage() {
   const prompt = m.themePrompt.replace("[NOM-DU-ZIP].zip", zipName);
 
   return (
+    <StepGate tab="boutique">
     <div className="flex flex-col gap-5">
       <header>
         <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
@@ -277,5 +279,6 @@ export default function BoutiquePage() {
 
       <PortalFooter quote="La page est faite. Ton seul travail : ton produit, tes textes, tes images." author="Mady" />
     </div>
+    </StepGate>
   );
 }

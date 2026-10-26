@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { ErrorNote, Spinner, useToast } from "@/components/ui";
 import { Annex } from "@/components/formation/Annex";
+import { StepGate } from "@/components/formation/StepGate";
 import { PortalFooter, SectionLabel, waHelpLink } from "@/components/formation/portal";
 import { GUIDE_SECTIONS, type GuideNote, type GuideSection, type GuideStep } from "@/lib/formation-guide";
 import { youtubeEmbedUrl, youtubeId } from "@/lib/formation";
@@ -252,6 +253,7 @@ export default function DemarragePage() {
   const guideDone = new Set(data.guideDone);
 
   return (
+    <StepGate tab="demarrage">
     <div className="flex flex-col gap-5">
       <header>
         <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
@@ -392,5 +394,6 @@ export default function DemarragePage() {
 
       <PortalFooter quote="Plus vite tu lances, plus vite tu apprends. Le reste, c'est de l'optimisation." author="Mady" />
     </div>
+    </StepGate>
   );
 }

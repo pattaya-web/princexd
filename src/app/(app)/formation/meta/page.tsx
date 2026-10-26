@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { ErrorNote, Spinner } from "@/components/ui";
+import { StepGate } from "@/components/formation/StepGate";
 import { PortalFooter } from "@/components/formation/portal";
 import { MethodVideoLesson } from "@/components/formation/VideoLesson";
 import type { MethodPayload } from "@/app/api/formation/methode/route";
@@ -31,6 +32,7 @@ export default function MetaPage() {
   if (!data) return <Spinner label="Chargement…" />;
 
   return (
+    <StepGate tab="meta">
     <div className="flex flex-col gap-5">
       <header>
         <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
@@ -78,5 +80,6 @@ export default function MetaPage() {
 
       <PortalFooter quote="La pub ne répare pas un produit moyen. Elle accélère un bon produit." author="Mady" />
     </div>
+    </StepGate>
   );
 }

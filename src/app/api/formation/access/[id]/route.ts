@@ -18,7 +18,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   return handle(async () => {
     requireAdmin(readSession(req));
     const { id } = await ctx.params;
-    const raw = (await req.json().catch(() => ({}))) as { username?: unknown; password?: unknown; portalAccess?: unknown; studioAccess?: unknown; kieApiKey?: unknown };
+    const raw = (await req.json().catch(() => ({}))) as { username?: unknown; password?: unknown; portalAccess?: unknown; studioAccess?: unknown; kieApiKey?: unknown; accessApproved?: unknown };
     const db = readDB();
     const s = db.students.find((x) => x.id === id);
     if (!s) throw new Error("Élève introuvable.");
@@ -51,6 +51,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       const k = raw.kieApiKey.trim();
       if (k === "CLEAR") delete s.kieApiKey;
       else if (k) s.kieApiKey = k.slice(0, 200);
+    }
+
+    // Parcours : Mady confirme qu'elle a le formulaire d'onboarding, Démarrage s'ouvre (ou se referme).
+    if (typeof raw.accessApproved === "boolean") {
+      if (raw.accessApproved) s.accessApprovedAt = s.accessApprovedAt || new Date().toISOString();
+      else delete s.accessApprovedAt;
     }
 
     writeDB(db);

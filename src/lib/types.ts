@@ -714,6 +714,12 @@ export interface Student {
   guideDone?: string[];
   /** Guides PDF (Education) marques terminés : ids du manifeste src/lib/formation-education.ts. */
   completedLessons?: string[];
+  /* --- Verrou du parcours (src/lib/formation-gate.ts) : l'eleve dit avoir rempli
+         le formulaire d'onboarding, Mady valide, puis chaque onglet s'ouvre quand
+         le precedent est marque fait. --- */
+  accessRequestedAt?: string;
+  accessApprovedAt?: string;
+  tabsDone?: string[];
 }
 
 /** « Demande ta boutique à Mady » : l'eleve donne son adresse Shopify, Mady genere avec le generateur. */

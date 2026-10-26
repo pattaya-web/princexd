@@ -4,6 +4,7 @@ import Link from "next/link";
 import { JobsDock } from "./JobsDock";
 import { NewStudentChat } from "./NewStudentChat";
 import { AlertsBell } from "./sales/AlertsBell";
+import type { GateTabState } from "@/lib/formation-gate";
 import { useBrollFresh } from "./BrollLibrary";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -705,6 +706,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const isVa = session?.role === "va";
   // Un eleve ne voit que sa formation.
   const isStudent = session?.role === "student";
+  /* Verrou du parcours élève : rechargé à chaque étape validée (événement formation:gate). */
+  const [gateTabs, setGateTabs] = useState<GateTabState[]>([]);
+  useEffect(() => {
+    if (!isStudent) return;
+    const load = () =>
+      api<{ tabs: GateTabState[] }>("/api/formation/gate")
+        .then((g) => setGateTabs(g.tabs))
+        .catch(() => setGateTabs([]));
+    load();
+    window.addEventListener("formation:gate", load);
+    return () => window.removeEventListener("formation:gate", load);
+  }, [isStudent]);
   const nav = isSalesOnly
     ? NAV.filter((g) => g.section === "Sales")
     : isVa
@@ -792,6 +805,21 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   const active =
                     pathname === itemPath &&
                     (!itemQuery || (typeof window !== "undefined" && window.location.search.includes(itemQuery)));
+                  // Parcours élève : un onglet verrouillé se voit (cadenas) mais ne s'ouvre pas.
+                  const gateTab = isStudent ? gateTabs.find((t) => t.href === itemPath) : undefined;
+                  if (gateTab && !gateTab.unlocked) {
+                    return (
+                      <span
+                        key={item.href}
+                        className="nav-link flex items-center gap-2.5 px-3 h-[34px] rounded-full text-[13.5px] cursor-not-allowed"
+                        style={{ color: "var(--text-3)", opacity: 0.7 }}
+                        title={gateTab.blockedBy?.kind === "approval" ? "S'ouvre quand Mady a validé ton formulaire d'onboarding" : gateTab.blockedBy?.kind === "tab" ? `Termine d'abord « ${gateTab.blockedBy.label} »` : "Verrouillé"}
+                      >
+                        <span className="w-[14px] text-center text-[12px]">🔒</span>
+                        {item.label}
+                      </span>
+                    );
+                  }
                   return (
                     <Link
                       key={item.href}
@@ -810,6 +838,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
                         {item.icon}
                       </span>
                       {item.label}
+                      {gateTab?.done && (
+                        <span className="ml-auto text-[11px]" style={{ color: "var(--good)" }}>
+                          ✓
+                        </span>
+                      )}
                       {(item as { extra?: React.ReactNode }).extra}
                     </Link>
                   );

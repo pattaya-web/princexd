@@ -107,6 +107,10 @@ export interface StudentAccessRow {
   /** Studio IA ouvert par l'admin, et cle KIE posee par l'eleve. */
   studioAccess: boolean;
   hasKieKey: boolean;
+  /** Verrou du parcours : demande d'acces apres le formulaire, validation de Mady, etapes faites. */
+  accessRequestedAt: string;
+  accessApprovedAt: string;
+  tabsDone: number;
 }
 
 export function toAccessRow(s: Student, published: Set<string>, publishedSteps: Set<string> = new Set()): StudentAccessRow {
@@ -118,6 +122,9 @@ export function toAccessRow(s: Student, published: Set<string>, publishedSteps: 
     shopRequested: s.shopRequest?.status === "demandee",
     studioAccess: Boolean(s.studioAccess),
     hasKieKey: Boolean((s.kieApiKey ?? "").trim()),
+    accessRequestedAt: s.accessRequestedAt ?? "",
+    accessApprovedAt: s.accessApprovedAt ?? "",
+    tabsDone: (s.tabsDone ?? []).length,
     id: s.id,
     name: s.name,
     email: s.email ?? "",

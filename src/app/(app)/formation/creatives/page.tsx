@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { ErrorNote, Spinner, useToast } from "@/components/ui";
 import { Annex } from "@/components/formation/Annex";
+import { StepGate } from "@/components/formation/StepGate";
 import { PortalFooter, SectionLabel } from "@/components/formation/portal";
 import { MethodVideoLesson } from "@/components/formation/VideoLesson";
 import { DropZone, ProgressBar, uploadMany, type Progress } from "@/components/upload-ui";
@@ -244,6 +245,7 @@ export default function CreativesPage() {
   };
 
   return (
+    <StepGate tab="creatives">
     <div className="flex flex-col gap-5">
       <header>
         <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
@@ -499,5 +501,6 @@ export default function CreativesPage() {
 
       <PortalFooter quote="Pas de perfection : on teste vite et on garde ce qui marche." author="Mady" />
     </div>
+    </StepGate>
   );
 }

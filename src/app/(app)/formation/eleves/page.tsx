@@ -83,6 +83,22 @@ export default function StudentAccessPage() {
     }
   };
 
+  /* Parcours : l'élève a dit avoir rempli le formulaire d'onboarding ; Mady débloque Démarrage. */
+  const toggleApproval = async (s: StudentAccessRow) => {
+    const approve = !s.accessApprovedAt;
+    if (!approve && !window.confirm(`Reverrouiller le parcours de ${s.name} ? Il ne verra plus que l'accueil et le formulaire.`)) return;
+    setBusyId(s.id);
+    try {
+      await api(`/api/formation/access/${s.id}`, { method: "PATCH", body: JSON.stringify({ accessApproved: approve }) });
+      toast(approve ? `Parcours débloqué pour ${s.name} : Démarrage est ouvert.` : `Parcours reverrouillé pour ${s.name}.`);
+      await load();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusyId("");
+    }
+  };
+
   const toggleAccess = async (s: StudentAccessRow) => {
     setBusyId(s.id);
     try {
@@ -168,6 +184,7 @@ export default function StudentAccessPage() {
                   <th className="text-left">Identifiant</th>
                   <th className="text-left">Accès</th>
                   <th className="text-left">Studio IA</th>
+                  <th className="text-left">Parcours</th>
                   <th className="text-left">Guides</th>
                   <th className="text-left">Étapes</th>
                   <th className="text-left">Dernière visite</th>
@@ -205,6 +222,23 @@ export default function StudentAccessPage() {
                     </td>
                     <td>
                       <Toggle checked={s.studioAccess} onChange={() => void toggleStudio(s)} label={s.studioAccess ? (s.hasKieKey ? "Ouvert · clé OK" : "Ouvert · sans clé") : "Fermé"} />
+                    </td>
+                    <td>
+                      {s.accessApprovedAt ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="badge badge-good !text-[10.5px] !py-0">Débloqué · {s.tabsDone}/5 étapes</span>
+                          <button type="button" className="btn btn-ghost btn-sm !h-[24px] !text-[11px]" onClick={() => void toggleApproval(s)} disabled={busyId === s.id}>
+                            Reverrouiller
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {s.accessRequestedAt ? <span className="badge badge-warn !text-[10.5px] !py-0">📝 formulaire rempli · à valider</span> : <span className="dim text-[12px]">formulaire pas encore rempli</span>}
+                          <button type="button" className={`btn btn-sm !h-[24px] !text-[11px] ${s.accessRequestedAt ? "btn-primary" : ""}`} onClick={() => void toggleApproval(s)} disabled={busyId === s.id} title="Confirme que tu as bien son formulaire d'onboarding : Démarrage s'ouvre">
+                            Débloquer
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="num">
                       {s.lessonsDone} / {data.lessonsTotal}
