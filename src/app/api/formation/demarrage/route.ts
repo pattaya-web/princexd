@@ -19,7 +19,7 @@ export interface DemarragePayload {
   bookingUrl: string;
   /** Video d'accompagnement (YouTube ou fichier), vide si aucune. */
   welcomeVideoUrl: string;
-  /** Liens utiles sous la video : formulaire, outils. */
+  /** Les liens nécessaires : BrandSearch, Claude Max, Shopify, Chrome Remote Desktop, Claude pour Chrome. */
   links: { label: string; href: string; note: string }[];
   /** Reglages complets du portail, pour que l'admin modifie la video depuis la page. Null pour un eleve. */
   portal: StudentPortalSettings | null;
@@ -40,14 +40,12 @@ export async function GET(req: NextRequest) {
     const { session, db, student } = studentOf(req);
     const portal = portalSettings(db.settings);
     const ob = onboardingSettings(db.settings);
+    // Les liens nécessaires, et rien d'autre (le formulaire et la vidéo sont sur l'accueil).
     const links = [
-      { label: "Formulaire d'onboarding", href: ob.formUrl, note: "5 min, à faire en premier" },
-      { label: "Shopify, 1 € les premiers mois", href: ob.shopifyUrl, note: "le lien de Mady" },
+      { label: "BrandSearch", href: ob.brainsearchUrl, note: "recherche produit · lien de Mady" },
       { label: "Claude Max", href: ob.claudeUrl, note: "c'est lui qui construit ta boutique" },
-      { label: "BrandSearch, plan Starter", href: ob.brainsearchUrl, note: "recherche produit" },
-      { label: "Meta Business", href: "https://business.facebook.com", note: "compte pub + Gestionnaire" },
-      { label: "Visual Studio Code", href: "https://code.visualstudio.com", note: "gratuit" },
-      { label: "Chrome Remote Desktop", href: "https://remotedesktop.google.com/access", note: "pour que Mady prenne la main" },
+      { label: "Shopify", href: ob.shopifyUrl, note: "1 € les premiers mois · lien de Mady" },
+      { label: "Google Chrome Remote Desktop", href: "https://remotedesktop.google.com/access", note: "pour que Mady prenne la main" },
       { label: "Claude pour Chrome", href: "https://claude.ai/chrome", note: "Claude règle Shopify à ta place" },
     ].filter((l) => l.href);
     return {

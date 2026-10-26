@@ -8,7 +8,6 @@ import { Annex } from "@/components/formation/Annex";
 import { StepGate } from "@/components/formation/StepGate";
 import { PortalFooter, SectionLabel, waHelpLink } from "@/components/formation/portal";
 import { GUIDE_SECTIONS, type GuideNote, type GuideSection, type GuideStep } from "@/lib/formation-guide";
-import { youtubeEmbedUrl, youtubeId } from "@/lib/formation";
 import { DropZone, ProgressBar, uploadMany, type Progress } from "@/components/upload-ui";
 import type { DemarragePayload } from "@/app/api/formation/demarrage/route";
 
@@ -276,13 +275,13 @@ export default function DemarragePage() {
         )}
       </header>
 
-      {/* 00 / Bienvenue : la vidéo d'accompagnement, les liens utiles, le message d'onboarding */}
+      {/* 00 / Les liens nécessaires. La vidéo de bienvenue et le formulaire sont sur l'accueil ; l'admin règle la vidéo ici. */}
       <section className="card p-5">
         <div className="flex items-center justify-between gap-3">
-          <SectionLabel n="00" title="Bienvenue" />
+          <SectionLabel n="00" title="Les liens" />
           {data.isAdmin && !data.student && (
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => { setVideoUrl(data.welcomeVideoUrl); setEditVideo((v) => !v); }}>
-              {data.welcomeVideoUrl ? "Changer la vidéo" : "Ajouter la vidéo d'accompagnement"}
+              {data.welcomeVideoUrl ? "Changer la vidéo de bienvenue (accueil)" : "Ajouter la vidéo de bienvenue (accueil)"}
             </button>
           )}
         </div>
@@ -310,27 +309,8 @@ export default function DemarragePage() {
             {progress && <ProgressBar p={progress} />}
           </div>
         )}
-        {data.welcomeVideoUrl && (
-          <div className="mt-3 rounded-lg overflow-hidden" style={{ background: "#000" }}>
-            {youtubeId(data.welcomeVideoUrl) ? (
-              <div style={{ position: "relative", paddingTop: "56.25%" }}>
-                <iframe
-                  src={youtubeEmbedUrl(youtubeId(data.welcomeVideoUrl)!)}
-                  title="Vidéo d'accompagnement"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
-                />
-              </div>
-            ) : (
-              <video src={data.welcomeVideoUrl} controls playsInline preload="metadata" className="w-full max-h-[70vh]" />
-            )}
-          </div>
-        )}
-        {!data.welcomeVideoUrl && data.isAdmin && !data.student && <p className="dim text-[12.5px] mt-3">Pas encore de vidéo : ajoute ta vidéo d&apos;accompagnement, elle s&apos;affiche ici avec les liens en dessous.</p>}
         {data.links.length > 0 && (
-          <div className="mt-4">
-            <div className="label-xs mb-2">Les liens</div>
+          <div className="mt-3">
             <div className="grid gap-2 sm:grid-cols-2">
               {data.links.map((l) => (
                 <a key={l.href + l.label} href={l.href} target="_blank" rel="noreferrer" className="card-flat px-3 py-2.5 flex items-center justify-between gap-3 hover:underline">
@@ -344,9 +324,6 @@ export default function DemarragePage() {
             </div>
           </div>
         )}
-        <div className="mt-4 text-[14.5px] leading-relaxed whitespace-pre-wrap">
-          <Annex text={data.welcome} className="!text-[14.5px]" />
-        </div>
       </section>
 
       {/* Sommaire */}
