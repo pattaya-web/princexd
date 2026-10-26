@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api, useLocalState } from "@/lib/client";
 import { ErrorNote, Spinner, useToast } from "@/components/ui";
@@ -289,22 +288,6 @@ export default function ProduitPage() {
           </button>
         </div>
         {!wa && <p className="dim text-[12.5px] mt-2">Colle le tableau dans ta conversation WhatsApp avec Mady.</p>}
-      </section>
-
-      {/* 04 / Validation */}
-      <section className="card p-5">
-        <SectionLabel n="04" title="Mady valide ton produit" />
-        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">
-          Sur WhatsApp, Mady te dit lequel garder (et pourquoi). Une fois le produit validé, il t&apos;ouvre le Studio IA et tu passes aux créatives. Pas de créatives, pas de boutique avant la validation : ça t&apos;évite de travailler pour rien.
-        </p>
-        <div className="flex flex-wrap items-center gap-3 mt-4">
-          <Link href="/formation/creatives" className="btn btn-sm">
-            Étape suivante : Créatives →
-          </Link>
-          <Link href="/formation/sops" className="text-[13px] font-medium hover:underline">
-            Le guide Recherche produit (PDF)
-          </Link>
-        </div>
       </section>
 
       <PortalFooter quote="Le produit fait 80 % du résultat. Prends le temps de bien choisir, puis va vite." author="Mady" />

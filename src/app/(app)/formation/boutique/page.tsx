@@ -130,9 +130,8 @@ export default function BoutiquePage() {
           Scale X / Création de la boutique
         </div>
         <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.03em" }}>
-          Le thème de Mady, sur ta boutique.
+          Ta boutique en ligne aujourd&apos;hui. Zéro ligne de code, tu parles à Claude, il fait.
         </h1>
-        <p className="muted text-[14px] mt-1 max-w-[64ch]">Tu télécharges le thème Aesthetic Lab, tu le donnes à Claude Code, il le pose sur ta boutique avec Shopify CLI et met ton produit dedans. Tu ne touches pas au design.</p>
         {data.preview && <div className="badge badge-warn w-fit !text-[11.5px] mt-3">Aperçu : tu vois Scale X comme {data.student?.name}.</div>}
         {data.isAdmin && !edit && (
           <button
@@ -192,8 +191,8 @@ export default function BoutiquePage() {
       <MethodVideoLesson
         lesson="shop"
         n="00"
-        title="Regarde Mady créer la boutique avec Claude"
-        intro="Toute la méthode en vidéo, du zip à la boutique en ligne. Regarde-la une fois en entier, puis suis les étapes 01 à 04 ci-dessous avec ton produit."
+        title="Mady monte la boutique d'Ahmed de A à Z, en direct"
+        intro=""
       />
 
       {/* 01 / Télécharger */}
