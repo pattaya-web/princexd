@@ -34,6 +34,8 @@ export interface NewStudentDraft {
   setterId: string;
   /** Créer tout de suite l'accès à la plateforme de formation. */
   createAccess: boolean;
+  /** Identifiant de plateforme dicté par Mady (« identifiant alison.mastar ») ; vide = prénom.nom. */
+  username: string;
   contractSigned: boolean;
 }
 
@@ -186,6 +188,12 @@ export function parseStudentText(text: string, today = parisToday()): { draft: P
     draft.email = email[0];
     work = work.replace(email[0], " ");
   }
+  // « identifiant alison.mastar » : identifiant de plateforme dicte par Mady.
+  const login = work.match(/\b(?:identifiant|login|username)\s*:?\s*@?([a-z0-9][a-z0-9._-]{2,63})/i);
+  if (login) {
+    draft.username = login[1].toLowerCase();
+    work = work.replace(login[0], " ");
+  }
   const ig = work.match(/(?:^|[\s(])@([a-z0-9._]{2,30})/i);
   if (ig) {
     draft.igUsername = ig[1].replace(/\.$/, "");
@@ -285,6 +293,7 @@ export function completeDraft(p: Partial<NewStudentDraft>, defaults: { offer: st
     leadId: (p.leadId ?? "").trim(),
     setterId: (p.setterId ?? "").trim(),
     createAccess: p.createAccess !== false,
+    username: (p.username ?? "").trim().toLowerCase().replace(/^@/, ""),
     contractSigned: Boolean(p.contractSigned),
   };
 }

@@ -263,6 +263,15 @@ export function usernameFromName(name: string): string {
   return words.join(".");
 }
 
+/**
+ * Identifiant de plateforme de la fiche : celui que Mady dicte s'il y en a un
+ * (verifie, remplace l'existant), sinon celui deja pose, sinon prenom.nom.
+ */
+function applyUsername(s: Student, d: NewStudentDraft): string {
+  if (d.username) return checkStudentUsername(d.username, s.id);
+  return s.username || pickUsername(s);
+}
+
 /** Identifiant libre : prénom.nom, puis prénom.nom2, prénom.nom3… */
 function pickUsername(s: Student): string {
   let base = usernameFromName(s.name) || "eleve";
@@ -341,7 +350,7 @@ function addStudentWithoutSale(session: Session, d: NewStudentDraft, ctx: ChatCo
   }
   let credentials: ConfirmResult["credentials"] = null;
   if (d.createAccess) {
-    if (!s.username) s.username = pickUsername(s);
+    s.username = applyUsername(s, d);
     s.portalAccess = true;
     credentials = { username: s.username, password: "" };
   }
@@ -460,11 +469,8 @@ export function confirmNewStudent(session: Session, input: NewStudentDraft, rawM
     s.contractAt = s.contractAt || d.soldAt;
   }
   let credentials: ConfirmResult["credentials"] = null;
-  if (d.createAccess && !s.username) {
-    s.username = pickUsername(s);
-    s.portalAccess = true;
-    credentials = { username: s.username, password: "" };
-  } else if (d.createAccess && s.username) {
+  if (d.createAccess) {
+    s.username = applyUsername(s, d);
     s.portalAccess = true;
     credentials = { username: s.username, password: "" };
   }

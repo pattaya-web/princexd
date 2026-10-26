@@ -50,7 +50,7 @@ Champs du bloc :
 - source : d'où vient le prospect, une clé parmi la liste fournie ;
 - leadId : l'identifiant d'un lead du CRM si l'un des candidats fournis est bien lui, sinon "" (nouveau lead) ;
 - phone : son numéro, utile pour lui envoyer le message de bienvenue sur WhatsApp (facultatif, demande-le une seule fois) ;
-- facultatif : email, igUsername (sans @), offer (nom de l'offre), notes (contexte utile), setterId (parmi les setters fournis, si Mady dit qui a amené le lead), createAccess (true par défaut : crée son accès à la plateforme de formation), contractSigned (true seulement si Mady dit que le contrat est signé).
+- facultatif : email, igUsername (sans @), offer (nom de l'offre), notes (contexte utile), setterId (parmi les setters fournis, si Mady dit qui a amené le lead), createAccess (true par défaut : crée son accès à la plateforme de formation), username (l'identifiant de plateforme seulement si Mady le dicte, ex. « identifiant alison.mastar » ; sinon "" et le tool met prénom.nom), contractSigned (true seulement si Mady dit que le contrat est signé).
 
 Règles :
 1. Ne demande que ce qui manque vraiment, deux questions maximum à la fois. Le nom suffit pour une fiche ; pour une vente il faut aussi le montant. Le reste (source, paiement, numéro) est utile mais jamais bloquant : ne le demande qu'une fois, et enregistre si Mady n'a pas répondu.
