@@ -1,0 +1,82 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/client";
+import { ErrorNote, Spinner } from "@/components/ui";
+import { PortalFooter } from "@/components/formation/portal";
+import { MethodVideoLesson } from "@/components/formation/VideoLesson";
+import type { MethodPayload } from "@/app/api/formation/methode/route";
+
+/**
+ * Campagnes Meta (Scale X) : la vidéo de Mady qui lance la première campagne
+ * publicitaire sur Meta, avec son résumé et les étapes à suivre. La boutique
+ * est en ligne, les créatives sont prêtes : c'est le dernier temps du parcours.
+ * Le lien, le résumé et les étapes se modifient sur place par l'admin.
+ */
+export default function MetaPage() {
+  const [data, setData] = useState<MethodPayload | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api<MethodPayload>("/api/formation/methode")
+      .then((d) => {
+        setData(d);
+        setError("");
+      })
+      .catch((e: Error) => setError(e.message));
+  }, []);
+
+  if (error) return <ErrorNote>{error}</ErrorNote>;
+  if (!data) return <Spinner label="Chargement…" />;
+
+  return (
+    <div className="flex flex-col gap-5">
+      <header>
+        <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
+          Scale X / Campagnes Meta
+        </div>
+        <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.03em" }}>
+          Lance tes campagnes publicitaires sur Meta.
+        </h1>
+        <p className="muted text-[14px] mt-1 max-w-[64ch]">Ta boutique est en ligne, tes créatives sont prêtes. Mady te montre comment lancer ta première campagne, puis tu suis les étapes une par une.</p>
+        {data.preview && <div className="badge badge-warn w-fit !text-[11.5px] mt-3">Aperçu : tu vois Scale X comme {data.student?.name}.</div>}
+      </header>
+
+      <MethodVideoLesson
+        lesson="meta"
+        n="01"
+        title="Regarde Mady lancer une campagne Meta"
+        intro="Toute la mise en ligne d'une campagne en vidéo. Regarde-la une fois en entier, puis refais chaque étape avec ta boutique et tes créatives."
+        placeholder="La vidéo arrive bientôt. En attendant : Meta Business, compte publicitaire et Pixel (Ressources, guides 08 et 09)."
+      />
+
+      <section className="card p-5">
+        <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
+          02 / AVANT DE LANCER
+        </div>
+        <ul className="list-disc pl-5 mt-3 flex flex-col gap-1.5 text-[13.5px] leading-relaxed">
+          <li>
+            <strong>Ta boutique encaisse.</strong> Commande test faite depuis ton téléphone (Démarrage, réglages Shopify).
+          </li>
+          <li>
+            <strong>Le Pixel Meta est posé</strong> et il remonte les événements (vue de page, ajout au panier, achat).
+          </li>
+          <li>
+            <strong>Tes créatives sont prêtes</strong> : images 3:4, 1:1 et 9:16, vidéos 9:16, générées dans le Studio IA.
+          </li>
+        </ul>
+        <div className="flex flex-wrap items-center gap-3 mt-4">
+          <Link href="/formation/creatives" className="btn btn-sm">
+            ← Créatives
+          </Link>
+          <Link href="/formation/sops" className="text-[13px] font-medium hover:underline">
+            Les guides Meta Business, Pixel et campagne (Ressources)
+          </Link>
+        </div>
+      </section>
+
+      <PortalFooter quote="La pub ne répare pas un produit moyen. Elle accélère un bon produit." author="Mady" />
+    </div>
+  );
+}

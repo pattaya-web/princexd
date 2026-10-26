@@ -299,7 +299,7 @@ export default function ProduitPage() {
           <Link href="/formation/creatives" className="btn btn-sm">
             Étape suivante : Créatives →
           </Link>
-          <Link href="/formation/education" className="text-[13px] font-medium hover:underline">
+          <Link href="/formation/sops" className="text-[13px] font-medium hover:underline">
             Le guide Recherche produit (PDF)
           </Link>
         </div>

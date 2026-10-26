@@ -866,6 +866,14 @@ export interface StudentMethodSettings {
   shopVideoSummary: string;
   /** Les etapes a suivre telles que dites dans la video : une etape par ligne, « Titre : detail » accepte. */
   shopVideoSteps: string;
+  /** Video « Créatives » (lien YouTube), son resume, ses etapes. Vides tant que Mady ne l'a pas tournee. */
+  creativesVideoUrl: string;
+  creativesVideoSummary: string;
+  creativesVideoSteps: string;
+  /** Video « Campagnes Meta » (lien YouTube), son resume, ses etapes. */
+  metaVideoUrl: string;
+  metaVideoSummary: string;
+  metaVideoSteps: string;
 }
 
 /** Le theme Shopify de Mady, depose par l'admin et telechargeable par les eleves. */

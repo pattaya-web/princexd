@@ -6,6 +6,7 @@ import { api } from "@/lib/client";
 import { ErrorNote, Spinner, useToast } from "@/components/ui";
 import { Annex } from "@/components/formation/Annex";
 import { PortalFooter, SectionLabel } from "@/components/formation/portal";
+import { MethodVideoLesson } from "@/components/formation/VideoLesson";
 import { DropZone, ProgressBar, uploadMany, type Progress } from "@/components/upload-ui";
 import { DEFAULT_CREATIVE_PROMPTS, DEFAULT_EXAMPLES, DEFAULT_VIDEO_EXAMPLE } from "@/lib/formation-creatives";
 import type { CreativesPayload } from "@/app/api/formation/creatives/route";
@@ -264,6 +265,9 @@ export default function CreativesPage() {
           </div>
         )}
       </header>
+
+      {/* La vidéo de Mady sur les créatives (lien, résumé replié, étapes), quand elle est tournée. */}
+      <MethodVideoLesson lesson="creatives" n="00" title="Regarde Mady faire ses créatives" intro="Toute la méthode en vidéo, puis les étapes à suivre avec ton produit dans le Studio IA." />
 
       {edit && draft ? (
         <div className="flex flex-col gap-4">

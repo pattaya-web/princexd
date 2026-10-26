@@ -78,7 +78,7 @@ const SEED: SeedV2[] = [
     title: "Lis les guides Fondations (Education)",
     detail:
       "Les guides PDF, dans l'ordre : la méthode, la recherche produit, la boutique, les créatives, Meta Ads. Lis-les en entier, coche chaque guide quand c'est fait : c'est comme ça que Mady suit ton avancement.\n\n✅ Fait quand : tous les guides Fondations sont cochés.",
-    link: "/formation/education",
+    link: "/formation/sops",
   },
   {
     was: /trouve (3|10) produits/i,

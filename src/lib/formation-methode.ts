@@ -68,6 +68,12 @@ Les images produit : pour aller vite, les images d'un concurrent se récupèrent
 Le copywriting à partir du concurrent : colle l'adresse de la boutique du concurrent à Claude : « Analyse cette boutique, c'est mon concurrent direct. Réadapte mon thème actuel avec un copywriting pour mon produit. » Puis tu corriges section par section dans l'aperçu.
 L'éditeur de thème Shopify en secours : « Personnaliser » dans Shopify permet de rattraper un détail à la souris, ou de remettre une section (par exemple « Product Bubble »). Ce n'est pas le but, Claude fait tout, mais c'est là si besoin.
 Si ça bloque, tu parles : capture d'écran du message rouge, « voilà l'erreur, corrige et continue ». Claude répond à toutes tes questions, même les plus bêtes. Et Mady reste dispo sur WhatsApp.`,
+  creativesVideoUrl: "",
+  creativesVideoSummary: "",
+  creativesVideoSteps: "",
+  metaVideoUrl: "",
+  metaVideoSummary: "",
+  metaVideoSteps: "",
 };
 
 export function methodSettings(settings: Pick<Settings, "studentMethod">): StudentMethodSettings {
@@ -83,6 +89,12 @@ export function methodSettings(settings: Pick<Settings, "studentMethod">): Stude
     shopVideoUrl: s.shopVideoUrl === undefined ? DEFAULT_METHOD.shopVideoUrl : s.shopVideoUrl.trim(),
     shopVideoSummary: (s.shopVideoSummary ?? "").trim() || DEFAULT_METHOD.shopVideoSummary,
     shopVideoSteps: (s.shopVideoSteps ?? "").trim() || DEFAULT_METHOD.shopVideoSteps,
+    creativesVideoUrl: (s.creativesVideoUrl ?? "").trim(),
+    creativesVideoSummary: (s.creativesVideoSummary ?? "").trim(),
+    creativesVideoSteps: (s.creativesVideoSteps ?? "").trim(),
+    metaVideoUrl: (s.metaVideoUrl ?? "").trim(),
+    metaVideoSummary: (s.metaVideoSummary ?? "").trim(),
+    metaVideoSteps: (s.metaVideoSteps ?? "").trim(),
   };
 }
 
@@ -110,7 +122,13 @@ export function readMethodSettings(raw: Partial<StudentMethodSettings>): Student
     themePrompt: str(raw.themePrompt, 8000),
     shopVideoUrl: str(raw.shopVideoUrl, 500),
     shopVideoSummary: str(raw.shopVideoSummary, 6000),
-    shopVideoSteps: str(raw.shopVideoSteps, 6000),
+    shopVideoSteps: str(raw.shopVideoSteps, 8000),
+    creativesVideoUrl: str(raw.creativesVideoUrl, 500),
+    creativesVideoSummary: str(raw.creativesVideoSummary, 6000),
+    creativesVideoSteps: str(raw.creativesVideoSteps, 8000),
+    metaVideoUrl: str(raw.metaVideoUrl, 500),
+    metaVideoSummary: str(raw.metaVideoSummary, 6000),
+    metaVideoSteps: str(raw.metaVideoSteps, 8000),
   };
 }
 

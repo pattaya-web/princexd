@@ -16,12 +16,13 @@ import { youtubeEmbedUrl, youtubeId } from "@/lib/formation";
  * Mady), le formulaire d'onboarding et les dernières ressources PDF. Sobre
  * et numéroté, pour qu'un élève sache en trois secondes quoi faire ensuite.
  */
-/** Les 4 temps du parcours élève, dans l'ordre : installer, trouver le produit, créer les créatives, poser le thème. */
+/** Les temps du parcours élève, dans l'ordre : installer, trouver le produit, créer la boutique, faire les créatives, lancer Meta. */
 const PATH = [
   { href: "/formation/demarrage", title: "Installe tout", note: "VS Code, Claude Code, Shopify. Une fois." },
   { href: "/formation/produit", title: "Trouve ton produit", note: "Vidéo BrandSearch, 10 produits à Mady, validation." },
+  { href: "/formation/boutique", title: "Crée ta boutique", note: "Vidéo de Mady : le thème + Claude Code. Ton produit dedans." },
   { href: "/formation/creatives", title: "Fais tes créatives", note: "Studio IA : images 3:4, 1:1, 9:16 · vidéos 9:16." },
-  { href: "/formation/boutique", title: "Monte ta boutique", note: "Le thème de Mady + Claude Code. Ton produit dedans." },
+  { href: "/formation/meta", title: "Lance tes campagnes Meta", note: "Vidéo de Mady : ta première campagne, pas à pas." },
 ];
 
 export default function ScaleXDashboard() {
@@ -173,11 +174,11 @@ export default function ScaleXDashboard() {
                   Ouvrir le PDF
                 </a>
               ) : (
-                <Link href="/formation/education" className="btn btn-primary btn-sm">
+                <Link href="/formation/sops" className="btn btn-primary btn-sm">
                   Revoir les guides
                 </Link>
               )}
-              <Link href="/formation/education" className="text-[13px] font-medium hover:underline">
+              <Link href="/formation/sops" className="text-[13px] font-medium hover:underline">
                 Tous les guides →
               </Link>
               {f.total > 0 && (
