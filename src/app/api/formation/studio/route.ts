@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
       student: student ? { id: student.id, name: student.name, firstName: student.name.trim().split(/\s+/)[0] ?? student.name } : null,
       isAdmin: session.isAdmin,
       preview: Boolean(session.impersonated),
-      access: student ? Boolean(student.studioAccess) : session.isAdmin,
+      access: Boolean(student) || session.isAdmin,
       hasKey: Boolean(key),
       keyMask: mask(key),
       credits,

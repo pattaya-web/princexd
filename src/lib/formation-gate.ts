@@ -3,16 +3,17 @@ import type { Student } from "./types";
 /**
  * Parcours Scale X (octobre 2026).
  *
- * Tous les onglets sont ouverts (choix de Mady le 2026-10-26 : « une vue où
- * tout est débloqué »). Chaque page garde son bouton « j'ai terminé » pour
- * suivre l'avancement, et le formulaire d'onboarding reste l'étape 1 : quand
- * l'élève dit l'avoir rempli, Mady reçoit une notification sur son tableau
- * de bord et la marque « vu ». La mécanique de verrou en chaîne est gardée
- * derrière `LOCK_CHAIN`, au cas où. Module pur : serveur et navigateur.
+ * Les onglets s'ouvrent en chaîne : Démarrage est ouvert d'emblée, puis
+ * chaque onglet s'ouvre quand l'élève a validé le précédent (bouton en bas
+ * de page) : Démarrage → Recherche produit → Création de la boutique →
+ * Créatives → Campagnes Meta. Le formulaire d'onboarding (accueil) ne
+ * verrouille rien : quand l'élève dit l'avoir rempli, Mady reçoit une
+ * notification et la marque « vu ». Studio IA, Mes étapes et Ressources
+ * restent ouverts. Module pur : serveur et navigateur.
  */
 
-/** Vrai pour verrouiller les onglets en chaîne (Démarrage après validation de Mady, puis un onglet après l'autre). */
-export const LOCK_CHAIN = false;
+/** Vrai : les onglets du parcours s'ouvrent l'un après l'autre. */
+export const LOCK_CHAIN = true;
 
 export type GateTab = "demarrage" | "produit" | "boutique" | "creatives" | "meta";
 
@@ -55,20 +56,15 @@ export interface GateState {
 /** L'état du parcours d'un élève. Sans élève (admin), tout est ouvert. */
 export function gateState(student: Pick<Student, "accessRequestedAt" | "accessApprovedAt" | "tabsDone"> | undefined, opts: { admin?: boolean } = {}): GateState {
   const done = new Set(student?.tabsDone ?? []);
-  const approved = Boolean(student?.accessApprovedAt) || Boolean(opts.admin && !student);
   const tabs: GateTabState[] = [];
   GATE_TABS.forEach((t, i) => {
     const prev = i > 0 ? GATE_TABS[i - 1] : null;
     let unlocked: boolean;
     let blockedBy: GateTabState["blockedBy"] = null;
-    if (!LOCK_CHAIN || (opts.admin && !student)) unlocked = true;
-    else if (!prev) {
-      unlocked = approved;
-      if (!unlocked) blockedBy = { kind: "approval" };
-    } else {
-      unlocked = approved && done.has(prev.key);
-      if (!approved) blockedBy = { kind: "approval" };
-      else if (!unlocked) blockedBy = { kind: "tab", key: prev.key, href: prev.href, label: prev.label };
+    if (!LOCK_CHAIN || (opts.admin && !student) || !prev) unlocked = true;
+    else {
+      unlocked = done.has(prev.key);
+      if (!unlocked) blockedBy = { kind: "tab", key: prev.key, href: prev.href, label: prev.label };
     }
     tabs.push({ key: t.key, href: t.href, label: t.label, doneLabel: t.doneLabel, unlocked, done: done.has(t.key), blockedBy });
   });

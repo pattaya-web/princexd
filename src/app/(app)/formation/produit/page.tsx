@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { api, useLocalState } from "@/lib/client";
 import { ErrorNote, Spinner, useToast } from "@/components/ui";
 import { StepGate } from "@/components/formation/StepGate";
-import { VideoLock } from "@/components/formation/VideoLock";
 import { PortalFooter, SectionLabel } from "@/components/formation/portal";
 import { youtubeEmbedUrl, youtubeId } from "@/lib/formation";
 import { emptyProductRows, PRODUCT_COLUMNS, productsAsText, type ProductRow } from "@/lib/formation-methode";
@@ -170,25 +169,21 @@ export default function ProduitPage() {
         <SectionLabel n="01" title="Regarde la vidéo BrandSearch" />
         <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">{m.productNote}</p>
         {vid ? (
-          <VideoLock>
-            <div className="mt-4 rounded-lg overflow-hidden" style={{ background: "#000" }}>
-              <div style={{ position: "relative", paddingTop: "56.25%" }}>
-                <iframe
-                  src={youtubeEmbedUrl(vid)}
-                  title="Recherche produit avec BrandSearch"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
-                />
-              </div>
+          <div className="mt-4 rounded-lg overflow-hidden" style={{ background: "#000" }}>
+            <div style={{ position: "relative", paddingTop: "56.25%" }}>
+              <iframe
+                src={youtubeEmbedUrl(vid)}
+                title="Recherche produit avec BrandSearch"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
+              />
             </div>
-          </VideoLock>
+          </div>
         ) : m.productVideoUrl ? (
-          <VideoLock>
-            <a href={m.productVideoUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm mt-4">
-              Ouvrir la vidéo ↗
-            </a>
-          </VideoLock>
+          <a href={m.productVideoUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm mt-4">
+            Ouvrir la vidéo ↗
+          </a>
         ) : (
           <div className="dim text-[12.5px] mt-4">Vidéo à venir.</div>
         )}

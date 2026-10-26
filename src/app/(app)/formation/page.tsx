@@ -122,7 +122,7 @@ export default function ScaleXDashboard() {
         <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
           ÉTAPE 1 / FORMULAIRE D&apos;ONBOARDING
         </div>
-        <p className="text-[14.5px] mt-2 leading-relaxed">5 minutes, une fois. Il débloque les vidéos du parcours.</p>
+        <p className="text-[14.5px] mt-2 leading-relaxed">5 minutes, une fois, avant de commencer.</p>
         <div className="flex flex-wrap items-center gap-2 mt-4">
           {data.formUrl ? (
             <a href={data.formUrl} target="_blank" rel="noreferrer" className={`btn ${approved || requested ? "" : "btn-primary"}`}>
@@ -140,7 +140,7 @@ export default function ScaleXDashboard() {
         {(approved || requested) && (
           <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
             <span className="text-[13.5px] font-semibold" style={{ color: approved ? "var(--good)" : "var(--text-2)" }}>
-              {approved ? "✓ Formulaire validé par Mady : les vidéos sont débloquées" : "⏳ Formulaire envoyé. Dès que Mady valide, les vidéos s'ouvrent."}
+              {approved ? "✓ Formulaire bien reçu par Mady" : "✓ Formulaire envoyé, Mady est prévenue"}
             </span>
             <Link href={gate.next?.href ?? "/formation/demarrage"} className="btn btn-primary btn-sm">
               {gate.next ? `Continuer : ${gate.next.label} →` : "Démarrage →"}

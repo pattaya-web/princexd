@@ -46,19 +46,6 @@ export default function StudentAccessPage() {
     void load();
   }, [load]);
 
-  const toggleStudio = async (s: StudentAccessRow) => {
-    setBusyId(s.id);
-    try {
-      await api(`/api/formation/access/${s.id}`, { method: "PATCH", body: JSON.stringify({ studioAccess: !s.studioAccess }) });
-      toast(s.studioAccess ? `Studio IA fermé pour ${s.name}.` : `Studio IA ouvert pour ${s.name} : il met sa clé KIE dans Scale X → Studio IA.`);
-      await load();
-    } catch (e) {
-      toast((e as Error).message, "err");
-    } finally {
-      setBusyId("");
-    }
-  };
-
   const openEdit = (s: StudentAccessRow) => {
     setEditing(s);
     setUsername(s.username || s.suggestedUsername);
@@ -220,7 +207,7 @@ export default function StudentAccessPage() {
                       />
                     </td>
                     <td>
-                      <Toggle checked={s.studioAccess} onChange={() => void toggleStudio(s)} label={s.studioAccess ? (s.hasKieKey ? "Ouvert · clé OK" : "Ouvert · sans clé") : "Fermé"} />
+                      {s.hasKieKey ? <span className="badge badge-good !text-[10.5px] !py-0">clé KIE posée</span> : <span className="dim text-[12px]">sans clé KIE</span>}
                     </td>
                     <td>
                       {s.accessApprovedAt ? (

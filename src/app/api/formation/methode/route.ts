@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       whatsapp: portalSettings(db.settings).whatsapp,
       theme: theme ? { fileName: theme.fileName, size: theme.size, uploadedAt: theme.uploadedAt, downloadUrl: "/api/formation/theme/file", bundled: theme.bundled } : null,
       exampleShopUrl: creativesSettings(db.settings).exampleShopUrl,
-      studio: { access: student ? Boolean(student.studioAccess) : session.isAdmin, hasKey: Boolean((student?.kieApiKey ?? "").trim()) },
+      studio: { access: Boolean(student) || session.isAdmin, hasKey: Boolean((student?.kieApiKey ?? "").trim()) },
       brandsearchUrl: onboardingSettings(db.settings).brainsearchUrl,
     };
   });

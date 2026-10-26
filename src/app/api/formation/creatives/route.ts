@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       isAdmin: session.isAdmin,
       preview: Boolean(session.impersonated),
       creatives: creativesSettings(db.settings),
-      studio: { access: student ? Boolean(student.studioAccess) : session.isAdmin, hasKey: Boolean((student?.kieApiKey ?? "").trim()) },
+      studio: { access: Boolean(student) || session.isAdmin, hasKey: Boolean((student?.kieApiKey ?? "").trim()) },
     };
   });
 }

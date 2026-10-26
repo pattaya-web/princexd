@@ -6,7 +6,6 @@ import { useToast } from "@/components/ui";
 import { SectionLabel } from "./portal";
 import { youtubeEmbedUrl, youtubeId } from "@/lib/formation";
 import { parseVideoSteps } from "@/lib/formation-methode";
-import { VideoLock } from "./VideoLock";
 import type { MethodPayload } from "@/app/api/formation/methode/route";
 import type { StudentMethodSettings } from "@/lib/types";
 
@@ -123,24 +122,20 @@ export function VideoLesson({
       )}
 
       {vid ? (
-        <VideoLock>
-          <div className="relative w-full mt-4 rounded-md overflow-hidden" style={{ aspectRatio: "16 / 9", background: "#000" }}>
-            <iframe
-              key={vid}
-              className="absolute inset-0 w-full h-full"
-              src={youtubeEmbedUrl(vid)}
-              title={title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
-          </div>
-        </VideoLock>
+        <div className="relative w-full mt-4 rounded-md overflow-hidden" style={{ aspectRatio: "16 / 9", background: "#000" }}>
+          <iframe
+            key={vid}
+            className="absolute inset-0 w-full h-full"
+            src={youtubeEmbedUrl(vid)}
+            title={title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        </div>
       ) : value.url ? (
-        <VideoLock>
-          <a href={value.url} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm mt-4">
-            Voir la vidéo ↗
-          </a>
-        </VideoLock>
+        <a href={value.url} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm mt-4">
+          Voir la vidéo ↗
+        </a>
       ) : (
         <div className="mt-4 rounded-md px-4 py-6 text-center dim text-[13px]" style={{ background: "var(--surface-2)" }}>
           {isAdmin ? "Pas encore de vidéo : « Modifier la vidéo » pour coller le lien YouTube." : placeholder || "La vidéo arrive bientôt."}

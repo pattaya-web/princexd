@@ -27,7 +27,7 @@ export function studioScope(req: NextRequest): StudioScope {
   if (session.role === "student") {
     const student = readDB().students.find((s) => s.id === session.memberId);
     if (!student) throw new Forbidden("Accès refusé.");
-    if (!student.studioAccess) throw new Forbidden("Le Studio IA n'est pas encore ouvert pour toi : Mady l'ouvre après l'étape créatives.");
+    // Le Studio est ouvert à tout élève (choix de Mady, 2026-10-27) : seule sa clé KIE conditionne l'usage.
     const key = (student.kieApiKey ?? "").trim();
     if (!key) throw new KieError("Ajoute d'abord ta clé API KIE dans Scale X → Studio IA → Ma clé.", 401);
     return { session, student, ownerId: student.id, key };
