@@ -4,6 +4,7 @@ import { readSession, requireFormation } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { portalSettings } from "@/lib/formation-steps";
 import { onboardingSettings, welcomeMessage } from "@/lib/onboarding";
+import { currentTheme } from "@/lib/formation-theme";
 import { escTelegram, notifyOwner } from "@/lib/telegram";
 import type { ShopRequest, StudentPortalSettings } from "@/lib/types";
 
@@ -40,8 +41,11 @@ export async function GET(req: NextRequest) {
     const { session, db, student } = studentOf(req);
     const portal = portalSettings(db.settings);
     const ob = onboardingSettings(db.settings);
+    const theme = currentTheme(db.settings);
     // Les liens nécessaires, et rien d'autre (le formulaire et la vidéo sont sur l'accueil).
     const links = [
+      // Le thème Shopify de Mady en .zip, le même que sur Création de la boutique : les élèves le réclament dès le départ.
+      ...(theme ? [{ label: `Thème Shopify Aesthetic Lab (.zip)`, href: "/api/formation/theme/file", note: `${theme.fileName} · télécharge-le tel quel, sans le décompresser` }] : []),
       { label: "Visual Studio Code", href: "https://code.visualstudio.com/download", note: "l'application, gratuite · Windows et Mac" },
       { label: "BrandSearch", href: ob.brainsearchUrl, note: "recherche produit · lien de Mady" },
       { label: "Claude Max", href: ob.claudeUrl, note: "c'est lui qui construit ta boutique" },
