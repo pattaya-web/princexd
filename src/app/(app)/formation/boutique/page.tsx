@@ -224,16 +224,20 @@ export default function BoutiquePage() {
             </a>
           ) : null}
           {summaryParas.length > 0 && (
-            <div className="mt-4">
-              <div className="label-xs">En résumé</div>
-              <div className="flex flex-col gap-2 mt-2 text-[13.5px] leading-relaxed max-w-[70ch]">
+            <details className="mt-4 rounded-md" style={{ border: "1px solid var(--border)" }}>
+              <summary className="cursor-pointer list-none px-3.5 py-2.5 flex items-center gap-2 text-[13.5px] font-medium select-none">
+                <span className="label-xs">En résumé</span>
+                <span className="dim text-[12px] font-normal">ce que Mady explique dans la vidéo</span>
+                <span className="ml-auto dim text-[12px]">▾ ouvrir</span>
+              </summary>
+              <div className="flex flex-col gap-2 px-3.5 pb-3.5 text-[13.5px] leading-relaxed max-w-[70ch]">
                 {summaryParas.map((p, i) => (
                   <p key={i} className="whitespace-pre-wrap">
                     {p}
                   </p>
                 ))}
               </div>
-            </div>
+            </details>
           )}
           {videoSteps.length > 0 && (
             <div className="mt-4">
