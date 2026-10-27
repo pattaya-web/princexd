@@ -3,6 +3,7 @@ import path from "path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { CollectionName, DB, Settings } from "./types";
 import { applySoloCloser, purgeSalim } from "./sales/closers";
+import { seedFreeStudent } from "./eleves/seed-student";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
@@ -296,6 +297,16 @@ export function readDB(): DB {
       });
     }
     settings.salesSalimPurgedAt = now;
+    writeDB(cache.db);
+  }
+  /*
+   * Lucas (2026-10-28) : eleve ajoute gratuitement par Mady (il fait son
+   * montage video), sans vente. Bascule unique, la date sert de verrou.
+   */
+  if (!settings.studentLucasAddedAt) {
+    const now = new Date().toISOString();
+    seedFreeStudent(cache.db, now, newId, { name: "Lucas Menteur", username: "lucas", notes: "Accès offert : il fait le montage vidéo de Mady. Ajouté le 2026-10-28 sans vente." });
+    settings.studentLucasAddedAt = now;
     writeDB(cache.db);
   }
   return cache.db;

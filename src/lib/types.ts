@@ -287,6 +287,8 @@ export interface Settings {
   salesSoloCloserAt?: string;
   /** Salim supprime de partout, tout a mon nom (2026-10-25). Applique une seule fois. */
   salesSalimPurgedAt?: string;
+  /** Bascule unique (2026-10-28) : fiche élève de Lucas créée (accès offert, sans vente). */
+  studentLucasAddedAt?: string;
   /**
    * Date de depart des chiffres du Sales Dashboard (AAAA-MM-JJ). Tout ce qui
    * est avant est ignore : leads, calls, no-shows, ventes. Pour repartir sur
