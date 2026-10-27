@@ -291,6 +291,8 @@ export interface Settings {
   salesPoolAppliedAt?: string;
   /** Bascule unique (2026-10-27) : un setter ne garde que les rendez-vous iClosed venus de son lien signe. */
   salesSetterByLinkOnlyAt?: string;
+  /** Correctif du meme jour : les calls importes sans utm (aucune preuve) rendus a leur setter. */
+  salesSetterByLinkOnlyV2At?: string;
   /**
    * Regle de reprise (2026-10-14) : minutes sans action du setter au bout
    * desquelles un autre setter peut reprendre la conversation. 0 = desactive.

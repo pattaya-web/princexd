@@ -134,27 +134,82 @@ function declaredSetter(lead: DB["leads"][number] | undefined): string {
  * setter ») est respectee.
  */
 export function applySetterByLinkOnly(db: DB): number {
-  if (db.settings.salesSetterByLinkOnlyAt) return 0;
   const now = new Date().toISOString();
   const owner = ownerSetter(db);
   const manual = new Set(db.activityLogs.filter((l) => l.action === "appointment.assigned" && /attribué comme setter/.test(l.summary)).map((l) => l.entityId));
+  const hasUtmEvidence = (a: Appointment) => Object.keys(a.utm ?? {}).length > 0;
   let n = 0;
-  for (const a of db.appointments) {
-    if (!a.iclosedEventId || manual.has(a.id)) continue;
-    if (!a.setterId || a.setterId === owner) continue;
-    const lead = db.leads.find((l) => l.id === a.leadId);
-    const expected = setterFromUtmValues(db, Object.values(a.utm ?? {})) || declaredSetter(lead) || owner;
-    if (expected === a.setterId) continue;
-    const fromName = db.team.find((m) => m.id === a.setterId)?.name ?? a.setterId;
-    a.setterId = expected;
-    a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Système", from: a.status, to: a.status, note: `Setter retiré (${fromName}) : la réservation ne vient pas de son lien signé` }];
-    a.updatedAt = now;
-    n++;
+  if (!db.settings.salesSetterByLinkOnlyAt) {
+    for (const a of db.appointments) {
+      if (!a.iclosedEventId || manual.has(a.id)) continue;
+      if (!a.setterId || a.setterId === owner) continue;
+      // Sans utm en base, on ne sait pas d'ou vient la reservation : on ne touche pas.
+      if (!hasUtmEvidence(a)) continue;
+      const lead = db.leads.find((l) => l.id === a.leadId);
+      const expected = setterFromUtmValues(db, Object.values(a.utm ?? {})) || declaredSetter(lead) || owner;
+      if (expected === a.setterId) continue;
+      const fromName = db.team.find((m) => m.id === a.setterId)?.name ?? a.setterId;
+      a.setterId = expected;
+      a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Système", from: a.status, to: a.status, note: `Setter retiré (${fromName}) : la réservation ne vient pas de son lien signé` }];
+      a.updatedAt = now;
+      n++;
+    }
+    db.settings.salesSetterByLinkOnlyAt = now;
+    if (n) db.activityLogs.unshift({ id: newId(), at: now, actorId: "", actorName: "Système", action: "appointment.updated", entity: "appointment", entityId: "", summary: `Rendez-vous iClosed : ${n} call${n > 1 ? "s" : ""} retiré${n > 1 ? "s" : ""} de l'agenda d'un setter (réservation hors de son lien signé)` });
+    db.settings.salesSetterByLinkOnlyV2At = now;
+    writeDB(db);
+    return n;
   }
-  db.settings.salesSetterByLinkOnlyAt = now;
-  if (n) db.activityLogs.unshift({ id: newId(), at: now, actorId: "", actorName: "Système", action: "appointment.updated", entity: "appointment", entityId: "", summary: `Rendez-vous iClosed : ${n} call${n > 1 ? "s" : ""} à venir retiré${n > 1 ? "s" : ""} de l'agenda d'un setter (réservation hors de son lien signé)` });
-  writeDB(db);
+  /*
+   * v2 (2026-10-27, le soir) : la premiere passe retirait aussi le setter
+   * des calls importes AVANT que les utm soient lus (aucune preuve en base),
+   * ce qui a fait disparaitre des rendez-vous bien envoyes par le setter
+   * (Johanna, Yacine). On les lui rend ; les calls avec des utm sans sa
+   * signature restent retires.
+   */
+  if (!db.settings.salesSetterByLinkOnlyV2At) {
+    for (const a of db.appointments) {
+      if (!a.iclosedEventId || hasUtmEvidence(a)) continue;
+      const note = [...(a.history ?? [])].reverse().find((h) => h.note?.startsWith("Setter retiré ("));
+      if (!note) continue;
+      const name = note.note!.slice("Setter retiré (".length, note.note!.indexOf(")"));
+      const member = db.team.find((m) => m.name === name);
+      if (!member || a.setterId === member.id) continue;
+      a.setterId = member.id;
+      a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Système", from: a.status, to: a.status, note: `Setter rendu à ${member.name} : call importé sans utm, aucune preuve que le lien n'était pas le sien` }];
+      a.updatedAt = now;
+      n++;
+    }
+    db.settings.salesSetterByLinkOnlyV2At = now;
+    if (n) db.activityLogs.unshift({ id: newId(), at: now, actorId: "", actorName: "Système", action: "appointment.updated", entity: "appointment", entityId: "", summary: `Rendez-vous iClosed : ${n} call${n > 1 ? "s" : ""} rendu${n > 1 ? "s" : ""} à leur setter (importés sans utm)` });
+    writeDB(db);
+  }
   return n;
+}
+
+/**
+ * Un call iClosed relu (a venir ou passe) : on complete les utm du
+ * rendez-vous s'ils manquent, et si le lien porte la signature d'un setter
+ * alors que le rendez-vous n'en a pas (ou a le proprietaire par defaut), on
+ * le lui rattache. Jamais sur une attribution posee a la main par l'admin.
+ * Renvoie vrai si quelque chose a change.
+ */
+function promoteSignedSetter(db: DB, appt: Appointment, call: IclosedCall): boolean {
+  let touched = false;
+  const utm = utmRecord(call);
+  if (utm && (!appt.utm || Object.keys(utm).some((k) => !(k in appt.utm!)))) {
+    appt.utm = { ...(appt.utm ?? {}), ...utm };
+    touched = true;
+  }
+  const signed = setterFromUtm(db, call);
+  if (!signed || appt.setterId === signed) return touched;
+  if (appt.setterId && appt.setterId !== ownerSetter(db)) return touched;
+  const manual = db.activityLogs.some((l) => l.action === "appointment.assigned" && l.entityId === appt.id && /attribué comme setter/.test(l.summary));
+  if (manual) return touched;
+  const name = db.team.find((m) => m.id === signed)?.name ?? "un setter";
+  appt.setterId = signed;
+  appt.history = [...(appt.history ?? []), { at: new Date().toISOString(), actorId: "", actorName: "iClosed", from: appt.status, to: appt.status, note: `Rattaché à ${name} : réservation faite par son lien signé` }];
+  return true;
 }
 
 /**
@@ -315,8 +370,9 @@ export async function syncIclosedUpcoming(opts: { force?: boolean } = {}): Promi
             existing.closerId = closerId;
             touched = true;
           }
+          if (promoteSignedSetter(db, existing, call)) touched = true;
           if (!existing.setterId) {
-            const setterId = setterFromUtm(db, call) || declaredSetter(db.leads.find((l) => l.id === existing.leadId)) || ownerSetter(db);
+            const setterId = declaredSetter(db.leads.find((l) => l.id === existing.leadId)) || ownerSetter(db);
             if (setterId) {
               existing.setterId = setterId;
               touched = true;
@@ -467,6 +523,12 @@ export async function syncIclosedOutcomes(opts: { force?: boolean } = {}): Promi
           db = readDB();
           appt = findByIclosedId(db, String(call.id));
           if (!appt) continue;
+        }
+        // Les utm et la signature du setter se completent aussi sur les calls passes
+        // (un call importe avant la lecture des utm, ou statue avant que le setter soit connu).
+        if (promoteSignedSetter(db, appt, call)) {
+          appt.updatedAt = new Date().toISOString();
+          writeDB(db);
         }
         if (FINAL_STATUSES.includes(appt.status)) continue;
         const status = mapOutcome(call);

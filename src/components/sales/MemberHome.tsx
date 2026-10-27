@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/client";
-import { fmtDateTime, fmtDualDateTime, fmtDay, fmtInt, fmtMoney, fmtTime, relative } from "@/lib/format";
+import { fmtDateTime, fmtDualDateTime, fmtDay, fmtInt, fmtMoney, fmtTime, label as crmLabel, relative } from "@/lib/format";
 import { CallsCalendar } from "./CallsCalendar";
 import { OffersCard } from "./OffersCard";
 import { TelegramCard } from "./TelegramCard";
@@ -13,7 +13,7 @@ import { useEffect } from "react";
 import { LINK_CHANNELS, LINK_CHANNEL_LABEL, type LinkChannel, type WorkSession } from "@/lib/types";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { Card, Empty, ErrorNote, Field, Modal, Spinner, useToast } from "@/components/ui";
-import { ConfirmationSelect, IgHandle, StatusBadge } from "./bits";
+import { ConfirmationSelect, IgHandle, PeriodPicker, StatusBadge } from "./bits";
 import { canConfirm, LOW_PRIORITY_SUFFIX } from "@/lib/sales/constants";
 import { AppointmentDetail } from "./AppointmentDetail";
 import { AppointmentModal } from "./AppointmentModal";
@@ -45,7 +45,7 @@ interface MemberPayload {
 const HAT_KEY = "princexd:sales-hat";
 
 export function MemberHome() {
-  const { session, members, period, version, bump } = useSales();
+  const { session, members, period, setPeriod, version, bump } = useSales();
   const toast = useToast();
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -295,9 +295,12 @@ export function MemberHome() {
         {/* Tout en haut : c'est ce qui motive. Chaque tuile s'ouvre sur les noms derriere le chiffre. */}
         {k && (
           <div>
-            <h2 className="text-[13px] font-semibold mb-2">
-              Tes performances <span className="dim font-normal">— {period.period === "all" ? "depuis le début" : "sur la période"} · clique une tuile pour voir les noms</span>
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <h2 className="text-[13px] font-semibold">
+                Tes performances <span className="dim font-normal">— {period.period === "all" ? "depuis le début" : "sur la période"} · clique une tuile pour voir les noms</span>
+              </h2>
+              <PeriodPicker value={period} onChange={setPeriod} />
+            </div>
             {isSetter ? (
               <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                 <Metric
@@ -1058,17 +1061,25 @@ function ReminderChips({ row, onSaved }: { row: AppointmentRow; onSaved: () => v
 
 /* ------------------------- Les noms derriere un chiffre ------------------------- */
 
-const KPI_STATUS: Record<string, string> = {
-  booked: "Réservé",
-  confirmed: "Confirmé",
-  rescheduled: "Reprogrammé",
-  completed: "Call fait",
-  "follow-up": "Follow-up",
-  "closed-won": "Closé",
-  "closed-lost": "Pas closé",
-  "no-show": "No-show",
-  cancelled: "Annulé",
-};
+const ATTENDED = new Set(["completed", "follow-up", "closed-won", "closed-lost"]);
+
+/** Venu ou pas : rien tant que le call est a venir ; « a statuer » quand il est passe sans issue. */
+function Presence({ r }: { r: KpiLeadRow }) {
+  if (r.status === "cancelled") return <span className="dim">Annulé</span>;
+  if (ATTENDED.has(r.status)) return <span className="font-semibold" style={{ color: "#a855f7" }}>✓ Show</span>;
+  if (r.status === "no-show") return <span className="font-semibold" style={{ color: "var(--critical)" }}>No-show</span>;
+  if (new Date(r.at).getTime() > Date.now()) return <span className="dim">Planifié</span>;
+  return <span style={{ color: "#f97316" }}>À statuer</span>;
+}
+
+/** Ce que le call a donne, une fois venu. */
+function Outcome({ r }: { r: KpiLeadRow }) {
+  if (r.status === "closed-won") return <span className="font-semibold" style={{ color: "var(--good)" }}>Closé</span>;
+  if (r.status === "closed-lost") return <span style={{ color: "var(--critical)" }}>Pas closé</span>;
+  if (r.status === "follow-up") return <span style={{ color: "#3b82f6" }}>Follow-up</span>;
+  if (r.status === "completed") return <span className="dim">Pitché · à conclure</span>;
+  return <span className="dim">—</span>;
+}
 
 function KpiListModal({ list, currency, onClose, onOpen }: { list: { title: string; rows: KpiLeadRow[] } | null; currency: string; onClose: () => void; onOpen: (appointmentId: string) => void }) {
   const toast = useToast();
@@ -1090,11 +1101,11 @@ function KpiListModal({ list, currency, onClose, onOpen }: { list: { title: stri
             <thead>
               <tr>
                 <th>Prénom / nom</th>
-                <th>Instagram</th>
                 <th>Téléphone</th>
-                <th>Email</th>
                 <th>Call</th>
-                <th>Statut</th>
+                <th>Présence</th>
+                <th>Résultat</th>
+                <th>Note du closer</th>
                 <th className="!text-right">Montant</th>
               </tr>
             </thead>
@@ -1102,7 +1113,6 @@ function KpiListModal({ list, currency, onClose, onOpen }: { list: { title: stri
               {list.rows.map((r) => (
                 <tr key={r.appointmentId} className="cursor-pointer" onClick={() => onOpen(r.appointmentId)} title="Ouvrir le rendez-vous">
                   <td className="font-medium text-[13px]">{r.name}</td>
-                  <td className="text-[12.5px]">{r.igUsername ? `@${r.igUsername}` : <span className="dim">—</span>}</td>
                   <td className="num text-[12.5px] whitespace-nowrap">
                     {r.phone ? (
                       <button type="button" className="link" onClick={(e) => { e.stopPropagation(); void copy(r.phone); }} title="Copier le numéro">
@@ -1112,9 +1122,17 @@ function KpiListModal({ list, currency, onClose, onOpen }: { list: { title: stri
                       <span className="dim">—</span>
                     )}
                   </td>
-                  <td className="text-[12px] dim">{r.email || "—"}</td>
                   <td className="num text-[12px] whitespace-nowrap">{fmtDateTime(r.at)}</td>
-                  <td className="text-[12px]">{KPI_STATUS[r.status] ?? r.status}</td>
+                  <td className="text-[12.5px]">
+                    <Presence r={r} />
+                  </td>
+                  <td className="text-[12.5px]">
+                    <Outcome r={r} />
+                  </td>
+                  <td className="text-[12px] min-w-[200px] max-w-[320px]">
+                    {r.lostReason && <span className="badge !text-[10.5px] !py-0 mr-1.5" style={{ color: "var(--critical)" }}>{crmLabel(r.lostReason)}</span>}
+                    {r.note ? <span className="whitespace-pre-wrap leading-snug" style={{ color: "var(--text-2)" }}>{r.note}</span> : !r.lostReason ? <span className="dim">—</span> : null}
+                  </td>
                   <td className="num text-right text-[12.5px] font-semibold">{r.amount ? fmtMoney(r.amount, currency) : <span className="dim">—</span>}</td>
                 </tr>
               ))}

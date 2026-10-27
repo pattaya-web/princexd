@@ -39,6 +39,9 @@ export interface KpiLeadRow {
   at: string;
   status: Appointment["status"];
   amount: number;
+  /** Note du closer apres le call (et motif de perte) : la data du setter pour s'ameliorer. */
+  note: string;
+  lostReason: string;
 }
 
 export interface KpiLeads {
@@ -107,7 +110,7 @@ export async function GET(req: NextRequest) {
     const toRow = (a: Appointment): KpiLeadRow => {
       const lead = leadsById.get(a.leadId);
       const sale = salesByAppt.get(a.id);
-      return { appointmentId: a.id, leadId: a.leadId, name: lead?.name || "—", igUsername: lead?.igUsername ?? "", phone: lead?.phone ?? "", email: lead?.email ?? "", at: a.scheduledAt, status: a.status, amount: sale ? sale.contractValue : 0 };
+      return { appointmentId: a.id, leadId: a.leadId, name: lead?.name || "—", igUsername: lead?.igUsername ?? "", phone: lead?.phone ?? "", email: lead?.email ?? "", at: a.scheduledAt, status: a.status, amount: sale ? sale.contractValue : 0, note: (a.closerNotes ?? "").trim(), lostReason: a.lostReason ?? "" };
     };
     const liveInRange = appointments.filter((a) => inRange(a.scheduledAt, range) && !isDead(a.status)).sort((x, y) => y.scheduledAt.localeCompare(x.scheduledAt));
     const attendedRows = liveInRange.filter((a) => isAttended(a.status));
