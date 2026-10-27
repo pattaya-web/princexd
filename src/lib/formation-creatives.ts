@@ -21,14 +21,14 @@ const REF = "The product must be exactly the one from the reference image (same 
 
 /* ------------------------------ Familles de créatives ------------------------------ */
 
-/** Une famille de créatives (un « dossier » de la page Créatives), avec ce qu'il faut en retenir. */
+/** Une famille de créatives (un format de la page Créatives) : une ligne, trois repères au plus. */
 export interface CreativeFolder {
   id: string;
   title: string;
   /** Une ligne : l'idée. */
   tagline: string;
-  /** Le détail, mise en forme légère (Annex). */
-  text: string;
+  /** Trois repères courts, pas plus. */
+  tips: string[];
 }
 
 /**
@@ -40,56 +40,50 @@ export const CREATIVE_FOLDERS: CreativeFolder[] = [
   {
     id: "punchy",
     title: "Punchy sales",
-    tagline: "Direct, agressif, à l'américaine : l'offre en pleine face.",
-    text: `Le format qui vend le plus aux États-Unis, et qui marche très bien en Europe dès que l'offre est claire. Une accroche en très gros, l'offre en rouge (**Buy 1 Get 1 Free**, le prix), un badge d'urgence (**Low stock**), une flèche manuscrite qui montre ce qui est gratuit, un avis client en carte. Fond uni ou produit dans sa boîte, zéro décor inutile.
-
-Règles : une seule idée par créative, une seule offre, des mots courts. Le produit prend la moitié de l'image. Décline la même créative sur 4 ou 5 fonds (noir, crème, violet, rouge, jaune) et avec 2 ou 3 accroches : c'est Meta qui te dira laquelle gagne.
-
-Les exemples ci-dessous sont les créatives d'Alison, faites avec le Studio IA : la même photo de référence du produit, un prompt par variante.`,
+    tagline: "L'offre en pleine face, à l'américaine. Le format qui vend le plus.",
+    tips: ["Une accroche en gros, l'offre en rouge, un badge d'urgence.", "Une seule idée, une seule offre, des mots courts.", "Décline la même créative sur 4 ou 5 fonds : Meta choisit."],
   },
   {
     id: "native",
     title: "Native ads",
-    tagline: "Une créative qui ne ressemble pas à une pub.",
-    text: `Une native ad se fond dans le feed : on dirait un post, une capture d'écran, un selfie, une photo envoyée par une amie. Pas de badge, pas de prix en rouge, pas de logo. Ce qui arrête le scroll, c'est le **copywriting** : une phrase vraie, précise, qui parle au bon moment (« Got stopped 3 times today », « where'd you get that?! »).
-
-Elle convertit moins vite qu'une punchy sales mais elle coûte moins cher au clic et elle use moins l'audience. On la fait entièrement avec l'IA : une image réaliste (onglet Image, style photo iPhone, lumière naturelle) et un texte court dessus, ou un avis client en carte.`,
+    tagline: "Ne ressemble pas à une pub : un post, un selfie, une capture. C'est la phrase qui arrête le scroll.",
+    tips: ["Pas de badge, pas de prix en rouge, pas de logo.", "Une phrase vraie et précise (« Got stopped 3 times today »).", "Moins cher au clic, use moins l'audience. Tout se fait à l'IA."],
   },
   {
     id: "notes",
     title: "Notes iPhone",
     tagline: "Une capture de l'app Notes, comme un message perso.",
-    text: `Fond jaune pâle ou blanc de l'app Notes, une liste ou un petit texte : « 3 raisons pour lesquelles je garde ce collier », « ce que ma copine m'a dit ». On lit parce qu'on croit à une note privée. Demande à Claude le texte, puis au Studio une capture Notes réaliste en 3:4 ou 1:1.`,
+    tips: ["Une liste courte : « 3 raisons pour lesquelles je garde ce collier ».", "Claude écrit le texte, le Studio fait la capture."],
   },
   {
     id: "chatgpt",
-    title: "Conversation ChatGPT",
+    title: "ChatGPT",
     tagline: "Une question posée à ChatGPT, et sa réponse qui recommande ton produit.",
-    text: `Capture d'une conversation : « Quel cadeau pour mon copain à moins de 40 € ? » et la réponse qui cite ton produit avec deux arguments. Très fort sur les produits cadeau et les produits « problème → solution ». Le texte est écrit par Claude, l'image par le Studio (fond sombre ou clair de ChatGPT, police système).`,
+    tips: ["Parfait pour les cadeaux et les produits « problème → solution ».", "Deux arguments dans la réponse, pas plus."],
   },
   {
     id: "twitter",
     title: "Tweet",
-    tagline: "Un tweet avec avatar, pseudo, texte et chiffres de likes.",
-    text: `Le format le plus simple à produire : un faux tweet (ou un post Threads) avec une phrase qui claque et des chiffres d'engagement. Un avis déguisé en opinion. Fond blanc ou noir, 1:1. Une photo du produit en pièce jointe du tweet si possible.`,
+    tagline: "Un tweet avec avatar, pseudo, phrase qui claque et chiffres de likes.",
+    tips: ["Le plus simple à produire : un avis déguisé en opinion.", "Fond blanc ou noir, 1:1, photo du produit en pièce jointe."],
   },
   {
     id: "avant-apres",
     title: "Avant / après",
-    tagline: "Deux images côte à côte : le problème, puis le résultat.",
-    text: `Pour les produits qui transforment quelque chose (peau, posture, cheveux, rangement, look). Gauche « avant », droite « après », une flèche ou un bandeau au milieu. Attention : Meta refuse les avant / après trop médicaux ou irréalistes ; reste sur du visible et honnête.`,
+    tagline: "Le problème à gauche, le résultat à droite.",
+    tips: ["Pour les produits qui transforment quelque chose de visible.", "Reste honnête : Meta refuse le médical et l'irréaliste."],
   },
   {
     id: "badge",
     title: "Badge, prix, tag",
-    tagline: "Des éléments posés sur la créative : étiquette de prix, tag, sticker, flèche.",
-    text: `Une photo produit propre et, par-dessus, un ou deux éléments : étiquette **-50 %**, tag « Best seller », sticker « Livraison offerte », flèche manuscrite. C'est la version douce de la punchy sales : moins de texte, plus de produit. Parfait pour le retargeting.`,
+    tagline: "Une photo produit propre, et un ou deux éléments par-dessus.",
+    tips: ["Étiquette -50 %, tag « Best seller », sticker « Livraison offerte ».", "Moins de texte, plus de produit : idéal en retargeting."],
   },
   {
     id: "video",
     title: "Vidéo 9:16",
     tagline: "Toujours verticale : Reels, TikTok, Stories.",
-    text: `La vidéo part d'une image que tu as générée (le produit porté ou en main), puis onglet Vidéo en 9:16 : 15 secondes, 5 plans, une voix. Le format qui marche le mieux en acquisition quand la créative statique plafonne. La méthode complète est plus bas sur cette page.`,
+    tips: ["Part d'une image que tu as générée (produit porté ou en main).", "15 secondes, 5 plans, une voix. La méthode est plus bas."],
   },
 ];
 

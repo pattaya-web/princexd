@@ -156,33 +156,76 @@ function VideoExample() {
   );
 }
 
-/** Une famille de créatives : l'idée, le détail (replié), ses exemples. */
-function FolderSection({ folder, examples, open, onToggle }: { folder: CreativeFolder; examples: CreativeExample[]; open: boolean; onToggle: () => void }) {
+/** Une vignette d'exemple : image seule, en 3:4, agrandie au clic. */
+function Tile({ e, onOpen }: { e: CreativeExample; onOpen: () => void }) {
   return (
-    <div className="card-flat p-4">
-      <div className="flex flex-wrap items-start gap-2">
-        <div className="flex-1 min-w-[220px]">
-          <div className="text-[15.5px] font-semibold leading-snug">{folder.title}</div>
-          <div className="muted text-[13px] mt-0.5 leading-relaxed">{folder.tagline}</div>
+    <button type="button" onClick={onOpen} className="block w-full overflow-hidden rounded-md" style={{ aspectRatio: "3 / 4", background: "var(--surface-3)" }} title={e.title}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={e.url} alt={e.title} className="w-full h-full object-cover transition-transform hover:scale-[1.02]" loading="lazy" />
+    </button>
+  );
+}
+
+/** L'exemple en grand : l'image, une ligne dessous, fermeture au clic. */
+function Lightbox({ e, onClose }: { e: CreativeExample; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => ev.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: "rgb(0 0 0 / 0.82)" }} onClick={onClose}>
+      <div className="flex flex-col items-center gap-3 max-w-[92vw]" onClick={(ev) => ev.stopPropagation()}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={e.url} alt={e.title} className="rounded-md" style={{ maxHeight: "80vh", maxWidth: "92vw", objectFit: "contain" }} />
+        <div className="text-center text-white text-[13px] max-w-[60ch]">
+          <div className="font-semibold">{e.title}</div>
+          {e.note && <div className="opacity-80 mt-0.5">{e.note}</div>}
         </div>
-        <span className="badge !text-[10.5px] num shrink-0">{examples.length ? `${examples.length} exemple${examples.length > 1 ? "s" : ""}` : "exemples à venir"}</span>
-        <button type="button" className="btn btn-sm btn-ghost shrink-0" onClick={onToggle}>
-          {open ? "Replier" : "Voir"}
+        <button type="button" className="btn btn-sm" onClick={onClose}>
+          Fermer
         </button>
       </div>
-      {open && (
-        <div className="mt-3 flex flex-col gap-3">
-          <Annex text={folder.text} className="max-w-[72ch]" />
-          {examples.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {examples.map((e) => (
-                <ExampleCard key={e.id} e={e} />
-              ))}
-            </div>
-          ) : (
-            <div className="dim text-[13px]">Mady ajoute les exemples de cette famille au fil de l&apos;eau.</div>
-          )}
+    </div>
+  );
+}
+
+/** Les formats : une rangée de boutons, un seul ouvert, ses repères et ses images. */
+function FormatPicker({ folders, examplesOf, onOpen }: { folders: CreativeFolder[]; examplesOf: (id: string) => CreativeExample[]; onOpen: (e: CreativeExample) => void }) {
+  const [current, setCurrent] = useState(folders[0]?.id ?? "");
+  const f = folders.find((x) => x.id === current) ?? folders[0];
+  if (!f) return null;
+  const ex = examplesOf(f.id);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-1.5">
+        {folders.map((x) => {
+          const n = examplesOf(x.id).length;
+          const on = x.id === f.id;
+          return (
+            <button key={x.id} type="button" onClick={() => setCurrent(x.id)} className="px-3 h-[32px] rounded-full text-[13px] font-medium flex items-center gap-1.5" style={on ? { background: "var(--accent)", color: "var(--accent-on)" } : { background: "var(--surface-3)", color: "var(--muted)" }}>
+              {x.title}
+              {n > 0 && <span className="num text-[11px] opacity-80">{n}</span>}
+            </button>
+          );
+        })}
+      </div>
+      <div>
+        <div className="text-[15px] font-semibold leading-snug">{f.tagline}</div>
+        <ul className="list-disc pl-5 mt-1.5 flex flex-col gap-0.5 muted text-[13px] leading-relaxed">
+          {f.tips.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
+      </div>
+      {ex.length > 0 ? (
+        <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          {ex.map((e) => (
+            <Tile key={e.id} e={e} onOpen={() => onOpen(e)} />
+          ))}
         </div>
+      ) : (
+        <div className="dim text-[13px]">Exemples à venir.</div>
       )}
     </div>
   );
@@ -209,8 +252,8 @@ export default function CreativesPage() {
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [filter, setFilter] = useState<"tous" | CreativePrompt["kind"]>("tous");
-  // Familles de créatives : la première (punchy sales, les créatives d'Alison) est ouverte d'office.
-  const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({ punchy: true });
+  // Formats : l'exemple agrandi (lightbox).
+  const [zoom, setZoom] = useState<CreativeExample | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -297,7 +340,7 @@ export default function CreativesPage() {
         <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.03em" }}>
           Tes créatives, dans le Studio IA.
         </h1>
-        <p className="muted text-[14px] mt-1 max-w-[64ch]">Produit validé ? Mady t&apos;ouvre le Studio IA. Tu achètes tes crédits, tu demandes tes prompts à Claude ou GPT, tu génères : images en 3:4, 1:1 ou 9:16, vidéos en 9:16.</p>
+        <p className="muted text-[14px] mt-1 max-w-[64ch]">Regarde la vidéo, choisis un format, génère dans le Studio IA.</p>
         {data.preview && <div className="badge badge-warn w-fit !text-[11.5px] mt-3">Aperçu : tu vois Scale X comme {data.student?.name}.</div>}
         {data.isAdmin && !edit && (
           <div className="flex flex-wrap gap-2 mt-3">
@@ -429,64 +472,48 @@ export default function CreativesPage() {
         </div>
       ) : (
         <>
-          {/* 01 / Pourquoi les créatives d'abord, et l'histoire d'Alison */}
+          {/* 01 / L'essentiel, en trois lignes, et Alison */}
           <section className="card p-5" style={{ borderColor: "var(--accent-ring)" }}>
-            <SectionLabel n="01" title="Les créatives, c'est ce que les gens voient en premier" />
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] mt-3">
-              <div className="text-[14px] leading-relaxed flex flex-col gap-3 max-w-[66ch]">
-                <p>
-                  <strong>Personne n&apos;achète sans avoir vu une créative.</strong> C&apos;est la première chose que ton client voit, avant ta boutique, avant ton prix. Une bonne créative avec une page produit moyenne vend. Une page produit parfaite avec une créative bâclée ne vend rien, parce que personne ne clique.
-                </p>
-                <p>
-                  Les deux comptent : la créative arrête le scroll, la page produit transforme le clic en commande. Mais tu ne bâcles jamais tes créatives. Tu en fais plusieurs, tu les déclines, tu laisses Meta choisir.
-                </p>
-                <p>
-                  Pour ça tu as le <strong>Studio IA</strong> sur ta plateforme : images, vidéos, swap, création. Toutes les créatives de cette page peuvent se faire dedans. Je l&apos;améliore tous les jours. Pas d&apos;excuse.
-                </p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  <Link href="/formation/studio" className="btn btn-sm btn-primary">
-                    Ouvrir le Studio IA
-                  </Link>
-                  {data.exampleShop && (
-                    <a href={data.exampleShop} target="_blank" rel="noreferrer" className="btn btn-sm">
-                      Voir une boutique d&apos;exemple ↗
-                    </a>
-                  )}
-                  <Link href="/formation/boutique" className="btn btn-sm btn-ghost">
-                    Création de la boutique →
-                  </Link>
-                </div>
-                <div className="dim text-[12.5px]">Un dossier de prompts prêts à coller arrive ici bientôt. En attendant : les prompts à copier, plus bas sur cette page.</div>
-              </div>
-              <div className="card-flat p-4 flex flex-col gap-2">
+            <SectionLabel n="01" title="Avant tout" />
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] mt-3">
+              <ul className="flex flex-col gap-2 text-[14px] leading-relaxed">
+                <li className="flex gap-2.5">
+                  <span className="shrink-0 w-[22px] h-[22px] rounded-md flex items-center justify-center text-[11.5px] font-bold" style={{ background: "var(--accent)", color: "var(--accent-on)" }}>1</span>
+                  <span><strong>La créative, c&apos;est la première chose que ton client voit.</strong> Avant ta boutique, avant ton prix.</span>
+                </li>
+                <li className="flex gap-2.5">
+                  <span className="shrink-0 w-[22px] h-[22px] rounded-md flex items-center justify-center text-[11.5px] font-bold" style={{ background: "var(--accent)", color: "var(--accent-on)" }}>2</span>
+                  <span><strong>Tu ne la bâcles jamais.</strong> Tu en fais plusieurs, tu les déclines, Meta choisit.</span>
+                </li>
+                <li className="flex gap-2.5">
+                  <span className="shrink-0 w-[22px] h-[22px] rounded-md flex items-center justify-center text-[11.5px] font-bold" style={{ background: "var(--accent)", color: "var(--accent-on)" }}>3</span>
+                  <span><strong>Tout se fait dans ton Studio IA.</strong> Je l&apos;améliore tous les jours. Pas d&apos;excuse.</span>
+                </li>
+              </ul>
+              <div className="card-flat p-4">
                 <div className="label-xs" style={{ color: "var(--accent)" }}>
-                  L&apos;histoire d&apos;Alison
+                  Alison, élève Scale X
                 </div>
-                <div className="text-[18px] font-semibold leading-tight" style={{ letterSpacing: "-0.02em" }}>
-                  10 jours d&apos;accompagnement. Ses premiers 1 000 $ par jour.
+                <div className="text-[17px] font-semibold leading-tight mt-1" style={{ letterSpacing: "-0.02em" }}>
+                  10 jours d&apos;accompagnement, ses premiers 1 000 $ par jour.
                 </div>
-                <p className="text-[13.5px] leading-relaxed">
-                  Alison est élève Scale X. Son produit : le collier <strong>Venom</strong> (elle m&apos;autorise à le montrer). Ses créatives : exactement celles que tu vois en dessous, des <strong>punchy sales</strong> faites dans le Studio IA à partir d&apos;une seule photo du produit.
-                </p>
-                <p className="muted text-[13px] leading-relaxed">Voici quelques créatives d&apos;exemple que j&apos;ai pu réaliser avec elle. Regarde-les, puis fais pareil avec ton produit.</p>
+                <p className="muted text-[13px] leading-relaxed mt-1.5">Le collier Venom (montré avec son accord) et les créatives ci-dessous, faites ensemble dans le Studio IA.</p>
               </div>
             </div>
           </section>
 
-          {/* 02 / Les familles de créatives */}
+          {/* 02 / Les formats */}
           <section className="card p-5">
-            <SectionLabel n="02" title="Les familles de créatives" />
-            <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[66ch]">
-              Deux grandes familles : les <strong>punchy sales</strong>, qui vendent frontalement, et les <strong>native ads</strong>, qui ne ressemblent pas à une pub. Puis des formats précis à copier. Sur une créative statique tu es en <strong>1:1 ou 3:4</strong> (9:16 pour les stories), en vidéo <strong>toujours 9:16</strong>.
-            </p>
-            <div className="flex flex-col gap-3 mt-4">
-              {CREATIVE_FOLDERS.map((f) => (
-                <FolderSection key={f.id} folder={f} examples={folderExamples(f.id)} open={Boolean(openFolders[f.id])} onToggle={() => setOpenFolders((o) => ({ ...o, [f.id]: !o[f.id] }))} />
-              ))}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <SectionLabel n="02" title="Les formats qui marchent" />
+              <span className="dim text-[12.5px]">Images en 1:1 ou 3:4 · vidéos en 9:16</span>
+            </div>
+            <div className="mt-4">
+              <FormatPicker folders={CREATIVE_FOLDERS} examplesOf={folderExamples} onOpen={setZoom} />
             </div>
           </section>
 
-          {/* 03 / Studio IA */}
+          {/* 03 / Studio IA */}          {/* 03 / Studio IA */}
           <section className="card p-5" style={{ borderColor: studioState === "prêt" ? "var(--accent-ring)" : undefined }}>
             <div className="flex items-center justify-between gap-3">
               <SectionLabel n="03" title="Ton accès au Studio IA" />
@@ -563,7 +590,7 @@ export default function CreativesPage() {
           {/* 06 / Exemples */}
           <section className="card p-5">
             <SectionLabel n="06" title="Des exemples, avec leur prompt" />
-            <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Les créatives de Mady. Sous chacune, le prompt qui la reproduit : tu le copies, tu remplaces le produit, les textes et l&apos;offre par les tiens, et tu le colles dans l&apos;onglet Image avec ta photo de référence.</p>
+            <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Sous chaque créative, le prompt qui la reproduit : copie, remplace le produit et l&apos;offre, colle dans l&apos;onglet Image.</p>
             {freeExamples.length === 0 ? (
               <p className="dim text-[13.5px] mt-3">{data.isAdmin ? "Dépose tes exemples avec « Modifier la page »." : "Exemples à venir."}</p>
             ) : (
@@ -609,6 +636,7 @@ export default function CreativesPage() {
       )}
 
       <PortalFooter quote="Pas de perfection : on teste vite et on garde ce qui marche." author="Mady" />
+      {zoom && <Lightbox e={zoom} onClose={() => setZoom(null)} />}
     </div>
     </StepGate>
   );
