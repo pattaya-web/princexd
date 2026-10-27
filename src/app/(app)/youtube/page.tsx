@@ -95,7 +95,7 @@ export default function YoutubePage() {
     <>
       <PageHeader
         title="Vidéos YouTube"
-        subtitle="Colle les liens des vidéos US qui marchent : vignette, transcript en un clic, puis le scénariste écrit l'analyse et ton script adapté."
+        subtitle="Colle les liens des vidéos US qui marchent. Transcript via youtube-transcript.io (collé sur la fiche), puis « Copier pour Claude » : le prompt du scénariste + le transcript, prêts à coller."
         actions={
           <button className="btn btn-sm" onClick={() => setPromptOpen(true)}>
             Prompt du scénariste
@@ -224,6 +224,9 @@ function Badge({ on, children }: { on: boolean; children: React.ReactNode }) {
 
 /* ------------------------------- Fiche --------------------------------- */
 
+/** Le site où Mady récupère ses transcripts (les sous-titres YouTube sont bloqués depuis le serveur). */
+const TRANSCRIPT_SITE = "https://www.youtube-transcript.io/";
+
 type Tab = "script" | "transcript" | "plan";
 
 function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; onClose: () => void; onUpdate: (v: YtVideo) => void; prompt: string }) {
@@ -255,7 +258,7 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
   const [busy, setBusy] = useState<"" | "transcript" | "whisper" | "script">("");
   const [error, setError] = useState("");
   const [extra, setExtra] = useState("");
-  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(!v.transcript);
   const [paste, setPaste] = useState("");
   const [step, setStep] = useState("");
 
@@ -398,11 +401,14 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
             <div className="flex gap-1.5 flex-wrap mt-1">
               {!v.transcript ? (
                 <>
-                  <button className="btn btn-sm btn-primary" onClick={() => getTranscript()} disabled={Boolean(busy)}>
-                    {busy === "transcript" ? "Récupération…" : "Récupérer le transcript"}
+                  <a className="btn btn-sm btn-primary" href={TRANSCRIPT_SITE} target="_blank" rel="noreferrer" onClick={() => void copy(v.url, "Lien de la vidéo")} title="Ouvre youtube-transcript.io et copie le lien de la vidéo : tu n'as plus qu'à le coller là-bas">
+                    Ouvrir youtube-transcript.io ↗
+                  </a>
+                  <button className="btn btn-sm" onClick={() => setPasteOpen((o) => !o)} disabled={Boolean(busy)}>
+                    {pasteOpen ? "Fermer la zone de collage" : "Coller le transcript"}
                   </button>
-                  <button className="btn btn-sm" onClick={() => setPasteOpen((o) => !o)} disabled={Boolean(busy)} title="Sur YouTube : « …plus » → « Afficher la transcription », tout sélectionner, copier">
-                    Coller le transcript
+                  <button className="btn btn-sm btn-ghost" onClick={() => getTranscript()} disabled={Boolean(busy)} title="Essai par les sous-titres YouTube (souvent bloqué depuis le serveur)">
+                    {busy === "transcript" ? "Récupération…" : "Essayer en automatique"}
                   </button>
                 </>
               ) : (
@@ -413,9 +419,9 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
                   <button className="btn btn-sm" onClick={() => copy(forClaude, "Prompt + transcript")} title="Le prompt du scénariste suivi du transcript, à coller dans Claude">
                     Copier pour Claude
                   </button>
-                  <button className="btn btn-sm btn-ghost" onClick={() => getTranscript(true)} disabled={Boolean(busy)} title="Relire les sous-titres YouTube">
-                    {busy === "transcript" ? "…" : "Refaire"}
-                  </button>
+                  <a className="btn btn-sm btn-ghost" href={TRANSCRIPT_SITE} target="_blank" rel="noreferrer" onClick={() => void copy(v.url, "Lien de la vidéo")} title="Refaire le transcript sur youtube-transcript.io (le lien de la vidéo est copié)">
+                    youtube-transcript.io ↗
+                  </a>
                   <button className="btn btn-sm btn-ghost" onClick={() => setPasteOpen((o) => !o)} disabled={Boolean(busy)}>
                     Remplacer en collant
                   </button>
@@ -440,7 +446,9 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
         {pasteOpen && (
           <div className="grid gap-2 rounded-xl p-3" style={{ border: "1px solid var(--border)", background: "var(--surface-2)" }}>
             <span className="label-xs">Coller le transcript</span>
-            <span className="dim text-[12px]">Sur YouTube, sous la vidéo : « …plus » → « Afficher la transcription ». Clique dans le panneau, Ctrl+A, Ctrl+C, puis colle ici. Les horodatages peuvent rester, ça ne gêne pas.</span>
+            <span className="dim text-[12px]">
+              1. « Ouvrir youtube-transcript.io » copie le lien de la vidéo : colle-le là-bas, « Extract transcript », puis « Copy ». 2. Colle le texte ici et enregistre. 3. « Copier pour Claude » te donne le prompt du scénariste suivi du transcript. Les horodatages peuvent rester, ça ne gêne pas.
+            </span>
             <textarea className="textarea mono text-[12px]" style={{ minHeight: 160 }} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder="0:00 So the thing nobody tells you about…" disabled={Boolean(busy)} />
             <div className="flex gap-1.5">
               <button className="btn btn-sm btn-primary" onClick={savePaste} disabled={Boolean(busy) || paste.trim().length < 40}>
