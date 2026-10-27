@@ -85,6 +85,11 @@ export function StepGate({ tab, children }: { tab: GateTab; children: ReactNode 
 
   return (
     <>
+      {gate.preview && me.blockedBy && (
+        <div className="badge badge-warn w-fit !text-[11.5px]">
+          Aperçu : pour l&apos;élève, cet onglet est verrouillé{me.blockedBy.kind === "tab" ? ` (il doit d'abord terminer « ${me.blockedBy.label} »)` : " (en attente de ta validation du formulaire)"}.
+        </div>
+      )}
       {children}
       {gate.hasStudent && (
         <div className="card p-5 flex flex-wrap items-center justify-between gap-3" style={{ borderColor: me.done ? "var(--good)" : "var(--accent-ring)" }}>

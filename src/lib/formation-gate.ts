@@ -53,8 +53,12 @@ export interface GateState {
   next: GateTabState | null;
 }
 
-/** L'état du parcours d'un élève. Sans élève (admin), tout est ouvert. */
-export function gateState(student: Pick<Student, "accessRequestedAt" | "accessApprovedAt" | "tabsDone"> | undefined, opts: { admin?: boolean } = {}): GateState {
+/**
+ * L'état du parcours d'un élève. Sans élève (admin), tout est ouvert.
+ * `preview` (admin en « Voir comme ») : tout est ouvert aussi, mais
+ * `blockedBy` reste renseigné pour dire ce que l'élève, lui, voit verrouillé.
+ */
+export function gateState(student: Pick<Student, "accessRequestedAt" | "accessApprovedAt" | "tabsDone"> | undefined, opts: { admin?: boolean; preview?: boolean } = {}): GateState {
   const done = new Set(student?.tabsDone ?? []);
   const tabs: GateTabState[] = [];
   GATE_TABS.forEach((t, i) => {
@@ -65,6 +69,7 @@ export function gateState(student: Pick<Student, "accessRequestedAt" | "accessAp
     else {
       unlocked = done.has(prev.key);
       if (!unlocked) blockedBy = { kind: "tab", key: prev.key, href: prev.href, label: prev.label };
+      if (!unlocked && opts.preview) unlocked = true;
     }
     tabs.push({ key: t.key, href: t.href, label: t.label, doneLabel: t.doneLabel, unlocked, done: done.has(t.key), blockedBy });
   });

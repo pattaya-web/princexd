@@ -818,7 +818,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     pathname === itemPath &&
                     (!itemQuery || (typeof window !== "undefined" && window.location.search.includes(itemQuery)));
                   // Parcours élève : un onglet verrouillé se voit (cadenas) mais ne s'ouvre pas.
+                  // En « Voir comme » (admin), tout s'ouvre : le cadenas reste, en info.
                   const gateTab = isStudent ? gateTabs.find((t) => t.href === itemPath) : undefined;
+                  const previewLock = Boolean(gateTab?.unlocked && gateTab.blockedBy);
                   if (gateTab && !gateTab.unlocked) {
                     return (
                       <span
@@ -838,6 +840,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                       href={item.href}
                       className="nav-link flex items-center gap-2.5 px-3 h-[34px] rounded-full text-[13.5px]"
                       data-active={active}
+                      title={previewLock ? "Verrouillé pour l'élève (aperçu : ouvert pour toi)" : undefined}
                       style={{
                         color: active ? "var(--accent)" : "var(--text-2)",
                         fontWeight: active ? 600 : 400,

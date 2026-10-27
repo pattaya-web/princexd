@@ -25,7 +25,7 @@ function studentOf(req: NextRequest) {
 export async function GET(req: NextRequest) {
   return handle((): GatePayload => {
     const { session, student } = studentOf(req);
-    return { ...gateState(student, { admin: session.isAdmin }), isAdmin: session.isAdmin, preview: Boolean(session.impersonated), hasStudent: Boolean(student) };
+    return { ...gateState(student, { admin: session.isAdmin, preview: Boolean(session.impersonated) }), isAdmin: session.isAdmin, preview: Boolean(session.impersonated), hasStudent: Boolean(student) };
   });
 }
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   return handle(async (): Promise<GatePayload> => {
     const { session, db, student } = studentOf(req);
     const body = (await req.json().catch(() => ({}))) as { action?: string; tab?: string; done?: boolean };
-    const view = (): GatePayload => ({ ...gateState(student, { admin: session.isAdmin }), isAdmin: session.isAdmin, preview: Boolean(session.impersonated), hasStudent: Boolean(student) });
+    const view = (): GatePayload => ({ ...gateState(student, { admin: session.isAdmin, preview: Boolean(session.impersonated) }), isAdmin: session.isAdmin, preview: Boolean(session.impersonated), hasStudent: Boolean(student) });
     if (!student) {
       if (session.isAdmin) return view();
       throw new Error("Élève introuvable.");
