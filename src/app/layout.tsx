@@ -35,6 +35,7 @@ const dmMono = localFont({
 
 export const metadata: Metadata = {
   title: "MPGate",
+  applicationName: "Mvdy Prince",
   description: "Le cockpit de mon écosystème : contenu Instagram, génération IA, CRM coaching.",
 };
 
