@@ -189,6 +189,8 @@ function VideoCard({ video: v, onOpen, onRemove }: { video: YtVideo; onOpen: () 
         <div className="flex items-center gap-1.5 flex-wrap mt-auto pt-1">
           <Badge on={Boolean(v.transcript)}>{v.transcript ? "Transcript ✓" : "Transcript"}</Badge>
           <Badge on={Boolean(v.script)}>{v.script ? "Script ✓" : "Script"}</Badge>
+          {v.plan && <Badge on>Plan ✓</Badge>}
+          {v.filmedAt && <Badge on>🎬 Tournée · rushs au monteur</Badge>}
           <button
             className="btn btn-sm btn-ghost ml-auto"
             onClick={(e) => {
@@ -222,11 +224,34 @@ function Badge({ on, children }: { on: boolean; children: React.ReactNode }) {
 
 /* ------------------------------- Fiche --------------------------------- */
 
-type Tab = "script" | "transcript";
+type Tab = "script" | "transcript" | "plan";
 
 function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; onClose: () => void; onUpdate: (v: YtVideo) => void; prompt: string }) {
   const toast = useToast();
-  const [tab, setTab] = useState<Tab>(v.script ? "script" : "transcript");
+  const [tab, setTab] = useState<Tab>(v.plan ? "plan" : v.script ? "script" : "transcript");
+  // Mon plan : le déroulé de ma vidéo, enregistré au bouton ; « vidéo tournée » bascule tout de suite.
+  const [plan, setPlan] = useState(v.plan ?? "");
+  const [planSaving, setPlanSaving] = useState(false);
+  const planDirty = plan !== (v.plan ?? "");
+  async function savePlan() {
+    setPlanSaving(true);
+    try {
+      onUpdate(await api<YtVideo>("/api/youtube", { method: "PATCH", body: JSON.stringify({ id: v.id, plan }) }));
+      toast("Plan enregistré.");
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setPlanSaving(false);
+    }
+  }
+  async function setFilmed(filmed: boolean) {
+    try {
+      onUpdate(await api<YtVideo>("/api/youtube", { method: "PATCH", body: JSON.stringify({ id: v.id, filmed, ...(planDirty ? { plan } : {}) }) }));
+      toast(filmed ? "Vidéo tournée : rushs à envoyer au monteur." : "Remise en « à tourner ».");
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  }
   const [busy, setBusy] = useState<"" | "transcript" | "whisper" | "script">("");
   const [error, setError] = useState("");
   const [extra, setExtra] = useState("");
@@ -368,6 +393,7 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
                 ? `Transcript : ${transcriptWords} mots · ${v.transcriptSource === "captions" ? `sous-titres ${v.transcriptLang}` : v.transcriptSource === "manual" ? "collé à la main" : "audio transcrit"}`
                 : "Pas encore de transcript."}
               {v.scriptAt ? ` · Script écrit le ${fmtDate(v.scriptAt)}` : ""}
+              {v.filmedAt ? ` · Tournée le ${fmtDate(v.filmedAt)}, rushs à envoyer au monteur` : ""}
             </div>
             <div className="flex gap-1.5 flex-wrap mt-1">
               {!v.transcript ? (
@@ -435,10 +461,43 @@ function VideoModal({ video: v, onClose, onUpdate, prompt }: { video: YtVideo; o
           options={[
             { value: "script", label: v.script ? "Analyse + script" : "Script (à écrire)" },
             { value: "transcript", label: v.transcript ? `Transcript (${transcriptWords} mots)` : "Transcript" },
+            { value: "plan", label: v.filmedAt ? "Mon plan · tournée 🎬" : v.plan ? "Mon plan ✓" : "Mon plan" },
           ]}
         />
 
-        {tab === "script" ? (
+        {tab === "plan" ? (
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="dim text-[12.5px] flex-1 min-w-[200px]">Le déroulé de ta vidéo, collé ici tel quel.</span>
+              <button className="btn btn-sm btn-primary" onClick={() => void savePlan()} disabled={planSaving || !planDirty}>
+                {planSaving ? "Enregistrement…" : "Enregistrer le plan"}
+              </button>
+              {plan.trim() && (
+                <button className="btn btn-sm" onClick={() => copy(plan, "Plan")}>
+                  Copier
+                </button>
+              )}
+            </div>
+            <textarea className="textarea text-[13px]" style={{ minHeight: 360, fontFamily: "inherit" }} value={plan} onChange={(e) => setPlan(e.target.value)} placeholder={"Hook…\nPartie 1…\nPartie 2…\nCTA…"} />
+            <div className="flex items-center gap-3 flex-wrap rounded-xl p-3" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+              {v.filmedAt ? (
+                <>
+                  <span className="text-[13px] font-semibold">🎬 Vidéo tournée le {fmtDate(v.filmedAt)} · rushs à envoyer au monteur</span>
+                  <button className="btn btn-sm btn-ghost ml-auto" onClick={() => void setFilmed(false)}>
+                    Pas encore tournée
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="dim text-[13px] flex-1">Dès que c&apos;est filmé :</span>
+                  <button className="btn btn-sm" onClick={() => void setFilmed(true)}>
+                    Vidéo tournée · rushs à envoyer au monteur
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        ) : tab === "script" ? (
           v.script ? (
             <div className="grid gap-2">
               <div>

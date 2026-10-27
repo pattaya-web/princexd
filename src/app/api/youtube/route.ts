@@ -36,6 +36,8 @@ export async function POST(req: NextRequest) {
     script: "",
     scriptAt: "",
     notes: "",
+    plan: "",
+    filmedAt: "",
     createdAt: now,
     updatedAt: now,
   }));
@@ -55,13 +57,15 @@ export async function DELETE(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-/** `{ id, notes }` : note libre sur une vidéo. */
+/** `{ id, notes?, plan?, filmed? }` : note libre, déroulé de ma vidéo (« Mon plan »), vidéo tournée (rushs à envoyer au monteur). */
 export async function PATCH(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as { id?: string; notes?: string };
+  const body = (await req.json().catch(() => ({}))) as { id?: string; notes?: string; plan?: string; filmed?: boolean };
   const db = readDB();
   const v = db.ytVideos.find((x) => x.id === body.id);
   if (!v) return NextResponse.json({ error: "Vidéo introuvable." }, { status: 404 });
   if (typeof body.notes === "string") v.notes = body.notes.slice(0, 4000);
+  if (typeof body.plan === "string") v.plan = body.plan.slice(0, 40_000);
+  if (typeof body.filmed === "boolean") v.filmedAt = body.filmed ? v.filmedAt || new Date().toISOString() : "";
   v.updatedAt = new Date().toISOString();
   writeDB(db);
   return NextResponse.json(v);

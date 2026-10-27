@@ -1809,6 +1809,10 @@ export interface YtVideo {
   script: string;
   scriptAt: string;
   notes: string;
+  /** Mon plan : le déroulé de MA vidéo (collé à la main), onglet « Mon plan » de la fiche. */
+  plan?: string;
+  /** Vidéo tournée : les rushs sont à envoyer au monteur (date ISO), vide sinon. */
+  filmedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
