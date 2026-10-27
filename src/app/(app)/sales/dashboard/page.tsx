@@ -7,6 +7,7 @@ import { AttentionCard } from "@/components/sales/DashboardBlocks";
 import { InvestmentsCard } from "@/components/sales/InvestmentsCard";
 import { UtmLinksTable } from "@/components/sales/UtmLinksTable";
 import { SetterTasksAdminCard } from "@/components/sales/SetterTasksCard";
+import { CallsBoard } from "@/components/sales/CallsBoard";
 import type { UtmLinkRow } from "@/lib/sales/utm-links";
 import { Card, Empty, ErrorNote, Modal, PageHeader, Spinner, Tabs } from "@/components/ui";
 import { ShopifyAffiliate } from "@/components/ShopifyAffiliate";
@@ -412,6 +413,10 @@ export default function SalesDashboardPage() {
               <Tile label="Reste à encaisser" value={fmt(cf.remainingTotal, "money", currency)} color={cf.remainingTotal ? WARN : undefined} sub="toutes ventes actives · clique : qui doit quoi" onClick={() => void openRemaining()} />
               <Tile label="Ventes pas soldées" value={fmt(cf.pendingSales, "int", currency)} color={cf.overdueTotal ? WARN : undefined} sub={cf.overdueTotal ? `dont ${fmtMoney(cf.overdueTotal, currency)} en retard` : "échéances à venir, à jour"} />
             </div>
+          </Section>
+
+          <Section title="Mes calls" hint="comme sur iClosed : calls passés avec présence, issue et compte-rendu, calls à venir. Clique un nom pour la fiche, « Statuer » pour poser l'issue.">
+            <CallsBoard refreshKey={tick} onChanged={() => setTick((t) => t + 1)} />
           </Section>
 
           {/* Les alertes (relances, à confirmer) viennent APRÈS les chiffres : les chiffres d'abord. */}

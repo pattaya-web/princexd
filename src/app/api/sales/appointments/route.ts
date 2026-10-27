@@ -90,6 +90,9 @@ export interface AppointmentRow {
   saleStatus: string;
   /** Commission generee par cette ligne, du point de vue de qui regarde. */
   commission: number;
+  /** Compte-rendu Fathom condense et lien vers l'enregistrement ("" sans enregistrement). */
+  fathomSummary: string;
+  fathomUrl: string;
 }
 
 export async function GET(req: NextRequest) {
@@ -233,6 +236,8 @@ export async function GET(req: NextRequest) {
         currency: sale?.currency || currency,
         saleStatus: sale?.status ?? "",
         commission: Math.round(commission * 100) / 100,
+        fathomSummary: a.fathomSummary ?? "",
+        fathomUrl: a.fathomUrl ?? "",
       };
     });
 
