@@ -30,6 +30,9 @@ type View = Settings & {
   systemeioWebhookSecretSet?: boolean;
   fathomApiKeyMask?: string;
   fathomApiKeySource?: string;
+  googleClientSecretMask?: string;
+  googleClientSecretSource?: string;
+  googleConnected?: boolean;
   vaPasswordSet?: boolean;
   vaSource?: string;
   ownerPasswordSet?: boolean;
@@ -65,6 +68,7 @@ export default function ReglagesPage() {
   const [anthropicKey, setAnthropicKey] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
   const [fathomKey, setFathomKey] = useState("");
+  const [googleSecret, setGoogleSecret] = useState("");
   const [elevenKey, setElevenKey] = useState("");
   const [hfSecret, setHfSecret] = useState("");
   const [sioKey, setSioKey] = useState("");
@@ -115,6 +119,12 @@ export default function ReglagesPage() {
       else delete payload.systemeioApiKey;
       if (fathomKey.trim()) payload.fathomApiKey = fathomKey.trim();
       else delete payload.fathomApiKey;
+      if (googleSecret.trim()) payload.googleClientSecret = googleSecret.trim();
+      else delete payload.googleClientSecret;
+      delete payload.googleRefreshToken;
+      delete (payload as Record<string, unknown>).googleClientSecretMask;
+      delete (payload as Record<string, unknown>).googleClientSecretSource;
+      delete (payload as Record<string, unknown>).googleConnected;
       delete (payload as Record<string, unknown>).fathomApiKeyMask;
       delete (payload as Record<string, unknown>).fathomApiKeySource;
       if (tgToken.trim()) payload.telegramBotToken = tgToken.trim();
@@ -595,6 +605,23 @@ export default function ReglagesPage() {
               )}
               <Field label={s.geminiApiKeyMask ? "Remplacer la clé Gemini" : "Clé API Gemini"} hint="Laisse vide pour conserver la clé actuelle.">
                 <input className="input mono" type="password" placeholder="AIza…" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} />
+              </Field>
+            </div>
+          </Card>
+
+          <Card title="Google Agenda (liens Meet)">
+            <div className="flex flex-col gap-3.5">
+              <InfoNote>
+                Pour générer des liens Meet depuis <strong>Outils → Lien Meet</strong>, il faut un client OAuth Google à toi : console.cloud.google.com → APIs &amp; Services →
+                Identifiants → « Créer un ID client OAuth » (application Web), URI de redirection autorisée <code className="mono">https://mvdyprince.fr/api/google/callback</code>,
+                et l&apos;API Google Calendar activée. Colle l&apos;identifiant et le secret ici, enregistre, puis connecte ton agenda depuis la page Lien Meet.
+                {s.googleConnected ? <> Agenda connecté{s.googleAccountEmail ? ` : ${s.googleAccountEmail}` : ""}.</> : " Agenda pas encore connecté."}
+              </InfoNote>
+              <Field label="Identifiant client (Client ID)">
+                <input className="input mono !text-[12.5px]" value={s.googleClientId ?? ""} onChange={(e) => setS({ ...s, googleClientId: e.target.value })} placeholder="1234567890-abc.apps.googleusercontent.com" />
+              </Field>
+              <Field label={s.googleClientSecretMask ? "Remplacer le secret client" : "Secret client (Client secret)"} hint={s.googleClientSecretMask ? `Secret actif : ${s.googleClientSecretMask}. Laisse vide pour le conserver.` : "Jamais renvoyé au navigateur une fois enregistré."}>
+                <input className="input mono" type="password" placeholder="GOCSPX-…" value={googleSecret} onChange={(e) => setGoogleSecret(e.target.value)} />
               </Field>
             </div>
           </Card>

@@ -487,6 +487,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/sales/leads", label: "Leads", icon: "☏" },
       { href: "/sales/messages", label: "Messages", icon: "✉" },
       { href: "/sales/rendez-vous", label: "CRM", icon: "▤" },
+      { href: "/meet", label: "Lien Meet", icon: "▶" },
       { href: "/sales/commissions", label: "Commissions", icon: "▦" },
       { href: "/va/outreach", label: "Outreach VA", icon: "✉" },
       { href: "/sales/guide", label: "Guide d'utilisation", icon: "?" },
@@ -715,7 +716,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("formation:gate", load);
   }, [isStudent]);
   const nav = isSalesOnly
-    ? NAV.filter((g) => g.section === "Sales").map((g) => ({ ...g, items: g.items.filter((i) => i.href !== "/va/outreach") }))
+    ? NAV.filter((g) => g.section === "Sales").map((g) => ({ ...g, items: g.items.filter((i) => i.href !== "/va/outreach" && i.href !== "/meet") }))
     : isVa
       ? [{ section: "Outreach", items: [{ href: "/va/outreach", label: "Instagram Outreach", icon: "✉" }] }]
       : isStudent

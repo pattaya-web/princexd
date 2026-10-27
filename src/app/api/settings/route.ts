@@ -30,6 +30,8 @@ function publicView(s: Settings) {
   const sioKey = sioEnv ? process.env.SYSTEMEIO_API_KEY!.trim() : (s.systemeioApiKey ?? "");
   const faEnv = Boolean(process.env.FATHOM_API_KEY?.trim());
   const faKey = faEnv ? process.env.FATHOM_API_KEY!.trim() : (s.fathomApiKey ?? "");
+  const gcEnv = Boolean(process.env.GOOGLE_CLIENT_SECRET?.trim());
+  const gcSecret = gcEnv ? process.env.GOOGLE_CLIENT_SECRET!.trim() : (s.googleClientSecret ?? "");
   const hfSingle = process.env.HIGGSFIELD_API_KEY?.trim();
   const hfEnv = Boolean(hfSingle || (process.env.HIGGSFIELD_API_KEY_ID?.trim() && process.env.HIGGSFIELD_API_KEY_SECRET?.trim()));
   const hfSecret = hfSingle || (hfEnv ? process.env.HIGGSFIELD_API_KEY_SECRET!.trim() : (s.higgsfieldKeySecret ?? ""));
@@ -74,6 +76,12 @@ function publicView(s: Settings) {
     fathomWebhookSecret: "",
     fathomApiKeyMask: mask(faKey),
     fathomApiKeySource: faEnv ? "env" : faKey ? "reglages" : "absente",
+    googleClientId: process.env.GOOGLE_CLIENT_ID?.trim() || (s.googleClientId ?? ""),
+    googleClientSecret: "",
+    googleRefreshToken: "",
+    googleClientSecretMask: mask(gcSecret),
+    googleClientSecretSource: gcEnv ? "env" : gcSecret ? "reglages" : "absente",
+    googleConnected: Boolean((s.googleRefreshToken ?? "").trim()),
     systemeioWebhookSecret: "",
     systemeioWebhookSecretSet: Boolean(process.env.SYSTEMEIO_WEBHOOK_SECRET?.trim() || s.systemeioWebhookSecret),
     editorAccessCode: s.editorAccessCode,
@@ -119,6 +127,12 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.fathomWebhookSecret === "string" && !body.fathomWebhookSecret.trim()) delete body.fathomWebhookSecret;
   delete (body as Record<string, unknown>).fathomApiKeyMask;
   delete (body as Record<string, unknown>).fathomApiKeySource;
+  if (typeof body.googleClientSecret === "string" && !body.googleClientSecret.trim()) delete body.googleClientSecret;
+  // Le jeton Google ne se pose que par le consentement (/api/google/callback), jamais par ce formulaire.
+  delete body.googleRefreshToken;
+  delete (body as Record<string, unknown>).googleClientSecretMask;
+  delete (body as Record<string, unknown>).googleClientSecretSource;
+  delete (body as Record<string, unknown>).googleConnected;
   // Jeton Telegram : vide = on garde ; « CLEAR » = on efface ; sinon on le verifie aupres de Telegram.
   const rawBody = body as Record<string, unknown>;
   delete rawBody.telegramBotTokenMask;

@@ -270,6 +270,12 @@ export interface Settings {
   fathomWebhookUrl?: string;
   fathomWebhookSecret?: string;
   fathomLastSyncAt?: string;
+  /* --- Google Agenda (liens Meet, 2026-10-27) : client OAuth de Mady, jeton de rafraichissement, compte connecte. --- */
+  googleClientId?: string;
+  googleClientSecret?: string;
+  googleRefreshToken?: string;
+  googleAccountEmail?: string;
+  googleConnectedAt?: string;
   /** Derniere synchro automatique des issues iClosed (calls passes). */
   salesLastOutcomeSyncAt?: string;
   /** Rejeu des utm / IDs Meta sur les leads deja en base (une seule fois). */
@@ -713,6 +719,24 @@ export interface SettingExample {
   notes: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Un lien Google Meet genere depuis le tool, et l'evenement Google Agenda qui va avec. */
+export interface MeetLink {
+  id: ID;
+  kind: "sale" | "student" | "other";
+  title: string;
+  guestName: string;
+  guestEmail: string;
+  /** Debut en ISO UTC ; `timeZone` est celui choisi a la creation (Asia/Dubai ou Europe/Paris). */
+  startAt: string;
+  timeZone: string;
+  durationMin: number;
+  meetUrl: string;
+  eventUrl: string;
+  eventId: string;
+  note: string;
+  createdAt: string;
 }
 
 /**
@@ -1648,6 +1672,8 @@ export interface DB {
   settingExamples: SettingExample[];
   /** Relances envoyees par l'admin aux setters. */
   setterTasks: SetterTask[];
+  /** Liens Google Meet generes (Outils → Lien Meet). */
+  meetLinks: MeetLink[];
 }
 
 /* ===================================================================== *

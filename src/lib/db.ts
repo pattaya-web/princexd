@@ -128,6 +128,7 @@ const EMPTY_DB: DB = {
   utmLinks: [],
   settingExamples: [],
   setterTasks: [],
+  meetLinks: [],
 };
 
 function ensureFile() {
