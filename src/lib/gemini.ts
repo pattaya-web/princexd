@@ -27,7 +27,7 @@ export const hasGemini = () => Boolean(geminiKey());
 /** Modèles essayés dans l'ordre : le premier qui répond gagne (les noms bougent d'une saison à l'autre ; vérifié le 2026-10-25 : gemini-2.5-flash n'est plus ouvert aux nouveaux comptes, 3.8-flash recommandé). */
 const MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash"];
 
-const PROMPT = `Transcribe this video's speech verbatim, in its original language. Keep every sentence, including hesitations that carry meaning; do not summarize, do not translate, do not add commentary or timestamps. If two people speak, prefix each line with "A:" or "B:". Group the text into short paragraphs (one idea per paragraph). Start your answer with one line "LANGUAGE: <two-letter code>" then an empty line, then the transcript only. If there is no speech at all, answer "LANGUAGE: none" and nothing else.`;
+const PROMPT = `Transcribe this video's speech verbatim, in its original language. Keep every sentence, including hesitations that carry meaning; do not summarize, do not condense, do not skip passages, do not translate, do not add commentary or timestamps. A normal speaker says 120 to 170 words per minute, so 10 minutes of speech is roughly 1,200 to 1,700 words: if your transcript is much shorter than that, you have skipped speech, go back and write down everything that is said. If two people speak, prefix each line with "A:" or "B:". Group the text into short paragraphs (one idea per paragraph). Start your answer with one line "LANGUAGE: <two-letter code>" then an empty line, then the transcript only. If there is no speech at all, answer "LANGUAGE: none" and nothing else.`;
 
 const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
 
@@ -129,42 +129,74 @@ export async function transcribeYoutubeWithGemini(videoUrl: string, span?: Video
 
 /* ------------------------------ Vidéos longues ------------------------------ */
 
-/** Longueur d'un morceau : 20 minutes, loin de la limite de sortie de Gemini et de son délai de réponse. */
-const CHUNK_SEC = 20 * 60;
-/** Une vidéo d'au plus 25 minutes se tente d'un bloc. */
-const SINGLE_MAX_SEC = 25 * 60;
+/**
+ * Longueur d'un morceau : 10 minutes. Sur 20 minutes et plus, Gemini rend
+ * une réponse « terminée » mais résumée (une vidéo de 25 min rendue en
+ * 1 900 mots, le 2026-10-27) : des fenêtres courtes le tiennent au mot à mot.
+ */
+const CHUNK_SEC = 10 * 60;
+/** Une vidéo d'au plus 10 minutes se tente d'un bloc. */
+const SINGLE_MAX_SEC = 10 * 60;
 /** Morceaux transcrits en même temps. */
 const PARALLEL = 3;
-/** 15 × 20 min = 5 h : au-delà, on s'arrête. */
-const MAX_CHUNKS = 15;
+/** 30 × 10 min = 5 h : au-delà, on s'arrête. */
+const MAX_CHUNKS = 30;
+/**
+ * En dessous de 70 mots par minute de fenêtre, Gemini a résumé au lieu de
+ * transcrire (on parle à 120-170 mots/min). Le dernier morceau d'une vidéo
+ * à durée inconnue est à moitié vide : il passe aussi par là, sans dégât.
+ */
+const MIN_WORDS_PER_MIN = 70;
 
-/** Un morceau, et s'il revient coupé, ses deux moitiés (une fois). */
+const wordsOf = (t: string) => t.split(/\s+/).filter(Boolean).length;
+const thin = (r: GeminiTranscript, span: VideoSpan) => wordsOf(r.text) < ((span.endSec - span.startSec) / 60) * MIN_WORDS_PER_MIN;
+
+/** Une moitié de morceau ; null quand Gemini n'y entend aucune parole (fin de vidéo). */
+async function half(videoUrl: string, span: VideoSpan): Promise<GeminiTranscript | null> {
+  try {
+    return await transcribeYoutubeWithGemini(videoUrl, span);
+  } catch (e) {
+    if ((e as GeminiError).code === 422) return null;
+    throw e;
+  }
+}
+
+/**
+ * Un morceau, et s'il revient coupé ou trop maigre (résumé), ses deux
+ * moitiés (une fois). On garde la version la plus fournie des deux.
+ */
 async function transcribeSpan(videoUrl: string, span: VideoSpan): Promise<GeminiTranscript> {
   const r = await transcribeYoutubeWithGemini(videoUrl, span);
-  if (!r.truncated || span.endSec - span.startSec < 300) return r;
+  if (span.endSec - span.startSec < 240 || (!r.truncated && !thin(r, span))) return r;
+  console.warn(`[gemini] morceau ${mmss(span.startSec)}-${mmss(span.endSec)} ${r.truncated ? "coupé" : "trop maigre"} (${wordsOf(r.text)} mots) : repris en deux moitiés`);
   const mid = Math.floor((span.startSec + span.endSec) / 2);
-  const a = await transcribeYoutubeWithGemini(videoUrl, { startSec: span.startSec, endSec: mid });
-  const b = await transcribeYoutubeWithGemini(videoUrl, { startSec: mid, endSec: span.endSec });
-  return { text: `${a.text}\n\n${b.text}`.trim(), language: a.language || b.language, model: a.model, truncated: a.truncated || b.truncated };
+  const a = await half(videoUrl, { startSec: span.startSec, endSec: mid });
+  const b = await half(videoUrl, { startSec: mid, endSec: span.endSec });
+  const parts = [a, b].filter((p): p is GeminiTranscript => Boolean(p));
+  if (!parts.length) return r;
+  const joined: GeminiTranscript = {
+    text: parts.map((p) => p.text.trim()).join("\n\n").trim(),
+    language: parts.find((p) => p.language)?.language ?? r.language,
+    model: r.model,
+    truncated: parts.some((p) => p.truncated),
+  };
+  return wordsOf(joined.text) >= wordsOf(r.text) ? joined : r;
 }
 
 /**
  * Le transcript COMPLET d'une vidéo, quelle que soit sa longueur.
  *
- * Courte (≤ 25 min) ou durée inconnue : un seul appel ; s'il revient coupé,
- * on repart en morceaux. Longue : morceaux de 20 minutes, trois à la fois,
- * recollés dans l'ordre. Durée inconnue (YouTube bloque le serveur) : on
- * avance par morceaux de 20 minutes jusqu'à tomber sur du silence, c'est la
- * fin de la vidéo.
+ * Courte (≤ 10 min) : un seul appel, repris en deux moitiés s'il revient
+ * coupé ou résumé. Longue : morceaux de 10 minutes, trois à la fois,
+ * recollés dans l'ordre. Durée inconnue (YouTube bloque le serveur) : jamais
+ * d'appel sur la vidéo entière, Gemini la résumerait ; on avance par
+ * morceaux de 10 minutes jusqu'à tomber sur du silence, c'est la fin.
  */
 export async function transcribeYoutubeFull(videoUrl: string, durationSec: number, setStep: (s: string) => void = () => {}): Promise<GeminiTranscript> {
-  let known = Math.max(0, Math.floor(durationSec || 0));
-  if (!known || known <= SINGLE_MAX_SEC) {
-    setStep(known ? `Transcription de la vidéo par Gemini (${Math.round(known / 60)} min de vidéo, 1 à 3 min)…` : "Transcription de la vidéo par Gemini (1 à 3 min)…");
-    const whole = await transcribeYoutubeWithGemini(videoUrl);
-    if (!whole.truncated) return whole;
-    // Coupé : la vidéo est plus longue que prévu, on repart en morceaux.
-    if (known) known = 0;
+  const known = Math.max(0, Math.floor(durationSec || 0));
+  if (known && known <= SINGLE_MAX_SEC) {
+    setStep(`Transcription de la vidéo par Gemini (${Math.round(known / 60)} min de vidéo, 1 à 3 min)…`);
+    return transcribeSpan(videoUrl, { startSec: 0, endSec: known });
   }
 
   const chunks: VideoSpan[] = [];
@@ -181,7 +213,7 @@ export async function transcribeYoutubeFull(videoUrl: string, durationSec: numbe
   for (let i = 0; i < chunks.length && !ended; i += PARALLEL) {
     const batch = chunks.slice(i, i + PARALLEL).map((span, k) => ({ span, idx: i + k }));
     const last = Math.min(i + PARALLEL, chunks.length);
-    setStep(`Transcription par Gemini : partie${last > i + 1 ? "s" : ""} ${i + 1}${last > i + 1 ? ` à ${last}` : ""}${known ? ` sur ${chunks.length}` : ""} (20 min chacune)…`);
+    setStep(`Transcription par Gemini : partie${last > i + 1 ? "s" : ""} ${i + 1}${last > i + 1 ? ` à ${last}` : ""}${known ? ` sur ${chunks.length}` : ""} (10 min chacune)…`);
     const results = await Promise.all(
       batch.map(async ({ span }) => {
         try {

@@ -35,13 +35,13 @@ function saveTranscript(id: string, text: string, lang: string, source: YtVideo[
   return v;
 }
 
-/** Une transcription peut durer : vidéo de 3 h = 9 morceaux, trois à la fois, 8 min au pire chacun. */
+/** Une transcription peut durer : vidéo de 3 h = 18 morceaux de 10 min, trois à la fois, 8 min au pire chacun. */
 const TRANSCRIPT_JOB_MAX_MS = 45 * 60_000;
 
 /**
  * Gemini lit la vidéo chez Google : la seule voie qui ne dépend pas de
  * l'adresse du serveur. En entier, quelle que soit la longueur : une vidéo
- * longue est découpée en morceaux de 20 minutes recollés dans l'ordre.
+ * longue est découpée en morceaux de 10 minutes recollés dans l'ordre.
  */
 async function viaGemini(v: YtVideo, setStep: (s: string) => void): Promise<TranscriptResult> {
   let durationSec = v.durationSec || 0;
