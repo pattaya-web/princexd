@@ -54,11 +54,23 @@ async function main() {
   console.log(started.deployments?.[0]?.message ?? "Déploiement demandé.");
   if (!uuid) return;
 
-  // Un build prend 2 a 4 minutes : on suit jusqu'au bout.
+  // Un build prend 2 a 4 minutes : on suit jusqu'au bout. Si Coolify repond
+  // « already queued », l'uuid renvoye n'existe pas (404) : on suit alors le
+  // dernier deploiement de l'application.
   const t0 = Date.now();
+  let byUuid = true;
   for (;;) {
     await sleep(10_000);
-    const d = await api(`deployments/${uuid}`);
+    let d = null;
+    if (byUuid) d = await api(`deployments/${uuid}`).catch(() => null);
+    if (!d) {
+      byUuid = false;
+      d = await lastDeployment();
+      if (!d) {
+        console.log("Aucun déploiement trouvé : regarde Coolify.");
+        process.exit(1);
+      }
+    }
     const sec = Math.round((Date.now() - t0) / 1000);
     process.stdout.write(`\r${d.status} (${sec}s)   `);
     if (d.status === "finished") {

@@ -4,18 +4,22 @@ import { readSession } from "@/lib/sales/access";
 
 export const dynamic = "force-dynamic";
 
-/** Retour du consentement Google : on echange le code et on garde le jeton. */
+/**
+ * Retour du consentement Google : on echange le code et on garde le jeton.
+ * Redirections sur l'origine publique (voir /api/google/auth).
+ */
 export async function GET(req: NextRequest) {
+  const origin = publicOrigin(req);
   const session = readSession(req);
-  if (!session.isAdmin) return NextResponse.redirect(new URL("/login", req.url));
+  if (!session.isAdmin) return NextResponse.redirect(`${origin}/login`);
   const p = req.nextUrl.searchParams;
-  const back = (q: string) => NextResponse.redirect(new URL(`/meet?${q}`, req.url));
+  const back = (q: string) => NextResponse.redirect(`${origin}/meet?${q}`);
   if (p.get("error")) return back(`error=${encodeURIComponent(`Google : ${p.get("error")}`)}`);
   const code = p.get("code") ?? "";
   const state = p.get("state") ?? "";
   if (!code || !state || state !== req.cookies.get("google_oauth_state")?.value) return back(`error=${encodeURIComponent("Retour Google invalide (state). Recommence la connexion.")}`);
   try {
-    const email = await connectWithCode(code, publicOrigin(req));
+    const email = await connectWithCode(code, origin);
     const res = back(`connected=${encodeURIComponent(email || "1")}`);
     res.cookies.set("google_oauth_state", "", { path: "/", maxAge: 0 });
     return res;
