@@ -7,7 +7,7 @@ import type { MeetLink } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export const MEET_KINDS: Record<MeetLink["kind"], string> = { sale: "Call de vente", student: "Call élève", other: "Autre" };
+const MEET_KINDS: Record<MeetLink["kind"], string> = { sale: "Call de vente", student: "Call élève", other: "Autre" };
 
 /** Etat de la connexion Google et les liens deja generes (les plus recents d'abord). */
 export async function GET(req: NextRequest) {
