@@ -8,6 +8,7 @@ import { CallsCalendar } from "./CallsCalendar";
 import { OffersCard } from "./OffersCard";
 import { TelegramCard } from "./TelegramCard";
 import { SetterTasksMemberCard } from "./SetterTasksCard";
+import { NoShowCard } from "./NoShowCard";
 import { IclosedOptInsList } from "./IclosedOptIns";
 import { LeadSheet } from "./LeadSheet";
 import type { IclosedContactRow } from "@/app/api/sales/iclosed/contacts/route";
@@ -54,6 +55,8 @@ export function MemberHome() {
   const [adding, setAdding] = useState(false);
   /* Une tuile de performance cliquee : la liste des prospects derriere le chiffre. */
   const [kpiList, setKpiList] = useState<{ title: string; rows: KpiLeadRow[] } | null>(null);
+  /* Fiche d'un no-show ouverte depuis le suivi. */
+  const [noShowSheet, setNoShowSheet] = useState<string | null>(null);
 
   /*
    * Casquette du moment.
@@ -382,6 +385,9 @@ export function MemberHome() {
           </Card>
         )}
 
+        {/* ------------------------- No-shows a relancer jusqu'au R2 ------------------------- */}
+        {isSetter && <NoShowCard onOpenLead={(id) => setNoShowSheet(id)} />}
+
         {/* ------------------------- Relances (les siennes + celles de Mady) ------------------------- */}
         {isSetter && <SetterTasksMemberCard />}
 
@@ -647,6 +653,7 @@ export function MemberHome() {
         session={session}
         members={members}
       />
+      <LeadSheet id={noShowSheet} onClose={() => setNoShowSheet(null)} onChanged={bump} />
       <KpiListModal
         list={kpiList}
         currency={currency}
