@@ -4,7 +4,6 @@ import { Forbidden, readSession, requireAdmin, requireSales } from "@/lib/sales/
 import { handle } from "@/lib/sales/http";
 import { memberRoles } from "@/lib/sales/roles";
 import { parisDay } from "@/lib/format";
-import { LOW_PRIORITY_SUFFIX } from "@/lib/sales/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -16,15 +15,15 @@ export const dynamic = "force-dynamic";
  * fait quoi dans « Shifts equipe » et modifie la liste.
  */
 /**
- * Task list du 2026-10-27 : trois gestes quotidiens, rien d'autre. Une tache
- * qui se termine par « · priorité faible » s'affiche avec ce badge. Les
- * appels de la landing page reviendront quand Mady sera dessus.
+ * Task list du 2026-10-27 : trois gestes quotidiens, affiches en bullets sur
+ * l'accueil du setter (plus de cases a cocher). Les appels de la landing
+ * page reviendront quand Mady sera dessus.
  */
 
 const DEFAULT_TASKS = [
-  "Envoyer un DM aux personnes qui ont liké les reels (surtout les reels value)",
+  "DM aux personnes qui ont liké les reels (surtout les reels value)",
   "Envoyer mon lien de calendrier signé à chaque prospect chaud",
-  "Relancer sur Instagram tous ceux qui n'ont pas répondu en DM" + LOW_PRIORITY_SUFFIX,
+  "Checker mes relances du jour et à venir (les miennes et celles de Mady)",
 ];
 
 function taskList(): string[] {

@@ -8,13 +8,15 @@ import { CallsCalendar } from "./CallsCalendar";
 import { OffersCard } from "./OffersCard";
 import { TelegramCard } from "./TelegramCard";
 import { SetterTasksMemberCard } from "./SetterTasksCard";
+import { ICLOSED_CONTACT_STATUS } from "@/lib/sales/constants";
+import type { IclosedContactRow } from "@/app/api/sales/iclosed/contacts/route";
 import { InstallmentAlerts } from "./InstallmentAlerts";
 import { useEffect } from "react";
 import { LINK_CHANNELS, LINK_CHANNEL_LABEL, type LinkChannel, type WorkSession } from "@/lib/types";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { Card, Empty, ErrorNote, Field, Modal, Spinner, useToast } from "@/components/ui";
 import { ConfirmationSelect, IgHandle, PeriodPicker, StatusBadge } from "./bits";
-import { canConfirm, LOW_PRIORITY_SUFFIX } from "@/lib/sales/constants";
+import { canConfirm } from "@/lib/sales/constants";
 import { AppointmentDetail } from "./AppointmentDetail";
 import { AppointmentModal } from "./AppointmentModal";
 import { useSales } from "./context";
@@ -273,6 +275,15 @@ export function MemberHome() {
           )}
           <MyBookingLink version={version} />
 
+          {/* Les trois choses a faire, tout en haut, sans case a cocher. */}
+          {isSetter && (
+            <ul className="mt-4 flex flex-col gap-1 text-[13px] list-disc pl-5">
+              <li>DM aux personnes qui ont liké les reels (surtout les reels value)</li>
+              <li>Envoyer mon lien de calendrier signé à chaque prospect chaud</li>
+              <li>Checker mes relances du jour et à venir (les miennes et celles de Mady)</li>
+            </ul>
+          )}
+
           {/* Objectif du jour, seulement s'il en existe un. Une barre vide en
               permanence donnerait l'impression d'un retard permanent. */}
           {dayGoal > 0 && (
@@ -360,7 +371,17 @@ export function MemberHome() {
           </div>
         )}
 
-        {/* ------------------------- Relances envoyees par Mady ------------------------- */}
+        {/* ------------------------- Confirmations WhatsApp ------------------------- */}
+        {isSetter && (
+          <Card title="À faire maintenant" padded={false}>
+            <div className="p-4 flex flex-col gap-2.5">
+              <Todo done={reminders24Due.length === 0} label="Confirmation WhatsApp 24 h avant le call" count={reminders24Due.length} />
+              <Todo done={reminders1Due.length === 0} label="Confirmation WhatsApp 1 h avant le call" count={reminders1Due.length} />
+            </div>
+          </Card>
+        )}
+
+        {/* ------------------------- Relances (les siennes + celles de Mady) ------------------------- */}
         {isSetter && <SetterTasksMemberCard />}
 
         {/* ------------------------- Rappels Telegram ------------------------- */}
@@ -379,13 +400,88 @@ export function MemberHome() {
           onOpen={(id) => setOpenId(id)}
         />
 
-        {/* ------------------------------ Ma journée ------------------------------ */}
-        {isSetter && <DailyTasks version={version} />}
+        {/* ------------------- Prochains rendez-vous, replies ------------------- */}
+        {isSetter && (
+          <details className="card" open={false}>
+            <summary className="cursor-pointer select-none px-4 sm:px-5 py-3.5 flex items-center gap-2">
+              <span className="text-[15px] font-semibold">Tes prochains rendez-vous</span>
+              <span className="badge !text-[10.5px] !py-0 num">{nextCalls.length}</span>
+              <span className="dim text-[11.5px] ml-auto">déplier</span>
+            </summary>
+            <div style={{ borderTop: "1px solid var(--border)" }}>
+              {!nextCalls.length ? (
+                <Empty>Rien de prévu. C&apos;est le moment d&apos;ouvrir tes DMs et d&apos;envoyer ton lien.</Empty>
+              ) : (
+              <ul>
+                {nextCalls.map((r, i) => (
+                  <li
+                    key={r.id}
+                    className="px-3.5 py-2.5 cursor-pointer transition-colors hover:bg-[var(--surface-2)]"
+                    style={{ borderBottom: i < nextCalls.length - 1 ? "1px solid var(--border)" : "none" }}
+                    onClick={() => setOpenId(r.id)}
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[12.5px] font-medium truncate">{r.leadName}</span>
+                      <span className="num text-[11.5px] dim shrink-0">{fmtDualDateTime(r.scheduledAt)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <IgHandle username={r.igUsername} muted />
+                      <StatusBadge status={r.status} />
+                      {/* Confirmer depuis la liste : c'est le geste anti no-show du setter. */}
+                      {canConfirm(r.status) && (
+                        <ConfirmationSelect
+                          id={r.id}
+                          value={r.confirmation}
+                          onSaved={() => {
+                            void reloadUpcoming();
+                            bump();
+                          }}
+                        />
+                      )}
+                      {/* Double confirmation WhatsApp : 24 h avant, puis 1 h avant. */}
+                      {canConfirm(r.status) && isSetter && (
+                        <ReminderChips
+                          row={r}
+                          onSaved={() => {
+                            void reloadUpcoming();
+                            void reloadAgenda();
+                            bump();
+                          }}
+                        />
+                      )}
+                      {!isSetter && r.setterName && (
+                        <span className="dim text-[11px]">par {r.setterName}</span>
+                      )}
+                      {/* Le lien de visio directement dans la liste : un closer
+                          qui a un call dans deux minutes ne doit pas avoir a
+                          ouvrir une fiche pour le rejoindre. */}
+                      {r.iclosedUrl && (
+                        <a
+                          href={r.iclosedUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-sm btn-primary !h-[20px] !px-2 !text-[10.5px] ml-auto"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Rejoindre ↗
+                        </a>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              )}
+            </div>
+          </details>
+        )}
 
-        {/* ------------------- Prospects envoyés vers le calendrier ------------------- */}
+        {/* ------------------- Suivi de mes leads ------------------- */}
         {isSetter && (
           <DeclaredProspects version={version} onChanged={bump} />
         )}
+
+        {/* ------------------- Leads iClosed : formulaire commence, pas de RDV ------------------- */}
+        {isSetter && <IclosedOptIns version={version} />}
 
         {/* ------------------------------ Créneaux ---------------------------- */}
         {myShifts.length > 0 && (
@@ -445,24 +541,21 @@ export function MemberHome() {
           </div>
         )}
 
-        {/* --------------------------- Ce qui t'attend ------------------------ */}
-        <div className="grid lg:grid-cols-2 gap-4 items-start">
-          <Card
-            title={isSetter ? "Tes prochains rendez-vous" : "Tes prochains calls"}
-            padded={false}
-            actions={
-              <Link href="/sales/rendez-vous" className="btn btn-sm">
-                Tout voir
-              </Link>
-            }
-          >
-            {!nextCalls.length ? (
-              <Empty>
-                {isSetter
-                  ? "Rien de prévu. C'est le moment d'ouvrir tes DMs et d'envoyer ton lien."
-                  : "Aucun call à venir pour l'instant."}
-              </Empty>
-            ) : (
+        {/* --------------------------- Closer : actions et prochains calls ------------------------ */}
+        {!isSetter && (
+          <div className="grid lg:grid-cols-2 gap-4 items-start">
+            <Card
+              title="Tes prochains calls"
+              padded={false}
+              actions={
+                <Link href="/sales/rendez-vous" className="btn btn-sm">
+                  Tout voir
+                </Link>
+              }
+            >
+              {!nextCalls.length ? (
+                <Empty>Aucun call à venir pour l&apos;instant.</Empty>
+              ) : (
               <ul>
                 {nextCalls.map((r, i) => (
                   <li
@@ -521,47 +614,28 @@ export function MemberHome() {
                   </li>
                 ))}
               </ul>
-            )}
-          </Card>
+              )}
+            </Card>
 
-          <Card
-            title="Ce qui demande une action"
-            padded={false}
-            actions={
-              <Link href="/sales/rendez-vous?view=todo" className="btn btn-sm">
-                Ouvrir le CRM
-              </Link>
-            }
-          >
-            <div className="p-4 flex flex-col gap-2.5">
-              {/* Priorite : la double confirmation WhatsApp de chaque call (24 h avant, 1 h avant). */}
-              <Todo
-                done={reminders24Due.length === 0}
-                label="Confirmation WhatsApp 24 h avant à envoyer"
-                count={reminders24Due.length}
-                href="/sales/rendez-vous"
-              />
-              <Todo
-                done={reminders1Due.length === 0}
-                label="Confirmation WhatsApp 1 h avant à envoyer"
-                count={reminders1Due.length}
-                href="/sales/rendez-vous"
-              />
-              <Todo
-                done={proposed.length === 0}
-                label="Créneaux de travail à accepter"
-                count={proposed.length}
-              />
-              {!isSetter && (
+            <Card
+              title="Ce qui demande une action"
+              padded={false}
+              actions={
+                <Link href="/sales/rendez-vous?view=todo" className="btn btn-sm">
+                  Ouvrir le CRM
+                </Link>
+              }
+            >
+              <div className="p-4 flex flex-col gap-2.5">
                 <Todo
                   done={(data?.installments?.due ?? 0) === 0}
                   label={data?.installments?.overdue ? "Échéances de paiement en retard" : "Échéances de paiement à encaisser"}
                   count={data?.installments?.due ?? 0}
                 />
-              )}
-            </div>
-          </Card>
-        </div>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
 
       <AppointmentDetail
@@ -637,80 +711,6 @@ function MyBookingLink({ version }: { version: number }) {
   );
 }
 
-/* ------------------------------- Ma journée ------------------------------- */
-
-/**
- * Liste de taches quotidienne du setter, la meme pour toute l'equipe, remise
- * a zero chaque jour. Un compteur vivant sur la premiere tache : combien de
- * nouveaux leads attendent. L'admin voit les cases cochees dans « Shifts
- * equipe » et modifie la liste.
- */
-function DailyTasks({ version }: { version: number }) {
-  const toast = useToast();
-  const { data, reload } = useSalesData<{ tasks: string[]; day: string; done: string[]; hints: { newLeads: number } }>(
-    `/api/sales/tasks?v=${version}`,
-  );
-  const [busy, setBusy] = useState("");
-  const tasks = data?.tasks ?? [];
-  const done = new Set(data?.done ?? []);
-  const pct = tasks.length ? Math.round((done.size / tasks.length) * 100) : 0;
-
-  const toggle = async (task: string) => {
-    setBusy(task);
-    try {
-      await api("/api/sales/tasks", { method: "POST", body: JSON.stringify({ task, done: !done.has(task) }) });
-      void reload();
-    } catch (e) {
-      toast((e as Error).message, "err");
-    } finally {
-      setBusy("");
-    }
-  };
-
-  if (!tasks.length) return null;
-  return (
-    <Card
-      title="Task list"
-      subtitle={`À faire chaque jour · ${done.size} sur ${tasks.length} · se remet à zéro chaque matin`}
-      padded={false}
-      actions={
-        <div className="w-[120px]">
-          <div className="mh-bar">
-            <span style={{ width: `${pct}%` }} />
-          </div>
-        </div>
-      }
-    >
-      <ul>
-        {tasks.map((t, i) => {
-          const checked = done.has(t);
-          const low = t.endsWith(LOW_PRIORITY_SUFFIX);
-          const text = low ? t.slice(0, -LOW_PRIORITY_SUFFIX.length) : t;
-          return (
-            <li
-              key={t}
-              className="px-3.5 py-2.5 flex items-center gap-3"
-              style={{ borderBottom: i < tasks.length - 1 ? "1px solid var(--border)" : "none", opacity: checked ? 0.6 : 1 }}
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                disabled={busy === t}
-                onChange={() => void toggle(t)}
-                className="w-[18px] h-[18px] cursor-pointer"
-              />
-              <span className="text-[13px] flex-1" style={checked ? { textDecoration: "line-through" } : low ? { color: "var(--text-2)" } : undefined}>
-                {text}
-              </span>
-              {low && <span className="badge !text-[10px] !py-0 dim">priorité faible</span>}
-            </li>
-          );
-        })}
-      </ul>
-    </Card>
-  );
-}
-
 /* ------------------------------ Liens envoyés ------------------------------ */
 
 interface Declared {
@@ -726,9 +726,50 @@ interface Declared {
   appointmentAt: string;
   appointmentStatus: string;
   closerName: string;
+  /** Compte-rendu du closer apres le call, et montant si close. */
+  closerNote: string;
+  lostReason: string;
+  saleAmount: number;
+  currency: string;
 }
 
 type DeclaredFilter = "all" | "pending" | "booked";
+
+/** L'avancee d'un lead envoye : envoye → RDV pose → show / no-show → close ou pas. */
+function LeadProgress({ r }: { r: Declared }) {
+  const st = r.appointmentStatus;
+  const attended = ["completed", "follow-up", "closed-won", "closed-lost"].includes(st);
+  const past = r.appointmentAt ? Date.parse(r.appointmentAt) < Date.now() : false;
+  const steps: { label: string; tone: string; done: boolean }[] = [
+    { label: `Envoyé ${fmtDay(r.declaredAt)}`, tone: "var(--text-2)", done: true },
+    r.appointmentAt
+      ? { label: `RDV posé · ${fmtDualDateTime(r.appointmentAt)}`, tone: "var(--accent)", done: true }
+      : { label: "Pas encore réservé", tone: "var(--warning)", done: false },
+  ];
+  if (r.appointmentAt) {
+    if (st === "cancelled") steps.push({ label: "Annulé", tone: "var(--text-3)", done: true });
+    else if (attended) steps.push({ label: "Show ✓", tone: "#a855f7", done: true });
+    else if (st === "no-show") steps.push({ label: "No-show", tone: "var(--critical)", done: true });
+    else if (past) steps.push({ label: "Call passé · à statuer", tone: "#f97316", done: false });
+    else steps.push({ label: "Call à venir", tone: "var(--text-3)", done: false });
+    if (st === "closed-won") steps.push({ label: r.saleAmount ? `Closé · ${fmtMoney(r.saleAmount, r.currency)}` : "Closé", tone: "var(--emerald)", done: true });
+    else if (st === "closed-lost") steps.push({ label: r.lostReason ? `Pas closé · ${crmLabel(r.lostReason)}` : "Pas closé", tone: "var(--critical)", done: true });
+    else if (st === "follow-up") steps.push({ label: "Follow-up", tone: "#3b82f6", done: true });
+    else if (st === "completed") steps.push({ label: "Pitché · à conclure", tone: "var(--text-2)", done: true });
+  }
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap text-[12px]">
+      {steps.map((x, i) => (
+        <span key={i} className="flex items-center gap-1.5">
+          {i > 0 && <span className="dim">→</span>}
+          <span className="font-medium" style={{ color: x.tone, opacity: x.done ? 1 : 0.85 }}>
+            {x.label}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Les liens de calendrier envoyes par le setter : a qui, quand, comment,
@@ -787,8 +828,8 @@ function DeclaredProspects({ version, onChanged }: { version: number; onChanged:
 
   return (
     <Card
-      title="Liens envoyés · à qui, comment, pourquoi"
-      subtitle="Chaque lien de calendrier que tu envoies, et ce qu'il devient : en attente, a réservé, call fait, closé."
+      title="Suivi de mes leads"
+      subtitle="Chaque lead que tu m'envoies et son avancée : envoyé → RDV posé → show ou no-show → closé ou pas, avec ma note après le call."
       padded={false}
       actions={
         <button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
@@ -837,24 +878,16 @@ function DeclaredProspects({ version, onChanged }: { version: number; onChanged:
                   </span>
                   {r.why && (
                     <span className="block text-[12px] mt-0.5 whitespace-pre-wrap" style={{ color: "var(--text-2)" }}>
-                      Pourquoi : {r.why}
+                      {r.why}
                     </span>
                   )}
-                </span>
-                <span className="shrink-0 flex flex-col items-end gap-1">
-                  {waiting ? (
-                    <>
-                      <span className="badge badge-warn !text-[10.5px] !py-0">en attente de réservation</span>
-                      {sinceDays >= 2 && <span className="text-[11px]" style={{ color: "var(--warning)" }}>{sinceDays} j sans réservation · relance-le</span>}
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-[12px] font-medium" style={{ color: "var(--emerald)" }}>
-                        ✓ A réservé · call le {fmtDualDateTime(r.appointmentAt)}
-                        {r.closerName ? ` avec ${r.closerName}` : ""}
-                      </span>
-                      {r.appointmentStatus && <StatusBadge status={r.appointmentStatus as AppointmentRow["status"]} />}
-                    </>
+                  <span className="block mt-1.5">
+                    <LeadProgress r={r} />
+                  </span>
+                  {(r.closerNote || (waiting && sinceDays >= 2)) && (
+                    <span className="block text-[12px] mt-1 whitespace-pre-wrap leading-snug rounded-[8px] px-2.5 py-1.5" style={{ background: "var(--surface-2)", color: "var(--text-2)" }}>
+                      {r.closerNote ? <><span className="label-xs">Note du closer · </span>{r.closerNote}</> : `${sinceDays} j sans réservation · relance-le`}
+                    </span>
                   )}
                 </span>
               </li>
@@ -1141,5 +1174,79 @@ function KpiListModal({ list, currency, onClose, onOpen }: { list: { title: stri
         </div>
       )}
     </Modal>
+  );
+}
+
+/* ---------------------- Leads iClosed opt-in sans rendez-vous ---------------------- */
+
+/**
+ * Les gens qui ont commence a remplir le formulaire du calendrier iClosed
+ * (n'importe quel lien) sans aller jusqu'a la reservation. iClosed les garde :
+ * on les relit par l'API (voir /api/sales/iclosed/contacts). Pour le setter,
+ * ce sont des prospects chauds a relancer.
+ */
+function IclosedOptIns({ version }: { version: number }) {
+  const toast = useToast();
+  const { data } = useSalesData<{ rows: IclosedContactRow[]; fetchedAt: string; error: string }>(`/api/sales/iclosed/contacts?v=${version}`);
+  const rows = data?.rows ?? [];
+  const copy = async (v: string) => {
+    try {
+      await navigator.clipboard.writeText(v);
+      toast("Copié.");
+    } catch {
+      toast("Copie impossible ici.", "err");
+    }
+  };
+  return (
+    <details className="card">
+      <summary className="cursor-pointer select-none px-4 sm:px-5 py-3.5 flex items-center gap-2 flex-wrap">
+        <span className="text-[15px] font-semibold">Leads iClosed · opt-in sans rendez-vous</span>
+        <span className="badge !text-[10.5px] !py-0 num">{rows.length}</span>
+        <span className="dim text-[11.5px]">ils ont commencé le formulaire du calendrier, pas pris le call : à relancer</span>
+        <span className="dim text-[11.5px] ml-auto">déplier</span>
+      </summary>
+      <div style={{ borderTop: "1px solid var(--border)" }}>
+        {data?.error ? (
+          <div className="p-4">
+            <ErrorNote>{data.error}</ErrorNote>
+          </div>
+        ) : !data ? (
+          <div className="p-4">
+            <Spinner label="Lecture d'iClosed…" />
+          </div>
+        ) : rows.length === 0 ? (
+          <Empty>Personne pour l&apos;instant.</Empty>
+        ) : (
+          <>
+            <ul>
+              {rows.slice(0, 15).map((r, i) => (
+                <li key={r.id} className="px-3.5 py-2.5 flex items-center gap-3 flex-wrap" style={{ borderBottom: i < Math.min(rows.length, 15) - 1 ? "1px solid var(--border)" : "none" }}>
+                  <span className="num dim text-[11.5px] w-[88px] shrink-0">{fmtDualDateTime(r.createdAt).split(" · ")[0]}</span>
+                  <span className="text-[13px] font-medium min-w-0 flex-1 truncate">{r.name}</span>
+                  {r.phone ? (
+                    <button type="button" className="link num text-[12.5px]" onClick={() => void copy(r.phone)} title="Copier le numéro">
+                      {r.phone}
+                    </button>
+                  ) : (
+                    <span className="dim text-[12px]">sans numéro</span>
+                  )}
+                  {r.email && <span className="dim text-[11.5px] truncate max-w-[200px]">{r.email}</span>}
+                  <span className="badge !text-[10.5px] !py-0" style={r.status === "QUALIFIED" ? { color: "var(--good)" } : r.status === "DISQUALIFIED" ? { color: "var(--critical)" } : undefined}>
+                    {ICLOSED_CONTACT_STATUS[r.status] ?? r.status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {rows.length > 15 && (
+              <div className="px-3.5 py-2 text-center" style={{ borderTop: "1px solid var(--border)" }}>
+                <Link href="/sales/leads" className="link text-[12px]">
+                  Voir les {rows.length} dans Leads → iClosed sans RDV
+                </Link>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </details>
   );
 }

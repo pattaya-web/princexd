@@ -240,6 +240,11 @@ export async function GET(req: NextRequest) {
             appointmentStatus: appt?.status ?? "",
             closerName: appt?.closerId ? (names.get(appt.closerId) ?? "") : "",
             notes: l.notes ?? "",
+            // Ce que le closer a note apres le call, et la vente : l'avancee que le setter suit.
+            closerNote: (appt?.closerNotes ?? "").trim(),
+            lostReason: appt?.lostReason ?? "",
+            saleAmount: appt ? (db.sales.find((sl) => sl.appointmentId === appt.id && sl.status !== "cancelled")?.contractValue ?? 0) : 0,
+            currency: db.settings.salesCurrency || "EUR",
           };
         })
         .sort((a, b) => b.declaredAt.localeCompare(a.declaredAt));
