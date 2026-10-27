@@ -18,6 +18,7 @@ import { publicMember } from "@/lib/sales/repo";
 import { sessionHas } from "@/lib/sales/roles";
 import type { Appointment, Sale } from "@/lib/types";
 import { isAttended, isDead } from "@/lib/sales/constants";
+import { applySetterByLinkOnly } from "@/lib/sales/iclosed-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,9 @@ export interface KpiLeads {
 export async function GET(req: NextRequest) {
   return handle(() => {
     const session = requireSales(readSession(req));
+    // Correctifs d'attribution a appliquer une fois : ici aussi, pour que l'accueil
+    // d'un setter soit juste meme si la synchro iClosed n'a pas pu tourner.
+    applySetterByLinkOnly(readDB());
     const db = readDB();
     const range = rangeFromParams(req.nextUrl.searchParams);
     const currency = db.settings.salesCurrency || "EUR";

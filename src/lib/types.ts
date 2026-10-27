@@ -293,6 +293,8 @@ export interface Settings {
   salesSetterByLinkOnlyAt?: string;
   /** Correctif du meme jour : les calls importes sans utm (aucune preuve) rendus a leur setter. */
   salesSetterByLinkOnlyV2At?: string;
+  /** v3 : seul un lien signe par QUELQU'UN D'AUTRE retire un setter ; les calls sans signature lui sont rendus. */
+  salesSetterByLinkOnlyV3At?: string;
   /**
    * Regle de reprise (2026-10-14) : minutes sans action du setter au bout
    * desquelles un autre setter peut reprendre la conversation. 0 = desactive.

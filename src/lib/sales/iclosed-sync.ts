@@ -137,51 +137,55 @@ export function applySetterByLinkOnly(db: DB): number {
   const now = new Date().toISOString();
   const owner = ownerSetter(db);
   const manual = new Set(db.activityLogs.filter((l) => l.action === "appointment.assigned" && /attribué comme setter/.test(l.summary)).map((l) => l.entityId));
-  const hasUtmEvidence = (a: Appointment) => Object.keys(a.utm ?? {}).length > 0;
+  /** Le setter dont le lien est signe dans les utm du rendez-vous ("" si aucune signature). */
+  const signedOf = (a: Appointment) => setterFromUtmValues(db, Object.values(a.utm ?? {}));
   let n = 0;
+  /*
+   * Regle (v3, 2026-10-27 soir) : un setter ne perd un call QUE si le lien
+   * de reservation porte la signature de quelqu'un d'autre (un autre setter,
+   * ou le lien signe de Mady). Sans signature du tout, iClosed n'a pas garde
+   * l'information : on ne retire rien. Les deux premieres passes retiraient
+   * trop (calls importes sans utm, ou avec seulement un referent) : Johanna
+   * et Yacine ont disparu de l'espace de Jora. On les rend ici.
+   */
   if (!db.settings.salesSetterByLinkOnlyAt) {
     for (const a of db.appointments) {
       if (!a.iclosedEventId || manual.has(a.id)) continue;
       if (!a.setterId || a.setterId === owner) continue;
-      // Sans utm en base, on ne sait pas d'ou vient la reservation : on ne touche pas.
-      if (!hasUtmEvidence(a)) continue;
-      const lead = db.leads.find((l) => l.id === a.leadId);
-      const expected = setterFromUtmValues(db, Object.values(a.utm ?? {})) || declaredSetter(lead) || owner;
-      if (expected === a.setterId) continue;
+      const signed = signedOf(a);
+      if (!signed || signed === a.setterId) continue;
       const fromName = db.team.find((m) => m.id === a.setterId)?.name ?? a.setterId;
-      a.setterId = expected;
+      a.setterId = signed;
       a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Système", from: a.status, to: a.status, note: `Setter retiré (${fromName}) : la réservation ne vient pas de son lien signé` }];
       a.updatedAt = now;
       n++;
     }
     db.settings.salesSetterByLinkOnlyAt = now;
-    if (n) db.activityLogs.unshift({ id: newId(), at: now, actorId: "", actorName: "Système", action: "appointment.updated", entity: "appointment", entityId: "", summary: `Rendez-vous iClosed : ${n} call${n > 1 ? "s" : ""} retiré${n > 1 ? "s" : ""} de l'agenda d'un setter (réservation hors de son lien signé)` });
     db.settings.salesSetterByLinkOnlyV2At = now;
+    db.settings.salesSetterByLinkOnlyV3At = now;
+    if (n) db.activityLogs.unshift({ id: newId(), at: now, actorId: "", actorName: "Système", action: "appointment.updated", entity: "appointment", entityId: "", summary: `Rendez-vous iClosed : ${n} call${n > 1 ? "s" : ""} retiré${n > 1 ? "s" : ""} de l'agenda d'un setter (réservation faite par le lien signé de quelqu'un d'autre)` });
     writeDB(db);
     return n;
   }
-  /*
-   * v2 (2026-10-27, le soir) : la premiere passe retirait aussi le setter
-   * des calls importes AVANT que les utm soient lus (aucune preuve en base),
-   * ce qui a fait disparaitre des rendez-vous bien envoyes par le setter
-   * (Johanna, Yacine). On les lui rend ; les calls avec des utm sans sa
-   * signature restent retires.
-   */
-  if (!db.settings.salesSetterByLinkOnlyV2At) {
+  if (!db.settings.salesSetterByLinkOnlyV3At) {
     for (const a of db.appointments) {
-      if (!a.iclosedEventId || hasUtmEvidence(a)) continue;
+      if (!a.iclosedEventId) continue;
       const note = [...(a.history ?? [])].reverse().find((h) => h.note?.startsWith("Setter retiré ("));
       if (!note) continue;
       const name = note.note!.slice("Setter retiré (".length, note.note!.indexOf(")"));
       const member = db.team.find((m) => m.name === name);
       if (!member || a.setterId === member.id) continue;
+      // Le lien porte la signature de quelqu'un d'autre : le retrait etait juste.
+      const signed = signedOf(a);
+      if (signed && signed !== member.id) continue;
       a.setterId = member.id;
-      a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Système", from: a.status, to: a.status, note: `Setter rendu à ${member.name} : call importé sans utm, aucune preuve que le lien n'était pas le sien` }];
+      a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Système", from: a.status, to: a.status, note: `Setter rendu à ${member.name} : aucun lien signé par quelqu'un d'autre sur cette réservation` }];
       a.updatedAt = now;
       n++;
     }
-    db.settings.salesSetterByLinkOnlyV2At = now;
-    if (n) db.activityLogs.unshift({ id: newId(), at: now, actorId: "", actorName: "Système", action: "appointment.updated", entity: "appointment", entityId: "", summary: `Rendez-vous iClosed : ${n} call${n > 1 ? "s" : ""} rendu${n > 1 ? "s" : ""} à leur setter (importés sans utm)` });
+    db.settings.salesSetterByLinkOnlyV2At = db.settings.salesSetterByLinkOnlyV2At || now;
+    db.settings.salesSetterByLinkOnlyV3At = now;
+    if (n) db.activityLogs.unshift({ id: newId(), at: now, actorId: "", actorName: "Système", action: "appointment.updated", entity: "appointment", entityId: "", summary: `Rendez-vous iClosed : ${n} call${n > 1 ? "s" : ""} rendu${n > 1 ? "s" : ""} à leur setter (aucune signature d'un autre lien)` });
     writeDB(db);
   }
   return n;
@@ -320,10 +324,10 @@ export async function syncIclosedUpcoming(opts: { force?: boolean } = {}): Promi
       const last = settings.salesLastSyncAt ? Date.parse(settings.salesLastSyncAt) : 0;
       if (!opts.force && Date.now() - last < COOLDOWN_MS) return none("cooldown");
 
+      applySetterByLinkOnly(readDB());
       const calls = await fetchUpcoming();
       const report = none(null);
       report.examined = calls.length;
-      applySetterByLinkOnly(readDB());
 
       for (const call of calls) {
         const db = readDB();
