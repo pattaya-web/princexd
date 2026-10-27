@@ -218,7 +218,17 @@ function studentSession(student: Student, impersonated: boolean): Session {
     isAdmin: false,
     canLogout: true,
     impersonated,
+    ...(student.editorAccess ? { editorAccess: true } : {}),
   };
+}
+
+/**
+ * Jeton monteur ouvert depuis un compte eleve (un eleve qui est aussi le
+ * monteur) : memes droits que le monteur au code, plus le nom et le chemin
+ * du retour vers sa formation.
+ */
+export function issueStudentEditorToken(student: Student): string {
+  return issueToken({ role: "editor", memberId: "", memberName: student.name, studentId: student.id });
 }
 
 /** La plateforme de formation : les eleves et l'admin, personne d'autre. */
@@ -315,6 +325,10 @@ export function readSession(req: NextRequest): Session {
   if (claims?.role === "va" && !claims.memberId) return claims.impersonated ? { ...VA, impersonated: true } : VA;
 
   // Monteur entre par le code global (jeton sans membre) ou par l'ancien cookie.
+  // Ouvert depuis un compte eleve : on garde son nom et le chemin du retour.
+  if (claims?.role === "editor" && claims.studentId) {
+    return { ...EDITOR, memberName: claims.memberName || EDITOR.memberName, studentId: claims.studentId, canLogout: true };
+  }
   if (claims?.role === "editor") return EDITOR;
   if (req.cookies.get(LEGACY_ROLE_COOKIE)?.value === "editor") return EDITOR;
 

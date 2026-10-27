@@ -18,7 +18,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   return handle(async () => {
     requireAdmin(readSession(req));
     const { id } = await ctx.params;
-    const raw = (await req.json().catch(() => ({}))) as { username?: unknown; portalAccess?: unknown; studioAccess?: unknown; kieApiKey?: unknown; accessApproved?: unknown };
+    const raw = (await req.json().catch(() => ({}))) as { username?: unknown; portalAccess?: unknown; studioAccess?: unknown; kieApiKey?: unknown; accessApproved?: unknown; editorAccess?: unknown };
     const db = readDB();
     const s = db.students.find((x) => x.id === id);
     if (!s) throw new Error("Élève introuvable.");
@@ -41,6 +41,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
     // Studio IA : ouvert par l'admin ; la cle KIE peut aussi etre posee ici (vide = inchangee, « CLEAR » = effacee).
     if (typeof raw.studioAccess === "boolean") s.studioAccess = raw.studioAccess;
+    // Eleve qui est aussi le monteur : son bouton « Espace monteur » (bascule de session, memes droits que le code monteur).
+    if (typeof raw.editorAccess === "boolean") s.editorAccess = raw.editorAccess;
     if (typeof raw.kieApiKey === "string") {
       const k = raw.kieApiKey.trim();
       if (k === "CLEAR") delete s.kieApiKey;

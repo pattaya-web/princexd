@@ -96,6 +96,20 @@ export default function StudentAccessPage() {
   };
 
   /** Ouvre la plateforme dans la peau de cet eleve (jeton d'apercu, rien n'est ecrit). */
+  /** Eleve qui est aussi le monteur : ouvre ou ferme son bouton « Espace monteur ». */
+  const toggleEditor = async (s: StudentAccessRow) => {
+    setBusyId(s.id);
+    try {
+      await api(`/api/formation/access/${s.id}`, { method: "PATCH", body: JSON.stringify({ editorAccess: !s.editorAccess }) });
+      toast(s.editorAccess ? `${s.name} n'a plus le bouton Espace monteur.` : `${s.name} a maintenant le bouton Espace monteur dans sa plateforme.`);
+      await load();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusyId("");
+    }
+  };
+
   const viewAs = async (s: StudentAccessRow) => {
     setBusyId(s.id);
     try {
@@ -164,6 +178,7 @@ export default function StudentAccessPage() {
                   <th className="text-left">Identifiant</th>
                   <th className="text-left">Accès</th>
                   <th className="text-left">Studio IA</th>
+                  <th className="text-left" title="Élève qui est aussi ton monteur : il a un bouton « Espace monteur » en bas de sa plateforme">Monteur</th>
                   <th className="text-left">Formulaire · parcours</th>
                   <th className="text-left">Guides</th>
                   <th className="text-left">Étapes</th>
@@ -202,6 +217,9 @@ export default function StudentAccessPage() {
                     </td>
                     <td>
                       {s.hasKieKey ? <span className="badge badge-good !text-[10.5px] !py-0">clé KIE posée</span> : <span className="dim text-[12px]">sans clé KIE</span>}
+                    </td>
+                    <td>
+                      <Toggle checked={s.editorAccess} onChange={() => void toggleEditor(s)} label={s.editorAccess ? "Oui" : "Non"} />
                     </td>
                     <td>
                       {s.accessApprovedAt ? (

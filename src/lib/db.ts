@@ -309,6 +309,13 @@ export function readDB(): DB {
     settings.studentLucasAddedAt = now;
     writeDB(cache.db);
   }
+  // Lucas est aussi le monteur : son bouton « Espace monteur » est ouvert.
+  if (!settings.studentLucasEditorAt) {
+    const lucas = cache.db.students.find((s) => (s.username ?? "").toLowerCase() === "lucas");
+    if (lucas) lucas.editorAccess = true;
+    settings.studentLucasEditorAt = new Date().toISOString();
+    writeDB(cache.db);
+  }
   return cache.db;
 }
 

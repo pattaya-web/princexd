@@ -107,6 +107,8 @@ export interface StudentAccessRow {
   /** Studio IA ouvert par l'admin, et cle KIE posee par l'eleve. */
   studioAccess: boolean;
   hasKieKey: boolean;
+  /** Eleve qui est aussi le monteur : bouton « Espace monteur » dans sa plateforme. */
+  editorAccess: boolean;
   /** Verrou du parcours : demande d'acces apres le formulaire, validation de Mady, etapes faites. */
   accessRequestedAt: string;
   accessApprovedAt: string;
@@ -122,6 +124,7 @@ export function toAccessRow(s: Student, published: Set<string>, publishedSteps: 
     shopRequested: s.shopRequest?.status === "demandee",
     studioAccess: Boolean(s.studioAccess),
     hasKieKey: Boolean((s.kieApiKey ?? "").trim()),
+    editorAccess: Boolean(s.editorAccess),
     accessRequestedAt: s.accessRequestedAt ?? "",
     accessApprovedAt: s.accessApprovedAt ?? "",
     tabsDone: (s.tabsDone ?? []).length,

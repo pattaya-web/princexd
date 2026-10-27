@@ -289,6 +289,8 @@ export interface Settings {
   salesSalimPurgedAt?: string;
   /** Bascule unique (2026-10-28) : fiche élève de Lucas créée (accès offert, sans vente). */
   studentLucasAddedAt?: string;
+  /** Bascule unique (2026-10-28) : Lucas est aussi le monteur, son bouton « Espace monteur » est ouvert. */
+  studentLucasEditorAt?: string;
   /**
    * Date de depart des chiffres du Sales Dashboard (AAAA-MM-JJ). Tout ce qui
    * est avant est ignore : leads, calls, no-shows, ventes. Pour repartir sur
@@ -839,6 +841,8 @@ export interface Student {
   studioAccess?: boolean;
   /** Cle API KIE de l'eleve (kie.ai). Jamais renvoyee en clair au navigateur. */
   kieApiKey?: string;
+  /** Eleve qui est AUSSI le monteur de Mady : gros bouton « Espace monteur » en bas de sa plateforme, qui bascule sa session. */
+  editorAccess?: boolean;
   /** Etapes du guide Demarrage cochees (cles section:os:index). */
   guideDone?: string[];
   /** Guides PDF (Education) marques terminés : ids du manifeste src/lib/formation-education.ts. */
@@ -2108,6 +2112,10 @@ export interface Session {
   canLogout?: boolean;
   /** Vrai quand un admin visualise l'espace d'un membre. */
   impersonated?: boolean;
+  /** Eleve qui est aussi monteur : le bouton « Espace monteur » lui est propose. */
+  editorAccess?: boolean;
+  /** Session monteur ouverte depuis un compte eleve : « Retour à Scale X » le ramene a sa formation. */
+  studentId?: string;
 }
 
 /** D'ou vient le rendez-vous. L'acquisition se fait surtout par Instagram. */

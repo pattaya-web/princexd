@@ -27,6 +27,8 @@ const EDITOR_READ_APIS = ["/api/data/testimonials", "/api/swipe/week", "/api/swi
 const EDITOR_APIS = [
   "/api/auth/editor",
   "/api/sales/session",
+  // Eleve qui est aussi monteur : retour vers sa formation.
+  "/api/formation/monteur",
   "/api/data/edits",
   "/api/data/generations",
   "/api/data/studioCharacters",

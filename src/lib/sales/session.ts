@@ -25,6 +25,8 @@ export interface SessionClaims {
    * d'une deconnexion, et a afficher un bandeau d'avertissement.
    */
   impersonated?: boolean;
+  /** Jeton monteur ouvert depuis un compte eleve (eleve qui est aussi monteur) : sert au retour. */
+  studentId?: string;
   /** Emis le (ms). Sert a peremer les jetons trop vieux. */
   iat: number;
 }

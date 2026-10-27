@@ -642,6 +642,42 @@ function BrollNavBadge() {
   );
 }
 
+/**
+ * Eleve qui est aussi le monteur : un gros bouton en bas de sa plateforme
+ * qui bascule sa session vers l'espace monteur (et, cote monteur, le bouton
+ * du retour). Bien visible : « il va me dire qu'il ne voit pas le bouton ».
+ */
+function EditorSwitch() {
+  const { session } = useSession();
+  const [busy, setBusy] = useState(false);
+  if (!session) return null;
+  const toEditor = session.role === "student" && session.editorAccess;
+  const toStudent = session.role === "editor" && Boolean(session.studentId);
+  if (!toEditor && !toStudent) return null;
+  const go = async () => {
+    setBusy(true);
+    try {
+      const r = await api<{ redirect: string }>("/api/formation/monteur", { method: toEditor ? "POST" : "DELETE" });
+      forgetSession();
+      window.location.href = r.redirect;
+    } catch {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      type="button"
+      className="btn btn-primary w-full justify-center mb-2.5 !h-[44px] !text-[14px] font-semibold"
+      style={{ boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent)" }}
+      onClick={() => void go()}
+      disabled={busy}
+      title={toEditor ? "Ouvrir ton espace monteur (vidéos à monter, témoignages, Studio IA)" : "Revenir à ta formation Scale X"}
+    >
+      {busy ? "…" : toEditor ? "🎬 Espace monteur" : "🎓 Retour à Scale X"}
+    </button>
+  );
+}
+
 function SessionBadge() {
   const { session } = useSession();
   if (!session || session.role === "anonyme") return null;
@@ -875,6 +911,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </button>
           )}
           <ViewSwitcher />
+          <EditorSwitch />
           <SessionBadge />
           {/* Le solde de credits IA ne concerne pas l'equipe commerciale. */}
           {!isSalesOnly && !isVa && <CreditsWidget />}
