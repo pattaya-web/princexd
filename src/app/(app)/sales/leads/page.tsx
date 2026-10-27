@@ -42,7 +42,7 @@ const fold = (s: string) =>
 export default function LeadsOverviewPage() {
   const { session, version } = useSales();
   const toast = useToast();
-  const [view, setView] = useState<View>("organic");
+  const [view, setView] = useState<View>("iclosed");
   const [query, setQuery] = useState("");
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -129,10 +129,10 @@ export default function LeadsOverviewPage() {
           value={view}
           onChange={setView}
           options={[
+            { value: "iclosed", label: "iClosed sans RDV", count: counts.iclosed },
             { value: "organic", label: "Organique", count: counts.organic },
             { value: "ads", label: "Ads", count: counts.ads },
-            { value: "all", label: "Tous Systeme.io", count: counts.all },
-            { value: "iclosed", label: "iClosed sans RDV", count: counts.iclosed },
+            { value: "all", label: "Systeme.io · tous", count: counts.all },
           ]}
         />
         <div className="relative ml-auto w-full sm:w-[280px]">

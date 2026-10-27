@@ -32,7 +32,7 @@ export function NoShowCard({ onOpenLead }: { onOpenLead?: (leadId: string) => vo
   const relaunch = async (r: NoShowRow) => {
     setBusy(r.appointmentId);
     try {
-      await api(`/api/sales/leads/${r.leadId}`, { method: "PATCH", body: JSON.stringify({ action: "status", status: "message-sent" }) });
+      await api("/api/sales/no-shows", { method: "PATCH", body: JSON.stringify({ appointmentId: r.appointmentId }) });
       toast(`${r.name} : relancé.`);
       void reload();
       bump();
@@ -55,7 +55,7 @@ export function NoShowCard({ onOpenLead }: { onOpenLead?: (leadId: string) => vo
           </span>
         </span>
       }
-      subtitle="Pas venus au call, pas encore de R2. Relance, coche. La case se libère le lendemain pour relancer encore, jusqu'au rendez-vous reposé."
+      subtitle="Tous les no-show (ceux de Mady aussi), pas encore de R2. Relance, coche : le lead devient le tien et le R2 te sera attribué. La case se libère le lendemain pour relancer encore."
       padded={false}
     >
       {rows.length === 0 ? (
@@ -80,6 +80,7 @@ export function NoShowCard({ onOpenLead }: { onOpenLead?: (leadId: string) => vo
                   </span>
                   <span className="block text-[11.5px] mt-0.5" style={{ color: "var(--critical)" }}>
                     No-show le {fmtDateTime(r.missedAt)}
+                    {r.setterName ? <span className="dim"> · setter {r.setterName}</span> : <span className="dim"> · lead de Mady</span>}
                   </span>
                   {r.lastFollowUpAt && (
                     <span className="dim text-[11.5px] block">
