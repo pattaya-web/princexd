@@ -301,6 +301,8 @@ export interface Settings {
   salesSetterByLinkOnlyV2At?: string;
   /** v3 : seul un lien signe par QUELQU'UN D'AUTRE retire un setter ; les calls sans signature lui sont rendus. */
   salesSetterByLinkOnlyV3At?: string;
+  /** v4 (règle finale, 2026-10-27 soir) : un setter ne garde que les calls signés de son lien (ou déclarés) ; le reste va au propriétaire. */
+  salesSetterByLinkOnlyV4At?: string;
   /**
    * Regle de reprise (2026-10-14) : minutes sans action du setter au bout
    * desquelles un autre setter peut reprendre la conversation. 0 = desactive.

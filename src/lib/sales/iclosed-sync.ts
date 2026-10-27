@@ -188,6 +188,45 @@ export function applySetterByLinkOnly(db: DB): number {
     if (n) db.activityLogs.unshift({ id: newId(), at: now, actorId: "", actorName: "Système", action: "appointment.updated", entity: "appointment", entityId: "", summary: `Rendez-vous iClosed : ${n} call${n > 1 ? "s" : ""} rendu${n > 1 ? "s" : ""} à leur setter (aucune signature d'un autre lien)` });
     writeDB(db);
   }
+  /*
+   * v4, regle FINALE (2026-10-27 soir, verifiee sur la base en ligne) : un
+   * setter ne garde que les calls dont le lien porte SA signature
+   * (utm_source=setter&utm_content=<lui>) ou dont il a declare le lead ;
+   * tout le reste (referent Instagram seul, ManyChat, pub, rien) va au
+   * proprietaire. Mady a tranche nominativement : Alain Gedeon et Djeneba
+   * ne sont pas a Jora ; Yassine Maakout et Joana le sont. Ces deux-la
+   * sont poses comme attributions manuelles, que plus aucune passe ne touche.
+   */
+  if (!db.settings.salesSetterByLinkOnlyV4At) {
+    for (const a of db.appointments) {
+      if (!a.iclosedEventId || manual.has(a.id)) continue;
+      if (!a.setterId || a.setterId === owner) continue;
+      const lead = db.leads.find((l) => l.id === a.leadId);
+      if (signedOf(a) === a.setterId || declaredSetter(lead) === a.setterId) continue;
+      const fromName = db.team.find((m) => m.id === a.setterId)?.name ?? a.setterId;
+      a.setterId = owner;
+      a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Système", from: a.status, to: a.status, note: `Setter retiré (${fromName}) : réservation sans son lien signé` }];
+      a.updatedAt = now;
+      n++;
+    }
+    const jora = db.team.find((m) => norm(m.username ?? "") === "jora" || norm(m.name) === "jora");
+    if (jora) {
+      const wanted = ["yassine maakout", "joana"];
+      for (const a of db.appointments) {
+        const lead = db.leads.find((l) => l.id === a.leadId);
+        if (!lead || !wanted.includes(norm(lead.name))) continue;
+        if (a.setterId === jora.id) continue;
+        a.setterId = jora.id;
+        a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Mady", from: a.status, to: a.status, note: `Attribué à ${jora.name} par Mady (lead envoyé par son lien)` }];
+        a.updatedAt = now;
+        db.activityLogs.unshift({ id: newId(), at: now, actorId: db.settings.salesOwnerMemberId ?? "", actorName: "Mady", action: "appointment.assigned", entity: "appointment", entityId: a.id, summary: `${jora.name} attribué comme setter` });
+        n++;
+      }
+    }
+    db.settings.salesSetterByLinkOnlyV4At = now;
+    if (n) db.activityLogs.unshift({ id: newId(), at: now, actorId: "", actorName: "Système", action: "appointment.updated", entity: "appointment", entityId: "", summary: `Rendez-vous iClosed : règle stricte du lien signé appliquée (${n} changement${n > 1 ? "s" : ""})` });
+    writeDB(db);
+  }
   return n;
 }
 

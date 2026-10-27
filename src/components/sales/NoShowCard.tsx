@@ -6,21 +6,14 @@ import { fmtDateTime, relative } from "@/lib/format";
 import { useSalesData } from "@/lib/sales/client";
 import { Card, Empty, useToast } from "@/components/ui";
 import { useSales } from "./context";
-import { SendToSetterModal } from "./SetterTasksCard";
 import type { NoShowRow } from "@/app/api/sales/no-shows/route";
-
-const STATUS: Record<string, string> = {
-  "no-answer": "pas de réponse",
-  "message-sent": "message envoyé",
-  callback: "à rappeler",
-  reached: "joint",
-  "not-interested": "pas intéressé",
-};
 
 /**
  * Suivi des no-show du setter : ceux qui ne sont pas venus au call et n'ont
- * pas encore repose de rendez-vous. A relancer sans relache jusqu'au R2 ;
- * des qu'un nouveau rendez-vous est pose, la ligne disparait.
+ * pas encore repose de rendez-vous. Une ligne = nom, numero, call manque,
+ * et a droite une case « Relancé » : cochee = relance faite, avec qui et
+ * quand. La case se libere au bout de 24 h pour relancer encore, jusqu'au
+ * R2 ; des qu'un nouveau rendez-vous est pose, la ligne disparait.
  */
 export function NoShowCard({ onOpenLead }: { onOpenLead?: (leadId: string) => void }) {
   const { version, bump } = useSales();
@@ -28,7 +21,6 @@ export function NoShowCard({ onOpenLead }: { onOpenLead?: (leadId: string) => vo
   const { data, reload } = useSalesData<{ rows: NoShowRow[] }>(`/api/sales/no-shows?v=${version}`, { every: 120_000 });
   const rows = data?.rows ?? [];
   const [busy, setBusy] = useState("");
-  const [remind, setRemind] = useState<NoShowRow | null>(null);
   const copy = async (v: string) => {
     try {
       await navigator.clipboard.writeText(v);
@@ -37,11 +29,11 @@ export function NoShowCard({ onOpenLead }: { onOpenLead?: (leadId: string) => vo
       toast("Copie impossible ici.", "err");
     }
   };
-  const followed = async (r: NoShowRow) => {
+  const relaunch = async (r: NoShowRow) => {
     setBusy(r.appointmentId);
     try {
       await api(`/api/sales/leads/${r.leadId}`, { method: "PATCH", body: JSON.stringify({ action: "status", status: "message-sent" }) });
-      toast(`${r.name} : relance notée.`);
+      toast(`${r.name} : relancé.`);
       void reload();
       bump();
     } catch (e) {
@@ -50,28 +42,30 @@ export function NoShowCard({ onOpenLead }: { onOpenLead?: (leadId: string) => vo
       setBusy("");
     }
   };
+  const recent = (iso: string) => Boolean(iso) && Date.now() - Date.parse(iso) < 24 * 3600_000;
 
   if (!data || !rows.length) return null;
   return (
-    <>
-      <Card
-        title={
-          <span className="flex items-center gap-2">
-            Suivi des no-show
-            <span className="badge !text-[10.5px] !py-0 num" style={{ color: "var(--critical)" }}>
-              {rows.length}
-            </span>
+    <Card
+      title={
+        <span className="flex items-center gap-2">
+          Suivi des no-show
+          <span className="badge !text-[10.5px] !py-0 num" style={{ color: "var(--critical)" }}>
+            {rows.length}
           </span>
-        }
-        subtitle="Pas venus au call, pas encore de R2 : relance-les sans relâche jusqu'à ce qu'ils reposent un rendez-vous. Dès qu'il est posé, la ligne disparaît."
-        padded={false}
-      >
-        {rows.length === 0 ? (
-          <Empty>Aucun no-show en attente.</Empty>
-        ) : (
-          <ul>
-            {rows.slice(0, 12).map((r, i) => (
-              <li key={r.appointmentId} className="px-3.5 py-2.5 flex items-start gap-3 flex-wrap" style={{ borderBottom: i < Math.min(rows.length, 12) - 1 ? "1px solid var(--border)" : "none" }}>
+        </span>
+      }
+      subtitle="Pas venus au call, pas encore de R2. Relance, coche. La case se libère le lendemain pour relancer encore, jusqu'au rendez-vous reposé."
+      padded={false}
+    >
+      {rows.length === 0 ? (
+        <Empty>Aucun no-show en attente.</Empty>
+      ) : (
+        <ul>
+          {rows.slice(0, 15).map((r, i) => {
+            const done = recent(r.lastFollowUpAt);
+            return (
+              <li key={r.appointmentId} className="px-3.5 py-2.5 flex items-center gap-3 flex-wrap" style={{ borderBottom: i < Math.min(rows.length, 15) - 1 ? "1px solid var(--border)" : "none" }}>
                 <span className="min-w-0 flex-1 basis-[220px]">
                   <span className="flex items-center gap-2 flex-wrap">
                     <button type="button" className="text-[13px] font-semibold hover:underline text-left" onClick={() => onOpenLead?.(r.leadId)} title="Ouvrir la fiche">
@@ -85,36 +79,25 @@ export function NoShowCard({ onOpenLead }: { onOpenLead?: (leadId: string) => vo
                     )}
                   </span>
                   <span className="block text-[11.5px] mt-0.5" style={{ color: "var(--critical)" }}>
-                    Call manqué le {fmtDateTime(r.missedAt)} · {relative(r.missedAt)}
+                    No-show le {fmtDateTime(r.missedAt)}
                   </span>
-                  <span className="dim text-[11.5px] block">
-                    {r.lastFollowUpAt ? `Dernière relance ${relative(r.lastFollowUpAt)} (${STATUS[r.lastFollowUpStatus] ?? r.lastFollowUpStatus})` : "Jamais relancé depuis le no-show"}
-                  </span>
+                  {r.lastFollowUpAt && (
+                    <span className="dim text-[11.5px] block">
+                      Relancé {relative(r.lastFollowUpAt)}
+                      {r.lastFollowUpBy ? ` par ${r.lastFollowUpBy}` : ""}
+                    </span>
+                  )}
                 </span>
-                <span className="flex items-center gap-1 shrink-0">
-                  <button className="btn btn-sm !h-[28px]" disabled={busy === r.appointmentId} onClick={() => void followed(r)} title="Je viens de lui écrire ou de l'appeler">
-                    ✓ J&apos;ai relancé
-                  </button>
-                  <button className="btn btn-sm btn-ghost !h-[28px]" onClick={() => setRemind(r)} title="Me noter une relance à une date">
-                    Relance le…
-                  </button>
-                </span>
+                <label className="flex items-center gap-2 text-[12.5px] font-medium cursor-pointer shrink-0" style={{ color: done ? "var(--emerald)" : "var(--text-2)" }}>
+                  <input type="checkbox" className="w-[18px] h-[18px] cursor-pointer" checked={done} disabled={busy === r.appointmentId || done} onChange={() => void relaunch(r)} />
+                  {done ? "Relancé" : "Relancer"}
+                </label>
               </li>
-            ))}
-            {rows.length > 12 && <li className="dim text-[11.5px] px-3.5 py-2">… et {rows.length - 12} de plus.</li>}
-          </ul>
-        )}
-      </Card>
-      <SendToSetterModal
-        open={remind !== null}
-        self
-        prefill={remind ? { leadId: remind.leadId, name: remind.name, phone: remind.phone, igUsername: remind.igUsername } : undefined}
-        onClose={() => setRemind(null)}
-        onSent={() => {
-          void reload();
-          bump();
-        }}
-      />
-    </>
+            );
+          })}
+          {rows.length > 15 && <li className="dim text-[11.5px] px-3.5 py-2">… et {rows.length - 15} de plus.</li>}
+        </ul>
+      )}
+    </Card>
   );
 }

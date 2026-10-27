@@ -17,6 +17,8 @@ export interface NoShowRow {
   /** Derniere relance notee apres le call manque (statut d'appel du lead), vide sinon. */
   lastFollowUpAt: string;
   lastFollowUpStatus: string;
+  /** Qui a fait la derniere relance (le setter du lead). */
+  lastFollowUpBy: string;
   /** Un nouveau rendez-vous (R2) a ete pose apres le no-show. */
   rebookedAt: string;
   setterName: string;
@@ -53,6 +55,7 @@ export async function GET(req: NextRequest) {
           missedAt: a.scheduledAt,
           lastFollowUpAt: followed ? lead!.lastCallAt! : "",
           lastFollowUpStatus: followed ? (lead!.callStatus ?? "") : "",
+          lastFollowUpBy: followed ? (names.get(lead!.setterId ?? "") ?? lead!.ownerName ?? "") : "",
           rebookedAt: later?.scheduledAt ?? "",
           setterName: names.get(a.setterId) ?? "",
         };
