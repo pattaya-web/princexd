@@ -184,20 +184,48 @@ export async function condenseSummary(m: FathomMeeting): Promise<string> {
 
 const MARK = "Résumé du call (Fathom)";
 const lower = (v?: string | null) => (v ?? "").trim().toLowerCase();
+/** Nom normalise pour comparer : minuscules, sans accents, mots tries (« Dupont Marie » = « marie dupont »). */
+const nameKey = (v?: string | null) =>
+  lower(v)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .sort()
+    .join(" ");
 
-/** Le rendez-vous qui correspond a la reunion : par email d'invite, sinon par l'heure si un seul call colle. */
+/**
+ * Le rendez-vous qui correspond a la reunion : par email d'invite, sinon
+ * par le nom de l'invite (fiches creees a la main sans email), sinon par
+ * l'heure si un seul call colle a 45 min pres. Pour l'email et le nom on
+ * accepte un call a 36 h pres : une fiche saisie a la main porte souvent
+ * l'heure de la saisie, pas celle du call.
+ */
 export function matchAppointment(db: DB, m: FathomMeeting): Appointment | null {
   const start = Date.parse(m.recording_start_time || m.scheduled_start_time || m.created_at || "");
   if (!Number.isFinite(start)) return null;
   const live = db.appointments.filter((a) => a.status !== "cancelled");
   const host = lower(m.recorded_by?.email);
-  const emails = (m.calendar_invitees ?? []).map((i) => lower(i.email)).filter((e) => e && e !== host);
+  const guests = (m.calendar_invitees ?? []).filter((i) => !host || lower(i.email) !== host);
+  const closest = (ids: Set<string>, windowMs: number) => {
+    const mine = live.filter((a) => ids.has(a.leadId)).map((a) => ({ a, d: Math.abs(Date.parse(a.scheduledAt) - start) })).filter((x) => x.d <= windowMs).sort((x, y) => x.d - y.d);
+    return mine.length ? mine[0].a : null;
+  };
+  const emails = guests.map((i) => lower(i.email)).filter(Boolean);
   if (emails.length) {
-    const leadIds = new Set(db.leads.filter((l) => emails.includes(lower(l.email))).map((l) => l.id));
-    const mine = live.filter((a) => leadIds.has(a.leadId)).map((a) => ({ a, d: Math.abs(Date.parse(a.scheduledAt) - start) })).filter((x) => x.d <= 3 * 3600_000).sort((x, y) => x.d - y.d);
-    if (mine.length) return mine[0].a;
+    const byEmail = closest(new Set(db.leads.filter((l) => emails.includes(lower(l.email))).map((l) => l.id)), 36 * 3600_000);
+    if (byEmail) return byEmail;
   }
-  const near = live.filter((a) => Math.abs(Date.parse(a.scheduledAt) - start) <= 45 * 60_000);
+  const names = guests.map((i) => nameKey(i.name)).filter((n) => n.includes(" "));
+  if (names.length) {
+    const byName = closest(new Set(db.leads.filter((l) => names.includes(nameKey(l.name))).map((l) => l.id)), 36 * 3600_000);
+    if (byName) return byName;
+  }
+  const sched = Date.parse(m.scheduled_start_time || "");
+  const near = live.filter((a) => {
+    const t = Date.parse(a.scheduledAt);
+    return Math.abs(t - start) <= 45 * 60_000 || (Number.isFinite(sched) && Math.abs(t - sched) <= 45 * 60_000);
+  });
   return near.length === 1 ? near[0] : null;
 }
 
@@ -210,13 +238,13 @@ export interface FathomReport {
 
 /**
  * Une reunion Fathom vers le CRM. Idempotent : une reunion deja rattachee
- * (meme identifiant) n'est pas reecrite, sauf `force`.
+ * (meme identifiant) n'est pas reecrite, sauf `rewrite`.
  */
-export async function processMeeting(m: FathomMeeting, report: FathomReport, opts: { force?: boolean } = {}): Promise<void> {
+export async function processMeeting(m: FathomMeeting, report: FathomReport, opts: { rewrite?: boolean } = {}): Promise<void> {
   report.examined += 1;
   const id = String(m.recording_id ?? m.id ?? "");
   let db = readDB();
-  if (id && !opts.force && db.appointments.some((a) => a.fathomRecordingId === id)) {
+  if (id && !opts.rewrite && db.appointments.some((a) => a.fathomRecordingId === id)) {
     report.skipped += 1;
     return;
   }
@@ -263,7 +291,11 @@ export async function processMeeting(m: FathomMeeting, report: FathomReport, opt
 const SYNC_COOLDOWN_MS = 15 * 60_000;
 let inflight: Promise<FathomReport | null> | null = null;
 
-/** Relit les reunions recentes (depuis la derniere synchro moins un jour, sinon `days` jours). */
+/**
+ * Relit les reunions recentes (depuis la derniere synchro moins un jour,
+ * sinon `days` jours). `force` saute le delai de 15 min ; les comptes-rendus
+ * deja poses ne sont jamais reecrits (le closer peut les avoir completes).
+ */
 export async function syncFathom(opts: { force?: boolean; days?: number } = {}): Promise<FathomReport | null> {
   if (!getFathomKey()) return null;
   if (inflight) return inflight;
@@ -275,7 +307,7 @@ export async function syncFathom(opts: { force?: boolean; days?: number } = {}):
       const since = opts.days ? Date.now() - opts.days * 86_400_000 : last ? last - 86_400_000 : Date.now() - 7 * 86_400_000;
       const meetings = await listMeetings(new Date(since).toISOString());
       const report: FathomReport = { examined: 0, attached: 0, skipped: 0, unmatched: [] };
-      for (const m of meetings) await processMeeting(m, report, { force: opts.force && Boolean(opts.days) });
+      for (const m of meetings) await processMeeting(m, report);
       saveSettings({ fathomLastSyncAt: new Date().toISOString() });
       return report;
     } finally {
@@ -284,3 +316,4 @@ export async function syncFathom(opts: { force?: boolean; days?: number } = {}):
   })();
   return inflight;
 }
+
