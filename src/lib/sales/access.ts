@@ -188,24 +188,19 @@ export function issueVaToken(): string {
  * Connexion d'un eleve a la plateforme de formation.
  *
  * L'identifiant (prenom.nom) est pose par l'admin ou par l'assistant sur la
- * fiche de l'eleve ; il suffit. Un mot de passe n'est exige que sur les
- * fiches qui en ont un. On parcourt tous les eleves avant de repondre,
- * comme pour l'equipe : s'arreter au premier echec laisserait deviner quels
- * identifiants existent.
+ * fiche de l'eleve ; il suffit, et c'est tout. Depuis le 2026-10-27, aucun
+ * eleve n'a de mot de passe : les anciennes fiches qui en gardaient un
+ * (`passwordHash`) entrent aussi avec le seul identifiant, un eleve a ete
+ * bloque sur « Ce compte a un mot de passe ». On parcourt tous les eleves
+ * avant de repondre, comme pour l'equipe : s'arreter au premier echec
+ * laisserait deviner quels identifiants existent.
  */
-export function findStudentByLogin(username: string, password: string): Student | null {
+export function findStudentByLogin(username: string, _password: string): Student | null {
   const u = normalizeUsername(username);
   if (!u) return null;
   let hit: Student | null = null;
   for (const s of readDB().students) {
-    if (normalizeUsername(s.username ?? "") !== u) continue;
-    // Depuis le 2026-10-22, un eleve entre avec son seul identifiant (prenom.nom) :
-    // pas de mot de passe sur sa fiche. Les anciennes fiches avec mot de passe le gardent.
-    if (!s.passwordHash) {
-      if (!password) hit = hit ?? s;
-      continue;
-    }
-    if (password && verifyPassword(password, s.passwordHash)) hit = hit ?? s;
+    if (normalizeUsername(s.username ?? "") === u) hit = hit ?? s;
   }
   return hit;
 }
