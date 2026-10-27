@@ -14,44 +14,110 @@ const ACCENT = { "--accent": "#006dbc", "--accent-hover": "#005a9c", "--accent-s
 interface Payload {
   rows: UtmLinkRow[];
   destinations: { label: string; url: string }[];
-  sources: readonly string[];
-  mediums: readonly string[];
 }
+
+/** Plateforme = utm_source. */
+const PLATFORMS: { key: string; label: string }[] = [
+  { key: "youtube", label: "YouTube" },
+  { key: "instagram", label: "Instagram" },
+  { key: "tiktok", label: "TikTok" },
+  { key: "facebook", label: "Facebook" },
+  { key: "newsletter", label: "Newsletter" },
+  { key: "whatsapp", label: "WhatsApp" },
+  { key: "autre", label: "Autre" },
+];
+
+/** Emplacement = utm_medium, selon la plateforme. */
+const PLACEMENTS: Record<string, { key: string; label: string }[]> = {
+  youtube: [
+    { key: "description", label: "Description" },
+    { key: "comment", label: "Commentaire épinglé" },
+    { key: "short", label: "Short" },
+    { key: "vsl", label: "VSL" },
+  ],
+  instagram: [
+    { key: "bio", label: "Bio" },
+    { key: "story", label: "Story" },
+    { key: "reel", label: "Reel" },
+    { key: "dm", label: "DM" },
+    { key: "post", label: "Post" },
+  ],
+  tiktok: [
+    { key: "bio", label: "Bio" },
+    { key: "video", label: "Vidéo" },
+    { key: "comment", label: "Commentaire" },
+  ],
+  facebook: [
+    { key: "post", label: "Post" },
+    { key: "group", label: "Groupe" },
+    { key: "ad", label: "Pub" },
+  ],
+  newsletter: [{ key: "email", label: "Email" }],
+  whatsapp: [
+    { key: "dm", label: "Message" },
+    { key: "status", label: "Statut" },
+  ],
+  autre: [{ key: "lien", label: "Lien" }],
+};
 
 const CUSTOM = "__custom__";
 
 /**
- * Générateur de liens UTM.
- *
- * Un lien par endroit où on pose un lien (vidéo YouTube, post, story,
- * newsletter…) : destination + source + medium + campagne (+ contenu, terme).
- * Le lien se copie tel quel. Chaque lead qui s'inscrit ou réserve avec ces
- * paramètres exacts est rattaché au lien : le tableau en bas dit lequel a
- * amené combien de leads, quel jour, et ce qu'ils sont devenus.
+ * Liens UTM, en deux gestes : coller un lien déjà traqué pour qu'il compte
+ * ici, ou créer un lien en choisissant la plateforme et l'emplacement (le
+ * tool pose les utm). Chaque lead qui arrive avec exactement ces paramètres
+ * est rattaché au lien.
  */
 export default function UtmLinksPage() {
   const { session, currency } = useSales();
   const toast = useToast();
   const { data, loading, error, reload } = useSalesData<Payload>("/api/sales/utm");
 
-  const [label, setLabel] = useState("");
+  /* --- Importer des liens existants --- */
+  const [pasted, setPasted] = useState("");
+  const [importing, setImporting] = useState(false);
+  const importLinks = async () => {
+    const urls = pasted
+      .split(/\s+/)
+      .map((x) => x.trim())
+      .filter((x) => /^https?:\/\//i.test(x));
+    if (!urls.length) return toast("Colle au moins un lien complet (https://…).", "err");
+    setImporting(true);
+    let ok = 0;
+    const errors: string[] = [];
+    for (const u of urls) {
+      try {
+        await api("/api/sales/utm", { method: "POST", body: JSON.stringify({ importUrl: u }) });
+        ok++;
+      } catch (e) {
+        errors.push((e as Error).message);
+      }
+    }
+    setImporting(false);
+    setPasted("");
+    toast(ok ? `${ok} lien${ok > 1 ? "s" : ""} importé${ok > 1 ? "s" : ""}.${errors.length ? ` ${errors.length} refusé${errors.length > 1 ? "s" : ""} : ${errors[0]}` : ""}` : errors[0] ?? "Rien importé.", ok ? "ok" : "err");
+    void reload();
+  };
+
+  /* --- Créer un lien --- */
   const [dest, setDest] = useState("");
   const [customUrl, setCustomUrl] = useState("");
-  const [source, setSource] = useState("youtube");
-  const [medium, setMedium] = useState("video");
+  const [platform, setPlatform] = useState("instagram");
+  const [placement, setPlacement] = useState("bio");
   const [campaign, setCampaign] = useState("");
-  const [content, setContent] = useState("");
-  const [term, setTerm] = useState("");
-  const [placement, setPlacement] = useState("");
-  const [notes, setNotes] = useState("");
+  const [label, setLabel] = useState("");
   const [saving, setSaving] = useState(false);
-
   useEffect(() => {
     if (!dest && data?.destinations.length) setDest(data.destinations[0].url);
   }, [data, dest]);
-
+  useEffect(() => {
+    const list = PLACEMENTS[platform] ?? [];
+    if (!list.some((p) => p.key === placement)) setPlacement(list[0]?.key ?? "lien");
+  }, [platform, placement]);
   const baseUrl = dest === CUSTOM ? customUrl : dest;
-  const preview = useMemo(() => buildUtmUrl(baseUrl, { source, medium, campaign, content, term }), [baseUrl, source, medium, campaign, content, term]);
+  const preview = useMemo(() => buildUtmUrl(baseUrl, { source: platform, medium: placement, campaign, content: "", term: "" }), [baseUrl, platform, placement, campaign]);
+  const placementLabel = PLACEMENTS[platform]?.find((p) => p.key === placement)?.label ?? placement;
+  const platformLabel = PLATFORMS.find((p) => p.key === platform)?.label ?? platform;
 
   const copy = async (v: string) => {
     try {
@@ -61,18 +127,13 @@ export default function UtmLinksPage() {
       toast("Copie impossible ici : sélectionne le lien et copie-le à la main.", "err");
     }
   };
-
   const create = async () => {
     setSaving(true);
     try {
-      await api("/api/sales/utm", { method: "POST", body: JSON.stringify({ label, baseUrl, source, medium, campaign, content, term, placement, notes }) });
+      await api("/api/sales/utm", { method: "POST", body: JSON.stringify({ label: label || `${platformLabel} · ${placementLabel}${campaign ? ` · ${campaign}` : ""}`, baseUrl, source: platform, medium: placement, campaign: campaign || placement, content: "", term: "", placement: `${platformLabel} · ${placementLabel}` }) });
       toast("Lien créé. Copie-le et pose-le.");
-      setLabel("");
       setCampaign("");
-      setContent("");
-      setTerm("");
-      setPlacement("");
-      setNotes("");
+      setLabel("");
       void reload();
     } catch (e) {
       toast((e as Error).message, "err");
@@ -80,7 +141,6 @@ export default function UtmLinksPage() {
       setSaving(false);
     }
   };
-
   const remove = async (id: string) => {
     try {
       await api("/api/sales/utm", { method: "DELETE", body: JSON.stringify({ id }) });
@@ -92,85 +152,88 @@ export default function UtmLinksPage() {
   };
 
   const totalLeads = (data?.rows ?? []).reduce((n, r) => n + r.stats.leads, 0);
+  const Chip = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
+    <button type="button" className={`btn btn-sm ${active ? "btn-primary" : ""}`} onClick={onClick}>
+      {children}
+    </button>
+  );
 
   return (
     <div style={ACCENT}>
-      <PageHeader
-        title="Liens UTM"
-        subtitle="Un lien par endroit où tu poses un lien : vidéo YouTube, post, story, newsletter. Chaque lead qui passe par là t'est rattaché, avec le jour et ce qu'il devient."
-      />
+      <PageHeader title="Liens UTM" subtitle="Un lien par endroit où tu poses un lien. Chaque lead qui passe par là t'est rattaché, avec le jour et ce qu'il devient." />
       {error && <ErrorNote>{error}</ErrorNote>}
 
       {session.isAdmin && (
-        <Card title="Nouveau lien" subtitle="Les valeurs sont nettoyées automatiquement (minuscules, sans accents, soulignés) : c'est ce qui permet le rattachement exact." className="mb-4">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <Field label="Nom du lien" hint="Pour toi : « YouTube · Lancer sa boutique (oct. 2026) »">
-              <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="YouTube · Lancer sa boutique" />
-            </Field>
-            <Field label="Destination" hint="La page où le lien envoie">
-              <select className="select" value={dest} onChange={(e) => setDest(e.target.value)}>
-                {(data?.destinations ?? []).map((d) => (
-                  <option key={d.url} value={d.url}>
-                    {d.label} · {d.url.replace(/^https?:\/\//, "")}
-                  </option>
-                ))}
-                <option value={CUSTOM}>Autre adresse…</option>
-              </select>
-            </Field>
-            {dest === CUSTOM && (
-              <Field label="Adresse complète">
-                <input className="input mono !text-[12.5px]" value={customUrl} onChange={(e) => setCustomUrl(e.target.value)} placeholder="https://royalscalebymady.fr/…" />
+        <div className="grid lg:grid-cols-2 gap-4 mb-4 items-start">
+          <Card title="J'ai déjà un lien UTM" subtitle="Colle-le tel quel (un par ligne) : il est enregistré et ses leads comptent ici.">
+            <textarea className="textarea w-full mono !text-[12.5px]" rows={4} value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder={"https://royalscalebymady.fr/lp-orga?utm_source=youtube&utm_medium=description&utm_campaign=…"} />
+            <div className="mt-2 flex justify-end">
+              <button className="btn btn-primary btn-sm" onClick={() => void importLinks()} disabled={importing || !pasted.trim()}>
+                {importing ? "Import…" : "Importer"}
+              </button>
+            </div>
+          </Card>
+
+          <Card title="Créer un lien" subtitle="Choisis où il va, où tu le poses, donne-lui un nom. Le tool pose les paramètres.">
+            <div className="flex flex-col gap-3">
+              <Field label="Il envoie vers">
+                <div className="flex flex-wrap gap-1.5">
+                  {(data?.destinations ?? []).map((d) => (
+                    <Chip key={d.url} active={dest === d.url} onClick={() => setDest(d.url)}>
+                      {d.label}
+                    </Chip>
+                  ))}
+                  <Chip active={dest === CUSTOM} onClick={() => setDest(CUSTOM)}>
+                    Autre lien…
+                  </Chip>
+                </div>
+                {dest === CUSTOM && <input className="input mono !text-[12.5px] mt-2" value={customUrl} onChange={(e) => setCustomUrl(e.target.value)} placeholder="https://…" />}
               </Field>
-            )}
-            <Field label="Source (utm_source)" hint="D'où vient le clic">
-              <input className="input" list="utm-sources" value={source} onChange={(e) => setSource(e.target.value)} placeholder="youtube" />
-              <datalist id="utm-sources">{(data?.sources ?? []).map((s) => <option key={s} value={s} />)}</datalist>
-            </Field>
-            <Field label="Support (utm_medium)" hint="Vidéo, short, bio, story, description…">
-              <input className="input" list="utm-mediums" value={medium} onChange={(e) => setMedium(e.target.value)} placeholder="video" />
-              <datalist id="utm-mediums">{(data?.mediums ?? []).map((m) => <option key={m} value={m} />)}</datalist>
-            </Field>
-            <Field label="Campagne (utm_campaign)" hint="Le contenu précis : titre de la vidéo, du post">
-              <input className="input" value={campaign} onChange={(e) => setCampaign(e.target.value)} placeholder="lancer_sa_boutique_oct26" />
-            </Field>
-            <Field label="Contenu (utm_content) · optionnel" hint="Pour distinguer deux liens d'un même contenu : description vs commentaire épinglé">
-              <input className="input" value={content} onChange={(e) => setContent(e.target.value)} placeholder="description" />
-            </Field>
-            <Field label="Terme (utm_term) · optionnel">
-              <input className="input" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="" />
-            </Field>
-            <Field label="Où il est posé · mémo" hint="Pour te souvenir : « description YouTube », « lien bio TikTok »">
-              <input className="input" value={placement} onChange={(e) => setPlacement(e.target.value)} placeholder="description YouTube" />
-            </Field>
-            <Field label="Notes" className="sm:col-span-2 lg:col-span-3">
-              <input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optionnel" />
-            </Field>
-          </div>
-          <div className="mt-4 rounded-[10px] px-3.5 py-3 flex flex-wrap items-center gap-3" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
-            <div className="min-w-0 flex-1">
-              <div className="label-xs mb-1">Aperçu du lien</div>
-              <div className="mono text-[12.5px] break-all" style={{ color: preview ? "var(--text)" : "var(--text-3)" }}>
-                {preview || "Choisis une destination et remplis source + campagne."}
+              <Field label="Plateforme">
+                <div className="flex flex-wrap gap-1.5">
+                  {PLATFORMS.map((p) => (
+                    <Chip key={p.key} active={platform === p.key} onClick={() => setPlatform(p.key)}>
+                      {p.label}
+                    </Chip>
+                  ))}
+                </div>
+              </Field>
+              <Field label="Emplacement">
+                <div className="flex flex-wrap gap-1.5">
+                  {(PLACEMENTS[platform] ?? []).map((p) => (
+                    <Chip key={p.key} active={placement === p.key} onClick={() => setPlacement(p.key)}>
+                      {p.label}
+                    </Chip>
+                  ))}
+                </div>
+              </Field>
+              <Field label="Nom du contenu" hint="Titre de la vidéo, du post, de la story… Laisse vide pour un lien générique (bio).">
+                <input className="input" value={campaign} onChange={(e) => setCampaign(e.target.value)} placeholder="Comment lancer sa boutique" />
+              </Field>
+              <div className="rounded-[10px] px-3.5 py-3 flex flex-wrap items-center gap-3" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+                <div className="min-w-0 flex-1 mono text-[12px] break-all" style={{ color: preview ? "var(--text)" : "var(--text-3)" }}>
+                  {preview || "Choisis une destination."}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button className="btn btn-sm" disabled={!preview} onClick={() => void copy(preview)}>
+                    Copier
+                  </button>
+                  <button className="btn btn-sm btn-primary" disabled={!preview || saving} onClick={() => void create()}>
+                    {saving ? "…" : "Enregistrer le lien"}
+                  </button>
+                </div>
               </div>
-              {campaign && utmValue(campaign) !== campaign.trim() && <div className="dim text-[11px] mt-1">Campagne enregistrée comme « {utmValue(campaign)} ».</div>}
+              {campaign && utmValue(campaign) !== campaign.trim() && <div className="dim text-[11px]">Enregistré comme « {utmValue(campaign)} ».</div>}
             </div>
-            <div className="flex items-center gap-2">
-              <button className="btn btn-sm" disabled={!preview} onClick={() => void copy(preview)}>
-                Copier l&apos;aperçu
-              </button>
-              <button className="btn btn-sm btn-primary" disabled={!preview || saving || !campaign.trim()} onClick={() => void create()}>
-                {saving ? "…" : "Créer le lien"}
-              </button>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       )}
 
       <div className="flex items-baseline justify-between gap-3 mb-2">
         <h2 className="text-[15px] font-semibold">
-          Mes liens <span className="dim font-normal text-[12px]">· {data?.rows.length ?? 0} lien{(data?.rows.length ?? 0) > 1 ? "s" : ""} · {totalLeads} lead{totalLeads > 1 ? "s" : ""} rattaché{totalLeads > 1 ? "s" : ""}</span>
+          Mes liens <span className="dim font-normal text-[12px]">· {data?.rows.length ?? 0} lien{(data?.rows.length ?? 0) > 1 ? "s" : ""} · {totalLeads} lead{totalLeads > 1 ? "s" : ""}</span>
         </h2>
-        <span className="dim text-[11.5px]">Clique un lien pour voir qui est venu par là, quel jour, et ce qu&apos;il est devenu.</span>
+        <span className="dim text-[11.5px]">Clique un lien pour voir qui est venu par là.</span>
       </div>
       {loading && !data ? <Spinner label="Chargement…" /> : <UtmLinksTable rows={data?.rows ?? []} currency={currency} onDelete={session.isAdmin ? remove : undefined} />}
     </div>

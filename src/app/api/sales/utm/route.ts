@@ -38,11 +38,32 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return handle(async () => {
     const session = requireAdmin(readSession(req));
-    const b = (await req.json().catch(() => ({}))) as Partial<UtmLink>;
+    const b = (await req.json().catch(() => ({}))) as Partial<UtmLink> & { importUrl?: string };
+    // Un lien deja traque, colle tel quel : on lit ses utm et sa destination.
+    if (b.importUrl) {
+      let u: URL;
+      try {
+        u = new URL(b.importUrl.trim());
+      } catch {
+        throw new Error("Lien illisible : colle l'adresse complète (https://…).");
+      }
+      const get = (k: string) => (u.searchParams.get(k) ?? "").trim();
+      b.source = get("utm_source");
+      b.medium = get("utm_medium");
+      b.campaign = get("utm_campaign") || get("utm_medium");
+      b.content = get("utm_content");
+      b.term = get("utm_term");
+      if (!b.source) throw new Error(`Pas d'utm_source dans ${u.hostname}${u.pathname} : ce lien n'est pas traqué.`);
+      for (const k of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"]) u.searchParams.delete(k);
+      b.baseUrl = u.toString();
+      b.label = (b.label ?? "").trim() || [b.source, b.medium, b.campaign !== b.medium ? b.campaign : "", b.content].filter(Boolean).join(" · ");
+      b.placement = b.placement || `${b.source} · ${b.medium}`;
+    }
     const params = { source: b.source ?? "", medium: b.medium ?? "", campaign: b.campaign ?? "", content: b.content ?? "", term: b.term ?? "" };
     const url = buildUtmUrl(b.baseUrl ?? "", params);
     if (!url) throw new Error("Destination invalide : colle une adresse complète (https://…).");
-    if (!params.source.trim() || !params.campaign.trim()) throw new Error("Source et campagne sont obligatoires : c'est ce qui dit d'où vient le lead.");
+    if (!params.source.trim()) throw new Error("La plateforme (utm_source) est obligatoire : c'est ce qui dit d'où vient le lead.");
+    if (!params.campaign.trim()) params.campaign = params.medium || "lien";
     const db = readDB();
     db.utmLinks ??= [];
     const key = utmKey(params);
