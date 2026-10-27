@@ -35,6 +35,21 @@ export const googleConnected = () => Boolean((getSettings().googleRefreshToken ?
 
 export const redirectUri = (origin: string) => `${origin.replace(/\/+$/, "")}/api/google/callback`;
 
+/**
+ * Origine publique du site telle que l'utilisateur la voit (https://mvdyprince.fr).
+ * Derriere le proxy Coolify, `req.nextUrl.origin` vaut l'origine interne en http :
+ * Google refuse alors l'URI de redirection (invalid_request). On lit donc les
+ * en-tetes transmis par le proxy, et on suppose https hors localhost.
+ */
+export function publicOrigin(req: { headers: Headers; nextUrl: { origin: string } }): string {
+  const first = (v: string | null) => (v ?? "").split(",")[0].trim();
+  const host = first(req.headers.get("x-forwarded-host")) || first(req.headers.get("host"));
+  if (!host) return req.nextUrl.origin;
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(host);
+  const proto = first(req.headers.get("x-forwarded-proto")) || (local ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
 /** L'adresse de consentement Google ; `state` est verifie au retour. */
 export function authUrl(origin: string, state: string): string {
   const { id } = googleClient();

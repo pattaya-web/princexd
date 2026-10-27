@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectWithCode } from "@/lib/google";
+import { connectWithCode, publicOrigin } from "@/lib/google";
 import { readSession } from "@/lib/sales/access";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const state = p.get("state") ?? "";
   if (!code || !state || state !== req.cookies.get("google_oauth_state")?.value) return back(`error=${encodeURIComponent("Retour Google invalide (state). Recommence la connexion.")}`);
   try {
-    const email = await connectWithCode(code, req.nextUrl.origin);
+    const email = await connectWithCode(code, publicOrigin(req));
     const res = back(`connected=${encodeURIComponent(email || "1")}`);
     res.cookies.set("google_oauth_state", "", { path: "/", maxAge: 0 });
     return res;

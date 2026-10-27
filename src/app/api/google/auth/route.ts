@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authUrl, newState } from "@/lib/google";
+import { authUrl, newState, publicOrigin } from "@/lib/google";
 import { readSession } from "@/lib/sales/access";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const state = newState();
   let url: string;
   try {
-    url = authUrl(req.nextUrl.origin, state);
+    url = authUrl(publicOrigin(req), state);
   } catch (e) {
     return NextResponse.redirect(new URL(`/meet?error=${encodeURIComponent((e as Error).message)}`, req.url));
   }
