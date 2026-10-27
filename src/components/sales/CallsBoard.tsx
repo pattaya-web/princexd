@@ -8,15 +8,15 @@ import { LeadSheet } from "./LeadSheet";
 import type { AppointmentRow } from "@/app/api/sales/appointments/route";
 
 /**
- * Mes calls, comme sur iClosed : la liste des calls passes (avec presence,
- * issue et compte-rendu Fathom) et des calls a venir, sur le Sales Dashboard.
+ * Une liste de calls, comme sur iClosed : les calls a venir (avec le lien
+ * pour rejoindre) ou les calls passes (presence, issue, compte-rendu Fathom).
  *
  * Un clic sur le nom ou « Statuer » ouvre la fiche du lead, ou tout se pose
  * en un clic (show, no-show, close, perdu, paiement) et ou le compte-rendu
  * complet se lit.
  */
 
-type Scope = "past" | "upcoming";
+export type CallsScope = "past" | "upcoming";
 type Window = "7d" | "30d" | "all";
 
 const ATTENDED = new Set(["completed", "follow-up", "closed-won", "closed-lost"]);
@@ -57,7 +57,7 @@ function Summary({ r }: { r: AppointmentRow }) {
   const first = r.fathomSummary.split("\n").filter(Boolean).slice(0, 2).join(" · ");
   return (
     <span className="text-[12px] leading-snug" title={r.fathomSummary}>
-      {first.length > 140 ? `${first.slice(0, 140)}…` : first}
+      {first.length > 160 ? `${first.slice(0, 160)}…` : first}
       {r.fathomUrl && (
         <>
           {" "}
@@ -70,8 +70,7 @@ function Summary({ r }: { r: AppointmentRow }) {
   );
 }
 
-export function CallsBoard({ refreshKey = 0, onChanged }: { refreshKey?: number; onChanged?: () => void }) {
-  const [scope, setScope] = useState<Scope>("past");
+export function CallsBoard({ scope, refreshKey = 0, onChanged }: { scope: CallsScope; refreshKey?: number; onChanged?: () => void }) {
   const [win, setWin] = useState<Window>("30d");
   const [q, setQ] = useState("");
   const [openLead, setOpenLead] = useState<string | null>(null);
@@ -96,13 +95,8 @@ export function CallsBoard({ refreshKey = 0, onChanged }: { refreshKey?: number;
     onChanged?.();
   };
 
-  const tab = (s: Scope, text: string) => (
-    <button className={`btn btn-sm ${scope === s ? "btn-primary" : ""}`} onClick={() => setScope(s)}>
-      {text}
-    </button>
-  );
   const chip = (w: Window, text: string) => (
-    <button className={`btn btn-sm btn-ghost ${win === w ? "!font-semibold" : "dim"}`} onClick={() => setWin(w)}>
+    <button className={`btn btn-sm ${win === w ? "" : "btn-ghost dim"}`} onClick={() => setWin(w)}>
       {text}
     </button>
   );
@@ -111,16 +105,14 @@ export function CallsBoard({ refreshKey = 0, onChanged }: { refreshKey?: number;
     <>
       <Card padded={false}>
         <div className="p-3 flex flex-wrap items-center gap-2" style={{ borderBottom: "1px solid var(--border)" }}>
-          {tab("past", "Calls passés")}
-          {tab("upcoming", "À venir")}
           {scope === "past" && (
-            <span className="flex items-center gap-0.5 ml-1">
+            <span className="flex items-center gap-1">
               {chip("7d", "7 jours")}
               {chip("30d", "30 jours")}
               {chip("all", "Tout")}
             </span>
           )}
-          <input className="input !w-[200px] !h-[30px]" placeholder="Prénom, nom, setter…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input !w-[220px] !h-[30px]" placeholder="Prénom, nom, setter, closer…" value={q} onChange={(e) => setQ(e.target.value)} />
           <span className="dim text-[11.5px] num ml-auto">
             {loading && !data ? "…" : `${rows.length} call${rows.length > 1 ? "s" : ""}`}
             {pending ? <span style={{ color: "#f97316" }}> · {pending} à statuer</span> : null}
@@ -168,7 +160,7 @@ export function CallsBoard({ refreshKey = 0, onChanged }: { refreshKey?: number;
                     <td className="max-w-[220px] truncate">
                       <Outcome r={r} />
                     </td>
-                    <td className="max-w-[360px]">
+                    <td className="max-w-[420px]">
                       <Summary r={r} />
                     </td>
                     <td className="text-right" onClick={(e) => e.stopPropagation()}>

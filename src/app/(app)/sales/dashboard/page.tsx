@@ -7,7 +7,6 @@ import { AttentionCard } from "@/components/sales/DashboardBlocks";
 import { InvestmentsCard } from "@/components/sales/InvestmentsCard";
 import { UtmLinksTable } from "@/components/sales/UtmLinksTable";
 import { SetterTasksAdminCard } from "@/components/sales/SetterTasksCard";
-import { CallsBoard } from "@/components/sales/CallsBoard";
 import type { UtmLinkRow } from "@/lib/sales/utm-links";
 import { Card, Empty, ErrorNote, Modal, PageHeader, Spinner, Tabs } from "@/components/ui";
 import { ShopifyAffiliate } from "@/components/ShopifyAffiliate";
@@ -399,8 +398,8 @@ export default function SalesDashboardPage() {
               <Tile label="Shows" value={fmt(t.shows, "int", currency)} color={t.shows ? GOOD : undefined} sub="venus au call" />
               <Tile label="No-shows" value={fmt(t.noShows, "int", currency)} color={t.noShows ? BAD : undefined} sub="pas venus" />
               <Tile label="Show rate" value={fmt(t.showRate, "pct", currency)} color={t.showRate === null ? undefined : t.showRate >= 70 ? GOOD : t.showRate >= 50 ? WARN : BAD} sub="shows / calls passés" big />
-              <Tile label="À statuer" value={fmt(t.pendingOutcome, "int", currency)} color={t.pendingOutcome ? WARN : undefined} sub="calls passés sans issue" onClick={() => window.open("/sales/rendez-vous?view=todo", "_self")} />
-              <Tile label="À venir" value={fmt(t.upcomingCalls, "int", currency)} sub="calls pas encore passés" />
+              <Tile label="À statuer" value={fmt(t.pendingOutcome, "int", currency)} color={t.pendingOutcome ? WARN : undefined} sub="calls passés sans issue · clique : onglet Calls" onClick={() => window.open("/sales/calls", "_self")} />
+              <Tile label="À venir" value={fmt(t.upcomingCalls, "int", currency)} sub="calls pas encore passés · clique : onglet Calls" onClick={() => window.open("/sales/calls", "_self")} />
             </div>
           </Section>
 
@@ -413,10 +412,6 @@ export default function SalesDashboardPage() {
               <Tile label="Reste à encaisser" value={fmt(cf.remainingTotal, "money", currency)} color={cf.remainingTotal ? WARN : undefined} sub="toutes ventes actives · clique : qui doit quoi" onClick={() => void openRemaining()} />
               <Tile label="Ventes pas soldées" value={fmt(cf.pendingSales, "int", currency)} color={cf.overdueTotal ? WARN : undefined} sub={cf.overdueTotal ? `dont ${fmtMoney(cf.overdueTotal, currency)} en retard` : "échéances à venir, à jour"} />
             </div>
-          </Section>
-
-          <Section title="Mes calls" hint="comme sur iClosed : calls passés avec présence, issue et compte-rendu, calls à venir. Clique un nom pour la fiche, « Statuer » pour poser l'issue.">
-            <CallsBoard refreshKey={tick} onChanged={() => setTick((t) => t + 1)} />
           </Section>
 
           {/* Les alertes (relances, à confirmer) viennent APRÈS les chiffres : les chiffres d'abord. */}
