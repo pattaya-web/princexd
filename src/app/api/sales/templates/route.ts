@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 /** Nouveau template. Ouvert a tout commercial : « sauvegarder comme nouveau template » depuis la liste des leads. */
 export async function POST(req: NextRequest) {
   return handle(async () => {
-    requireSales(readSession(req));
+    const session = requireSales(readSession(req));
     const b = (await req.json().catch(() => ({}))) as Partial<MessageTemplate>;
     const db = readDB();
     ensureMessageTemplates(db);
@@ -36,7 +36,10 @@ export async function POST(req: NextRequest) {
       isFavorite: Boolean(b.isFavorite),
       isActive: b.isActive !== false,
       sortOrder: db.messageTemplates.reduce((m, x) => Math.max(m, x.sortOrder), -1) + 1,
-      defaultFor: asActions(b.defaultFor),
+      defaultFor: session.isAdmin ? asActions(b.defaultFor) : [],
+      // Un script cree par un setter lui appartient : lui et l'admin le modifient.
+      ...(session.isAdmin ? {} : { ownerId: session.memberId }),
+      notes: String(b.notes ?? "").trim().slice(0, 2000),
       createdAt: now,
       updatedAt: now,
     };

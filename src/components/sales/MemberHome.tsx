@@ -3,17 +3,18 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/client";
-import { fmtDualDateTime, fmtDay, fmtInt, fmtMoney, fmtTime, relative } from "@/lib/format";
+import { fmtDateTime, fmtDualDateTime, fmtDay, fmtInt, fmtMoney, fmtTime, relative } from "@/lib/format";
 import { CallsCalendar } from "./CallsCalendar";
 import { OffersCard } from "./OffersCard";
 import { TelegramCard } from "./TelegramCard";
+import { SetterTasksMemberCard } from "./SetterTasksCard";
 import { InstallmentAlerts } from "./InstallmentAlerts";
 import { useEffect } from "react";
 import { LINK_CHANNELS, LINK_CHANNEL_LABEL, type LinkChannel, type WorkSession } from "@/lib/types";
 import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { Card, Empty, ErrorNote, Field, Modal, Spinner, useToast } from "@/components/ui";
 import { ConfirmationSelect, IgHandle, StatusBadge } from "./bits";
-import { canConfirm } from "@/lib/sales/constants";
+import { canConfirm, LOW_PRIORITY_SUFFIX } from "@/lib/sales/constants";
 import { AppointmentDetail } from "./AppointmentDetail";
 import { AppointmentModal } from "./AppointmentModal";
 import { useSales } from "./context";
@@ -21,9 +22,12 @@ import { sessionHas } from "@/lib/sales/roles";
 import type { AppointmentRow } from "@/app/api/sales/appointments/route";
 import type { ShiftRow } from "@/app/api/sales/shifts/route";
 import type { SalesKpis } from "@/lib/sales/analytics";
+import type { KpiLeadRow, KpiLeads } from "@/app/api/sales/dashboard/route";
 
 interface MemberPayload {
   kpis: SalesKpis;
+  /** Les noms derriere chaque chiffre (rendez-vous poses, closes, pitches sans vente, no-shows). */
+  kpiLeads?: KpiLeads;
   commissions: { setters: number; closers: number; due: number };
   followUps: { overdue: number; pending: number };
   installments?: { due: number; overdue: number };
@@ -45,6 +49,8 @@ export function MemberHome() {
   const toast = useToast();
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  /* Une tuile de performance cliquee : la liste des prospects derriere le chiffre. */
+  const [kpiList, setKpiList] = useState<{ title: string; rows: KpiLeadRow[] } | null>(null);
 
   /*
    * Casquette du moment.
@@ -150,6 +156,16 @@ export function MemberHome() {
   }, [shifts]);
 
   const proposed = myShifts.filter((s) => s.status === "proposed");
+
+  /*
+   * Double confirmation WhatsApp. 24 h avant : due des que le call est a
+   * moins de 36 h ; 1 h avant : due a moins de 2 h 30. Un call deja passe
+   * de plus de 30 minutes ne compte plus.
+   */
+  const dueRows = (agenda?.rows ?? []).filter((c) => canConfirm(c.status));
+  const hoursUntil = (iso: string) => (new Date(iso).getTime() - Date.now()) / 3_600_000;
+  const reminders24Due = dueRows.filter((c) => !c.reminder24At && hoursUntil(c.scheduledAt) <= 36 && hoursUntil(c.scheduledAt) > -0.5);
+  const reminders1Due = dueRows.filter((c) => !c.reminder1At && hoursUntil(c.scheduledAt) <= 2.5 && hoursUntil(c.scheduledAt) > -0.5);
 
   const respond = async (id: string, status: "accepted" | "declined") => {
     try {
@@ -293,6 +309,75 @@ export function MemberHome() {
           )}
         </div>
 
+        {/* ---------------------------- Performances -------------------------- */}
+        {/* Tout en haut : c'est ce qui motive. Chaque tuile s'ouvre sur les noms derriere le chiffre. */}
+        {k && (
+          <div>
+            <h2 className="text-[13px] font-semibold mb-2">
+              Tes performances <span className="dim font-normal">— {period.period === "all" ? "depuis le début" : "sur la période"} · clique une tuile pour voir les noms</span>
+            </h2>
+            {isSetter ? (
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                <Metric
+                  label="Rendez-vous posés"
+                  value={fmtInt(k.appointments)}
+                  sub={`${fmtInt(k.attended)} honorés`}
+                  onClick={() => setKpiList({ title: "Rendez-vous posés", rows: data?.kpiLeads?.appointments ?? [] })}
+                />
+                <Metric
+                  label="Taux de présence"
+                  value={`${k.showRate.toFixed(0)} %`}
+                  sub={`${fmtInt(k.noShows)} no-show`}
+                  tone={k.showRate >= 50 ? "var(--emerald)" : undefined}
+                  pct={k.showRate}
+                  onClick={() => setKpiList({ title: "No-shows", rows: data?.kpiLeads?.noShows ?? [] })}
+                />
+                <Metric
+                  label="Closés"
+                  value={fmtInt(data?.kpiLeads?.closed.length ?? k.sales)}
+                  sub={`${fmtMoney(k.contractValue, currency)} de contrats`}
+                  tone="var(--emerald)"
+                  onClick={() => setKpiList({ title: "Closés", rows: data?.kpiLeads?.closed ?? [] })}
+                />
+                <Metric
+                  label="Pitchés, pas closés"
+                  value={fmtInt(data?.kpiLeads?.pitched.length ?? Math.max(0, k.attended - k.sales))}
+                  sub="calls faits sans vente"
+                  onClick={() => setKpiList({ title: "Pitchés, pas closés", rows: data?.kpiLeads?.pitched ?? [] })}
+                />
+                <Metric
+                  label="Ta commission"
+                  value={fmtMoney(data.commissions.due, currency)}
+                  sub="reste à te verser"
+                  tone="var(--accent)"
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <Metric
+                  label="Calls assignés"
+                  value={fmtInt(k.appointments)}
+                  sub={`${fmtInt(k.attended)} honorés`}
+                  onClick={() => setKpiList({ title: "Calls assignés", rows: data?.kpiLeads?.appointments ?? [] })}
+                />
+                <Metric
+                  label="Taux de closing"
+                  value={`${k.closeRate.toFixed(0)} %`}
+                  sub={`${fmtInt(k.sales)} ventes`}
+                  tone={k.closeRate >= 50 ? "var(--emerald)" : undefined}
+                  pct={k.closeRate}
+                  onClick={() => setKpiList({ title: "Closés", rows: data?.kpiLeads?.closed ?? [] })}
+                />
+                <Metric label="Cash encaissé" value={fmtMoney(k.cashCollected, currency)} sub={`panier ${fmtMoney(k.avgDealSize, currency)}`} />
+                <Metric label="Ta commission" value={fmtMoney(data.commissions.due, currency)} sub="reste à te verser" tone="var(--accent)" />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ------------------------- Relances envoyees par Mady ------------------------- */}
+        {isSetter && <SetterTasksMemberCard />}
+
         {/* ------------------------- Rappels Telegram ------------------------- */}
         <TelegramCard />
 
@@ -375,40 +460,6 @@ export function MemberHome() {
           </div>
         )}
 
-        {/* ---------------------------- Performances -------------------------- */}
-        {k && (
-          <div>
-            <h2 className="text-[13px] font-semibold mb-2">
-              Tes performances <span className="dim font-normal">— {period.period === "all" ? "depuis le début" : "sur la période"}</span>
-            </h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <Metric
-                label={isSetter ? "Rendez-vous posés" : "Calls assignés"}
-                value={fmtInt(k.appointments)}
-                sub={`${fmtInt(k.attended)} honorés`}
-              />
-              <Metric
-                label={isSetter ? "Taux de présence" : "Taux de closing"}
-                value={`${(isSetter ? k.showRate : k.closeRate).toFixed(0)} %`}
-                sub={isSetter ? `${fmtInt(k.noShows)} no-show` : `${fmtInt(k.sales)} ventes`}
-                tone={(isSetter ? k.showRate : k.closeRate) >= 50 ? "var(--emerald)" : undefined}
-                pct={isSetter ? k.showRate : k.closeRate}
-              />
-              <Metric
-                label={isSetter ? "Ventes générées" : "Cash encaissé"}
-                value={isSetter ? fmtInt(k.sales) : fmtMoney(k.cashCollected, currency)}
-                sub={isSetter ? fmtMoney(k.cashCollected, currency) + " de cash" : `panier ${fmtMoney(k.avgDealSize, currency)}`}
-              />
-              <Metric
-                label="Ta commission"
-                value={fmtMoney(data.commissions.due, currency)}
-                sub="reste à te verser"
-                tone="var(--accent)"
-              />
-            </div>
-          </div>
-        )}
-
         {/* --------------------------- Ce qui t'attend ------------------------ */}
         <div className="grid lg:grid-cols-2 gap-4 items-start">
           <Card
@@ -453,6 +504,17 @@ export function MemberHome() {
                           }}
                         />
                       )}
+                      {/* Double confirmation WhatsApp : 24 h avant, puis 1 h avant. */}
+                      {canConfirm(r.status) && isSetter && (
+                        <ReminderChips
+                          row={r}
+                          onSaved={() => {
+                            void reloadUpcoming();
+                            void reloadAgenda();
+                            bump();
+                          }}
+                        />
+                      )}
                       {!isSetter && r.setterName && (
                         <span className="dim text-[11px]">par {r.setterName}</span>
                       )}
@@ -487,21 +549,22 @@ export function MemberHome() {
             }
           >
             <div className="p-4 flex flex-col gap-2.5">
+              {/* Priorite : la double confirmation WhatsApp de chaque call (24 h avant, 1 h avant). */}
               <Todo
-                done={(data?.followUps.overdue ?? 0) === 0}
-                label="Relances en retard"
-                count={data?.followUps.overdue ?? 0}
-                href="/sales/rendez-vous?view=followup"
+                done={reminders24Due.length === 0}
+                label="Confirmation WhatsApp 24 h avant à envoyer"
+                count={reminders24Due.length}
+                href="/sales/rendez-vous"
               />
               <Todo
-                done={(data?.followUps.pending ?? 0) === 0}
-                label="Relances en attente"
-                count={data?.followUps.pending ?? 0}
-                href="/sales/rendez-vous?view=followup"
+                done={reminders1Due.length === 0}
+                label="Confirmation WhatsApp 1 h avant à envoyer"
+                count={reminders1Due.length}
+                href="/sales/rendez-vous"
               />
               <Todo
                 done={proposed.length === 0}
-                label="Créneaux à confirmer"
+                label="Créneaux de travail à accepter"
                 count={proposed.length}
               />
               {!isSetter && (
@@ -511,13 +574,6 @@ export function MemberHome() {
                   count={data?.installments?.due ?? 0}
                 />
               )}
-              {/* Les rendez-vous dont le lead n'a pas confirmé sa présence : a relancer avant le call. */}
-              <Todo
-                done={nextCalls.filter((c) => canConfirm(c.status) && !c.confirmation).length === 0}
-                label={isSetter ? "Rendez-vous à confirmer avec le lead" : "Calls non confirmés par le lead"}
-                count={nextCalls.filter((c) => canConfirm(c.status) && !c.confirmation).length}
-                href="/sales/rendez-vous"
-              />
             </div>
           </Card>
         </div>
@@ -530,6 +586,15 @@ export function MemberHome() {
         onChanged={bump}
         session={session}
         members={members}
+      />
+      <KpiListModal
+        list={kpiList}
+        currency={currency}
+        onClose={() => setKpiList(null)}
+        onOpen={(id) => {
+          setKpiList(null);
+          setOpenId(id);
+        }}
       />
       <AppointmentModal
         open={adding}
@@ -620,8 +685,8 @@ function DailyTasks({ version }: { version: number }) {
   if (!tasks.length) return null;
   return (
     <Card
-      title="Ma journée"
-      subtitle={`${done.size} sur ${tasks.length} · la liste se remet à zéro chaque matin`}
+      title="Task list"
+      subtitle={`À faire chaque jour · ${done.size} sur ${tasks.length} · se remet à zéro chaque matin`}
       padded={false}
       actions={
         <div className="w-[120px]">
@@ -634,7 +699,8 @@ function DailyTasks({ version }: { version: number }) {
       <ul>
         {tasks.map((t, i) => {
           const checked = done.has(t);
-          const first = i === 0;
+          const low = t.endsWith(LOW_PRIORITY_SUFFIX);
+          const text = low ? t.slice(0, -LOW_PRIORITY_SUFFIX.length) : t;
           return (
             <li
               key={t}
@@ -648,14 +714,10 @@ function DailyTasks({ version }: { version: number }) {
                 onChange={() => void toggle(t)}
                 className="w-[18px] h-[18px] cursor-pointer"
               />
-              <span className="text-[13px] flex-1" style={checked ? { textDecoration: "line-through" } : undefined}>
-                {t}
+              <span className="text-[13px] flex-1" style={checked ? { textDecoration: "line-through" } : low ? { color: "var(--text-2)" } : undefined}>
+                {text}
               </span>
-              {first && !checked && (data?.hints.newLeads ?? 0) > 0 && (
-                <Link href="/sales/leads" className="badge badge-accent !text-[10.5px] !py-0">
-                  {data!.hints.newLeads} à appeler
-                </Link>
-              )}
+              {low && <span className="badge !text-[10px] !py-0 dim">priorité faible</span>}
             </li>
           );
         })}
@@ -884,15 +946,23 @@ function Metric({
   sub,
   tone,
   pct,
+  onClick,
 }: {
   label: string;
   value: string;
   sub?: string;
   tone?: string;
   pct?: number;
+  /** Ouvre la liste des prospects derriere le chiffre. */
+  onClick?: () => void;
 }) {
   return (
-    <div className="mh-card px-4 py-3.5">
+    <div
+      className={`mh-card px-4 py-3.5 ${onClick ? "cursor-pointer transition-opacity hover:opacity-85" : ""}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      title={onClick ? "Voir les noms" : undefined}
+    >
       <div className="label-xs">{label}</div>
       <div className="text-[24px] font-semibold num tracking-tight mt-1.5" style={tone ? { color: tone } : undefined}>
         {value}
@@ -947,5 +1017,129 @@ function Todo({
     <Link href={href} className="block hover:opacity-80 transition-opacity">
       {body}
     </Link>
+  );
+}
+
+/* ----------------------- Double confirmation WhatsApp ----------------------- */
+
+/**
+ * Deux pastilles par rendez-vous : « WA 24 h » et « WA 1 h ». Le setter clique
+ * quand il a ecrit au lead sur WhatsApp ; la pastille passe en vert avec
+ * l'heure. Orange quand c'est le moment de l'envoyer.
+ */
+function ReminderChips({ row, onSaved }: { row: AppointmentRow; onSaved: () => void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState("");
+  const hours = (new Date(row.scheduledAt).getTime() - Date.now()) / 3_600_000;
+  const chips: { key: "24h" | "1h"; label: string; at: string; due: boolean }[] = [
+    { key: "24h", label: "WA 24 h", at: row.reminder24At, due: hours <= 36 },
+    { key: "1h", label: "WA 1 h", at: row.reminder1At, due: hours <= 2.5 },
+  ];
+  const toggle = async (key: "24h" | "1h", done: boolean) => {
+    setBusy(key);
+    try {
+      await api(`/api/sales/appointments/${row.id}`, { method: "PATCH", body: JSON.stringify({ reminder: key, done }) });
+      toast(done ? `Confirmation ${key === "24h" ? "24 h" : "1 h"} avant notée.` : "Confirmation retirée.");
+      onSaved();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy("");
+    }
+  };
+  return (
+    <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      {chips.map((c) => {
+        const done = Boolean(c.at);
+        return (
+          <button
+            key={c.key}
+            type="button"
+            disabled={busy === c.key}
+            onClick={() => void toggle(c.key, !done)}
+            className="badge !text-[10.5px] !py-0 cursor-pointer"
+            title={done ? `Envoyée ${fmtDateTime(c.at)} · clic pour retirer` : c.due ? "À envoyer maintenant sur WhatsApp, puis clique" : "Pas encore le moment"}
+            style={{
+              color: done ? "var(--emerald)" : c.due ? "#f97316" : "var(--text-3)",
+              borderColor: done ? "color-mix(in srgb, var(--emerald) 40%, transparent)" : c.due ? "#f9731666" : "var(--border)",
+              background: done ? "color-mix(in srgb, var(--emerald) 10%, transparent)" : c.due ? "#f9731614" : "transparent",
+            }}
+          >
+            {done ? "✓ " : ""}
+            {c.label}
+          </button>
+        );
+      })}
+    </span>
+  );
+}
+
+/* ------------------------- Les noms derriere un chiffre ------------------------- */
+
+const KPI_STATUS: Record<string, string> = {
+  booked: "Réservé",
+  confirmed: "Confirmé",
+  rescheduled: "Reprogrammé",
+  completed: "Call fait",
+  "follow-up": "Follow-up",
+  "closed-won": "Closé",
+  "closed-lost": "Pas closé",
+  "no-show": "No-show",
+  cancelled: "Annulé",
+};
+
+function KpiListModal({ list, currency, onClose, onOpen }: { list: { title: string; rows: KpiLeadRow[] } | null; currency: string; onClose: () => void; onOpen: (appointmentId: string) => void }) {
+  const toast = useToast();
+  const copy = async (v: string) => {
+    try {
+      await navigator.clipboard.writeText(v);
+      toast("Copié.");
+    } catch {
+      toast("Copie impossible ici.", "err");
+    }
+  };
+  return (
+    <Modal open={list !== null} onClose={onClose} title={list ? `${list.title} · ${list.rows.length}` : ""} wide>
+      {!list || list.rows.length === 0 ? (
+        <Empty>Personne pour l&apos;instant sur cette période.</Empty>
+      ) : (
+        <div className="scroll-x">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Prénom / nom</th>
+                <th>Instagram</th>
+                <th>Téléphone</th>
+                <th>Email</th>
+                <th>Call</th>
+                <th>Statut</th>
+                <th className="!text-right">Montant</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.rows.map((r) => (
+                <tr key={r.appointmentId} className="cursor-pointer" onClick={() => onOpen(r.appointmentId)} title="Ouvrir le rendez-vous">
+                  <td className="font-medium text-[13px]">{r.name}</td>
+                  <td className="text-[12.5px]">{r.igUsername ? `@${r.igUsername}` : <span className="dim">—</span>}</td>
+                  <td className="num text-[12.5px] whitespace-nowrap">
+                    {r.phone ? (
+                      <button type="button" className="link" onClick={(e) => { e.stopPropagation(); void copy(r.phone); }} title="Copier le numéro">
+                        {r.phone}
+                      </button>
+                    ) : (
+                      <span className="dim">—</span>
+                    )}
+                  </td>
+                  <td className="text-[12px] dim">{r.email || "—"}</td>
+                  <td className="num text-[12px] whitespace-nowrap">{fmtDateTime(r.at)}</td>
+                  <td className="text-[12px]">{KPI_STATUS[r.status] ?? r.status}</td>
+                  <td className="num text-right text-[12.5px] font-semibold">{r.amount ? fmtMoney(r.amount, currency) : <span className="dim">—</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Modal>
   );
 }

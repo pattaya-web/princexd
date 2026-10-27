@@ -7,6 +7,7 @@ import { api } from "@/lib/client";
 import { useSalesData, useSession } from "@/lib/sales/client";
 import { Card, ErrorNote, Spinner } from "@/components/ui";
 import { SalesContext, type SalesCtx } from "@/components/sales/context";
+import { ReminderPopup } from "@/components/sales/SetterTasksCard";
 import type { PeriodState } from "@/components/sales/bits";
 import type { PublicMember } from "@/lib/sales/repo";
 import { sessionHas } from "@/lib/sales/roles";
@@ -38,9 +39,11 @@ interface Tab {
 const TABS: Tab[] = [
   { href: "/sales", label: "Mon espace", member: true },
   { href: "/sales/dashboard", label: "Pilotage", admin: true },
-  { href: "/sales/leads", label: "Leads à appeler" },
+  { href: "/sales/leads", label: "Leads" },
   { href: "/sales/rendez-vous", label: "CRM" },
   { href: "/sales/agenda", label: "Agenda", admin: true },
+  { href: "/sales/utm", label: "Liens UTM", admin: true },
+  { href: "/sales/leads/appels", label: "Leads à appeler", more: true },
   { href: "/sales/equipe", label: "Équipe", admin: true, more: true },
   { href: "/sales/pointage", label: "Shifts", admin: true, more: true },
   { href: "/sales/commissions", label: "Commissions", more: true },
@@ -102,7 +105,7 @@ function SubNav({ session }: { session: Session }) {
   return (
     <nav className="flex gap-1 p-1 rounded-[10px] mb-4 overflow-x-auto items-center" style={{ background: "var(--surface-3)" }}>
       {main.map((t) => {
-        const active = pathname === t.href || (t.href !== "/sales" && pathname.startsWith(`${t.href}/`)) || (t.href === "/sales/rendez-vous" && FOLDED.some((f) => pathname.startsWith(f)));
+        const active = pathname === t.href || (t.href !== "/sales" && pathname.startsWith(`${t.href}/`) && !TABS.some((o) => o.href !== t.href && o.href.startsWith(`${t.href}/`) && pathname.startsWith(o.href))) || (t.href === "/sales/rendez-vous" && FOLDED.some((f) => pathname.startsWith(f)));
         return (
           <Link key={t.href} href={t.href} className="px-3 h-[28px] rounded-[7px] text-[12.5px] font-medium whitespace-nowrap flex items-center transition-colors" style={tabStyle(active)}>
             {t.label}
@@ -230,6 +233,8 @@ export default function SalesLayout({ children }: { children: ReactNode }) {
       ) : (
         children
       )}
+      {/* Relances du jour du setter, en bas a droite, quelle que soit la page. */}
+      <ReminderPopup />
     </SalesContext.Provider>
   );
 }

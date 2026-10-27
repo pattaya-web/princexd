@@ -3,7 +3,9 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { api } from "@/lib/client";
 import { CHANNEL_LABEL, TEMPLATE_ACTIONS, TEMPLATE_CHANNELS } from "@/lib/sales/templates";
-import { Card, Empty, Field, Modal, PageHeader, Spinner, useToast } from "@/components/ui";
+import { Card, Empty, Field, Modal, PageHeader, Spinner, Tabs, useToast } from "@/components/ui";
+import { SettingExamples } from "@/components/sales/SettingExamples";
+import type { SettingExample } from "@/lib/types";
 import { useSales } from "@/components/sales/context";
 import type { MessageTemplate, TemplateChannel } from "@/lib/types";
 
@@ -23,9 +25,10 @@ type Draft = {
   isFavorite: boolean;
   isActive: boolean;
   defaultFor: string[];
+  notes: string;
 };
 
-const blank = (category = "AUTRE"): Draft => ({ name: "", category, content: "", channel: "whatsapp", isFavorite: false, isActive: true, defaultFor: [] });
+const blank = (category = "AUTRE"): Draft => ({ name: "", category, content: "", channel: "whatsapp", isFavorite: false, isActive: true, defaultFor: [], notes: "" });
 
 async function copyText(text: string): Promise<boolean> {
   try {
@@ -42,7 +45,7 @@ async function copyText(text: string): Promise<boolean> {
  * ordre. Les commerciaux non admin voient les messages et peuvent les copier.
  */
 export default function MessagesTemplatesPage() {
-  const { session } = useSales();
+  const { session, members } = useSales();
   const toast = useToast();
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState("");
@@ -52,7 +55,11 @@ export default function MessagesTemplatesPage() {
   const [catsBusy, setCatsBusy] = useState(false);
   const [filter, setFilter] = useState("");
   const [copiedId, setCopiedId] = useState("");
+  const [tab, setTab] = useState<"scripts" | "examples">("scripts");
   const admin = session.isAdmin;
+  /* Un setter cree ses propres scripts et ne modifie que les siens ; l'admin fait tout. */
+  const canEdit = (t: MessageTemplate) => admin || t.ownerId === session.memberId;
+  const ownerLabel = (t: MessageTemplate) => (t.ownerId ? members.find((m) => m.id === t.ownerId)?.name ?? "" : "");
 
   const load = () =>
     api<Payload>("/api/sales/templates")
@@ -118,7 +125,7 @@ export default function MessagesTemplatesPage() {
   };
 
   const save = async (d: Draft) => {
-    const body = { name: d.name, category: d.category, content: d.content, channel: d.channel, isFavorite: d.isFavorite, isActive: d.isActive, defaultFor: d.defaultFor };
+    const body = { name: d.name, category: d.category, content: d.content, channel: d.channel, isFavorite: d.isFavorite, isActive: d.isActive, defaultFor: d.defaultFor, notes: d.notes };
     try {
       if (d.id) {
         const r = await api<{ rows: MessageTemplate[] }>(`/api/sales/templates/${d.id}`, { method: "PATCH", body: JSON.stringify(body) });
@@ -149,21 +156,35 @@ export default function MessagesTemplatesPage() {
   return (
     <div style={ACCENT}>
       <PageHeader
-        title="Messages"
-        subtitle="Les messages à copier depuis la page Leads. Les favoris ⭐ y sont affichés en premier."
+        title="Messages & scripts"
+        subtitle={admin ? "Les scripts à copier. Chaque setter crée les siens, note ce qui a marché, et garde ses exemples de setting." : "Tes scripts, un par contexte (première approche, relance, envoi du lien…). Note sur chacun ce qu'il a donné : avec le temps, tu sais quelle approche pose le plus de rendez-vous."}
         actions={
-          admin ? (
-            <>
+          <>
+            <Tabs value={tab} onChange={setTab} options={[{ value: "scripts", label: "Scripts", count: data?.rows.length }, { value: "examples", label: "Exemples de setting" }]} />
+            {tab === "scripts" && admin && (
               <button className="btn" onClick={() => setCatsOpen((v) => !v)}>
                 Catégories
               </button>
+            )}
+            {tab === "scripts" && (
               <button className="btn btn-primary" onClick={() => setEditing(blank(categories[0]))}>
-                + Nouveau template
+                + Nouveau script
               </button>
-            </>
-          ) : undefined
+            )}
+          </>
         }
       />
+
+      {tab === "examples" && (
+        <SettingExamples
+          onMakeScript={(ex: SettingExample) => {
+            setTab("scripts");
+            setEditing({ ...blank("EXEMPLE"), name: ex.title.slice(0, 80), content: ex.transcript, notes: [ex.context, ex.notes].filter(Boolean).join("\n") });
+          }}
+        />
+      )}
+      {tab === "examples" ? null : (
+      <>
 
       {error && <Card className="mb-4">{error}</Card>}
 
@@ -211,7 +232,7 @@ export default function MessagesTemplatesPage() {
                   type="button"
                   className="text-[18px] leading-none mt-0.5 shrink-0"
                   title={t.isFavorite ? "Retirer des favoris" : "Mettre en favori"}
-                  disabled={!admin}
+                  disabled={!canEdit(t)}
                   onClick={() => void patch(t.id, { isFavorite: !t.isFavorite })}
                   style={{ opacity: t.isFavorite ? 1 : 0.25 }}
                 >
@@ -223,6 +244,7 @@ export default function MessagesTemplatesPage() {
                     <span className="badge !text-[10.5px] !py-0">{t.category}</span>
                     <span className="dim text-[11.5px]">{CHANNEL_LABEL[t.channel]}</span>
                     {!t.isActive && <span className="badge badge-warn !text-[10.5px] !py-0">inactif</span>}
+                    {t.ownerId && <span className="dim text-[11px]">{t.ownerId === session.memberId ? "mon script" : ownerLabel(t) ? `script de ${ownerLabel(t)}` : "script d'un setter"}</span>}
                     {t.defaultFor?.map((a) => (
                       <span key={a} className="badge badge-accent !text-[10.5px] !py-0">
                         par défaut : {TEMPLATE_ACTIONS.find((x) => x.key === a)?.label ?? a}
@@ -234,28 +256,43 @@ export default function MessagesTemplatesPage() {
               <pre className="px-5 py-3.5 text-[13.5px] leading-relaxed whitespace-pre-wrap flex-1" style={{ fontFamily: "inherit", color: "var(--text-2)" }}>
                 {t.content}
               </pre>
+              {t.notes && (
+                <div className="px-5 pb-3 text-[12px] leading-snug whitespace-pre-wrap" style={{ color: "var(--text-2)" }}>
+                  <span className="label-xs">Ce que ça a donné · </span>
+                  {t.notes}
+                </div>
+              )}
               <div className="px-5 pb-4 flex items-center gap-2 flex-wrap" style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
                 <button className={`btn btn-sm !h-[32px] ${copiedId === t.id ? "" : "btn-primary"}`} onClick={() => void copy(t)} style={copiedId === t.id ? { background: "var(--good)", borderColor: "var(--good)", color: "#fff" } : undefined}>
                   {copiedId === t.id ? "Copié ✓" : "Copier"}
                 </button>
-                {admin && (
+                {!canEdit(t) && (
+                  <button className="btn btn-sm !h-[32px]" onClick={() => void patch(t.id, { action: "duplicate" }, "Copie créée : c'est maintenant ton script.")} title="En faire ta version">
+                    Dupliquer
+                  </button>
+                )}
+                {canEdit(t) && (
                   <>
-                    <button className="btn btn-sm !h-[32px]" onClick={() => setEditing({ id: t.id, name: t.name, category: t.category, content: t.content, channel: t.channel, isFavorite: t.isFavorite, isActive: t.isActive, defaultFor: t.defaultFor ?? [] })}>
+                    <button className="btn btn-sm !h-[32px]" onClick={() => setEditing({ id: t.id, name: t.name, category: t.category, content: t.content, channel: t.channel, isFavorite: t.isFavorite, isActive: t.isActive, defaultFor: t.defaultFor ?? [], notes: t.notes ?? "" })}>
                       Modifier
                     </button>
-                    <button className="btn btn-sm !h-[32px]" onClick={() => void patch(t.id, { action: "duplicate" }, "Template dupliqué.")}>
+                    <button className="btn btn-sm !h-[32px]" onClick={() => void patch(t.id, { action: "duplicate" }, "Script dupliqué.")}>
                       Dupliquer
                     </button>
                     <button className="btn btn-sm !h-[32px]" onClick={() => void patch(t.id, { isActive: !t.isActive })}>
                       {t.isActive ? "Désactiver" : "Activer"}
                     </button>
                     <span className="inline-flex ml-auto">
-                      <button className="btn btn-ghost btn-sm !h-[32px] !px-2" title="Monter" disabled={!!filter || i === 0} onClick={() => void move(t, -1)}>
-                        ↑
-                      </button>
-                      <button className="btn btn-ghost btn-sm !h-[32px] !px-2" title="Descendre" disabled={!!filter || i === rows.length - 1} onClick={() => void move(t, 1)}>
-                        ↓
-                      </button>
+                      {admin && (
+                        <>
+                          <button className="btn btn-ghost btn-sm !h-[32px] !px-2" title="Monter" disabled={!!filter || i === 0} onClick={() => void move(t, -1)}>
+                            ↑
+                          </button>
+                          <button className="btn btn-ghost btn-sm !h-[32px] !px-2" title="Descendre" disabled={!!filter || i === rows.length - 1} onClick={() => void move(t, 1)}>
+                            ↓
+                          </button>
+                        </>
+                      )}
                       <button className="btn btn-ghost btn-sm !h-[32px]" style={{ color: "var(--critical)" }} onClick={() => void remove(t)}>
                         Supprimer
                       </button>
@@ -268,12 +305,15 @@ export default function MessagesTemplatesPage() {
         </div>
       )}
 
-      {editing && <EditorModal draft={editing} categories={categories} onClose={() => setEditing(null)} onSave={save} />}
+      </>
+      )}
+
+      {editing && <EditorModal draft={editing} categories={categories} admin={admin} onClose={() => setEditing(null)} onSave={save} />}
     </div>
   );
 }
 
-function EditorModal({ draft, categories, onClose, onSave }: { draft: Draft; categories: string[]; onClose: () => void; onSave: (d: Draft) => Promise<void> }) {
+function EditorModal({ draft, categories, admin, onClose, onSave }: { draft: Draft; categories: string[]; admin: boolean; onClose: () => void; onSave: (d: Draft) => Promise<void> }) {
   const [d, setD] = useState<Draft>(draft);
   const [busy, setBusy] = useState(false);
   const set = (patch: Partial<Draft>) => setD((x) => ({ ...x, ...patch }));
@@ -289,7 +329,7 @@ function EditorModal({ draft, categories, onClose, onSave }: { draft: Draft; cat
     <Modal
       open
       onClose={onClose}
-      title={d.id ? "Modifier le template" : "Nouveau template"}
+      title={d.id ? "Modifier le script" : "Nouveau script"}
       wide
       footer={
         <>
@@ -326,6 +366,9 @@ function EditorModal({ draft, categories, onClose, onSave }: { draft: Draft; cat
         <Field label="Message" className="sm:col-span-3" hint="Pas besoin de prénom : on copie-colle sans vérifier le nom. « {{prenom}} » et « {{nom}} » restent possibles.">
           <textarea className="textarea w-full !text-[13.5px] leading-relaxed" rows={10} value={d.content} onChange={(e) => set({ content: e.target.value })} />
         </Field>
+        <Field label="Ce que ça a donné" className="sm:col-span-3" hint="Dans quel contexte tu l'utilises, combien de réponses, combien de rendez-vous. C'est ta data : avec le temps tu sais quelle approche marche.">
+          <textarea className="textarea w-full" rows={3} value={d.notes} onChange={(e) => set({ notes: e.target.value })} placeholder="Ex : après un like sur un reel value · 10 envois → 6 réponses → 2 RDV" />
+        </Field>
         <div className="sm:col-span-3 flex items-center gap-5 flex-wrap text-[12.5px]">
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={d.isFavorite} onChange={(e) => set({ isFavorite: e.target.checked })} /> ⭐ Favori (affiché en premier sur la page Leads)
@@ -333,7 +376,7 @@ function EditorModal({ draft, categories, onClose, onSave }: { draft: Draft; cat
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={d.isActive} onChange={(e) => set({ isActive: e.target.checked })} /> Actif
           </label>
-          {TEMPLATE_ACTIONS.map((a) => (
+          {admin && TEMPLATE_ACTIONS.map((a) => (
             <label key={a.key} className="flex items-center gap-2">
               <input type="checkbox" checked={d.defaultFor.includes(a.key)} onChange={(e) => set({ defaultFor: e.target.checked ? [...d.defaultFor, a.key] : d.defaultFor.filter((x) => x !== a.key) })} /> Par défaut : {a.label}
             </label>

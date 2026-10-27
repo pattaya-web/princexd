@@ -75,6 +75,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (typeof body.confirmation === "string" && CONFIRMATIONS.includes(body.confirmation as AppointmentConfirmation)) {
       patch.confirmation = body.confirmation as AppointmentConfirmation;
     }
+    // Double confirmation WhatsApp : « j'ai écrit au lead 24 h avant » / « 1 h avant ». `done: false` l'efface.
+    if (body.reminder === "24h" || body.reminder === "1h") {
+      const at = body.done === false ? "" : new Date().toISOString();
+      if (body.reminder === "24h") patch.reminder24At = at;
+      else patch.reminder1At = at;
+    }
 
     // Pseudo Instagram du contact, saisi a la main depuis le detail du
     // rendez-vous (l'import n'en invente plus). Memes droits que la lecture.

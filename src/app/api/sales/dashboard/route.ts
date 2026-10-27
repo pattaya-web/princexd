@@ -28,6 +28,29 @@ export const dynamic = "force-dynamic";
  * que des totaux. C'est la difference entre un dashboard qui reste instantane
  * a dix mille rendez-vous et un dashboard qui telecharge la base entiere.
  */
+/** Un prospect derriere un chiffre du tableau de bord : qui, quand, ce que c'est devenu. */
+export interface KpiLeadRow {
+  appointmentId: string;
+  leadId: string;
+  name: string;
+  igUsername: string;
+  phone: string;
+  email: string;
+  at: string;
+  status: Appointment["status"];
+  amount: number;
+}
+
+export interface KpiLeads {
+  appointments: KpiLeadRow[];
+  attended: KpiLeadRow[];
+  noShows: KpiLeadRow[];
+  /** Calls honores qui ont donne une vente. */
+  closed: KpiLeadRow[];
+  /** Calls honores sans vente (pitches, pas closes). */
+  pitched: KpiLeadRow[];
+}
+
 export async function GET(req: NextRequest) {
   return handle(() => {
     const session = requireSales(readSession(req));
@@ -73,6 +96,29 @@ export async function GET(req: NextRequest) {
 
     const kpis = computeKpis(appointments, sales, range, pendingFollowUps.length);
 
+    /*
+     * Derriere chaque chiffre, des noms : le setter veut la liste des
+     * prospects qu'il a amenes, de ceux qui ont ete closes et de ceux qui
+     * ont ete pitches sans acheter. Meme perimetre que les KPI.
+     */
+    const leadsById = new Map(db.leads.map((l) => [l.id, l]));
+    const salesByAppt = new Map<string, Sale>();
+    for (const sl of sales) if (sl.status !== "cancelled" && sl.appointmentId) salesByAppt.set(sl.appointmentId, sl);
+    const toRow = (a: Appointment): KpiLeadRow => {
+      const lead = leadsById.get(a.leadId);
+      const sale = salesByAppt.get(a.id);
+      return { appointmentId: a.id, leadId: a.leadId, name: lead?.name || "—", igUsername: lead?.igUsername ?? "", phone: lead?.phone ?? "", email: lead?.email ?? "", at: a.scheduledAt, status: a.status, amount: sale ? sale.contractValue : 0 };
+    };
+    const liveInRange = appointments.filter((a) => inRange(a.scheduledAt, range) && !isDead(a.status)).sort((x, y) => y.scheduledAt.localeCompare(x.scheduledAt));
+    const attendedRows = liveInRange.filter((a) => isAttended(a.status));
+    const kpiLeads: KpiLeads = {
+      appointments: liveInRange.map(toRow),
+      attended: attendedRows.map(toRow),
+      noShows: liveInRange.filter((a) => a.status === "no-show").map(toRow),
+      closed: attendedRows.filter((a) => a.status === "closed-won" || salesByAppt.has(a.id)).map(toRow),
+      pitched: attendedRows.filter((a) => a.status !== "closed-won" && !salesByAppt.has(a.id)).map(toRow),
+    };
+
     // Meme calcul sur la fenetre precedente : c'est ce qui donne les « +12 % ».
     const prevRange = previousRange(range);
     const previous = prevRange ? computeKpis(appointments, sales, prevRange, 0) : null;
@@ -116,6 +162,7 @@ export async function GET(req: NextRequest) {
       range,
       currency,
       kpis,
+      kpiLeads,
       funnel,
       setters: session.isAdmin ? setterLeaderboard(db.team, db.appointments, db.sales, range) : [],
       closers: session.isAdmin ? closerLeaderboard(db.team, db.appointments, db.sales, range) : [],

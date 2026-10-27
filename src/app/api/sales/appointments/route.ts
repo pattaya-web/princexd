@@ -64,6 +64,9 @@ export interface AppointmentRow {
   status: AppointmentStatus;
   /** Confirmation par le setter : "" tant qu'il n'a pas eu le lead. */
   confirmation: AppointmentConfirmation;
+  /** Confirmations WhatsApp envoyees par le setter : 24 h avant, 1 h avant. */
+  reminder24At: string;
+  reminder1At: string;
   source: AppointmentSource;
   qualified: boolean;
   setterId: string;
@@ -206,6 +209,8 @@ export async function GET(req: NextRequest) {
         timezone: a.timezone,
         status: a.status,
         confirmation: a.confirmation ?? "",
+        reminder24At: a.reminder24At ?? "",
+        reminder1At: a.reminder1At ?? "",
         source: a.source,
         qualified: a.qualified,
         setterId: a.setterId,

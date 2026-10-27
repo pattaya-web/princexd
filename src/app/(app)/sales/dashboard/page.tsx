@@ -5,6 +5,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { SourceChip } from "@/components/sales/AttributionBlock";
 import { AttentionCard } from "@/components/sales/DashboardBlocks";
 import { InvestmentsCard } from "@/components/sales/InvestmentsCard";
+import { UtmLinksTable } from "@/components/sales/UtmLinksTable";
+import { SetterTasksAdminCard } from "@/components/sales/SetterTasksCard";
+import type { UtmLinkRow } from "@/lib/sales/utm-links";
 import { Card, Empty, ErrorNote, Modal, PageHeader, Spinner, Tabs } from "@/components/ui";
 import { ShopifyAffiliate } from "@/components/ShopifyAffiliate";
 import { api, useLocalState } from "@/lib/client";
@@ -138,6 +141,11 @@ export default function SalesDashboardPage() {
   /* « Compter depuis le » : la date de depart des chiffres, un reglage global. */
   const [since, setSince] = useState("");
   const [tick, setTick] = useState(0);
+  /* Liens UTM : quel lien (video, post, story) a amene quels leads, et ce qu'ils sont devenus. */
+  const [utm, setUtm] = useState<UtmLinkRow[] | null>(null);
+  useEffect(() => {
+    api<{ rows: UtmLinkRow[] }>("/api/sales/utm").then((r) => setUtm(r.rows)).catch(() => setUtm([]));
+  }, [tick]);
   const saveSince = async (v: string) => {
     setSince(v);
     if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
@@ -448,6 +456,10 @@ export default function SalesDashboardPage() {
             </div>
           </Section>
 
+          <Section title="Mes setters" hint="une relance que tu envoies atterrit sur son accueil, avec le contexte">
+            <SetterTasksAdminCard />
+          </Section>
+
           <Section title="Investissements business" hint="hors publicité : accompagnements, contenu, outils">
             <InvestmentsCard currency={currency} />
           </Section>
@@ -537,6 +549,17 @@ export default function SalesDashboardPage() {
                 </>
               )}
             </Card>
+          </Section>
+          <Section
+            title="Mes liens UTM"
+            hint="quel lien a amené combien de leads, quel jour, et ce qu'ils sont devenus"
+            right={
+              <Link href="/sales/utm" className="btn btn-sm">
+                Créer / gérer les liens
+              </Link>
+            }
+          >
+            {utm === null ? <Spinner label="Liens…" /> : <UtmLinksTable rows={utm} currency={currency} />}
           </Section>
           {report.hasMock && <div className="dim text-[11px]">Les chiffres incluent les leads de démonstration du compte Meta simulé ; ils disparaîtront avec le vrai compte.</div>}
         </>

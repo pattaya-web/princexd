@@ -466,7 +466,7 @@ export function patchAppointment(
   patch: Partial<
     Pick<
       Appointment,
-      "closerId" | "setterNotes" | "qualified" | "scheduledAt" | "timezone" | "source" | "iclosedUrl" | "status" | "confirmation"
+      "closerId" | "setterNotes" | "qualified" | "scheduledAt" | "timezone" | "source" | "iclosedUrl" | "status" | "confirmation" | "reminder24At" | "reminder1At"
     >
   > & { setterId?: string },
 ) {

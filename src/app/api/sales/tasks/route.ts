@@ -4,6 +4,7 @@ import { Forbidden, readSession, requireAdmin, requireSales } from "@/lib/sales/
 import { handle } from "@/lib/sales/http";
 import { memberRoles } from "@/lib/sales/roles";
 import { parisDay } from "@/lib/format";
+import { LOW_PRIORITY_SUFFIX } from "@/lib/sales/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -14,17 +15,25 @@ export const dynamic = "force-dynamic";
  * Paris). Le membre coche ses cases sur son accueil ; l'admin voit qui a
  * fait quoi dans « Shifts equipe » et modifie la liste.
  */
+/**
+ * Task list du 2026-10-27 : trois gestes quotidiens, rien d'autre. Une tache
+ * qui se termine par « · priorité faible » s'affiche avec ce badge. Les
+ * appels de la landing page reviendront quand Mady sera dessus.
+ */
+
 const DEFAULT_TASKS = [
-  "Appeler tous les nouveaux leads de la landing page (« À appeler », lignes grises)",
-  "Relancer les leads jaunes (ne répond pas, message envoyé)",
-  "Relancer sur Instagram tous ceux qui n'ont pas répondu en DM",
-  "Parcourir la liste d'abonnés et écrire à ceux jamais relancés",
-  "Envoyer un DM aux personnes qui ont liké les reels, surtout les reels value",
-  "Envoyer le lien du calendrier (mon lien signé) à chaque prospect chaud",
+  "Envoyer un DM aux personnes qui ont liké les reels (surtout les reels value)",
+  "Envoyer mon lien de calendrier signé à chaque prospect chaud",
+  "Relancer sur Instagram tous ceux qui n'ont pas répondu en DM" + LOW_PRIORITY_SUFFIX,
 ];
 
 function taskList(): string[] {
   const s = getSettings();
+  // Bascule unique : l'ancienne liste (appels de la LP, abonnes…) laisse la place aux trois taches par defaut.
+  if (!s.salesDailyTasksV2At) {
+    saveSettings({ salesDailyTasks: [], salesDailyTasksV2At: new Date().toISOString() });
+    return DEFAULT_TASKS;
+  }
   const custom = (s.salesDailyTasks ?? []).map((t) => t.trim()).filter(Boolean);
   return custom.length ? custom : DEFAULT_TASKS;
 }

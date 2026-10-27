@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
-import { fmtDateTime, relative } from "@/lib/format";
+import { fmtDateTime, fmtMoney, relative } from "@/lib/format";
 import { Empty, Field, Modal, Spinner, useToast } from "@/components/ui";
 import { StatusBadge } from "./bits";
 import { AttributionBlock } from "./AttributionBlock";
 import { OutcomePanel, type SaleWithPayment } from "./OutcomePanel";
+import { SendToSetterModal } from "./SetterTasksCard";
 import type { ActivityLog, Lead } from "@/lib/types";
 import type { AppointmentStatus } from "@/lib/types";
 import type { LeadMeta } from "@/app/api/sales/leads/[id]/route";
@@ -81,6 +82,8 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
   const [note, setNote] = useState("");
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  /* Admin : envoyer cette fiche a un setter comme relance (« rappelle-le tel jour, voila le contexte »). */
+  const [sendOpen, setSendOpen] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -137,6 +140,11 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
 
   const l = data?.lead;
 
+  /* Le rendez-vous qui compte : le plus recent non annule. */
+  const SHOWED = ["completed", "follow-up", "closed-won", "closed-lost"];
+  const mainAppt = (data?.appointments ?? []).filter((a) => a.status !== "cancelled").sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))[0] ?? null;
+  const presence: "show" | "no-show" | "upcoming" | "pending" | null = !mainAppt ? null : SHOWED.includes(mainAppt.status) ? "show" : mainAppt.status === "no-show" ? "no-show" : new Date(mainAppt.scheduledAt).getTime() > Date.now() ? "upcoming" : "pending";
+
   /* Doublon, test, erreur : tout part (rendez-vous, vente, relances). On dit ce qui part avant. */
   const remove = async () => {
     if (!id || !data) return;
@@ -175,6 +183,11 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
               Supprimer
             </button>
           )}
+          {data?.canDelete && l && (
+            <button className="btn" onClick={() => setSendOpen(true)} title="Envoyer cette fiche à un setter : à rappeler ou à écrire tel jour, avec le contexte">
+              → Envoyer à un setter
+            </button>
+          )}
           <button className="btn" onClick={onClose}>
             Fermer
           </button>
@@ -184,11 +197,13 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
         </>
       }
     >
+      {l && <SendToSetterModal open={sendOpen} prefill={{ leadId: l.id, name: l.name, phone: l.phone ?? "", igUsername: l.igUsername ?? "" }} onClose={() => setSendOpen(false)} onSent={onChanged} />}
       {loading && !data ? (
         <Spinner label="Chargement de la fiche…" />
       ) : !l ? null : (
         <div className="grid lg:grid-cols-5 gap-5">
-          {/* ------------------------- Identite ------------------------- */}
+          {/* ------------------------- En un coup d'oeil ------------------------- */}
+          {/* Quatre lignes, pas plus : inscrit quand, call quand, venu ou pas, close ou pas. Le reste se deplie. */}
           <div className="lg:col-span-2 flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
               {l.phone ? (
@@ -204,61 +219,116 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
                 </a>
               )}
             </div>
-            <dl className="text-[12.5px] grid grid-cols-[110px_1fr] gap-y-1.5 gap-x-3">
-              <dt className="dim">Statut</dt>
-              <dd>
-                {l.callStatus ? STATUS[l.callStatus] : "Non statué"}
-                {l.callStatus === "callback" && l.callbackAt ? ` · le ${fmtDateTime(l.callbackAt)}` : ""}
-                {l.callStatus === "no-answer" && (l.callAttempts ?? 0) > 1 ? ` (${l.callAttempts} essais)` : ""}
-              </dd>
-              <dt className="dim">Dernier appel</dt>
-              <dd>{l.lastCallAt ? `${fmtDateTime(l.lastCallAt)} (${relative(l.lastCallAt)})` : "jamais"}</dd>
-              <dt className="dim">Inscrit</dt>
-              <dd>{l.optInAt ? `${fmtDateTime(l.optInAt)} (${relative(l.optInAt)})` : fmtDateTime(l.createdAt)}</dd>
-              {l.country && (
-                <>
-                  <dt className="dim">Pays</dt>
-                  <dd>{l.country}</dd>
-                </>
-              )}
-              <dt className="dim">Setter</dt>
-              <dd>{data?.setterName || <span style={{ color: "var(--warning)" }}>à attribuer</span>}</dd>
-              <dt className="dim">Instagram</dt>
-              <dd className="flex items-center gap-2">
-                {l.igUsername ? `@${l.igUsername.replace(/^@+/, "")}` : <span className="dim">non renseigné</span>}
-                <button type="button" className="link text-[11.5px]" onClick={() => void editHandle()} title="Saisir ou corriger le pseudo Instagram">
-                  ✎ {l.igUsername ? "modifier" : "saisir"}
-                </button>
-              </dd>
-              {l.sourceUrl && (
-                <>
-                  <dt className="dim">Page d&apos;origine</dt>
-                  <dd className="truncate" title={l.sourceUrl}>
-                    {l.sourceUrl.replace(/^https?:\/\//, "")}
-                  </dd>
-                </>
-              )}
-            </dl>
 
-            {/* D'ou vient ce lead : first touch, jamais ecrase par un DM ulterieur. */}
-            <AttributionBlock
-              lead={l}
-              meta={data?.meta ?? null}
-              booking={data?.appointments[0] ? { provider: data.appointments[0].iclosedEventId ? "iClosed" : "CRM", createdAt: data.appointments[0].createdAt, scheduledAt: data.appointments[0].scheduledAt, status: data.appointments[0].status, calendar: data.appointments[0].calendar } : null}
-              isAdmin
-              onChanged={(lead) => {
-                setData((d) => (d ? { ...d, lead } : d));
-                onChanged();
-              }}
-            />
+            <div className="card-flat px-3.5 py-3">
+              <dl className="text-[13px] grid grid-cols-[92px_1fr] gap-y-2 gap-x-3 items-baseline">
+                <dt className="dim">Inscrit</dt>
+                <dd className="num">{l.optInAt ? fmtDateTime(l.optInAt) : fmtDateTime(l.createdAt)}{!l.optInAt && !l.systemeioId ? <span className="dim text-[11px]"> · entré par {l.source === "iclosed" || mainAppt?.iclosedEventId ? "iClosed" : "le CRM"}</span> : null}</dd>
+                <dt className="dim">Call</dt>
+                <dd className="flex items-center gap-2 flex-wrap">
+                  {mainAppt ? (
+                    <>
+                      <span className="num">{fmtDateTime(mainAppt.scheduledAt)}</span>
+                      <StatusBadge status={mainAppt.status} />
+                    </>
+                  ) : (
+                    <span className="dim">pas de rendez-vous</span>
+                  )}
+                </dd>
+                <dt className="dim">Présence</dt>
+                <dd>
+                  {presence === "show" ? (
+                    <span className="font-semibold" style={{ color: "#a855f7" }}>Venu au call</span>
+                  ) : presence === "no-show" ? (
+                    <span className="font-semibold" style={{ color: "var(--critical)" }}>No-show</span>
+                  ) : presence === "upcoming" ? (
+                    <span style={{ color: "var(--accent)" }}>À venir{mainAppt?.confirmation === "confirmed" ? " · confirmé" : ""}</span>
+                  ) : presence === "pending" ? (
+                    <span style={{ color: "var(--warning)" }}>Call passé · à statuer</span>
+                  ) : (
+                    <span className="dim">—</span>
+                  )}
+                </dd>
+                <dt className="dim">Vente</dt>
+                <dd>
+                  {data?.sale ? (
+                    <span className="font-semibold" style={{ color: "var(--good)" }}>
+                      Closé · {fmtMoney(data.sale.contractValue, data.sale.currency)}
+                    </span>
+                  ) : mainAppt?.status === "closed-lost" ? (
+                    <span style={{ color: "var(--critical)" }}>Pitché, pas closé</span>
+                  ) : presence === "show" ? (
+                    <span className="dim">pas closé (pour l&apos;instant)</span>
+                  ) : data?.cancelledSale ? (
+                    <span style={{ color: "var(--critical)" }}>Vente annulée · non payée</span>
+                  ) : (
+                    <span className="dim">—</span>
+                  )}
+                </dd>
+                <dt className="dim">Setter</dt>
+                <dd>{data?.setterName || <span style={{ color: "var(--warning)" }}>à attribuer</span>}</dd>
+              </dl>
+            </div>
 
-            {/* Rendez-vous de ce contact, passes et a venir. */}
-            <div>
-              <div className="label-xs mb-1.5">Rendez-vous</div>
+            {/* ------------------------- Details, replies ------------------------- */}
+            <details className="card-flat px-3.5 py-2.5 group">
+              <summary className="cursor-pointer text-[12.5px] font-semibold select-none">
+                Contact &amp; provenance <span className="dim font-normal">· statut d&apos;appel, Instagram, source d&apos;acquisition</span>
+              </summary>
+              <dl className="text-[12.5px] grid grid-cols-[110px_1fr] gap-y-1.5 gap-x-3 mt-3">
+                <dt className="dim">Statut d&apos;appel</dt>
+                <dd>
+                  {l.callStatus ? STATUS[l.callStatus] : "Non statué"}
+                  {l.callStatus === "callback" && l.callbackAt ? ` · le ${fmtDateTime(l.callbackAt)}` : ""}
+                  {l.callStatus === "no-answer" && (l.callAttempts ?? 0) > 1 ? ` (${l.callAttempts} essais)` : ""}
+                </dd>
+                <dt className="dim">Dernier appel</dt>
+                <dd>{l.lastCallAt ? `${fmtDateTime(l.lastCallAt)} (${relative(l.lastCallAt)})` : "jamais"}</dd>
+                {l.country && (
+                  <>
+                    <dt className="dim">Pays</dt>
+                    <dd>{l.country}</dd>
+                  </>
+                )}
+                <dt className="dim">Instagram</dt>
+                <dd className="flex items-center gap-2">
+                  {l.igUsername ? `@${l.igUsername.replace(/^@+/, "")}` : <span className="dim">non renseigné</span>}
+                  <button type="button" className="link text-[11.5px]" onClick={() => void editHandle()} title="Saisir ou corriger le pseudo Instagram">
+                    ✎ {l.igUsername ? "modifier" : "saisir"}
+                  </button>
+                </dd>
+                {l.sourceUrl && (
+                  <>
+                    <dt className="dim">Page d&apos;origine</dt>
+                    <dd className="truncate" title={l.sourceUrl}>
+                      {l.sourceUrl.replace(/^https?:\/\//, "")}
+                    </dd>
+                  </>
+                )}
+              </dl>
+              <div className="mt-3">
+                {/* D'ou vient ce lead : first touch, jamais ecrase par un DM ulterieur. */}
+                <AttributionBlock
+                  lead={l}
+                  meta={data?.meta ?? null}
+                  booking={data?.appointments[0] ? { provider: data.appointments[0].iclosedEventId ? "iClosed" : "CRM", createdAt: data.appointments[0].createdAt, scheduledAt: data.appointments[0].scheduledAt, status: data.appointments[0].status, calendar: data.appointments[0].calendar } : null}
+                  isAdmin
+                  onChanged={(lead) => {
+                    setData((d) => (d ? { ...d, lead } : d));
+                    onChanged();
+                  }}
+                />
+              </div>
+            </details>
+
+            <details className="card-flat px-3.5 py-2.5" open={(data?.appointments.length ?? 0) > 1}>
+              <summary className="cursor-pointer text-[12.5px] font-semibold select-none">
+                Rendez-vous <span className="dim font-normal">· {data?.appointments.length ?? 0}</span>
+              </summary>
               {!data?.appointments.length ? (
-                <div className="dim text-[12px]">Aucun rendez-vous posé.</div>
+                <div className="dim text-[12px] mt-2">Aucun rendez-vous posé.</div>
               ) : (
-                <ul className="flex flex-col gap-1">
+                <ul className="flex flex-col gap-1 mt-2">
                   {data.appointments.map((a) => (
                     <li key={a.id} className="flex items-center gap-2 text-[12.5px] flex-wrap">
                       <span className="num">{fmtDateTime(a.scheduledAt)}</span>
@@ -294,7 +364,7 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
                   ))}
                 </ul>
               )}
-            </div>
+            </details>
           </div>
 
           {/* --------------------------- Notes --------------------------- */}

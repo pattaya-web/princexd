@@ -157,74 +157,58 @@ export default function GuidePage() {
         {/* -------------------------------- Setter -------------------------------- */}
         {tab === "setter" && (
           <>
-            <Card title="Ma journée de setter" subtitle="Dans l'ordre, tous les jours.">
+            <Card title="Ma journée de setter" subtitle="Ce que je fais chaque jour, au cas où j'oublie. Dans l'ordre.">
               <div className="flex flex-col">
                 <Step n={1} title="Je pointe" where="Accueil, bouton « ▶ Démarrer ma session »" href="/sales">
                   En arrivant je démarre ma session, en partant je clique « ■ Terminer ». Mes heures sont comptées.
                 </Step>
                 <Arrow />
-                <Step n={2} title="Je coche ma liste du jour" where="Accueil, bloc « Ma journée »" href="/sales">
-                  Les tâches à faire chaque jour : appeler les nouveaux leads, relancer, DM les gens qui ont liké… Je coche au fur
-                  et à mesure. La liste se remet à zéro chaque matin.
+                <Step n={2} title="Je réponds aux DM le plus vite possible, et je les traite tous" where="Instagram">
+                  Aucun DM sans réponse. Je qualifie bien chaque personne : où elle en est, ce qu&apos;elle veut, si elle a le budget et
+                  l&apos;envie de passer à l&apos;action maintenant. Un prospect chaud reçoit <strong>mon lien de calendrier signé</strong>,
+                  pas un autre : il porte mon nom, le rendez-vous m&apos;est attribué quand il réserve.
                 </Step>
                 <Arrow />
-                <Step n={3} title="J'appelle les leads froids" where="Onglet « À appeler »" href="/sales/leads">
-                  Ce sont les gens qui viennent de laisser leur numéro sur la landing page. Les plus récents en haut : j&apos;appelle
-                  dans les 5 minutes, c&apos;est là que ça décroche. Le numéro est cliquable. La liste est la même pour tous les
-                  setters : <strong>le premier qui appelle un contact le garde</strong>, il disparaît de la liste des autres, et c&apos;est
-                  lui qui pose le rendez-vous. <strong>Mais il ne le garde que s&apos;il le travaille</strong> : une conversation sans la
-                  moindre action de ma part pendant 1 heure revient dans la liste des autres setters, dans « À reprendre », et le premier
-                  qui la reprend en devient le setter.
+                <Step n={3} title="Je vais chercher ceux qui ont liké les reels value" where="Instagram, les likes des reels où Mady parle technique">
+                  Les gens qui likent les reels value (les plus techniques) sont déjà un cran plus avancés et plus chauds : j&apos;ouvre la
+                  discussion avec eux en priorité.
                 </Step>
                 <Arrow />
-                <Step n={4} title="Je statue chaque appel" where="Le menu sur la ligne du contact">
-                  Après chaque appel je choisis dans le menu : <strong>Ne répond pas</strong>, <strong>Message envoyé</strong>,{" "}
-                  <strong>À rappeler plus tard</strong> (je mets la date et l&apos;heure), <strong>Joint</strong>,{" "}
-                  <strong>Pas intéressé</strong>, <strong>Faux numéro</strong>. La ligne prend la couleur de l&apos;état, et la liste se réordonne toute seule.
+                <Step n={4} title="Je confirme chaque call deux fois sur WhatsApp" where="Accueil, « Tes prochains rendez-vous », pastilles « WA 24 h » et « WA 1 h »" href="/sales">
+                  <strong>24 h avant</strong> le call, j&apos;écris au prospect sur WhatsApp et je clique « WA 24 h ». <strong>1 h avant</strong>,
+                  je lui réécris et je clique « WA 1 h ». Deux pastilles vertes = rendez-vous confirmé. Le bloc « Ce qui demande une action »
+                  me dit lesquelles sont à envoyer maintenant.
                 </Step>
                 <Arrow />
-                <Step n={5} title="Je pose le rendez-vous" where="Bouton « ✓ RDV » sur la ligne, ou « Rendez-vous posé… » dans le menu">
-                  Le prospect est chaud : je choisis la date et l&apos;heure du call de vente, en heure de Paris. Le contact quitte
-                  « À appeler » et apparaît dans Rendez-vous et sur l&apos;Agenda, où le closer le prend.
+                <Step n={5} title="Je coche ma task list" where="Accueil, bloc « Task list »" href="/sales">
+                  Les trois gestes du jour, cochés au fur et à mesure. La liste se remet à zéro chaque matin.
                 </Step>
                 <Arrow />
-                <Step n={6} title="Sur Instagram, j'envoie MON lien" where="Le lien que l'admin m'a donné (Comptes → Lien de réservation par setter)">
-                  Quand je discute en DM et que la personne veut un call, je lui envoie mon lien de calendrier, pas un autre. Il porte
-                  mon nom : quand elle réserve, le rendez-vous m&apos;est attribué automatiquement.
+                <Step n={6} title="Si j'ai envoyé mon lien à quelqu'un, je peux le noter" where="Accueil, bloc « Liens envoyés », bouton « + J'ai envoyé le lien »" href="/sales">
+                  Pense-bête : à qui, comment, pourquoi. Quand la réservation arrive, la ligne passe « a réservé », puis suit le call.
                 </Step>
                 <Arrow />
-                <Step n={7} title="Si j'ai envoyé un autre lien, je déclare" where="Accueil, bloc « Prospects à qui j'ai envoyé le calendrier », bouton « + J'ai envoyé le lien »" href="/sales">
-                  Je note le pseudo Instagram, le nom, et si je les ai, le téléphone ou l&apos;email. Quand la réservation arrive, le tool
-                  la reconnaît et me l&apos;attribue.
+                <Step n={7} title="Je garde mes scripts qui marchent" where="Onglet « Messages types »" href="/sales/messages">
+                  Je crée mes propres scripts, un par contexte (première approche, relance, envoi du lien…), et je note ce qui a le mieux
+                  posé des rendez-vous. Avec le temps, je sais quelle approche marche.
                 </Step>
                 <Arrow />
-                <Step n={8} title="J'écris ce que je sais" where="Clic sur le nom d'un contact → sa fiche">
-                  Ce qu&apos;il cherche, son budget, son objection. Le closer lira ça avant de décrocher. Je peux aussi y voir son
-                  historique et ses rendez-vous.
+                <Step n={8} title="Je regarde mes performances" where="Accueil, tout en haut" href="/sales">
+                  Rendez-vous posés, taux de présence, closés, pitchés pas closés, ma commission. Chaque tuile s&apos;ouvre sur les noms.
+                  C&apos;est Mady (le closer) qui statue chaque call : le résultat remonte tout seul sur mes rendez-vous.
                 </Step>
               </div>
             </Card>
 
-            <Card title="Le code couleur de « À appeler »">
-              <div className="grid sm:grid-cols-2 gap-2 text-[13px]">
-                {[
-                  [COLOR.new, "Gris", "nouveau, jamais appelé. À appeler maintenant."],
-                  [COLOR.yellow, "Jaune", "ne répond pas ou message laissé. À relancer."],
-                  [COLOR.blue, "Bleu", "veut être rappelé à une heure précise. Remonte en haut quand l'heure est passée."],
-                  [COLOR.violet, "Violet", "joint au téléphone, il manque la date du rendez-vous."],
-                  [COLOR.green, "Vert", "rendez-vous posé. Il part dans Rendez-vous et l'Agenda."],
-                  [COLOR.red, "Rouge", "pas intéressé, pas d'argent, ou faux numéro. Reste 30 jours en bas, remettable s'il revient."],
-                ].map(([c, name, text]) => (
-                  <div key={name} className="flex items-start gap-2">
-                    <span className="mt-1">
-                      <Dot color={c} />
-                    </span>
-                    <span>
-                      <strong>{name}</strong> : {text}
-                    </span>
-                  </div>
-                ))}
-              </div>
+            <Card title="Les règles qui comptent">
+              <ul className="text-[13px] leading-relaxed flex flex-col gap-1.5 list-disc pl-5">
+                <li>
+                  <strong>Seules les réservations faites par mon lien signé</strong> (ou par un prospect à qui j&apos;ai déclaré l&apos;avoir envoyé)
+                  sont à moi. Elles arrivent sur mon agenda et comptent dans mes chiffres et ma commission.
+                </li>
+                <li>Double confirmation WhatsApp sur chaque call : 24 h avant, 1 h avant. C&apos;est le geste anti no-show.</li>
+                <li>Le résultat d&apos;un call (venu, no-show, closé, pas closé) est posé par le closer ; je le vois sur ma fiche et mes tuiles.</li>
+              </ul>
             </Card>
           </>
         )}

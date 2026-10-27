@@ -138,6 +138,35 @@ export async function fetchCalls(
   return out;
 }
 
+/** Contact iClosed : toute personne qui a rempli (meme en partie) le formulaire du calendrier. */
+export interface IclosedContact {
+  id: number;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  phoneNumber: string | null;
+  createdAt: string;
+  /** POTENTIAL, QUALIFIED, DISQUALIFIED, STRATEGY_CALL_BOOKED (verifie le 2026-10-27). */
+  status: string;
+  country: string | null;
+  timeZone?: string;
+  leadScore?: number | null;
+  ContactEvents?: { id: number; name: string }[];
+  user?: IclosedUser;
+}
+
+/** Les contacts, les plus recents d'abord (page 0 = les derniers). */
+export async function fetchContacts(maxPages = 3, perPage = 100): Promise<IclosedContact[]> {
+  const out: IclosedContact[] = [];
+  for (let page = 0; page < maxPages; page++) {
+    const res = await call<{ data: { contacts: IclosedContact[]; count: number } }>(`/v1/contacts?limit=${perPage}&page=${page}`);
+    const batch = res.data?.contacts ?? [];
+    out.push(...batch);
+    if (batch.length < perPage || out.length >= (res.data?.count ?? 0)) break;
+  }
+  return out;
+}
+
 export async function fetchDeals() {
   const res = await call<{ data: { deals: Record<string, unknown>[]; count: number } }>(
     "/v1/deals?limit=100",

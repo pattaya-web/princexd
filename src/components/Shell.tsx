@@ -715,7 +715,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("formation:gate", load);
   }, [isStudent]);
   const nav = isSalesOnly
-    ? NAV.filter((g) => g.section === "Sales")
+    ? NAV.filter((g) => g.section === "Sales").map((g) => ({ ...g, items: g.items.filter((i) => i.href !== "/va/outreach") }))
     : isVa
       ? [{ section: "Outreach", items: [{ href: "/va/outreach", label: "Instagram Outreach", icon: "✉" }] }]
       : isStudent

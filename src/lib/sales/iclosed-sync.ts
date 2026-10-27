@@ -57,7 +57,12 @@ const digits = (s: string) => s.replace(/\D/g, "");
  * la reservation. C'est l'attribution la plus sure : rien a declarer.
  */
 function setterFromUtm(db: DB, call: IclosedCall): string {
-  const values = (call.utm ?? []).map((u) => norm(u.utmValue ?? "")).filter(Boolean);
+  return setterFromUtmValues(db, (call.utm ?? []).map((u) => u.utmValue ?? ""));
+}
+
+/** Meme regle, a partir des valeurs utm deja normalisees d'un rendez-vous en base (`Appointment.utm`). */
+export function setterFromUtmValues(db: DB, raw: string[]): string {
+  const values = raw.map((v) => norm(v)).filter(Boolean);
   if (!values.length) return "";
   const firstName = (name: string) => (name.trim().toLowerCase().split(/\s+/)[0] ?? "").replace(/[^a-z0-9]/g, "");
   for (const m of db.team) {
@@ -100,13 +105,56 @@ function matchLead(db: DB, call: IclosedCall): DB["leads"][number] | undefined {
   return undefined;
 }
 
-function pickSetter(db: DB): string {
-  const s = db.settings;
-  const ok = (id?: string) => Boolean(id) && db.team.some((m) => m.id === id && active(m));
-  if (ok(s.salesDefaultSetterId)) return s.salesDefaultSetterId;
-  const me = db.team.find((m) => m.id === s.salesOwnerMemberId);
-  if (me && active(me) && memberRoles(me).includes("setter")) return me.id;
-  return db.team.find((m) => active(m) && memberRoles(m).includes("setter"))?.id ?? "";
+/**
+ * Setter d'un call iClosed sans signature dans le lien.
+ *
+ * Regle du 2026-10-27 : un setter ne recoit QUE les reservations faites par
+ * son lien signe (`utm_source=setter&utm_content=<lui>`), ou par un lead a
+ * qui il a declare avoir envoye son lien. Tout le reste va au compte du
+ * proprietaire (Mady) s'il est setter, sinon reste sans setter. Le « setter
+ * par defaut » des reglages ne sert plus a la synchro : il mettait sur
+ * l'agenda du setter des calls qu'il n'avait pas apportes.
+ */
+function ownerSetter(db: DB): string {
+  const me = db.team.find((m) => m.id === db.settings.salesOwnerMemberId);
+  return me && active(me) && memberRoles(me).includes("setter") ? me.id : "";
+}
+
+/** Setter d'un lead qui a declare « j'ai envoye mon lien » a ce prospect ; vide sinon. */
+function declaredSetter(lead: DB["leads"][number] | undefined): string {
+  return lead?.setterId && lead.declaredAt ? lead.setterId : "";
+}
+
+/**
+ * Une seule fois : les rendez-vous iClosed attribues a un setter par le
+ * « setter par defaut » des reglages, sans que le lien soit le sien,
+ * repassent au proprietaire, calls passes compris (les closes d'autres
+ * prospects n'ont rien a faire dans son CRM ni dans ses commissions). Une
+ * attribution posee a la main par l'admin (journal « attribue comme
+ * setter ») est respectee.
+ */
+export function applySetterByLinkOnly(db: DB): number {
+  if (db.settings.salesSetterByLinkOnlyAt) return 0;
+  const now = new Date().toISOString();
+  const owner = ownerSetter(db);
+  const manual = new Set(db.activityLogs.filter((l) => l.action === "appointment.assigned" && /attribué comme setter/.test(l.summary)).map((l) => l.entityId));
+  let n = 0;
+  for (const a of db.appointments) {
+    if (!a.iclosedEventId || manual.has(a.id)) continue;
+    if (!a.setterId || a.setterId === owner) continue;
+    const lead = db.leads.find((l) => l.id === a.leadId);
+    const expected = setterFromUtmValues(db, Object.values(a.utm ?? {})) || declaredSetter(lead) || owner;
+    if (expected === a.setterId) continue;
+    const fromName = db.team.find((m) => m.id === a.setterId)?.name ?? a.setterId;
+    a.setterId = expected;
+    a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Système", from: a.status, to: a.status, note: `Setter retiré (${fromName}) : la réservation ne vient pas de son lien signé` }];
+    a.updatedAt = now;
+    n++;
+  }
+  db.settings.salesSetterByLinkOnlyAt = now;
+  if (n) db.activityLogs.unshift({ id: newId(), at: now, actorId: "", actorName: "Système", action: "appointment.updated", entity: "appointment", entityId: "", summary: `Rendez-vous iClosed : ${n} call${n > 1 ? "s" : ""} à venir retiré${n > 1 ? "s" : ""} de l'agenda d'un setter (réservation hors de son lien signé)` });
+  writeDB(db);
+  return n;
 }
 
 /**
@@ -174,7 +222,7 @@ function createUnassigned(db: DB, input: AppointmentInput, closerId: string) {
  */
 function createFromCall(db: DB, call: IclosedCall, report: { created: number; unassignedSetter: number; unassignedCloser: number }): string {
   const known = matchLead(db, call);
-  const setterId = setterFromUtm(db, call) || known?.setterId || pickSetter(db);
+  const setterId = setterFromUtm(db, call) || declaredSetter(known) || ownerSetter(db);
   const closerId = pickCloser(db, call);
   const input = fromIclosedCall(call, { setterId, closerId });
   if (!input) return "";
@@ -220,6 +268,7 @@ export async function syncIclosedUpcoming(opts: { force?: boolean } = {}): Promi
       const calls = await fetchUpcoming();
       const report = none(null);
       report.examined = calls.length;
+      applySetterByLinkOnly(readDB());
 
       for (const call of calls) {
         const db = readDB();
@@ -267,7 +316,7 @@ export async function syncIclosedUpcoming(opts: { force?: boolean } = {}): Promi
             touched = true;
           }
           if (!existing.setterId) {
-            const setterId = pickSetter(db);
+            const setterId = setterFromUtm(db, call) || declaredSetter(db.leads.find((l) => l.id === existing.leadId)) || ownerSetter(db);
             if (setterId) {
               existing.setterId = setterId;
               touched = true;

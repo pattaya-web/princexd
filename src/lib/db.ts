@@ -125,6 +125,9 @@ const EMPTY_DB: DB = {
   mbAuditLogs: [],
   mbDrafts: [],
   messageTemplates: [],
+  utmLinks: [],
+  settingExamples: [],
+  setterTasks: [],
 };
 
 function ensureFile() {

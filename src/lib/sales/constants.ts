@@ -162,3 +162,14 @@ export const CALL_OUTCOMES: AppointmentStatus[] = [
   "completed",
   "rescheduled",
 ];
+
+/** Suffixe d'une tache de la task list des setters affichee en priorite faible. */
+export const LOW_PRIORITY_SUFFIX = " · priorité faible";
+
+/** Libelles des statuts de contact iClosed (module pur : navigateur et serveur). */
+export const ICLOSED_CONTACT_STATUS: Record<string, string> = {
+  POTENTIAL: "Formulaire commencé",
+  QUALIFIED: "Qualifié · pas de RDV",
+  DISQUALIFIED: "Disqualifié · pas de RDV",
+  STRATEGY_CALL_BOOKED: "RDV pris",
+};

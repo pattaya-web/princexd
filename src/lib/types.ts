@@ -200,6 +200,8 @@ export interface Settings {
   salesBookingUrl?: string;
   /** Liste de taches quotidiennes des setters (une par ligne), editable par l'admin. */
   salesDailyTasks?: string[];
+  /** Bascule unique (2026-10-27) : la task list des setters repart des trois taches par defaut. */
+  salesDailyTasksV2At?: string;
   /** Bascule unique en euros (2026-10-06) : date a laquelle une base en USD par defaut est passee en EUR. */
   salesCurrencyEurAt?: string;
   /** Idem pour les enregistrements (ventes, regles, versements) encore libelles en USD. */
@@ -287,6 +289,8 @@ export interface Settings {
   salesLeadAssignment?: "pool" | "default" | "round-robin";
   /** Date du passage au pool commun (bascule unique du reglage et des leads jamais appeles). */
   salesPoolAppliedAt?: string;
+  /** Bascule unique (2026-10-27) : un setter ne garde que les rendez-vous iClosed venus de son lien signe. */
+  salesSetterByLinkOnlyAt?: string;
   /**
    * Regle de reprise (2026-10-14) : minutes sans action du setter au bout
    * desquelles un autre setter peut reprendre la conversation. 0 = desactive.
@@ -584,6 +588,34 @@ export interface Lead {
   mock?: boolean;
 }
 
+/* ----------------------------- Liens UTM ------------------------------ */
+
+/**
+ * Un lien traque, fabrique dans Sales → Liens UTM : une page de destination
+ * et ses parametres utm. Les leads dont le first touch porte exactement
+ * ces parametres (ou un rendez-vous iClosed reserve avec) lui sont
+ * rattaches : on sait quelle video, quel post, quelle story a amene qui.
+ */
+export interface UtmLink {
+  id: ID;
+  /** Nom lisible : « YouTube · Comment lancer sa boutique (oct. 2026) ». */
+  label: string;
+  /** Page de destination sans parametres (https://royalscalebymady.fr/lp-orga). */
+  baseUrl: string;
+  source: string;
+  medium: string;
+  campaign: string;
+  content: string;
+  term: string;
+  /** URL complete, telle que copiee. */
+  url: string;
+  /** Ou le lien est pose (description YouTube, bio, story…) : memo libre. */
+  placement: string;
+  notes: string;
+  createdAt: string;
+  createdBy: string;
+}
+
 /** Un funnel d'acquisition declare par l'admin (landing page, lien, tag). */
 export interface SalesFunnel {
   /** Cle machine stable : lp1_ads, organic_masterclass… */
@@ -640,8 +672,56 @@ export interface MessageTemplate {
   sortOrder: number;
   /** Actions pour lesquelles ce template s'ouvre par defaut : "no-answer" (appel sans reponse). */
   defaultFor?: string[];
+  /** Setter qui a cree ce script (2026-10-27) : lui seul (et l'admin) le modifie. Vide = script de l'admin. */
+  ownerId?: string;
+  /** Ce que le setter note sur ce script : dans quel contexte, ce que ca a donne, combien de RDV poses. */
+  notes?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Un exemple de setting qui a marche : les captures de la conversation et
+ * son transcript (compte de Mady + compte du prospect), pour en tirer un
+ * script complet ensuite. Cree par le setter ou l'admin.
+ */
+export interface SettingExample {
+  id: ID;
+  ownerId: string;
+  ownerName: string;
+  title: string;
+  /** Contexte : d'ou venait le prospect, quelle approche. */
+  context: string;
+  outcome: "booked" | "no-booking" | "";
+  transcript: string;
+  /** Captures d'ecran (URL /api/media/…). */
+  screenshots: string[];
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Relance envoyee par l'admin a un setter depuis son espace : « cette
+ * personne, a rappeler / a qui ecrire tel jour, voila le contexte ». Atterrit
+ * sur l'accueil du setter, qui la marque faite.
+ */
+export interface SetterTask {
+  id: ID;
+  setterId: ID;
+  /** Lead du CRM, quand la relance part d'une fiche. */
+  leadId: string;
+  name: string;
+  phone: string;
+  igUsername: string;
+  kind: "call" | "message";
+  /** Jour ou c'est a faire (YYYY-MM-DD). */
+  dueOn: string;
+  note: string;
+  status: "open" | "done";
+  createdBy: string;
+  createdAt: string;
+  doneAt: string;
 }
 
 /** Reglages du message de bienvenue des eleves (Eleves → Onboarding). */
@@ -1548,6 +1628,12 @@ export interface DB {
   mbDrafts: CampaignDraft[];
   /** Templates de messages (liste des leads, CRM). */
   messageTemplates: MessageTemplate[];
+  /** Liens traques (Sales → Liens UTM). */
+  utmLinks: UtmLink[];
+  /** Exemples de setting (Messages → Exemples). */
+  settingExamples: SettingExample[];
+  /** Relances envoyees par l'admin aux setters. */
+  setterTasks: SetterTask[];
 }
 
 /* ===================================================================== *
@@ -2129,6 +2215,10 @@ export interface Appointment {
   confirmation?: AppointmentConfirmation;
   confirmationAt?: string;
   confirmationBy?: ID;
+  /* --- Double confirmation WhatsApp (2026-10-27) : le setter ecrit au lead
+     24 h avant le call, puis 1 h avant. Date de chaque envoi, vide sinon. --- */
+  reminder24At?: string;
+  reminder1At?: string;
   /** Contexte laisse par le setter au closer : budget, objectif, objections. */
   setterNotes: string;
   /** Compte-rendu du closer apres le call. */
