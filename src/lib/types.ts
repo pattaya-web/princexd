@@ -512,6 +512,8 @@ export interface Lead {
   /* --- Landing page (Systeme.io). --- */
   /** Identifiant du contact chez Systeme.io : cle de dedoublonnage. */
   systemeioId?: string;
+  /** Contact iClosed (formulaire du calendrier commence sans reservation) : cle de dedoublonnage. */
+  iclosedContactId?: string;
   /** Date d'inscription sur la landing page. */
   optInAt?: string;
   /** Page d'origine de l'opt-in. */

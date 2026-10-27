@@ -8,7 +8,8 @@ import { CallsCalendar } from "./CallsCalendar";
 import { OffersCard } from "./OffersCard";
 import { TelegramCard } from "./TelegramCard";
 import { SetterTasksMemberCard } from "./SetterTasksCard";
-import { ICLOSED_CONTACT_STATUS } from "@/lib/sales/constants";
+import { IclosedOptInsList } from "./IclosedOptIns";
+import { LeadSheet } from "./LeadSheet";
 import type { IclosedContactRow } from "@/app/api/sales/iclosed/contacts/route";
 import { InstallmentAlerts } from "./InstallmentAlerts";
 import { useEffect } from "react";
@@ -481,7 +482,7 @@ export function MemberHome() {
         )}
 
         {/* ------------------- Leads iClosed : formulaire commence, pas de RDV ------------------- */}
-        {isSetter && <IclosedOptIns version={version} />}
+        {isSetter && <IclosedOptIns version={version} onChanged={bump} />}
 
         {/* ------------------------------ Créneaux ---------------------------- */}
         {myShifts.length > 0 && (
@@ -1185,68 +1186,58 @@ function KpiListModal({ list, currency, onClose, onOpen }: { list: { title: stri
  * on les relit par l'API (voir /api/sales/iclosed/contacts). Pour le setter,
  * ce sont des prospects chauds a relancer.
  */
-function IclosedOptIns({ version }: { version: number }) {
-  const toast = useToast();
-  const { data } = useSalesData<{ rows: IclosedContactRow[]; fetchedAt: string; error: string }>(`/api/sales/iclosed/contacts?v=${version}`);
+function IclosedOptIns({ version, onChanged }: { version: number; onChanged: () => void }) {
+  const { data, reload } = useSalesData<{ rows: IclosedContactRow[]; fetchedAt: string; error: string }>(`/api/sales/iclosed/contacts?v=${version}`);
+  const [sheetId, setSheetId] = useState<string | null>(null);
   const rows = data?.rows ?? [];
-  const copy = async (v: string) => {
-    try {
-      await navigator.clipboard.writeText(v);
-      toast("Copié.");
-    } catch {
-      toast("Copie impossible ici.", "err");
-    }
-  };
+  const hot = rows.filter((r) => r.status === "QUALIFIED" && !r.callStatus && !r.appointmentAt).length;
   return (
-    <details className="card">
-      <summary className="cursor-pointer select-none px-4 sm:px-5 py-3.5 flex items-center gap-2 flex-wrap">
-        <span className="text-[15px] font-semibold">Leads iClosed · opt-in sans rendez-vous</span>
-        <span className="badge !text-[10.5px] !py-0 num">{rows.length}</span>
-        <span className="dim text-[11.5px]">ils ont commencé le formulaire du calendrier, pas pris le call : à relancer</span>
-        <span className="dim text-[11.5px] ml-auto">déplier</span>
-      </summary>
-      <div style={{ borderTop: "1px solid var(--border)" }}>
-        {data?.error ? (
-          <div className="p-4">
-            <ErrorNote>{data.error}</ErrorNote>
-          </div>
-        ) : !data ? (
-          <div className="p-4">
-            <Spinner label="Lecture d'iClosed…" />
-          </div>
-        ) : rows.length === 0 ? (
-          <Empty>Personne pour l&apos;instant.</Empty>
-        ) : (
-          <>
-            <ul>
-              {rows.slice(0, 15).map((r, i) => (
-                <li key={r.id} className="px-3.5 py-2.5 flex items-center gap-3 flex-wrap" style={{ borderBottom: i < Math.min(rows.length, 15) - 1 ? "1px solid var(--border)" : "none" }}>
-                  <span className="num dim text-[11.5px] w-[88px] shrink-0">{fmtDualDateTime(r.createdAt).split(" · ")[0]}</span>
-                  <span className="text-[13px] font-medium min-w-0 flex-1 truncate">{r.name}</span>
-                  {r.phone ? (
-                    <button type="button" className="link num text-[12.5px]" onClick={() => void copy(r.phone)} title="Copier le numéro">
-                      {r.phone}
-                    </button>
-                  ) : (
-                    <span className="dim text-[12px]">sans numéro</span>
-                  )}
-                  {r.email && <span className="dim text-[11.5px] truncate max-w-[200px]">{r.email}</span>}
-                  <span className="badge !text-[10.5px] !py-0" style={r.status === "QUALIFIED" ? { color: "var(--good)" } : r.status === "DISQUALIFIED" ? { color: "var(--critical)" } : undefined}>
-                    {ICLOSED_CONTACT_STATUS[r.status] ?? r.status}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {rows.length > 15 && (
-              <div className="px-3.5 py-2 text-center" style={{ borderTop: "1px solid var(--border)" }}>
-                <Link href="/sales/leads" className="link text-[12px]">
-                  Voir les {rows.length} dans Leads → iClosed sans RDV
-                </Link>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </details>
+    <>
+      <details className="card">
+        <summary className="cursor-pointer select-none px-4 sm:px-5 py-3.5 flex items-center gap-2 flex-wrap">
+          <span className="text-[15px] font-semibold">Leads iClosed · opt-in sans rendez-vous</span>
+          <span className="badge !text-[10.5px] !py-0 num">{rows.length}</span>
+          {hot > 0 && <span className="badge badge-good !text-[10.5px] !py-0 num">{hot} qualifié{hot > 1 ? "s" : ""} jamais contacté{hot > 1 ? "s" : ""}</span>}
+          <span className="dim text-[11.5px]">formulaire du calendrier commencé, call pas pris : à appeler ou à écrire</span>
+          <span className="dim text-[11.5px] ml-auto">déplier</span>
+        </summary>
+        <div style={{ borderTop: "1px solid var(--border)" }}>
+          {data?.error ? (
+            <div className="p-4">
+              <ErrorNote>{data.error}</ErrorNote>
+            </div>
+          ) : !data ? (
+            <div className="p-4">
+              <Spinner label="Lecture d'iClosed…" />
+            </div>
+          ) : (
+            <IclosedOptInsList
+              rows={rows}
+              limit={12}
+              onChanged={() => {
+                void reload();
+                onChanged();
+              }}
+              onOpen={setSheetId}
+            />
+          )}
+          {rows.length > 0 && (
+            <div className="px-3.5 py-2 text-center" style={{ borderTop: "1px solid var(--border)" }}>
+              <Link href="/sales/leads" className="link text-[12px]">
+                Tout voir dans Leads → iClosed sans RDV
+              </Link>
+            </div>
+          )}
+        </div>
+      </details>
+      <LeadSheet
+        id={sheetId}
+        onClose={() => setSheetId(null)}
+        onChanged={() => {
+          void reload();
+          onChanged();
+        }}
+      />
+    </>
   );
 }

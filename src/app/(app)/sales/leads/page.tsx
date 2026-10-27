@@ -10,7 +10,7 @@ import { SourceChip } from "@/components/sales/AttributionBlock";
 import { LeadSheet } from "@/components/sales/LeadSheet";
 import { useSales } from "@/components/sales/context";
 import { BOOKING_STATUS_LABEL } from "@/lib/sales/business-types";
-import { ICLOSED_CONTACT_STATUS } from "@/lib/sales/constants";
+import { IclosedOptInsList } from "@/components/sales/IclosedOptIns";
 import type { OverviewLeadRow } from "@/app/api/sales/leads/overview/route";
 import type { IclosedContactRow } from "@/app/api/sales/iclosed/contacts/route";
 import type { SourceChannel } from "@/lib/types";
@@ -96,7 +96,7 @@ export default function LeadsOverviewPage() {
     return base.filter((r) => matches([r.name, r.email, r.phone, r.handle, r.igUsername, r.page, r.funnelLabel, r.utm.source, r.utm.campaign, r.utm.content]));
   }, [rows, view, q]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const icRows = useMemo(() => (ic?.rows ?? []).filter((r) => matches([r.name, r.email, r.phone, r.country, r.leadName])), [ic, q]); // eslint-disable-line react-hooks/exhaustive-deps
+  const icRows = useMemo(() => (ic?.rows ?? []).filter((r) => matches([r.name, r.email, r.phone, r.country, r.leadName, r.notes, r.setterName])), [ic, q]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const counts = { organic: rows.filter((r) => !isAds(r)).length, ads: rows.filter(isAds).length, all: rows.length, iclosed: ic?.rows.length ?? 0 };
 
@@ -164,57 +164,8 @@ export default function LeadsOverviewPage() {
             <div className="p-4">
               <Spinner label="Lecture d'iClosed…" />
             </div>
-          ) : icRows.length === 0 ? (
-            <Empty>Personne.</Empty>
           ) : (
-            <div className="scroll-x">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Quand</th>
-                    <th>Nom</th>
-                    <th>Téléphone</th>
-                    <th>Email</th>
-                    <th>Pays</th>
-                    <th>Statut iClosed</th>
-                    <th>Dans le CRM</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {icRows.map((r) => (
-                    <tr key={r.id}>
-                      <td className="num text-[12px] whitespace-nowrap">{fmtDateTime(r.createdAt)}</td>
-                      <td className="text-[13px] font-medium">{r.name}</td>
-                      <td className="num text-[12.5px] whitespace-nowrap">
-                        {r.phone ? (
-                          <button type="button" className="link" onClick={() => void copy(r.phone)} title="Copier le numéro">
-                            {r.phone}
-                          </button>
-                        ) : (
-                          <span className="dim">—</span>
-                        )}
-                      </td>
-                      <td className="text-[12px] dim">{r.email || "—"}</td>
-                      <td className="text-[12px]">{r.country || "—"}</td>
-                      <td className="text-[12px]">
-                        <span className="badge !text-[10.5px] !py-0" style={r.status === "QUALIFIED" ? { color: "var(--good)" } : r.status === "DISQUALIFIED" ? { color: "var(--critical)" } : undefined}>
-                          {ICLOSED_CONTACT_STATUS[r.status] ?? r.status}
-                        </span>
-                      </td>
-                      <td className="text-[12px]">
-                        {r.leadId ? (
-                          <button type="button" className="link" onClick={() => setSheetId(r.leadId)} title="Ouvrir la fiche">
-                            {r.leadName}
-                          </button>
-                        ) : (
-                          <span className="dim">non</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <IclosedOptInsList rows={icRows} onChanged={() => void reloadIc()} onOpen={setSheetId} />
           )}
         </Card>
       ) : (
