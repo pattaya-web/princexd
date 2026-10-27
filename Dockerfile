@@ -32,6 +32,8 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 # Theme Shopify Aesthetic Lab servi aux eleves (hors public/, lu par /api/formation/theme/file).
 COPY --from=builder /app/content/theme ./content/theme
+# Boutique d'exemple (copie HTML lecture seule) servie aux eleves par /api/formation/boutique-exemple.
+COPY --from=builder /app/content/boutique-exemple ./content/boutique-exemple
 
 # Base JSON + medias uploades : a monter en volume persistant sur /app/data.
 RUN mkdir -p /app/data/media && chown -R node:node /app

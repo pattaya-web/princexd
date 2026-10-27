@@ -9,7 +9,7 @@ import { StepGate } from "@/components/formation/StepGate";
 import { PortalFooter, SectionLabel } from "@/components/formation/portal";
 import { MethodVideoLesson } from "@/components/formation/VideoLesson";
 import { DropZone, ProgressBar, uploadMany, type Progress } from "@/components/upload-ui";
-import { DEFAULT_CREATIVE_PROMPTS, DEFAULT_EXAMPLES, DEFAULT_VIDEO_EXAMPLE } from "@/lib/formation-creatives";
+import { CREATIVE_FOLDERS, DEFAULT_CREATIVE_PROMPTS, DEFAULT_EXAMPLES, DEFAULT_VIDEO_EXAMPLE, type CreativeFolder } from "@/lib/formation-creatives";
 import type { CreativesPayload } from "@/app/api/formation/creatives/route";
 import type { CreativeExample, CreativePrompt, StudentCreativesSettings } from "@/lib/types";
 
@@ -19,6 +19,13 @@ import type { CreativeExample, CreativePrompt, StudentCreativesSettings } from "
  * (onglet Image : photo de référence + prompt, ratios 3:4 / 1:1 / 9:16,
  * vidéo en 9:16), des exemples, et les prompts à copier dans Claude ou GPT
  * pour qu'ils écrivent les prompts du Studio. L'admin modifie tout sur place.
+ *
+ * Depuis le 2026-10-27 : sous la vidéo, pourquoi les créatives passent avant
+ * tout, l'histoire d'Alison (collier Venom, 10 jours, 1 000 $ / jour), puis
+ * les familles de créatives (punchy sales, native ads, Notes iPhone,
+ * ChatGPT, tweet, avant / après, badge, vidéo) avec leurs exemples
+ * (`CreativeExample.folder`). Les exemples sans famille restent dans
+ * « Des exemples, avec leur prompt ».
  */
 
 const KIND_LABEL: Record<CreativePrompt["kind"], string> = { strategie: "Stratégie", image: "Image", video: "Vidéo" };
@@ -149,6 +156,38 @@ function VideoExample() {
   );
 }
 
+/** Une famille de créatives : l'idée, le détail (replié), ses exemples. */
+function FolderSection({ folder, examples, open, onToggle }: { folder: CreativeFolder; examples: CreativeExample[]; open: boolean; onToggle: () => void }) {
+  return (
+    <div className="card-flat p-4">
+      <div className="flex flex-wrap items-start gap-2">
+        <div className="flex-1 min-w-[220px]">
+          <div className="text-[15.5px] font-semibold leading-snug">{folder.title}</div>
+          <div className="muted text-[13px] mt-0.5 leading-relaxed">{folder.tagline}</div>
+        </div>
+        <span className="badge !text-[10.5px] num shrink-0">{examples.length ? `${examples.length} exemple${examples.length > 1 ? "s" : ""}` : "exemples à venir"}</span>
+        <button type="button" className="btn btn-sm btn-ghost shrink-0" onClick={onToggle}>
+          {open ? "Replier" : "Voir"}
+        </button>
+      </div>
+      {open && (
+        <div className="mt-3 flex flex-col gap-3">
+          <Annex text={folder.text} className="max-w-[72ch]" />
+          {examples.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {examples.map((e) => (
+                <ExampleCard key={e.id} e={e} />
+              ))}
+            </div>
+          ) : (
+            <div className="dim text-[13px]">Mady ajoute les exemples de cette famille au fil de l&apos;eau.</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Ratio({ label, w, h, note }: { label: string; w: number; h: number; note: string }) {
   return (
     <div className="flex items-center gap-3">
@@ -170,6 +209,8 @@ export default function CreativesPage() {
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [filter, setFilter] = useState<"tous" | CreativePrompt["kind"]>("tous");
+  // Familles de créatives : la première (punchy sales, les créatives d'Alison) est ouverte d'office.
+  const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({ punchy: true });
 
   const load = useCallback(async () => {
     try {
@@ -229,6 +270,8 @@ export default function CreativesPage() {
 
   const c = data.creatives;
   const prompts = c.prompts.filter((p) => filter === "tous" || p.kind === filter);
+  const freeExamples = c.examples.filter((e) => !e.folder);
+  const folderExamples = (id: string) => c.examples.filter((e) => e.folder === id);
   const studio = data.studio;
   const studioState = !studio.access ? "fermé" : !studio.hasKey ? "sans clé" : "prêt";
 
@@ -291,7 +334,8 @@ export default function CreativesPage() {
           </section>
 
           <section className="card p-5 flex flex-col gap-3">
-            <SectionLabel n="04" title="Créatives exemples (avec leur prompt)" />
+            <SectionLabel n="06" title="Créatives exemples (avec leur prompt, ou rangées dans une famille)" />
+            <p className="muted text-[12.5px] leading-relaxed">Le dernier menu de chaque carte range l&apos;exemple dans une famille (punchy sales, native ads…). Les créatives d&apos;Alison livrées avec la plateforme reviennent toujours, même retirées ici.</p>
             <DropZone label="Déposer des images ou vidéos exemples" hint="JPG, PNG, MP4. Elles sont visibles des élèves." accept="image/*,video/*" onFiles={(f) => void addFiles(f)} compact />
             {progress && <ProgressBar p={progress} />}
             <div className="grid gap-3 sm:grid-cols-2">
@@ -313,6 +357,14 @@ export default function CreativesPage() {
                       <option value="9:16">9:16</option>
                       <option value="16:9">16:9</option>
                     </select>
+                    <select className="input !w-auto" value={e.folder ?? ""} onChange={(ev) => setExample(i, { folder: ev.target.value })} title="Famille de créatives">
+                      <option value="">Avec prompt (section exemples)</option>
+                      {CREATIVE_FOLDERS.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.title}
+                        </option>
+                      ))}
+                    </select>
                     <span className="flex-1" />
                     <button type="button" className="btn btn-sm btn-ghost" onClick={() => setD("examples", draft.examples.filter((_, j) => j !== i))}>
                       Retirer
@@ -332,7 +384,7 @@ export default function CreativesPage() {
           </section>
 
           <section className="card p-5 flex flex-col gap-3">
-            <SectionLabel n="05" title="Prompts" />
+            <SectionLabel n="07" title="Prompts" />
             {draft.prompts.map((p, i) => (
               <div key={p.id} className="card-flat p-3 flex flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -377,10 +429,67 @@ export default function CreativesPage() {
         </div>
       ) : (
         <>
-          {/* 01 / Studio IA */}
+          {/* 01 / Pourquoi les créatives d'abord, et l'histoire d'Alison */}
+          <section className="card p-5" style={{ borderColor: "var(--accent-ring)" }}>
+            <SectionLabel n="01" title="Les créatives, c'est ce que les gens voient en premier" />
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] mt-3">
+              <div className="text-[14px] leading-relaxed flex flex-col gap-3 max-w-[66ch]">
+                <p>
+                  <strong>Personne n&apos;achète sans avoir vu une créative.</strong> C&apos;est la première chose que ton client voit, avant ta boutique, avant ton prix. Une bonne créative avec une page produit moyenne vend. Une page produit parfaite avec une créative bâclée ne vend rien, parce que personne ne clique.
+                </p>
+                <p>
+                  Les deux comptent : la créative arrête le scroll, la page produit transforme le clic en commande. Mais tu ne bâcles jamais tes créatives. Tu en fais plusieurs, tu les déclines, tu laisses Meta choisir.
+                </p>
+                <p>
+                  Pour ça tu as le <strong>Studio IA</strong> sur ta plateforme : images, vidéos, swap, création. Toutes les créatives de cette page peuvent se faire dedans. Je l&apos;améliore tous les jours. Pas d&apos;excuse.
+                </p>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  <Link href="/formation/studio" className="btn btn-sm btn-primary">
+                    Ouvrir le Studio IA
+                  </Link>
+                  {data.exampleShop && (
+                    <a href={data.exampleShop} target="_blank" rel="noreferrer" className="btn btn-sm">
+                      Voir une boutique d&apos;exemple ↗
+                    </a>
+                  )}
+                  <Link href="/formation/boutique" className="btn btn-sm btn-ghost">
+                    Création de la boutique →
+                  </Link>
+                </div>
+                <div className="dim text-[12.5px]">Un dossier de prompts prêts à coller arrive ici bientôt. En attendant : les prompts à copier, plus bas sur cette page.</div>
+              </div>
+              <div className="card-flat p-4 flex flex-col gap-2">
+                <div className="label-xs" style={{ color: "var(--accent)" }}>
+                  L&apos;histoire d&apos;Alison
+                </div>
+                <div className="text-[18px] font-semibold leading-tight" style={{ letterSpacing: "-0.02em" }}>
+                  10 jours d&apos;accompagnement. Ses premiers 1 000 $ par jour.
+                </div>
+                <p className="text-[13.5px] leading-relaxed">
+                  Alison est élève Scale X. Son produit : le collier <strong>Venom</strong> (elle m&apos;autorise à le montrer). Ses créatives : exactement celles que tu vois en dessous, des <strong>punchy sales</strong> faites dans le Studio IA à partir d&apos;une seule photo du produit.
+                </p>
+                <p className="muted text-[13px] leading-relaxed">Voici quelques créatives d&apos;exemple que j&apos;ai pu réaliser avec elle. Regarde-les, puis fais pareil avec ton produit.</p>
+              </div>
+            </div>
+          </section>
+
+          {/* 02 / Les familles de créatives */}
+          <section className="card p-5">
+            <SectionLabel n="02" title="Les familles de créatives" />
+            <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[66ch]">
+              Deux grandes familles : les <strong>punchy sales</strong>, qui vendent frontalement, et les <strong>native ads</strong>, qui ne ressemblent pas à une pub. Puis des formats précis à copier. Sur une créative statique tu es en <strong>1:1 ou 3:4</strong> (9:16 pour les stories), en vidéo <strong>toujours 9:16</strong>.
+            </p>
+            <div className="flex flex-col gap-3 mt-4">
+              {CREATIVE_FOLDERS.map((f) => (
+                <FolderSection key={f.id} folder={f} examples={folderExamples(f.id)} open={Boolean(openFolders[f.id])} onToggle={() => setOpenFolders((o) => ({ ...o, [f.id]: !o[f.id] }))} />
+              ))}
+            </div>
+          </section>
+
+          {/* 03 / Studio IA */}
           <section className="card p-5" style={{ borderColor: studioState === "prêt" ? "var(--accent-ring)" : undefined }}>
             <div className="flex items-center justify-between gap-3">
-              <SectionLabel n="01" title="Ton accès au Studio IA" />
+              <SectionLabel n="03" title="Ton accès au Studio IA" />
               <span className={`badge !text-[10.5px] ${studioState === "prêt" ? "badge-good" : "badge-warn"}`}>{studioState === "prêt" ? "Prêt" : studioState === "sans clé" ? "Ouvert · clé à poser" : "Pas encore ouvert"}</span>
             </div>
             <ol className="list-decimal pl-5 mt-3 flex flex-col gap-1.5 text-[13.5px] leading-relaxed">
@@ -406,9 +515,9 @@ export default function CreativesPage() {
             </div>
           </section>
 
-          {/* 02 / Comment faire */}
+          {/* 04 / Comment faire */}
           <section className="card p-5">
-            <SectionLabel n="02" title="Comment faire une créative" />
+            <SectionLabel n="04" title="Comment faire une créative" />
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] mt-3">
               <Annex text={c.method} />
               <div className="card-flat p-4 flex flex-col gap-4">
@@ -427,9 +536,9 @@ export default function CreativesPage() {
             </div>
           </section>
 
-          {/* 03 / Les vidéos */}
+          {/* 05 / Les vidéos */}
           <section className="card p-5">
-            <SectionLabel n="03" title="Les vidéos (Seedance 2.5), en deux temps" />
+            <SectionLabel n="05" title="Les vidéos (Seedance 2.5), en deux temps" />
             <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Une vidéo ne part jamais de rien : elle part d&apos;une image que tu as générée. Toujours en 9:16, 15 secondes, 5 plans de 3 secondes.</p>
             <div className="grid gap-3 sm:grid-cols-3 mt-4">
               <div className="card-flat p-4">
@@ -451,25 +560,25 @@ export default function CreativesPage() {
             <VideoExample />
           </section>
 
-          {/* 04 / Exemples */}
+          {/* 06 / Exemples */}
           <section className="card p-5">
-            <SectionLabel n="04" title="Des exemples, avec leur prompt" />
+            <SectionLabel n="06" title="Des exemples, avec leur prompt" />
             <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Les créatives de Mady. Sous chacune, le prompt qui la reproduit : tu le copies, tu remplaces le produit, les textes et l&apos;offre par les tiens, et tu le colles dans l&apos;onglet Image avec ta photo de référence.</p>
-            {c.examples.length === 0 ? (
+            {freeExamples.length === 0 ? (
               <p className="dim text-[13.5px] mt-3">{data.isAdmin ? "Dépose tes exemples avec « Modifier la page »." : "Exemples à venir."}</p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-3">
-                {c.examples.map((e) => (
+                {freeExamples.map((e) => (
                   <ExampleCard key={e.id} e={e} />
                 ))}
               </div>
             )}
           </section>
 
-          {/* 04 / Prompts */}
+          {/* 07 / Prompts */}
           <section className="card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <SectionLabel n="05" title="Les prompts à copier" />
+              <SectionLabel n="07" title="Les prompts à copier" />
               <div className="flex gap-1 p-1 rounded-md" style={{ background: "var(--surface-3)" }}>
                 {(["tous", "strategie", "image", "video"] as const).map((k) => (
                   <button key={k} type="button" onClick={() => setFilter(k)} className="tab-btn px-3 py-1 rounded text-[12.5px] font-medium" style={filter === k ? { background: "var(--surface)", boxShadow: "0 1px 2px rgb(0 0 0 / 0.08)" } : { color: "var(--muted)" }}>

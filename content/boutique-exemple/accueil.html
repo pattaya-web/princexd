@@ -1,0 +1,748 @@
+<!-- Boutique d'exemple Scale X : copie en lecture seule, page « accueil ». Généré le 2026-10-27. -->
+<!doctype html>
+<html lang="en" class="no-js">
+<head><script data-source-attribution="shopify.exit_interstitial">(()=>{var s=Function.prototype.bind.bind(Function.prototype.call),yt=(l,r)=>{for(let f=l;f;f=Object.getPrototypeOf(f)){let y=Object.getOwnPropertyDescriptor(f,r);if(y)return y}throw new TypeError(`${r} is not defined`)},u=(l,r)=>s(yt(l,r).get),B=(l,r)=>s(yt(l,r).set);var Se=s(String.prototype.endsWith),k=s(RegExp.prototype.exec),Re=/^_(self|top|parent)$/i,xe=/(^|\s)noreferrer(\s|$)/i,ht=/^(no-referrer(-when-downgrade)?|same-origin|(strict-)?origin(-when-cross-origin)?|unsafe-url)$/i,Pe=/^(never|default|always|origin-when-crossorigin)$/i,Et=/^(no-referrer|same-origin|never)$/i,mt=l=>{let r=`.${l}`;return f=>f===l||Se(f,r)},wt=(l,r,f)=>l!==void 0&&(l.protocol==="https:"||l.protocol==="http:")&&l.origin!==r&&!f(l.hostname),bt=(l,r,f)=>l!==null&&k(xe,l)!==null?!0:r!==null&&k(ht,r)!==null?k(Et,r)!==null:f,_t=(l,r)=>k(ht,l)!==null||k(Pe,l)!==null?k(Et,l)!==null:r,A=(l,{metaKey:r,ctrlKey:f,shiftKey:y,button:S})=>l&&k(Re,l)===null?l:r||f||y||S===1?"_blank":"";var Le="http://www.w3.org/2000/svg",Oe="http://www.w3.org/1999/xlink",G=["rel","referrerpolicy","download","ping","hreflang","type"];function kt(l){let r=window;if(r.top!==r)return;let f=document,y=r.navigation,S=location.origin,v=URL,q=u(v.prototype,"href"),vt=u(v.prototype,"origin"),Nt=u(v.prototype,"protocol"),St=u(v.prototype,"hostname"),Y=s(Event.prototype.preventDefault),Rt=s(Event.prototype.stopPropagation),j=s(Event.prototype.stopImmediatePropagation),V=s(Event.prototype.composedPath),xt=u(Event.prototype,"type"),Pt=u(Event.prototype,"cancelable"),X=u(Event.prototype,"defaultPrevented"),Lt=u(Event.prototype,"bubbles"),Ot=u(Event.prototype,"currentTarget"),At=u(Event.prototype,"eventPhase"),{CAPTURING_PHASE:It}=Event,z=u(Event.prototype,"cancelBubble"),Tt=B(Event.prototype,"cancelBubble"),Wt=u(MouseEvent.prototype,"button"),Mt=u(MouseEvent.prototype,"metaKey"),Ct=u(MouseEvent.prototype,"ctrlKey"),Dt=u(MouseEvent.prototype,"shiftKey"),Ft=y&&u(NavigateEvent.prototype,"destination"),Ht=y&&u(NavigationDestination.prototype,"url"),J=y&&u(NavigateEvent.prototype,"navigationType"),$t=y&&u(NavigateEvent.prototype,"formData"),Q=y&&"sourceElement"in NavigateEvent.prototype?u(NavigateEvent.prototype,"sourceElement"):void 0,m=s(Element.prototype.getAttribute),Kt=s(Element.prototype.getAttributeNS),I=s(Element.prototype.setAttribute),Ut=u(Element.prototype,"localName"),Bt=u(Element.prototype,"namespaceURI"),Gt=s(Document.prototype.querySelector),qt=s(Document.prototype.querySelectorAll),Yt=u(NodeList.prototype,"length"),jt=s(NodeList.prototype.item),T=u(Node.prototype,"baseURI"),Vt=s(Document.prototype.createElement),Xt=s(HTMLElement.prototype.click),zt=s(r.open),Jt=s(location.assign),Qt=s(location.replace),Zt=encodeURIComponent,te=s(String.prototype.startsWith),Z=s(r.setTimeout),ee=s(r.addEventListener),ne=s(r.removeEventListener),tt=s(EventTarget.prototype.addEventListener),et=s(EventTarget.prototype.removeEventListener),nt=Object.defineProperties,ot=t=>{let e=[],n=[HTMLElement.prototype,SVGElement.prototype,Document.prototype,r];for(let o=0;o<n.length;o+=1)try{e[e.length]={get:u(n[o],t),set:B(n[o],t)}}catch{}return e},oe={click:ot("onclick"),auxclick:ot("onauxclick")},rt=WeakMap,re=WeakSet,st=s(WeakMap.prototype.get),se=s(WeakMap.prototype.set),ce=s(WeakMap.prototype.delete),ie=s(WeakSet.prototype.add),ae=s(WeakSet.prototype.has),le=mt(l.site),ct=q(new v(l.exitPath,S)),ue=`${ct}?`,P=(t,e)=>{try{let n=new v(t,e);return{href:q(n),origin:vt(n),protocol:Nt(n),hostname:St(n)}}catch{return}},pe=(t,e,n)=>{let o=n?"&noreferrer=1":"";return`${ct}?q=${Zt(t.href)}&trigger=${e}${o}`},it=()=>{let t=qt(f,'meta[name="referrer" i][content]'),e=!1;for(let n=0;n<Yt(t);n+=1)e=_t(m(jt(t,n),"content"),e);return e},at=(t,e,{target:n,noReferrer:o,replaces:i})=>{let d=pe(t,e,o);if(n){zt(r,d,n,"noopener");return}(i?Qt:Jt)(location,d)},W=t=>wt(t,S,le),L=0,M,C=!1,fe=t=>{if(L>0){M=t;return}t()},de=t=>{if(L-=1,t&&(C=!0),L>0)return;let e=C?void 0:M;M=void 0,C=!1,e&&e()},ge=t=>t!==void 0&&te(t.href,ue),lt=t=>{try{return Ut(t)}catch{return}},ut=t=>bt(m(t,"rel"),m(t,"referrerpolicy"),it()),ye=t=>{let e=Q?Q(t):null,n=e===null?void 0:lt(e);return n==="a"||n==="area"?ut(e):it()},he=t=>{let e=P(Ht(Ft(t)));if(ge(e)){j(t);return}if(!Pt(t)||J(t)==="traverse"||!W(e)||$t(t)!==null)return;Y(t);let n={target:"",noReferrer:ye(t),replaces:J(t)==="replace"};fe(()=>at(e,"navigate",n))},R=t=>{let e=m(t,"href");return e===null&&Bt(t)===Le?Kt(t,Oe,"href"):e},Ee=t=>{let e=V(t);for(let n=0;n<e.length;n+=1){let o=e[n],i=lt(o);if(i==="a"||i==="area"){let d=R(o);if(d!==null)return{node:o,href:d}}}},D=t=>{let e=m(t,"target");if(e!==null)return e;let n=Gt(f,"base[target]");return n?m(n,"target"):""},me=t=>{try{return{metaKey:Mt(t),ctrlKey:Ct(t),shiftKey:Dt(t),button:Wt(t)}}catch{return}},pt=new re,we=t=>{let e=!1,n=()=>{e=!0},o=()=>e||ae(pt,t);return nt(t,{__proto__:null,preventDefault:{__proto__:null,configurable:!0,value:n},defaultPrevented:{__proto__:null,configurable:!0,get:o},returnValue:{__proto__:null,configurable:!0,get:()=>!o(),set:i=>{i||n()}}}),o},be={click:new rt,auxclick:new rt},_e=(t,e)=>{let n=oe[t],o=be[t],i=[],d=p=>{for(let a=0;a<i.length;a+=1)if(i[a]===p)return!0;return!1},w=(p,a,E)=>{let g=s(E);function O(_){let x=g(this,_);return x===!1&&typeof _=="object"&&_!==null&&ie(pt,_),x}return{target:p,accessor:a,handler:E,wrapper:O,inFlight:0}},b=()=>{for(let p=0;p<e.length;p+=1)for(let a=0;a<n.length;a+=1){let E;try{E=n[a].get(e[p])}catch{continue}if(typeof E=="function"){let g=st(o,e[p]);(!g||g.wrapper!==E)&&(g=w(e[p],n[a],E),n[a].set(e[p],g.wrapper),se(o,e[p],g)),d(g)||(g.inFlight+=1,i[i.length]=g)}break}};return b(),{wrap:b,unwrap:()=>{for(let p=0;p<i.length;p+=1){let a=i[p];a.inFlight-=1,!(a.inFlight>0)&&(st(o,a.target)===a&&ce(o,a.target),a.accessor.get(a.target)===a.wrapper&&a.accessor.set(a.target,a.handler))}}}},ft=(t,e,n)=>{let o=R(t),i=o===null?void 0:P(o,T(f));if(!W(i))return;let d={target:A(D(t),n),noReferrer:ut(t),replaces:!1};return{inWindow:d.target==="",go:()=>at(i,e,d)}},dt=t=>{let e=R(t);if(e===null||m(t,"download")===null)return!1;let n=P(e,T(f));return n!==void 0&&(n.origin===S||n.protocol==="blob:"||n.protocol==="data:")},ke=(t,e)=>R(t)!==null&&!dt(t)&&A(D(t),e)==="",ve=(t,e)=>{let n=R(t);if(n===null)return!1;let o=Vt(f,"a"),i=A(D(t),e);I(o,"href",n),I(o,"target",i||"_self");for(let d=0;d<G.length;d+=1){let w=m(t,G[d]);w!==null&&I(o,G[d],w)}return Xt(o),i===""&&!dt(t)},Ne=(t,e,n,o)=>{L+=1;let i=V(t),d=i.length-1,w=0,b=!1,F=!1,p=c=>{F||(F=!0,de(c))},a=c=>{if(b)return;b=!0;let N=X(t),h=N?void 0:ft(n,e,o),U;!N&&(h||c)&&(Y(t),U=we(t)),Z(r,()=>{if(!U){p(!X(t)&&ke(n,o));return}if(U()){p(!1);return}if(c&&(h=ft(n,e,o),!h)){p(ve(n,o));return}h.go(),p(h.inWindow)},0)},E=(c,N)=>{for(let h=0;h<i.length;h+=1)if(i[h]===c)return N===It?d-h:i.length+h;return-1},g=()=>{E(Ot(t),At(t))<=w&&a(!0)},O=c=>{c===t&&a(!1)},_=_e(e,i),x=c=>N=>{if(N===t){if(w=c,z(t)){a(!1);return}_.wrap()}},H=[],$=[],K=Lt(t);if(K){for(let c=0;c<d;c+=1)H[c]=x(d-c),$[c]=x(i.length+c),tt(i[c],e,H[c],!0),tt(i[c],e,$[c],!1);ee(r,e,O,!1)}if(Z(r,()=>{if(b||p(!1),b=!0,_.unwrap(),!!K){for(let c=0;c<d;c+=1)et(i[c],e,H[c],!0),et(i[c],e,$[c],!1);ne(r,e,O,!1)}},0),!K){a(!0);return}nt(t,{__proto__:null,stopPropagation:{__proto__:null,configurable:!0,value:()=>{g(),Rt(t)}},stopImmediatePropagation:{__proto__:null,configurable:!0,value:()=>{a(!0),j(t)}},cancelBubble:{__proto__:null,configurable:!0,get:()=>z(t),set:c=>{c&&g(),Tt(t,c)}}})},gt=t=>{let e=xt(t),n=me(t);if(!n||e==="auxclick"&&n.button!==1)return;let o=Ee(t);!o||!W(P(o.href,T(f)))||Ne(t,e,o.node,n)};y?.addEventListener("navigate",he,!0),r.addEventListener("click",gt,!0),r.addEventListener("auxclick",gt,!0)}kt({"site":"aesthetics-lab.com","exitPath":"\/url"});})();
+//# sourceURL=exit-interstitial.js
+</script>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2f2f2">
+  <title>Boutique d'exemple · Scale X</title><meta property="og:site_name" content="Aesthetics Lab">
+
+<meta property="og:title" content="Aesthetics Lab">
+<meta property="og:type" content="website">
+<meta property="og:description" content="Aesthetics Lab"><meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Aesthetics Lab">
+<meta name="twitter:description" content="Aesthetics Lab">
+<link rel="preconnect" href="https://cdn.shopify.com" crossorigin>
+  <link rel="preload" href="https://aesthetics-lab.com/cdn/fonts/inter/inter_n4.b2a3f24c19b4de56e8871f609e73ca7f6d2e2bb9.woff2" as="font" type="font/woff2" crossorigin>
+  <link href="https://aesthetics-lab.com/cdn/shop/t/7/assets/base.css?v=68446233032928040721790725366" rel="stylesheet" type="text/css" media="all" />
+  <style>
+    @font-face {
+  font-family: Inter;
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://aesthetics-lab.com/cdn/fonts/inter/inter_n4.b2a3f24c19b4de56e8871f609e73ca7f6d2e2bb9.woff2") format("woff2"),
+       url("https://aesthetics-lab.com/cdn/fonts/inter/inter_n4.af8052d517e0c9ffac7b814872cecc27ae1fa132.woff") format("woff");
+}
+
+    @font-face {
+  font-family: Inter;
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://aesthetics-lab.com/cdn/fonts/inter/inter_n7.02711e6b374660cfc7915d1afc1c204e633421e4.woff2") format("woff2"),
+       url("https://aesthetics-lab.com/cdn/fonts/inter/inter_n7.6dab87426f6b8813070abd79972ceaf2f8d3b012.woff") format("woff");
+}
+
+    :root { --font-sans: Inter, sans-serif; }:root { --product-ratio: 1 / 1; --product-fit: cover; }
+  </style>
+  <script>document.documentElement.classList.remove('no-js');</script>
+  <script>window.AL_MONEY_FORMAT = "${{amount}}";</script>
+  <!-- PHX:REDIRECT_SCRIPT:START
+      {
+        "last_inserted_datetime": "Tue, 29 Sep 2026 23:47:47 GMT",
+        "checkout_url": "https://secureorder.aesthetics-lab.com"
+      } -->
+
+        
+
+      <!--PHX:REDIRECT_SCRIPT:END -->
+<script>window.performance && window.performance.mark && window.performance.mark('shopify.content_for_header.start');</script><meta id="shopify-digital-wallet" name="shopify-digital-wallet" content="/103207108991/digital_wallets/dialog">
+<link rel="ucp" href="/.well-known/ucp" version="2026-08-25">
+<script id="shopify-features" type="application/json">{"accessToken":"1891a0900c392ce0888aac2ee72d239c","betas":["rich-media-storefront-analytics"],"domain":"aesthetics-lab.com","predictiveSearch":true,"shopId":103207108991,"locale":"en"}</script>
+<script>var Shopify = Shopify || {};
+Shopify.shop = "zfyf6p-jb.myshopify.com";
+Shopify.locale = "en";
+Shopify.currency = {"active":"USD","rate":"1.0"};
+Shopify.country = "FR";
+Shopify.theme = {"name":"PHX 3.0 - Checkout Builder","id":200855650687,"schema_name":"Aesthetic Lab","schema_version":"1.0.0","theme_store_id":null,"role":"main"};
+Shopify.theme.handle = "null";
+Shopify.theme.style = {"id":null,"handle":null};
+Shopify.cdnHost = "aesthetics-lab.com/cdn";
+Shopify.routes = Shopify.routes || {};
+Shopify.routes.root = "/";
+Shopify.shopJsCdnBaseUrl = "https://cdn.shopify.com/shopifycloud/shop-js";
+Shopify.SignInWithShop = Shopify.SignInWithShop || {};
+Shopify.SignInWithShop.User = Shopify.SignInWithShop.User || {};
+Shopify.SignInWithShop.User.recognized = false;</script>
+<script type="module">!function(o){(o.Shopify=o.Shopify||{}).modules=!0}(window);</script>
+<script>!function(o){function n(){var o=[];function n(){o.push(Array.prototype.slice.apply(arguments))}return n.q=o,n}var t=o.Shopify=o.Shopify||{};t.loadFeatures=n(),t.autoloadFeatures=n()}(window);</script>
+<script>
+  window.Shopify = window.Shopify || {};
+  window.Shopify.SignInWithShop = window.Shopify.SignInWithShop || {};
+  window.Shopify.SignInWithShop.assetMetrics = { sampleRate: 0.25 };
+  window.Shopify.SignInWithShop.eligible = true;
+</script>
+<script id="shop-js-analytics" type="application/json">{"pageType":"index"}</script>
+
+<script type="module">
+  await import("https://cdn.shopify.com/shopifycloud/shop-js/modules/v2/loader.init-shop-cart-sync.en.esm.js");
+
+  window.Shopify.SignInWithShop?.initShopCartSync?.({"fedCMEnabled":true,"windoidEnabled":true,"backendHost":"YWVzdGhldGljcy1sYWIuY29t"});
+
+</script>
+<script>
+  window.Shopify = window.Shopify || {};
+  if (!window.Shopify.featureAssets) window.Shopify.featureAssets = {};
+  window.Shopify.featureAssets['shop-js'] = {"avatar":["modules/v2/loader.avatar.en.esm.js"],"checkout-modal":["modules/v2/loader.checkout-modal.en.esm.js"],"init-customer-accounts-sign-up":["modules/v2/loader.init-customer-accounts-sign-up.en.esm.js"],"init-customer-accounts":["modules/v2/loader.init-customer-accounts.en.esm.js"],"init-fed-cm":["modules/v2/loader.init-fed-cm.en.esm.js"],"init-shop-cart-sync":["modules/v2/loader.init-shop-cart-sync.en.esm.js"],"init-shop-email-lookup-coordinator":["modules/v2/loader.init-shop-email-lookup-coordinator.en.esm.js"],"init-shop-for-new-customer-accounts":["modules/v2/loader.init-shop-for-new-customer-accounts.en.esm.js"],"init-shop-user-recognition":["modules/v2/loader.init-shop-user-recognition.en.esm.js"],"init-windoid":["modules/v2/loader.init-windoid.en.esm.js"],"lead-capture":["modules/v2/loader.lead-capture.en.esm.js"],"listener":["modules/v2/loader.listener.en.esm.js"],"pay-button":["modules/v2/loader.pay-button.en.esm.js"],"payment-terms":["modules/v2/loader.payment-terms.en.esm.js"],"shop-button":["modules/v2/loader.shop-button.en.esm.js"],"shop-cart-sync":["modules/v2/loader.shop-cart-sync.en.esm.js"],"shop-cash-offers":["modules/v2/loader.shop-cash-offers.en.esm.js"],"shop-follow-button":["modules/v2/loader.shop-follow-button.en.esm.js"],"shop-login-button":["modules/v2/loader.shop-login-button.en.esm.js"],"shop-login":["modules/v2/loader.shop-login.en.esm.js"],"shop-toast-manager":["modules/v2/loader.shop-toast-manager.en.esm.js"],"shop-user-recognition":["modules/v2/loader.shop-user-recognition.en.esm.js"]};
+</script>
+<script id="__st">var __st={"a":103207108991,"offset":3600,"reqid":"b0371b82-1b23-4a60-9dc4-55fb25ab18b3-1793104796","pageurl":"aesthetics-lab.com\/","u":"624d84aa0f62","p":"home"};</script>
+<script>window.ShopifyPaypalV4VisibilityTracking = true;</script>
+<script id="captcha-bootstrap">!function(){'use strict';const t='contact',e='account',n='new_comment',o=[[t,t],['blogs',n],['comments',n],[t,'customer']],c=[[e,'customer_login'],[e,'guest_login'],[e,'recover_customer_password'],[e,'create_customer']],r=t=>t.map((([t,e])=>`form[action*='/${t}']:not([data-nocaptcha='true']) input[name='form_type'][value='${e}']`)).join(','),a=t=>()=>t?[...document.querySelectorAll(t)].map((t=>t.form)):[];function s(){const t=[...o],e=r(t);return a(e)}const i='password',u='form_key',d=['recaptcha-v3-token','g-recaptcha-response','h-captcha-response',i],f=()=>{try{return window.sessionStorage}catch{return}},m='__shopify_v',_=t=>t.elements[u];function p(t,e,n=!1){try{const o=window.sessionStorage,c=JSON.parse(o.getItem(e)),{data:r}=function(t){const{data:e,action:n}=t;return t[m]||n?{data:e,action:n}:{data:t,action:n}}(c);for(const[e,n]of Object.entries(r))t.elements[e]&&(t.elements[e].value=n);n&&o.removeItem(e)}catch(o){console.error('form repopulation failed',{error:o})}}const l='form_type',E='cptcha';function T(t){t.dataset[E]=!0}const w=window,h=w.document,L='Shopify',v='ce_forms',y='captcha';let A=!1;((t,e)=>{const n=(g='f06e6c50-85a8-45c8-87d0-21a2b65856fe',I='https://cdn.shopify.com/shopifycloud/storefront-forms-hcaptcha/ce_storefront_forms_captcha_hcaptcha.v1.5.3.iife.js',D={infoText:'Protected by hCaptcha',privacyText:'Privacy',termsText:'Terms'},(t,e,n)=>{const o=w[L][v],c=o.bindForm;if(c)return c(t,g,e,D).then(n);var r;o.q.push([[t,g,e,D],n]),r=I,A||(h.body.append(Object.assign(h.createElement('script'),{id:'captcha-provider',async:!0,src:r})),A=!0)});var g,I,D;w[L]=w[L]||{},w[L][v]=w[L][v]||{},w[L][v].q=[],w[L][y]=w[L][y]||{},w[L][y].protect=function(t,e){n(t,void 0,e),T(t)},Object.freeze(w[L][y]),function(t,e,n,w,h,L){const[v,y,A,g]=function(t,e,n){const i=e?o:[],u=t?c:[],d=[...i,...u],f=r(d),m=r(i),_=r(d.filter((([t,e])=>n.includes(e))));return[a(f),a(m),a(_),s()]}(w,h,L),I=t=>{const e=t.target;return e instanceof HTMLFormElement?e:e&&e.form},D=t=>v().includes(t);t.addEventListener('submit',(t=>{const e=I(t);if(!e)return;const n=D(e)&&!e.dataset.hcaptchaBound&&!e.dataset.recaptchaBound,o=_(e),c=g().includes(e)&&(!o||!o.value);(n||c)&&t.preventDefault(),c&&!n&&(function(t){try{if(!f())return;!function(t){const e=f();if(!e)return;const n=_(t);if(!n)return;const o=n.value;o&&e.removeItem(o)}(t);const e=Array.from(Array(32),(()=>Math.random().toString(36)[2])).join('');!function(t,e){_(t)||t.append(Object.assign(document.createElement('input'),{type:'hidden',name:u})),t.elements[u].value=e}(t,e),function(t,e){const n=f();if(!n)return;const o=[...t.querySelectorAll(`input[type='${i}']`)].map((({name:t})=>t)),c=[...d,...o],r={};for(const[a,s]of new FormData(t).entries())c.includes(a)||(r[a]=s);n.setItem(e,JSON.stringify({[m]:1,action:t.action,data:r}))}(t,e)}catch(e){console.error('failed to persist form',e)}}(e),e.submit())}));const S=(t,e)=>{t&&!t.dataset[E]&&(n(t,e.some((e=>e===t))),T(t))};for(const o of['focusin','change'])t.addEventListener(o,(t=>{const e=I(t);D(e)&&S(e,y())}));const B=e.get('form_key'),M=e.get(l),P=B&&M;t.addEventListener('DOMContentLoaded',(()=>{const t=y();if(P)for(const e of t)e.elements[l].value===M&&p(e,B);[...new Set([...A(),...v().filter((t=>'true'===t.dataset.shopifyCaptcha))])].forEach((e=>S(e,t)))}))}(h,new URLSearchParams(w.location.search),n,t,e,['guest_login'])})(!0,!0)}();</script>
+
+
+<script>(()=>{var d="shopify:webmcp_adapter_loaded",n=Symbol.for("shopify.webmcp_adapter_loading");function s(c,a,{win:r=window,doc:o=document}={}){function p(){try{return r.localStorage.getItem(d)==="true"}catch{return!1}}function l(){try{r.localStorage.setItem(d,"true")}catch{}}function u(){return typeof(o.modelContext||r.navigator?.modelContext)?.registerTool=="function"}function f(){if(r[n]||!u())return;let t=o.head||o.getElementsByTagName("head")[0];if(!t)return;let e=o.createElement("script");e.type="module",e.crossOrigin="anonymous",a&&(e.integrity=a),e.src=c,e.addEventListener("load",l,{once:!0}),e.addEventListener("error",()=>{r[n]=!1},{once:!0}),t.appendChild(e),r[n]=!0}function _(t){let e=o.getElementById("shopify-origin-trials");if(!e||r.__shopifyOriginTrialsDone){t();return}e.addEventListener("load",t,{once:!0}),e.addEventListener("error",t,{once:!0})}function i(){_(()=>r.setTimeout(f,0))}function m(){o.addEventListener("DOMContentLoaded",i,{once:!0})}p()?i():m()}s("\/\/aesthetics-lab.com\/cdn\/shopifycloud\/storefront\/assets\/storefront\/webmcp-23c12384.js","sha256-r8Pww6V2udgtSdaVbcRtdZ4Kg+gXP7aLPZOtQSJPrbM=");})();
+</script>
+<script data-source-attribution="shopify.dynamic_checkout.dynamic.init">var Shopify=Shopify||{};Shopify.PaymentButton=Shopify.PaymentButton||{isStorefrontPortableWallets:!0,init:function(){window.Shopify.PaymentButton.init=function(){};var t=document.createElement("script");t.src="https://aesthetics-lab.com/cdn/shopifycloud/portable-wallets/latest/portable-wallets.en.js",t.type="module",document.head.appendChild(t)}};
+</script>
+
+<script data-source-attribution="shopify.dynamic_checkout.cart.bootstrap">document.addEventListener("DOMContentLoaded",(function(){function t(){return document.querySelector("shopify-accelerated-checkout-cart, shopify-accelerated-checkout")}if(t())Shopify.PaymentButton.init();else{new MutationObserver((function(e,n){t()&&(Shopify.PaymentButton.init(),n.disconnect())})).observe(document.body,{childList:!0,subtree:!0})}}));
+</script>
+<script id='scb4127' type='text/javascript' async='' src='https://aesthetics-lab.com/cdn/shopifycloud/privacy-banner/privacy-banner.js'></script>
+<script id="shopify-cfh-end">window.performance && window.performance.mark && window.performance.mark('shopify.content_for_header.end');</script>
+
+<script src="https://aesthetics-lab.com/cdn/shop/t/7/assets/vendor-scripts-v11.js?v=133462985226842869981790770691" ></script>
+
+   
+
+  
+<link href="https://monorail-edge.shopifysvc.com" rel="dns-prefetch">
+
+<script>
+  window.__TREKKIE_SHIM_QUEUE = window.__TREKKIE_SHIM_QUEUE || [];
+</script>
+
+
+<script
+  defer
+  src="https://aesthetics-lab.com/cdn/shopifycloud/perf-kit/shopify-perf-kit-3.11.0.min.js"
+  data-application="storefront-renderer"
+  data-shop-id="103207108991"
+  data-render-region="gcp-europe-west1"
+  data-page-type="index"
+  data-theme-instance-id="200855650687"
+  data-theme-name="Aesthetic Lab"
+  data-theme-version="1.0.0"
+  data-monorail-region="shop_domain"
+  data-resource-timing-sampling-rate="10"
+  data-shs="true"
+  data-shs-beacon="true"
+  data-shs-export-with-fetch="true"
+  data-shs-logs-sample-rate="1"
+  data-shs-beacon-endpoint="https://aesthetics-lab.com/api/collect"
+></script>
+<meta name="shopify-y" content="00000000-0000-0000-5000-000000000000" data-expiration="1824662396000"><meta name="shopify-s" content="00000000-0000-0000-5000-000000000000" data-expiration="1793106596000"><meta name="request-id" content="b0371b82-1b23-4a60-9dc4-55fb25ab18b3-1793104796"        >
+</head>
+<body class="template-index">
+<div id="scalex-banner" style="position:sticky;top:0;z-index:99999;background:#111;color:#fff;font:600 13px/1.4 system-ui,sans-serif;padding:9px 14px;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;border-bottom:1px solid #333">
+<span>Boutique d&rsquo;exemple Scale X &middot; copie en lecture seule, pour regarder la structure (bandeau, b&eacute;n&eacute;fices, preuve, avis, FAQ, offre).</span>
+<span style="display:flex;gap:12px;flex-wrap:wrap"><a href="/api/formation/boutique-exemple?p=accueil" style="color:#ffd84d;text-decoration:none">Accueil</a><a href="/api/formation/boutique-exemple?p=produit" style="color:#ffd84d;text-decoration:none">Page produit</a><a href="/api/formation/boutique-exemple?p=produit-2" style="color:#ffd84d;text-decoration:none">Produit 2</a><a href="/api/formation/boutique-exemple?p=collection" style="color:#ffd84d;text-decoration:none">Collection</a></span>
+<span style="opacity:.7;font-weight:400">Les autres liens sont d&eacute;sactiv&eacute;s, le panier aussi.</span></div>
+<script>document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a");if(a&&a.getAttribute("href")==="#non-inclus"){e.preventDefault();e.stopPropagation();}},true);document.addEventListener("submit",function(e){e.preventDefault();},true);</script>
+  <a class="skip-link" href="#MainContent">Skip to content</a>
+  <!-- BEGIN sections: header-group -->
+<div id="shopify-section-sections--30670552760703__header" class="shopify-section shopify-section-group-header-group"><header class="site-header site-header--light" data-header data-light-at-top>
+  <div class="site-header__bar">
+    <div class="site-header__row">
+      <button type="button" class="icon-btn site-header__menu" data-menu-open aria-label="Menu"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M2.5 6.5h15M2.5 13.5h15"/></svg></button>
+      <a class="site-header__brand" href="/api/formation/boutique-exemple?p=accueil"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.75a9.25 9.25 0 1 0 9.25 9.25" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M14.5 9.5L21 3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="12" r="2.1" fill="currentColor"/></svg><span class="site-header__wordmark">AESTHETIC LAB</span></a>
+      <nav class="site-header__nav" aria-label="Primary">
+        <ul><li><a class="site-header__link" href="/api/formation/boutique-exemple?p=accueil" aria-current="page">Home</a></li><li><a class="site-header__link" href="/api/formation/boutique-exemple?p=collection" >Catalog</a></li><li><a class="site-header__link" href="#non-inclus" >Track Your Order</a></li><li><a class="site-header__link" href="#non-inclus" >VIP Club</a></li><li><a class="site-header__link" href="/api/formation/boutique-exemple?p=collection" >VIP Collection</a></li></ul>
+      </nav>
+      <div class="site-header__actions">
+        <a class="icon-btn icon-btn--desktop" href="#non-inclus" aria-label="Search"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="9" r="6"/><path d="M13.5 13.5L17.5 17.5"/></svg></a>
+        <a class="icon-btn icon-btn--desktop" href="#non-inclus" aria-label="Account"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="7" r="3.5"/><path d="M3.5 17.5c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5"/></svg></a>
+        <button type="button" class="icon-btn" data-cart-open aria-label="Bag"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h12l-.8 11H4.8L4 6.5z"/><path d="M7 6.5V5.5a3 3 0 016 0v1"/></svg><span class="cart-count" data-cart-count data-count="0">0</span></button>
+        <div class="site-header__cta"><a class="btn btn--primary btn--sm" href="/api/formation/boutique-exemple?p=produit" >
+    <span>Shop the jawline</span></a></div>
+      </div>
+    </div>
+  </div>
+</header>
+<div class="mobile-menu" data-mobile-menu data-open="false" role="dialog" aria-modal="true" aria-label="Menu">
+  <div class="mobile-menu__top">
+    <span class="site-header__brand" style="color:#fff"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.75a9.25 9.25 0 1 0 9.25 9.25" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M14.5 9.5L21 3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="12" r="2.1" fill="currentColor"/></svg><span>AESTHETIC LAB</span></span>
+    <button type="button" class="icon-btn" data-menu-close aria-label="Close"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16"/></svg></button>
+  </div>
+  <ul class="mobile-menu__list"><li><a href="/api/formation/boutique-exemple?p=accueil"><span><span class="eyebrow">01</span>Home</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></a></li><li><a href="/api/formation/boutique-exemple?p=collection"><span><span class="eyebrow">02</span>Catalog</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></a></li><li><a href="#non-inclus"><span><span class="eyebrow">03</span>Track Your Order</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></a></li><li><a href="#non-inclus"><span><span class="eyebrow">04</span>VIP Club</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></a></li><li><a href="/api/formation/boutique-exemple?p=collection"><span><span class="eyebrow">05</span>VIP Collection</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></a></li></ul>
+  <div class="mobile-menu__foot"><a class="btn btn--inverse btn--lg btn--full" href="/api/formation/boutique-exemple?p=produit" >
+    <span>Shop the jawline</span><span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></a></div>
+</div><style>.site-header--light .site-header__cta .btn--primary{background:#fff;color:var(--ink)}</style>
+</div>
+<!-- END sections: header-group -->
+  <main id="MainContent" role="main">
+    <div id="shopify-section-template--30670555283839__hero" class="shopify-section"><section class="hero on-dark" aria-labelledby="hero-title-template--30670555283839__hero">
+  <div class="hero__video"><img class="hero__poster" src="https://aesthetics-lab.com/cdn/shop/t/7/assets/placeholder-hero-mobile-poster.webp?v=41265139716281791851790725366" srcset="https://aesthetics-lab.com/cdn/shop/t/7/assets/placeholder-hero-mobile-poster.webp?v=41265139716281791851790725366 720w, //aesthetics-lab.com/cdn/shop/t/7/assets/placeholder-hero-poster.webp?v=94600281558899190781790725366 1440w" sizes="100vw" width="1440" height="960" alt="" fetchpriority="high" decoding="async" aria-hidden="true">
+      <video muted loop playsinline preload="none" aria-hidden="true" data-lazy-video data-src="https://aesthetics-lab.com/cdn/shop/t/7/assets/placeholder-hero.mp4?v=131865956194131931221790725366" data-src-mobile="https://aesthetics-lab.com/cdn/shop/t/7/assets/placeholder-hero-mobile.mp4?v=82400907776706018651790725366"></video></div>
+  <div class="hero__shade hero__shade--top"></div>
+  <div class="hero__shade hero__shade--left"></div>
+  <div class="hero__shade hero__shade--bottom"></div>
+  <div class="container hero__inner">
+    <div class="hero__content">
+      <div data-reveal><span class="label-pill">The #1 tool for a stronger jaw</span></div>
+      <h1 id="hero-title-template--30670555283839__hero" class="display hero__title" data-text-reveal>JAWESTHETIC® 3.0<br><span class="muted">Jawline Trainer</span></h1>
+      <p class="lead hero__text" data-reveal data-reveal-delay="400">Three hardness levels. Ten minutes every other day. The angle shows up in the mirror.</p>
+      <div class="btn-row hero__ctas" data-reveal data-reveal-delay="500"><a class="btn btn--inverse btn--lg" href="/api/formation/boutique-exemple?p=produit" >
+    <span>Shop the jawline</span></a><a class="btn btn--glass btn--lg" href="/api/formation/boutique-exemple?p=collection" >
+    <span>See all products</span></a></div><p class="hero__note" data-reveal data-reveal-delay="600">Best seller · Free shipping in US · 1-year warranty</p></div><dl class="hero__facts" data-reveal data-reveal-delay="700"><div ><dt>3 levels</dt><dd>Beginner, Advanced, Expert</dd></div><div ><dt>10 min</dt><dd>Every other day</dd></div><div ><dt>1-year warranty</dt><dd>Free replacement</dd></div></dl></div>
+</section>
+
+</div><div id="shopify-section-template--30670555283839__bubbles" class="shopify-section"><section class="section bubbles" style="--bubble-d: 120px; --bubble-m: 100px; --bubble-gap: 24px" data-bubbles>
+  <div class="container frame-x">
+    <div class="section__inner" style="--pt: 16px; --pb: 0px"><div class="bubbles__row is-center" data-reveal data-reveal-stagger="0.06"><a class="bubble" href="/api/formation/boutique-exemple?p=produit" >
+            <span class="bubble__disc has-photo"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_32.png?v=1789400658&amp;width=480" alt="JawTrainer" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_32.png?v=1789400658&amp;width=240 240w, //aesthetics-lab.com/cdn/shop/files/asset_32.png?v=1789400658&amp;width=360 360w, //aesthetics-lab.com/cdn/shop/files/asset_32.png?v=1789400658&amp;width=480 480w" width="480" height="480" loading="lazy" sizes="160px">
+</span><span class="bubble__label">JawTrainer</span></a><a class="bubble" href="#non-inclus" >
+            <span class="bubble__disc has-photo"><img src="https://aesthetics-lab.com/cdn/shop/files/jawliner_shopbubbles_pimple.jpg?v=1789400561&amp;width=480" alt="Pimple Patches" srcset="https://aesthetics-lab.com/cdn/shop/files/jawliner_shopbubbles_pimple.jpg?v=1789400561&amp;width=240 240w, //aesthetics-lab.com/cdn/shop/files/jawliner_shopbubbles_pimple.jpg?v=1789400561&amp;width=360 360w, //aesthetics-lab.com/cdn/shop/files/jawliner_shopbubbles_pimple.jpg?v=1789400561&amp;width=480 480w" width="480" height="480" loading="lazy" sizes="160px">
+</span><span class="bubble__label">Pimple Patches</span></a><a class="bubble" href="#non-inclus" >
+            <span class="bubble__disc has-photo"><img src="https://aesthetics-lab.com/cdn/shop/files/jawliner_shopbubbles_nose.jpg?v=1789400582&amp;width=480" alt="Nose Tape" srcset="https://aesthetics-lab.com/cdn/shop/files/jawliner_shopbubbles_nose.jpg?v=1789400582&amp;width=240 240w, //aesthetics-lab.com/cdn/shop/files/jawliner_shopbubbles_nose.jpg?v=1789400582&amp;width=360 360w, //aesthetics-lab.com/cdn/shop/files/jawliner_shopbubbles_nose.jpg?v=1789400582&amp;width=480 480w" width="480" height="480" loading="lazy" sizes="160px">
+</span><span class="bubble__label">Nose Tape</span></a><a class="bubble" href="/api/formation/boutique-exemple?p=produit-2" >
+            <span class="bubble__disc has-photo"><img src="https://aesthetics-lab.com/cdn/shop/files/jawliner_shopbubbles_mothtape_jpg.jpg?v=1789400601&amp;width=480" alt="Mouth Tape" srcset="https://aesthetics-lab.com/cdn/shop/files/jawliner_shopbubbles_mothtape_jpg.jpg?v=1789400601&amp;width=240 240w, //aesthetics-lab.com/cdn/shop/files/jawliner_shopbubbles_mothtape_jpg.jpg?v=1789400601&amp;width=360 360w, //aesthetics-lab.com/cdn/shop/files/jawliner_shopbubbles_mothtape_jpg.jpg?v=1789400601&amp;width=480 480w" width="480" height="480" loading="lazy" sizes="160px">
+</span><span class="bubble__label">Mouth Tape</span></a><a class="bubble" href="#non-inclus" >
+            <span class="bubble__disc has-photo"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_33.png?v=1789400960&amp;width=480" alt="Protocols" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_33.png?v=1789400960&amp;width=240 240w, //aesthetics-lab.com/cdn/shop/files/asset_33.png?v=1789400960&amp;width=360 360w, //aesthetics-lab.com/cdn/shop/files/asset_33.png?v=1789400960&amp;width=480 480w" width="480" height="480" loading="lazy" sizes="160px">
+</span><span class="bubble__label">Protocols</span></a></div>
+    </div>
+  </div>
+</section>
+<script>
+  (function () {
+    var fill = function () {
+      if (!window.AL_ICONS) return;
+      document.querySelectorAll("[data-bubble-icon]").forEach(function (el) { var ic = window.AL_ICONS[el.getAttribute("data-bubble-icon")]; if (ic) el.innerHTML = ic; });
+    };
+    fill(); document.addEventListener("DOMContentLoaded", fill); document.addEventListener("shopify:section:load", fill);
+  })();
+</script>
+</div><div id="shopify-section-template--30670555283839__shop" class="shopify-section"><section class="section" aria-labelledby="grid-template--30670555283839__shop">
+  <div class="container frame-x">
+    <div class="section__inner" style="--pt: 8px; --pb: 16px">
+      <div class="section__header section__header--center"><h2 class="headline mt-3" data-text-reveal>The tools. <span class="muted">Jaw, sleep, skin.</span></h2></div>
+
+<div class="grid grid--4 grid--scroll-m mt-6" data-reveal data-reveal-stagger="0.08"><div style="display:contents" >
+ 
+<article class="card pcard-product">
+  <a href="#non-inclus" aria-label="Aesthetic® Hematite Bracelet, $24.99">
+    <div class="pcard-product__media media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/HemiosBracelets7.webp?v=1789761718&amp;width=900" alt="Aesthetic® Hematite Bracelet" srcset="https://aesthetics-lab.com/cdn/shop/files/HemiosBracelets7.webp?v=1789761718&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/HemiosBracelets7.webp?v=1789761718&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/HemiosBracelets7.webp?v=1789761718&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw">
+</div>
+    <div class="pcard-product__body">
+      <h3>Aesthetic® Hematite Bracelet</h3>
+      <p>
+
+
+The original Aesthetic Hematite. The same magnetic stone Roman warriors wore into battle — now the edge you carry ...</p>
+      <div class="pcard-product__foot">
+        <span class="tnum">$24.99</span>
+        <span style="display:inline-flex;align-items:center;gap:.5rem;font-size:.8125rem">Unlock <span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></span>
+      </div>
+    </div>
+  </a>
+</article>
+ 
+  </div>
+ 
+<article class="card pcard-product">
+  <a href="#non-inclus" aria-label="Aesthetic Lab® Pimple Patch, $19.99">
+    <div class="pcard-product__media media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_48.png?v=1789404800&amp;width=900" alt="Aesthetic Lab® Pimple Patch" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_48.png?v=1789404800&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_48.png?v=1789404800&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_48.png?v=1789404800&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw">
+</div>
+    <div class="pcard-product__body">
+      <h3>Aesthetic Lab® Pimple Patch</h3>
+      <p></p>
+      <div class="pcard-product__foot">
+        <span class="tnum">$19.99</span>
+        <span style="display:inline-flex;align-items:center;gap:.5rem;font-size:.8125rem">Unlock <span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></span>
+      </div>
+    </div>
+  </a>
+</article>
+ 
+  
+
+ 
+<article class="card pcard-product">
+  <a href="/api/formation/boutique-exemple?p=produit-2" aria-label="Mouthsthetic® Anti Snoring Mouth Tape, $19.99">
+    <div class="pcard-product__media media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_45.png?v=1789404395&amp;width=900" alt="Mouthsthetic® Anti Snoring Mouth Tape" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_45.png?v=1789404395&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_45.png?v=1789404395&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_45.png?v=1789404395&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw">
+</div>
+    <div class="pcard-product__body">
+      <h3>Mouthsthetic® Anti Snoring Mouth Tape</h3>
+      <p></p>
+      <div class="pcard-product__foot">
+        <span class="tnum">$19.99</span>
+        <span style="display:inline-flex;align-items:center;gap:.5rem;font-size:.8125rem">Unlock <span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></span>
+      </div>
+    </div>
+  </a>
+</article>
+ 
+  
+
+ 
+<article class="card pcard-product">
+  <a href="#non-inclus" aria-label="Aesthetic Lab® Nose Tape, $19.99">
+    <div class="pcard-product__media media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_36.png?v=1789403366&amp;width=900" alt="Aesthetic Lab® Nose Tape" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_36.png?v=1789403366&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_36.png?v=1789403366&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_36.png?v=1789403366&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw">
+</div>
+    <div class="pcard-product__body">
+      <h3>Aesthetic Lab® Nose Tape</h3>
+      <p></p>
+      <div class="pcard-product__foot">
+        <span class="tnum">$19.99</span>
+        <span style="display:inline-flex;align-items:center;gap:.5rem;font-size:.8125rem">Unlock <span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></span>
+      </div>
+    </div>
+  </a>
+</article>
+ 
+  
+</div></div>
+  </div>
+</section>
+
+</div><div id="shopify-section-template--30670555283839__logos" class="shopify-section"><section class="logos" aria-label="Brand strip" style="--logo-opacity: 1.0; --logo-height: 46px; --logo-gap: 20px; --logo-speed: 24s; --logo-max: 150px; --logo-trim: 16px; --strip-h: 52px" data-scroll-desktop="true" data-grayscale="false">
+  <div class="container frame-x">
+    <div class="logos__inner"><div class="logos__scroller">
+        <div class="logos__row"><div class="logos__set"><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/new-york-post.webp?v=1789127626&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/new-york-post.webp?v=1789127626&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/new-york-post.webp?v=1789127626&amp;width=400 400w" width="400" height="153" loading="lazy" class="logos__img">
+</span><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/the-sun.webp?v=1789127626&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/the-sun.webp?v=1789127626&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/the-sun.webp?v=1789127626&amp;width=400 400w" width="400" height="153" loading="lazy" class="logos__img">
+</span><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/gq.webp?v=1789127628&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/gq.webp?v=1789127628&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/gq.webp?v=1789127628&amp;width=400 400w" width="400" height="154" loading="lazy" class="logos__img">
+</span><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/cosmopolitan.webp?v=1789127626&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/cosmopolitan.webp?v=1789127626&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/cosmopolitan.webp?v=1789127626&amp;width=400 400w" width="400" height="154" loading="lazy" class="logos__img">
+</span><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/the-guardian.webp?v=1789127626&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/the-guardian.webp?v=1789127626&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/the-guardian.webp?v=1789127626&amp;width=400 400w" width="400" height="154" loading="lazy" class="logos__img">
+</span><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/usa-today.webp?v=1789127626&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/usa-today.webp?v=1789127626&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/usa-today.webp?v=1789127626&amp;width=400 400w" width="400" height="154" loading="lazy" class="logos__img">
+</span><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/business-insider.webp?v=1789127626&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/business-insider.webp?v=1789127626&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/business-insider.webp?v=1789127626&amp;width=400 400w" width="400" height="154" loading="lazy" class="logos__img">
+</span></div><div class="logos__set"><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/new-york-post.webp?v=1789127626&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/new-york-post.webp?v=1789127626&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/new-york-post.webp?v=1789127626&amp;width=400 400w" width="400" height="153" loading="lazy" class="logos__img">
+</span><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/the-sun.webp?v=1789127626&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/the-sun.webp?v=1789127626&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/the-sun.webp?v=1789127626&amp;width=400 400w" width="400" height="153" loading="lazy" class="logos__img">
+</span><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/gq.webp?v=1789127628&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/gq.webp?v=1789127628&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/gq.webp?v=1789127628&amp;width=400 400w" width="400" height="154" loading="lazy" class="logos__img">
+</span><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/cosmopolitan.webp?v=1789127626&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/cosmopolitan.webp?v=1789127626&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/cosmopolitan.webp?v=1789127626&amp;width=400 400w" width="400" height="154" loading="lazy" class="logos__img">
+</span><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/the-guardian.webp?v=1789127626&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/the-guardian.webp?v=1789127626&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/the-guardian.webp?v=1789127626&amp;width=400 400w" width="400" height="154" loading="lazy" class="logos__img">
+</span><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/usa-today.webp?v=1789127626&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/usa-today.webp?v=1789127626&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/usa-today.webp?v=1789127626&amp;width=400 400w" width="400" height="154" loading="lazy" class="logos__img">
+</span><span class="logos__item" ><img src="https://aesthetics-lab.com/cdn/shop/files/business-insider.webp?v=1789127626&amp;width=400" alt="Brand" srcset="https://aesthetics-lab.com/cdn/shop/files/business-insider.webp?v=1789127626&amp;width=352 352w, //aesthetics-lab.com/cdn/shop/files/business-insider.webp?v=1789127626&amp;width=400 400w" width="400" height="154" loading="lazy" class="logos__img">
+</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div><div id="shopify-section-template--30670555283839__reviews" class="shopify-section"><section class="section reviews" aria-labelledby="reviews-template--30670555283839__reviews" data-reviews data-per-desktop="4.5" data-per-tablet="2.5" data-per-mobile="1.2"
+  style="--rv-pt: 40px; --rv-pb: 4px; --rv-gap: 12px; --rv-radius: 16px; --rv-title: 16px; --rv-text: 14px; --rv-star: 18px; --rv-star-color: #00b67a; --rv-bar-h: 2px; --rv-bar: #233137; --rv-bar-track: #e4e4e4; --rv-bg: #ffffff; --rv-lines: 4">
+  <div class="container frame-x">
+    <div class="section__inner reviews__inner" style="--pt: 40px; --pb: 40px">
+      <div class="reviews__head">
+        <div class="reviews__heading">
+          <div class="section__header"><div data-reveal><span class="label-pill">Reviews <span style="opacity:.6">· 15</span></span></div><h2 class="headline mt-3" data-text-reveal>Real users. <span class="muted">Real results.</span></h2><p class="lead" data-reveal data-reveal-delay="150">Verified reviews from customers who ran the protocol.</p></div>
+
+        </div><div class="reviews__nav" aria-hidden="true">
+          <button type="button" class="reviews__arrow" data-reviews-prev aria-label="Previous reviews" tabindex="-1"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></button>
+          <button type="button" class="reviews__arrow" data-reviews-next aria-label="Next reviews" tabindex="-1"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="container frame-x reviews__viewport">
+  <div class="reviews__scroller" data-reviews-track tabindex="0">
+    <div class="reviews__track reviews__track--3x4"><article class="card review" >
+          <div class="review__media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_77.png?v=1789415502&amp;width=900" alt="" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_77.png?v=1789415502&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_77.png?v=1789415502&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_77.png?v=1789415502&amp;width=900 900w" width="900" height="1195" loading="lazy" sizes="(min-width: 1024px) 360px, 80vw">
+</div>
+          <div class="review__body"><div class="review__rating review__rating--top"><span class="stars stars--img" role="img" aria-label="5 out of 5 stars"><img class="stars__base" src="https://aesthetics-lab.com/cdn/shop/t/7/assets/rating-logo.png?v=170838975697634001371790725366" alt="" width="600" height="113" loading="lazy" decoding="async"><span class="stars__fill" style="width: 100%"><img src="https://aesthetics-lab.com/cdn/shop/t/7/assets/rating-logo.png?v=170838975697634001371790725366" alt="" width="600" height="113" loading="lazy" decoding="async"></span></span>
+</div><h3 class="review__title">My face looks so much sharper</h3><p class="review__text">I finally understood what I needed to work on first. My face looks less puffy and I already feel much more confident.</p><div class="review__rating"><span class="review__verified"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></svg>Verified</span></div>
+            <p class="review__author">Emily R.</p><p class="review__date">2 days ago</p></div>
+        </article><article class="card review" >
+          <div class="review__media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_78.png?v=1789415513&amp;width=900" alt="" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_78.png?v=1789415513&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_78.png?v=1789415513&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_78.png?v=1789415513&amp;width=900 900w" width="900" height="1195" loading="lazy" sizes="(min-width: 1024px) 360px, 80vw">
+</div>
+          <div class="review__body"><div class="review__rating review__rating--top"><span class="stars stars--img" role="img" aria-label="5 out of 5 stars"><img class="stars__base" src="https://aesthetics-lab.com/cdn/shop/t/7/assets/rating-logo.png?v=170838975697634001371790725366" alt="" width="600" height="113" loading="lazy" decoding="async"><span class="stars__fill" style="width: 100%"><img src="https://aesthetics-lab.com/cdn/shop/t/7/assets/rating-logo.png?v=170838975697634001371790725366" alt="" width="600" height="113" loading="lazy" decoding="async"></span></span>
+</div><h3 class="review__title">Exactly what I needed</h3><p class="review__text">I was trying random beauty tips with no real plan. This gave me a simple routine and clear priorities to actually follow.</p><div class="review__rating"><span class="review__verified"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></svg>Verified</span></div>
+            <p class="review__author">Sophie M.</p><p class="review__date">3 days ago</p></div>
+        </article><article class="card review" >
+          <div class="review__media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_79.png?v=1789415522&amp;width=900" alt="" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_79.png?v=1789415522&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_79.png?v=1789415522&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_79.png?v=1789415522&amp;width=900 900w" width="900" height="1200" loading="lazy" sizes="(min-width: 1024px) 360px, 80vw">
+</div>
+          <div class="review__body"><div class="review__rating review__rating--top"><span class="stars stars--img" role="img" aria-label="5 out of 5 stars"><img class="stars__base" src="https://aesthetics-lab.com/cdn/shop/t/7/assets/rating-logo.png?v=170838975697634001371790725366" alt="" width="600" height="113" loading="lazy" decoding="async"><span class="stars__fill" style="width: 100%"><img src="https://aesthetics-lab.com/cdn/shop/t/7/assets/rating-logo.png?v=170838975697634001371790725366" alt="" width="600" height="113" loading="lazy" decoding="async"></span></span>
+</div><h3 class="review__title">I noticed the difference fast</h3><p class="review__text">The biggest change for me was my face. I look fresher, less tired, and much better in photos now</p><div class="review__rating"><span class="review__verified"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></svg>Verified</span></div>
+            <p class="review__author">Jessica L.</p><p class="review__date">3 days ago</p></div>
+        </article><article class="card review" >
+          <div class="review__media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_80.png?v=1789415531&amp;width=900" alt="" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_80.png?v=1789415531&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_80.png?v=1789415531&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_80.png?v=1789415531&amp;width=900 900w" width="900" height="1195" loading="lazy" sizes="(min-width: 1024px) 360px, 80vw">
+</div>
+          <div class="review__body"><div class="review__rating review__rating--top"><span class="stars stars--img" role="img" aria-label="5 out of 5 stars"><img class="stars__base" src="https://aesthetics-lab.com/cdn/shop/t/7/assets/rating-logo.png?v=170838975697634001371790725366" alt="" width="600" height="113" loading="lazy" decoding="async"><span class="stars__fill" style="width: 100%"><img src="https://aesthetics-lab.com/cdn/shop/t/7/assets/rating-logo.png?v=170838975697634001371790725366" alt="" width="600" height="113" loading="lazy" decoding="async"></span></span>
+</div><h3 class="review__title">Finally a real plan</h3><p class="review__text">I love that everything is organized for you — skin, face, hair, body and style. I stopped guessing and just followed the protocol.</p><div class="review__rating"><span class="review__verified"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></svg>Verified</span></div>
+            <p class="review__author">Rachel T.</p><p class="review__date">4 days ago</p></div>
+        </article><article class="card review" >
+          <div class="review__media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_81.png?v=1789415548&amp;width=900" alt="" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_81.png?v=1789415548&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_81.png?v=1789415548&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_81.png?v=1789415548&amp;width=900 900w" width="900" height="1195" loading="lazy" sizes="(min-width: 1024px) 360px, 80vw">
+</div>
+          <div class="review__body"><div class="review__rating review__rating--top"><span class="stars stars--img" role="img" aria-label="5 out of 5 stars"><img class="stars__base" src="https://aesthetics-lab.com/cdn/shop/t/7/assets/rating-logo.png?v=170838975697634001371790725366" alt="" width="600" height="113" loading="lazy" decoding="async"><span class="stars__fill" style="width: 100%"><img src="https://aesthetics-lab.com/cdn/shop/t/7/assets/rating-logo.png?v=170838975697634001371790725366" alt="" width="600" height="113" loading="lazy" decoding="async"></span></span>
+</div><h3 class="review__title">Way more confident now</h3><p class="review__text">My jawline looks better, my grooming is cleaner, and I feel much more confident socially. It’s changed how I carry myself.</p><div class="review__rating"><span class="review__verified"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></svg>Verified</span></div>
+            <p class="review__author">James B.</p><p class="review__date">5 days ago</p></div>
+        </article></div>
+  </div>
+  </div><div class="container frame-x"><div class="reviews__bar" data-reviews-bar aria-hidden="true"><div class="reviews__bar-fill" data-reviews-bar-fill></div></div></div></section>
+</div><div id="shopify-section-template--30670555283839__ba_jaw" class="shopify-section"><section class="section ba-split" style="--ba-ratio: 3 / 2">
+  <div class="container frame-x">
+    <div class="section__inner" style="--pt: 48px; --pb: 48px">
+      <div class="ba-split__grid">
+        <div class="ba-split__text" data-reveal><h2 class="ba-split__title">Same jawline, different jaw muscle</h2><ul class="ba-split__checks"><li><span class="check"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></svg></span><span>Jaw workout = bigger jaw muscle</span></li><li><span class="check"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></svg></span><span>Bigger jaw muscle = more attractive jawline</span></li></ul><div class="ba-split__p"><strong>Transform your profile.</strong> Your masseter muscle defines the look of your jawline. The Aesthetic Lab trainer targets this exact muscle, turning a soft jaw into a chiseled edge. Every workout builds the bold, angular jawline that turns heads. Train more, see more: watch your face become broader, sharper, and more attractive.</div></div>
+        <div class="ba-split__media ba--split" data-reveal data-reveal-delay="120"><div class="ba" data-ba>
+  <img decoding="async" src="https://aesthetics-lab.com/cdn/shop/files/asset_61.png?v=1789407805&width=1200" alt="Before, placeholder" width="1200" height="1500" loading="lazy" draggable="false">
+  <div class="ba__after"><img decoding="async" src="https://aesthetics-lab.com/cdn/shop/files/asset_62.png?v=1789407899&width=1200" alt="After, placeholder" width="1200" height="1500" loading="lazy" draggable="false"></div>
+  <div class="ba__line"><span class="ba__handle"></span></div>
+  <span class="label-pill ba__label--before">Before</span>
+  <span class="label-pill ba__label--after">After</span>
+  <label class="sr-only" for="ba-1-template--30670555283839__ba_jaw">Compare before and after</label>
+  <input class="ba__range" id="ba-1-template--30670555283839__ba_jaw" type="range" min="4" max="96" value="50">
+</div>
+
+</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div><div id="shopify-section-template--30670555283839__proof" class="shopify-section"><section class="section proof" aria-labelledby="proof-template--30670555283839__proof" data-proof style="--proof-ratio: 3 / 2; --proof-fit: cover; --proof-card: 78%; --proof-card-d: 31%">
+  <div class="container frame-x">
+    <div class="section__inner" style="--pt: 40px; --pb: 24px">
+      <div class="section__header"><h2 class="headline mt-3" data-text-reveal>What 2 weeks <span class="muted">actually look like.</span></h2><p class="lead" data-reveal data-reveal-delay="150">Different people, same two weeks. Swipe through.</p></div>
+
+<div class="proof__tabs mt-4" role="tablist" style="--tab-a: #4a90d9; --tab-b: #e0559a">
+          <button type="button" class="proof__tab proof__tab--a is-on" role="tab" aria-selected="true" data-proof-tab="a">Men</button>
+          <button type="button" class="proof__tab proof__tab--b" role="tab" aria-selected="false" data-proof-tab="b">Women</button>
+        </div><div class="proof__row mt-4" data-reveal data-reveal-stagger="0.08" data-proof-panel="a"><article class="proof__card" >
+                <div class="proof__media" style="--proof-ratio: 1 / 1"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_65.png?v=1789414129&amp;width=900" alt="Softer jaw to a visible angle" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_65.png?v=1789414129&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_65.png?v=1789414129&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_65.png?v=1789414129&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 30vw, 78vw">
+<span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">Softer jaw to a visible angle</h3><p class="proof__text">Beginner level, every other day, nothing else changed.</p></div>
+              </article><article class="proof__card" >
+                <div class="proof__media" style="--proof-ratio: 1 / 1"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_66.png?v=1789414215&amp;width=900" alt="Softer jaw to a visible angle" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_66.png?v=1789414215&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_66.png?v=1789414215&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_66.png?v=1789414215&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 30vw, 78vw">
+<span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">Softer jaw to a visible angle</h3><p class="proof__text">Beginner level, every other day, nothing else changed.</p></div>
+              </article><article class="proof__card" >
+                <div class="proof__media" style="--proof-ratio: 1 / 1"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_67.png?v=1789414224&amp;width=900" alt="Softer jaw to a visible angle" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_67.png?v=1789414224&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_67.png?v=1789414224&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_67.png?v=1789414224&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 30vw, 78vw">
+<span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">Softer jaw to a visible angle</h3><p class="proof__text">Beginner level, every other day, nothing else changed.</p></div>
+              </article><article class="proof__card" >
+                <div class="proof__media" style="--proof-ratio: 1 / 1"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_68.png?v=1789414233&amp;width=900" alt="Softer jaw to a visible angle" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_68.png?v=1789414233&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_68.png?v=1789414233&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_68.png?v=1789414233&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 30vw, 78vw">
+<span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">Softer jaw to a visible angle</h3><p class="proof__text">Beginner level, every other day, nothing else changed.</p></div>
+              </article><article class="proof__card" >
+                <div class="proof__media" style="--proof-ratio: 1 / 1"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_69.png?v=1789414478&amp;width=900" alt="Softer jaw to a visible angle" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_69.png?v=1789414478&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_69.png?v=1789414478&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_69.png?v=1789414478&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 30vw, 78vw">
+<span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">Softer jaw to a visible angle</h3><p class="proof__text">Beginner level, every other day, nothing else changed.</p></div>
+              </article><article class="proof__card" >
+                <div class="proof__media" style="--proof-ratio: 1 / 1"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_70.png?v=1789414507&amp;width=900" alt="Softer jaw to a visible angle" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_70.png?v=1789414507&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_70.png?v=1789414507&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_70.png?v=1789414507&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 30vw, 78vw">
+<span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">Softer jaw to a visible angle</h3><p class="proof__text">Beginner level, every other day, nothing else changed.</p></div>
+              </article></div><div class="proof__row mt-4" data-reveal data-reveal-stagger="0.08" data-proof-panel="b" hidden><article class="proof__card" >
+                <div class="proof__media" style="--proof-ratio: 1 / 1"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_71.png?v=1789414846&amp;width=900" alt="Cleaner jawline" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_71.png?v=1789414846&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_71.png?v=1789414846&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_71.png?v=1789414846&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 30vw, 78vw">
+<span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">Cleaner jawline</h3><p class="proof__text">Less water under the chin. Beginner level.</p></div>
+              </article><article class="proof__card" >
+                <div class="proof__media" style="--proof-ratio: 1 / 1"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_72.png?v=1789414877&amp;width=900" alt="Cleaner jawline" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_72.png?v=1789414877&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_72.png?v=1789414877&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_72.png?v=1789414877&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 30vw, 78vw">
+<span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">Cleaner jawline</h3><p class="proof__text">Less water under the chin. Beginner level.</p></div>
+              </article><article class="proof__card" >
+                <div class="proof__media" style="--proof-ratio: 1 / 1"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_73.png?v=1789414890&amp;width=900" alt="Cleaner jawline" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_73.png?v=1789414890&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_73.png?v=1789414890&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_73.png?v=1789414890&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 30vw, 78vw">
+<span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">Cleaner jawline</h3><p class="proof__text">Less water under the chin. Beginner level.</p></div>
+              </article><article class="proof__card" >
+                <div class="proof__media" style="--proof-ratio: 1 / 1"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_74.png?v=1789414899&amp;width=900" alt="Cleaner jawline" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_74.png?v=1789414899&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_74.png?v=1789414899&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_74.png?v=1789414899&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 30vw, 78vw">
+<span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">Cleaner jawline</h3><p class="proof__text">Less water under the chin. Beginner level.</p></div>
+              </article><article class="proof__card" >
+                <div class="proof__media" style="--proof-ratio: 1 / 1"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_75.png?v=1789414907&amp;width=900" alt="Cleaner jawline" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_75.png?v=1789414907&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/asset_75.png?v=1789414907&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/asset_75.png?v=1789414907&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 30vw, 78vw">
+<span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">Cleaner jawline</h3><p class="proof__text">Less water under the chin. Beginner level.</p></div>
+              </article><article class="proof__card" >
+                <div class="proof__media"><img src="https://aesthetics-lab.com/cdn/shop/t/7/assets/qc-pair-6.webp?v=75195179379322341881790725366" alt="The profile sharpens first" loading="lazy" decoding="async" width="900" height="600"><span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">The profile sharpens first</h3><p class="proof__text">Every other day, ten minutes.</p></div>
+              </article><article class="proof__card" >
+                <div class="proof__media"><img src="https://aesthetics-lab.com/cdn/shop/t/7/assets/qc-pair-7.webp?v=57795409271810099321790725366" alt="Rounder to defined" loading="lazy" decoding="async" width="900" height="600"><span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">Rounder to defined</h3><p class="proof__text">Advanced from day 10.</p></div>
+              </article><article class="proof__card" >
+                <div class="proof__media"><img src="https://aesthetics-lab.com/cdn/shop/t/7/assets/qc-pair-1.webp?v=172826350233855538321790725366" alt="Same face, sharper angle" loading="lazy" decoding="async" width="900" height="600"><span class="proof__label">2 weeks</span></div>
+                <div class="proof__body"><h3 class="proof__title">Same face, sharper angle</h3><p class="proof__text">Fourteen days, same framing.</p></div>
+              </article></div></div>
+  </div>
+</section><script>
+  (function () {
+    document.querySelectorAll("[data-proof]").forEach(function (root) {
+      if (root.getAttribute("data-bound")) return; root.setAttribute("data-bound", "1");
+      root.querySelectorAll("[data-proof-tab]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var g = btn.getAttribute("data-proof-tab");
+          root.querySelectorAll("[data-proof-tab]").forEach(function (b) { var on = b === btn; b.classList.toggle("is-on", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+          root.querySelectorAll("[data-proof-panel]").forEach(function (p) { p.hidden = p.getAttribute("data-proof-panel") !== g; });
+        });
+      });
+    });
+  })();
+</script>
+</div><div id="shopify-section-template--30670555283839__protocols_grid" class="shopify-section"><section class="section" aria-labelledby="grid-template--30670555283839__protocols_grid">
+  <div class="container frame-x">
+    <div class="section__inner" style="--pt: 32px; --pb: 32px">
+      <div class="section__header section__header--center"><h2 class="headline mt-3" data-text-reveal>The protocols. <span class="muted">90 days, step by step.</span></h2><p class="lead" data-reveal data-reveal-delay="150">Face, skin, hair, physique, grooming and style, sequenced day by day. Instant access.</p></div>
+
+<div class="grid grid--3 grid--scroll-m mt-6" data-reveal data-reveal-stagger="0.08">
+ 
+<article class="card pcard-product">
+  <a href="#non-inclus" aria-label="The Clear Skin Protocol, $14.99">
+    <div class="pcard-product__media media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/cc2560b7b5696d034256e80ec3adbe5d_1789234165632.png?v=1789239465&amp;width=900" alt="The Clear Skin Protocol" srcset="https://aesthetics-lab.com/cdn/shop/files/cc2560b7b5696d034256e80ec3adbe5d_1789234165632.png?v=1789239465&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/cc2560b7b5696d034256e80ec3adbe5d_1789234165632.png?v=1789239465&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/cc2560b7b5696d034256e80ec3adbe5d_1789234165632.png?v=1789239465&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw">
+</div>
+    <div class="pcard-product__body">
+      <h3>The Clear Skin Protocol</h3>
+      <p>Stop buying. Start compounding. Clear skin is not a product problem, it is a consistency problem. This protocol strip...</p>
+      <div class="pcard-product__foot">
+        <span class="tnum">$14.99</span>
+        <span style="display:inline-flex;align-items:center;gap:.5rem;font-size:.8125rem">Unlock <span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></span>
+      </div>
+    </div>
+  </a>
+</article>
+ 
+  
+
+ 
+<article class="card pcard-product">
+  <a href="#non-inclus" aria-label="The Face Protocol, $14.99">
+    <div class="pcard-product__media media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/bcc3b27b83d1cf8096b4a2faf0ff8e37_1789234163452.png?v=1789239458&amp;width=900" alt="The Face Protocol" srcset="https://aesthetics-lab.com/cdn/shop/files/bcc3b27b83d1cf8096b4a2faf0ff8e37_1789234163452.png?v=1789239458&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/bcc3b27b83d1cf8096b4a2faf0ff8e37_1789234163452.png?v=1789239458&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/bcc3b27b83d1cf8096b4a2faf0ff8e37_1789234163452.png?v=1789239458&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw">
+</div>
+    <div class="pcard-product__body">
+      <h3>The Face Protocol</h3>
+      <p>Your face is already there. The frame is what's off. Beard line, brow shape, head posture, expression: four variables...</p>
+      <div class="pcard-product__foot">
+        <span class="tnum">$14.99</span>
+        <span style="display:inline-flex;align-items:center;gap:.5rem;font-size:.8125rem">Unlock <span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></span>
+      </div>
+    </div>
+  </a>
+</article>
+ 
+  
+
+ 
+<article class="card pcard-product">
+  <a href="#non-inclus" aria-label="The Aesthetic Physique Protocol, $14.99">
+    <div class="pcard-product__media media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/41a2932f2db7b4cd548f84dce8ae761e_1789234169550.png?v=1789239461&amp;width=900" alt="The Aesthetic Physique Protocol" srcset="https://aesthetics-lab.com/cdn/shop/files/41a2932f2db7b4cd548f84dce8ae761e_1789234169550.png?v=1789239461&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/41a2932f2db7b4cd548f84dce8ae761e_1789234169550.png?v=1789239461&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/41a2932f2db7b4cd548f84dce8ae761e_1789234169550.png?v=1789239461&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw">
+</div>
+    <div class="pcard-product__body">
+      <h3>The Aesthetic Physique Protocol</h3>
+      <p>Most people train for numbers. You are going to train for the mirror. Shoulders, upper back, chest, neck: the muscles...</p>
+      <div class="pcard-product__foot">
+        <span class="tnum">$14.99</span>
+        <span style="display:inline-flex;align-items:center;gap:.5rem;font-size:.8125rem">Unlock <span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></span>
+      </div>
+    </div>
+  </a>
+</article>
+ 
+  
+
+ 
+<article class="card pcard-product">
+  <a href="#non-inclus" aria-label="The Complete Grooming System, $14.99">
+    <div class="pcard-product__media media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/aa4d173dd2a9986dbe1d0ccf57580c60_1789234173776.png?v=1789239462&amp;width=900" alt="The Complete Grooming System" srcset="https://aesthetics-lab.com/cdn/shop/files/aa4d173dd2a9986dbe1d0ccf57580c60_1789234173776.png?v=1789239462&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/aa4d173dd2a9986dbe1d0ccf57580c60_1789234173776.png?v=1789239462&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/aa4d173dd2a9986dbe1d0ccf57580c60_1789234173776.png?v=1789239462&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw">
+</div>
+    <div class="pcard-product__body">
+      <h3>The Complete Grooming System</h3>
+      <p>Grooming is the fastest way to look expensive. Neckline, brows, nails, teeth, scent: nobody mentions them, everybody ...</p>
+      <div class="pcard-product__foot">
+        <span class="tnum">$14.99</span>
+        <span style="display:inline-flex;align-items:center;gap:.5rem;font-size:.8125rem">Unlock <span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></span>
+      </div>
+    </div>
+  </a>
+</article>
+ 
+  
+
+ 
+<article class="card pcard-product">
+  <a href="#non-inclus" aria-label="The Personal Style System, $14.99">
+    <div class="pcard-product__media media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/f96d5f6e09caeb0ed0fb58883e31b95b_1789234172235.png?v=1789239464&amp;width=900" alt="The Personal Style System" srcset="https://aesthetics-lab.com/cdn/shop/files/f96d5f6e09caeb0ed0fb58883e31b95b_1789234172235.png?v=1789239464&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/f96d5f6e09caeb0ed0fb58883e31b95b_1789234172235.png?v=1789239464&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/f96d5f6e09caeb0ed0fb58883e31b95b_1789234172235.png?v=1789239464&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw">
+</div>
+    <div class="pcard-product__body">
+      <h3>The Personal Style System</h3>
+      <p>Most men are one size off and three colours wrong. Style is not about buying more. It is fit, proportion and a palett...</p>
+      <div class="pcard-product__foot">
+        <span class="tnum">$14.99</span>
+        <span style="display:inline-flex;align-items:center;gap:.5rem;font-size:.8125rem">Unlock <span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></span>
+      </div>
+    </div>
+  </a>
+</article>
+ 
+  
+
+ 
+<article class="card pcard-product">
+  <a href="#non-inclus" aria-label="The Hair Optimization Protocol, $14.99">
+    <div class="pcard-product__media media media--zoom"><img src="https://aesthetics-lab.com/cdn/shop/files/c9ce34e44030c81db5b802cc849f7104_1789234195601.png?v=1789239460&amp;width=900" alt="The Hair Optimization Protocol" srcset="https://aesthetics-lab.com/cdn/shop/files/c9ce34e44030c81db5b802cc849f7104_1789234195601.png?v=1789239460&amp;width=400 400w, //aesthetics-lab.com/cdn/shop/files/c9ce34e44030c81db5b802cc849f7104_1789234195601.png?v=1789239460&amp;width=600 600w, //aesthetics-lab.com/cdn/shop/files/c9ce34e44030c81db5b802cc849f7104_1789234195601.png?v=1789239460&amp;width=900 900w" width="900" height="900" loading="lazy" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw">
+</div>
+    <div class="pcard-product__body">
+      <h3>The Hair Optimization Protocol</h3>
+      <p>One haircut can do more for your face than a year of anything else. The wrong cut hides your jaw, widens the face and...</p>
+      <div class="pcard-product__foot">
+        <span class="tnum">$14.99</span>
+        <span style="display:inline-flex;align-items:center;gap:.5rem;font-size:.8125rem">Unlock <span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></span>
+      </div>
+    </div>
+  </a>
+</article>
+ 
+  
+</div><div class="center mt-6" data-reveal><a class="btn btn--secondary btn--lg" href="/api/formation/boutique-exemple?p=collection" >
+    <span>See all protocols</span><span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></a></div></div>
+  </div>
+</section>
+
+</div><div id="shopify-section-template--30670555283839__faq" class="shopify-section"><section class="section" aria-labelledby="faq-template--30670555283839__faq" data-tabs>
+  <div class="container frame-x">
+    <div class="section__inner" style="--pt: 40px; --pb: 40px">
+      <div class="section__header"><div data-reveal><span class="label-pill">Your questions</span></div><h2 class="headline mt-3" data-text-reveal>Frequently asked <span class="muted">questions.</span></h2><p class="lead" data-reveal data-reveal-delay="150">Straight answers on the products, shipping and returns.</p></div>
+
+<div class="faq mt-6" style="--faq-nav-radius: 8px; --faq-card-radius: 12px"><ul class="faq__nav" role="tablist" data-reveal><li><button type="button" class="label-pill faq__nav-btn" role="tab" id="faqtab-template--30670555283839__faq-0" aria-controls="faqpanel-template--30670555283839__faq-0" aria-selected="true" style="height:2.25rem;padding-inline:1rem;font-size:.6875rem" >Products</button></li><li><button type="button" class="label-pill faq__nav-btn" role="tab" id="faqtab-template--30670555283839__faq-1" aria-controls="faqpanel-template--30670555283839__faq-1" aria-selected="false" style="height:2.25rem;padding-inline:1rem;font-size:.6875rem" >Orders</button></li><li><button type="button" class="label-pill faq__nav-btn" role="tab" id="faqtab-template--30670555283839__faq-2" aria-controls="faqpanel-template--30670555283839__faq-2" aria-selected="false" style="height:2.25rem;padding-inline:1rem;font-size:.6875rem" >Protocols</button></li></ul>
+        <div><div class="tab-panel" role="tabpanel" id="faqpanel-template--30670555283839__faq-0" aria-labelledby="faqtab-template--30670555283839__faq-0" >
+                <div class="card accordion"><details open ><summary>Which jaw trainer level should I start with?<span class="plus"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M8 2v12M2 8h12"/></svg></span></summary><div class="accordion__body">Beginner if it is your first trainer. Move up to Advanced when a full session feels easy, and to Expert only after weeks on Advanced.</div></details><details  ><summary>When will I see results?<span class="plus"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M8 2v12M2 8h12"/></svg></span></summary><div class="accordion__body">The pump shows right after a jaw session; visible definition builds over the first weeks with consistent training. Tapes work from the first night. Patches flatten a spot overnight.</div></details><details  ><summary>Is mouth tape safe?<span class="plus"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M8 2v12M2 8h12"/></svg></span></summary><div class="accordion__body">Only if you can breathe freely through your nose. Do not use it with a blocked nose, after alcohol, or with a breathing or sleep condition without medical advice. Not for children.</div></details><details  ><summary>What are the products made of?<span class="plus"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M8 2v12M2 8h12"/></svg></span></summary><div class="accordion__body">The trainer is food-grade silicone, free of BPA, PVC and PFAS. Tapes use a skin-friendly adhesive, single use. Patches are hydrocolloid, single use.</div></details></div>
+              </div><div class="tab-panel" role="tabpanel" id="faqpanel-template--30670555283839__faq-1" aria-labelledby="faqtab-template--30670555283839__faq-1" hidden>
+                <div class="card accordion"><details open ><summary>How long does shipping take?<span class="plus"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M8 2v12M2 8h12"/></svg></span></summary><div class="accordion__body">Orders ship from the United States and arrive in 3 to 5 business days. Shipping is free in the US.</div></details><details  ><summary>Can I return a product?<span class="plus"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M8 2v12M2 8h12"/></svg></span></summary><div class="accordion__body">Yes, within 14 days of delivery, unused and sealed. Tapes and patches must be unopened. Email support@aesthetic-lab.com with your order number.</div></details><details  ><summary>Is there a warranty?<span class="plus"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M8 2v12M2 8h12"/></svg></span></summary><div class="accordion__body">The JAWESTHETIC® 3.0 trainer has a 1-year free replacement warranty.</div></details></div>
+              </div><div class="tab-panel" role="tabpanel" id="faqpanel-template--30670555283839__faq-2" aria-labelledby="faqtab-template--30670555283839__faq-2" hidden>
+                <div class="card accordion"><details open ><summary>What is a protocol?<span class="plus"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M8 2v12M2 8h12"/></svg></span></summary><div class="accordion__body">A 90-day step-by-step system for one pillar of your appearance (face, skin, hair, physique, grooming, style), delivered instantly online. The free assessment tells you which one to start with.</div></details></div>
+              </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+<style>.faq__badge { margin-top: 1.25rem; } .faq__badge--center { text-align: center; }</style>
+
+</div><div id="shopify-section-template--30670555283839__final" class="shopify-section"><section aria-labelledby="final-template--30670555283839__final">
+  <div class="container frame-x">
+    <div class="section__inner section__inner--tight" style="--pt: 20px; --pb: 20px"><div class="final grad-steel on-dark">
+        <div class="final__glow"></div>
+        <div class="final__inner">
+          <div data-reveal><span class="label-pill">Start here</span></div>
+          <h2 id="final-template--30670555283839__final" class="headline text-white mt-3" data-text-reveal>Don't know where to start? <span class="muted">Let the assessment decide.</span></h2>
+          <p class="lead mt-3" style="margin-inline:auto;max-width:30rem" data-reveal data-reveal-delay="200">Nine questions and a 20-second face scan, then the protocol matched to your face and goals.</p>
+          <div class="mt-4" data-reveal data-reveal-delay="300"><a class="btn btn--inverse btn--lg" href="#non-inclus" >
+    <span>Analyze my profile</span><span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></a></div>
+        </div>
+      </div></div>
+  </div>
+</section>
+
+</div>
+  </main>
+  <!-- BEGIN sections: footer-group -->
+<div id="shopify-section-sections--30670552695167__footer" class="shopify-section shopify-section-group-footer-group"><footer class="footer">
+  <div class="container frame-x">
+    <div class="footer__grid">
+      <div>
+        <p class="eyebrow">Aesthetics Lab <span style="color:var(--line-2)">/</span></p>
+        <a href="mailto:support@aesthetic-lab.com" class="mt-1" style="display:inline-block;font-size:.9375rem">support@aesthetic-lab.com</a><div class="newsletter mt-6">
+            <p class="title" style="font-size:1.4rem">Better appearance starts with better information.</p><form method="post" action="#non-inclus" id="contact_form" accept-charset="UTF-8" class="mt-3"><input type="hidden" name="form_type" value="customer" /><input type="hidden" name="utf8" value="✓" /><input type="hidden" name="contact[tags]" value="newsletter">
+              <label class="sr-only" for="NewsletterEmail">Email address</label>
+              <div class="newsletter__field">
+                <input id="NewsletterEmail" type="email" name="contact[email]" required autocomplete="email" placeholder="Email address">
+                <button type="submit" aria-label="Join"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></button>
+              </div><p class="xs text-ink-3 mt-1">Occasional editorial email. No spam, unsubscribe any time.</p></form></div></div>
+      <div class="footer__cols"><div >
+            <p class="eyebrow">Shop <span style="color:var(--line-2)">/</span></p>
+            <ul><li><a href="/api/formation/boutique-exemple?p=collection">All protocols</a></li></ul>
+          </div><div >
+            <p class="eyebrow">Discover <span style="color:var(--line-2)">/</span></p>
+            <ul><li><a href="#non-inclus">Assessment</a></li><li><a href="#non-inclus">Journal</a></li><li><a href="/api/formation/boutique-exemple?p=accueil#how-it-works">Method</a></li><li><a href="#non-inclus">About</a></li></ul>
+          </div><div >
+            <p class="eyebrow">Support <span style="color:var(--line-2)">/</span></p>
+            <ul><li><a href="#non-inclus">Search</a></li><li><a href="#non-inclus">Cancel Membership</a></li></ul>
+          </div><div >
+            <p class="eyebrow">Legal <span style="color:var(--line-2)">/</span></p>
+            <ul><li><a href="#non-inclus">Privacy policy</a></li><li><a href="#non-inclus">Terms of service</a></li><li><a href="#non-inclus">Refund and return policy</a></li><li><a href="#non-inclus">Shipping policy</a></li><li><a href="#non-inclus">Legal notice</a></li><li><a href="#non-inclus">Contact information</a></li></ul>
+          </div></div>
+    </div>
+    <div class="footer__bottom">
+      <p class="eyebrow">&copy; 2026 Aesthetics Lab</p>
+      <p class="eyebrow">Aesthetic Lab · United States · support@aesthetic-lab.com</p>
+    </div>
+  </div>
+  <div class="footer__wordmark" aria-hidden="true"><p>AESTHETIC LAB</p></div>
+</footer>
+
+</div>
+<!-- END sections: footer-group -->
+  <div class="drawer" data-cart-drawer data-open="false" aria-hidden="true">
+  <button type="button" class="drawer__backdrop" data-cart-close aria-label="Close bag" tabindex="-1"></button>
+  <aside class="drawer__panel" role="dialog" aria-modal="true" aria-label="Your bag">
+    <div class="drawer__head">
+      <span>Your bag</span>
+      <button type="button" class="icon-btn" data-cart-close aria-label="Close bag" style="background:var(--bg)"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16"/></svg></button>
+    </div>
+    <div class="drawer__body"><div class="urgency urgency--bar" style="--u-bg: #233137; --u-color: #ffffff"  ><span class="urgency__icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 1.5L3.5 9h4l-.5 5.5L12.5 7h-4z"/></svg></span><span class="urgency__body"><strong class="urgency__title">Flash sale · launch pricing</strong><span class="urgency__text">Prices go up when the timer ends. Lock yours in now.</span></span></div><div class="card card--pad" data-cart-empty>
+        <p class="title">Your bag <span class="muted">is empty.</span></p>
+        <p class="small text-ink-3 mt-2">Start with the free assessment, or explore the protocols.</p>
+        <div class="mt-3" style="display:grid;gap:.5rem">
+          <a class="btn btn--primary" href="#non-inclus" >
+    <span>Analyze my profile</span><span class="btn__arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8h13M9.5 3l5 5-5 5"/></svg></span></a>
+          <a class="btn btn--secondary" href="/api/formation/boutique-exemple?p=collection" >
+    <span>Explore protocols</span></a>
+        </div>
+      </div>
+      <div data-cart-lines></div><div class="mt-3" data-cart-upsell-wrap hidden><div class="cart-up card" data-cart-upsell>
+  <div class="cart-up__head"><p class="cart-up__title">Maximize your results</p></div>
+  <div class="cart-up__list"><div class="cart-up__row" data-cart-upsell-row data-product-id="15889799610751">
+        <a class="cart-up__img" href="/api/formation/boutique-exemple?p=produit"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_26.png?v=1789398983&amp;width=160" alt="" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_26.png?v=1789398983&amp;width=160 160w" width="160" height="160" loading="lazy"></a>
+        <div class="cart-up__body">
+          <a class="cart-up__name" href="/api/formation/boutique-exemple?p=produit">JAWESTHETIC® 3.0 - Jawline Trainer</a>
+          <div class="cart-up__price"><span class="tnum">$24.99</span><s class="tnum">$49.99</s></div>
+        </div><form action="#non-inclus" method="post" class="cart-up__form" data-cart-mode="ajax">
+            <input type="hidden" name="id" value="58430005543295"><input type="hidden" name="quantity" value="1">
+            <button type="submit" class="cart-up__add" aria-label="Add JAWESTHETIC® 3.0 - Jawline Trainer"><span>Add</span></button>
+          </form></div><div class="cart-up__row" data-cart-upsell-row data-product-id="15889835458943">
+        <a class="cart-up__img" href="#non-inclus"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_36.png?v=1789403366&amp;width=160" alt="" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_36.png?v=1789403366&amp;width=160 160w" width="160" height="160" loading="lazy"></a>
+        <div class="cart-up__body">
+          <a class="cart-up__name" href="#non-inclus">Aesthetic Lab® Nose Tape</a>
+          <div class="cart-up__price"><span class="tnum">$39.99</span><s class="tnum">$49.99</s></div>
+        </div><form action="#non-inclus" method="post" class="cart-up__form" data-cart-mode="ajax">
+            <input type="hidden" name="id" value="58430077960575"><input type="hidden" name="quantity" value="1">
+            <button type="submit" class="cart-up__add" aria-label="Add Aesthetic Lab® Nose Tape"><span>Add</span></button>
+          </form></div><div class="cart-up__row" data-cart-upsell-row data-product-id="15889927995775">
+        <a class="cart-up__img" href="/api/formation/boutique-exemple?p=produit-2"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_45.png?v=1789404395&amp;width=160" alt="" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_45.png?v=1789404395&amp;width=160 160w" width="160" height="160" loading="lazy"></a>
+        <div class="cart-up__body">
+          <a class="cart-up__name" href="/api/formation/boutique-exemple?p=produit-2">Mouthsthetic® Anti Snoring Mouth Tape</a>
+          <div class="cart-up__price"><span class="tnum">$39.99</span><s class="tnum">$59.99</s></div>
+        </div><form action="#non-inclus" method="post" class="cart-up__form" data-cart-mode="ajax">
+            <input type="hidden" name="id" value="58430415405439"><input type="hidden" name="quantity" value="1">
+            <button type="submit" class="cart-up__add" aria-label="Add Mouthsthetic® Anti Snoring Mouth Tape"><span>Add</span></button>
+          </form></div><div class="cart-up__row" data-cart-upsell-row data-product-id="15889938448767">
+        <a class="cart-up__img" href="#non-inclus"><img src="https://aesthetics-lab.com/cdn/shop/files/asset_48.png?v=1789404800&amp;width=160" alt="" srcset="https://aesthetics-lab.com/cdn/shop/files/asset_48.png?v=1789404800&amp;width=160 160w" width="160" height="160" loading="lazy"></a>
+        <div class="cart-up__body">
+          <a class="cart-up__name" href="#non-inclus">Aesthetic Lab® Pimple Patch</a>
+          <div class="cart-up__price"><span class="tnum">$29.99</span></div>
+        </div><form action="#non-inclus" method="post" class="cart-up__form" data-cart-mode="ajax">
+            <input type="hidden" name="id" value="58437480055167"><input type="hidden" name="quantity" value="1">
+            <button type="submit" class="cart-up__add" aria-label="Add Aesthetic Lab® Pimple Patch"><span>Add</span></button>
+          </form></div></div>
+</div></div></div>
+    <div class="drawer__foot" data-cart-foot hidden>
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span class="small text-ink-3">Subtotal</span>
+        <strong class="tnum" data-cart-subtotal style="font-weight:500;font-size:1.125rem"></strong>
+      </div>
+      <form action="#non-inclus" method="post" class="mt-2"><button type="submit" name="checkout" class="btn btn--primary btn--lg btn--full"><span>Checkout</span></button></form>
+      <p class="xs text-ink-3 center mt-1">Free shipping in US · Delivered in 3 to 5 days · <a href="#non-inclus" style="text-decoration:underline">Track my order</a></p>
+    </div>
+  </aside>
+</div>
+
+  <script src="https://aesthetics-lab.com/cdn/shop/t/7/assets/gsap.min.js?v=182237302326240000121790725366" defer></script>
+  <script src="https://aesthetics-lab.com/cdn/shop/t/7/assets/ScrollTrigger.min.js?v=162649528657803944581790725366" defer></script>
+  <script src="https://aesthetics-lab.com/cdn/shop/t/7/assets/assessment-data.js?v=98363349812486554651790725366" defer></script>
+  <script src="https://aesthetics-lab.com/cdn/shop/t/7/assets/assessment-icons.js?v=112449701674214861331790725366" defer></script>
+  <script src="https://aesthetics-lab.com/cdn/shop/t/7/assets/face-scan.js?v=26999104114908305871790725366" defer></script>
+  <script src="https://aesthetics-lab.com/cdn/shop/t/7/assets/theme.js?v=90218260114641018511790725366" defer></script>
+
+</body>
+</html>
+
+
+
+<style>
+.media.media--transparent.media--adapt {
+    background: #ffffff;
+}
+section#shopify-section-template--14564721295432__53654dea-f79c-4aa2-826f-0f0c2892ab56 {
+    background: #fff;
+}
+
+</style>

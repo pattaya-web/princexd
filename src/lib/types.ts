@@ -838,6 +838,8 @@ export interface CreativeExample {
   ratio?: string;
   /** Le prompt qui permet de la reproduire dans le Studio IA (avec la photo de référence). */
   prompt?: string;
+  /** Famille de créatives (CREATIVE_FOLDERS : punchy, native, notes…) ; vide = exemples de Mady avec leur prompt. */
+  folder?: string;
 }
 
 /** Un prompt que l'eleve copie dans Claude ou GPT pour produire ses creatives. */

@@ -3,6 +3,7 @@ import { readDB, writeDB } from "@/lib/db";
 import { readSession, requireAdmin, requireFormation } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { creativesSettings, readCreativesSettings } from "@/lib/formation-creatives";
+import { EXAMPLE_SHOP_URL, exampleShopAvailable } from "@/lib/formation-example-shop";
 import type { StudentCreativesSettings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,8 @@ export interface CreativesPayload {
   creatives: StudentCreativesSettings;
   /** Studio IA : ouvert par Mady pour cet élève, clé KIE posée. */
   studio: { access: boolean; hasKey: boolean };
+  /** Boutique d'exemple en lecture seule (lien à ouvrir), si présente sur ce serveur. */
+  exampleShop: string;
 }
 
 /** Page Créatives : boutique exemple, créatives exemples, prompts à copier. */
@@ -28,6 +31,7 @@ export async function GET(req: NextRequest) {
       preview: Boolean(session.impersonated),
       creatives: creativesSettings(db.settings),
       studio: { access: Boolean(student) || session.isAdmin, hasKey: Boolean((student?.kieApiKey ?? "").trim()) },
+      exampleShop: exampleShopAvailable() ? EXAMPLE_SHOP_URL : "",
     };
   });
 }

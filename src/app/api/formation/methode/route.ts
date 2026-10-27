@@ -3,6 +3,7 @@ import { readDB, writeDB } from "@/lib/db";
 import { readSession, requireAdmin, requireFormation } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { methodSettings, readMethodSettings } from "@/lib/formation-methode";
+import { EXAMPLE_SHOP_URL, exampleShopAvailable } from "@/lib/formation-example-shop";
 import { creativesSettings } from "@/lib/formation-creatives";
 import { portalSettings } from "@/lib/formation-steps";
 import { currentTheme } from "@/lib/formation-theme";
@@ -22,6 +23,8 @@ export interface MethodPayload {
   theme: { fileName: string; size: number; uploadedAt: string; downloadUrl: string; bundled: boolean } | null;
   /** Boutique exemple (réglée dans Créatives). */
   exampleShopUrl: string;
+  /** Copie HTML en lecture seule de la boutique de Mady (content/boutique-exemple), si présente sur ce serveur. */
+  exampleShop: { url: string; note: string } | null;
   /** Studio IA : ouvert par Mady pour cet élève, clé KIE posée. */
   studio: { access: boolean; hasKey: boolean };
   /** BrandSearch avec le lien affilié de Mady (Élèves → Onboarding). */
@@ -43,6 +46,7 @@ export async function GET(req: NextRequest) {
       whatsapp: portalSettings(db.settings).whatsapp,
       theme: theme ? { fileName: theme.fileName, size: theme.size, uploadedAt: theme.uploadedAt, downloadUrl: "/api/formation/theme/file", bundled: theme.bundled } : null,
       exampleShopUrl: creativesSettings(db.settings).exampleShopUrl,
+      exampleShop: exampleShopAvailable() ? { url: EXAMPLE_SHOP_URL, note: creativesSettings(db.settings).exampleShopNote } : null,
       studio: { access: Boolean(student) || session.isAdmin, hasKey: Boolean((student?.kieApiKey ?? "").trim()) },
       brandsearchUrl: onboardingSettings(db.settings).brainsearchUrl,
     };

@@ -219,6 +219,24 @@ export default function BoutiquePage() {
         )}
       </section>
 
+      {/* 01 bis / La boutique d'exemple : copie HTML en lecture seule d'une boutique de Mady (sans l'adresse). */}
+      {data.exampleShop && (
+        <section className="card p-5">
+          <SectionLabel n="01" title="Regarde une boutique d'exemple" />
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center mt-3">
+            <div>
+              <p className="text-[14px] leading-relaxed max-w-[64ch]">
+                Une vraie boutique de Mady, montée avec ce thème, en copie lecture seule : l&apos;accueil, une page produit, une collection. Le panier et les autres liens sont désactivés, c&apos;est fait pour <strong>regarder la structure</strong>, pas pour acheter.
+              </p>
+              <p className="muted text-[13px] mt-2 leading-relaxed max-w-[64ch]">{data.exampleShop.note}</p>
+            </div>
+            <a href={data.exampleShop.url} target="_blank" rel="noreferrer" className="btn btn-primary shrink-0">
+              Ouvrir la boutique d&apos;exemple ↗
+            </a>
+          </div>
+        </section>
+      )}
+
       {/* 02 / Préparer le dossier */}
       <section className="card p-5">
         <SectionLabel n="02" title="Prépare ton dossier" />
