@@ -105,6 +105,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
           status: a.status,
           closerName: a.closerId ? (names.get(a.closerId) ?? "—") : "",
           iclosedUrl: a.iclosedUrl,
+          fathomUrl: a.fathomUrl ?? "",
+          closerNotes: a.closerNotes ?? "",
           iclosedEventId: a.iclosedEventId,
           calendar: a.calendar ?? "",
           timezone: a.timezone,

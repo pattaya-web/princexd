@@ -22,6 +22,8 @@ interface Payload {
     status: AppointmentStatus;
     closerName: string;
     iclosedUrl: string;
+    fathomUrl: string;
+    closerNotes: string;
     iclosedEventId: string;
     calendar: string;
     timezone: string;
@@ -268,6 +270,18 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
                 <dt className="dim">Setter</dt>
                 <dd>{data?.setterName || <span style={{ color: "var(--warning)" }}>à attribuer</span>}</dd>
               </dl>
+              {/* Le compte-rendu du call (ecrit par le closer, ou par Fathom apres le call). */}
+              {mainAppt?.closerNotes && (
+                <div className="mt-3 pt-3 text-[12.5px] whitespace-pre-wrap leading-snug" style={{ borderTop: "1px solid var(--border)", color: "var(--text-2)" }}>
+                  <span className="label-xs">Compte-rendu du call</span>
+                  {mainAppt.fathomUrl && (
+                    <a href={mainAppt.fathomUrl} target="_blank" rel="noreferrer" className="link text-[11.5px] ml-2">
+                      enregistrement Fathom ↗
+                    </a>
+                  )}
+                  <div className="mt-1">{mainAppt.closerNotes}</div>
+                </div>
+              )}
             </div>
 
             {/* ------------------------- Details, replies ------------------------- */}

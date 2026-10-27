@@ -28,6 +28,8 @@ type View = Settings & {
   systemeioApiKeyMask?: string;
   systemeioApiKeySource?: string;
   systemeioWebhookSecretSet?: boolean;
+  fathomApiKeyMask?: string;
+  fathomApiKeySource?: string;
   vaPasswordSet?: boolean;
   vaSource?: string;
   ownerPasswordSet?: boolean;
@@ -62,6 +64,7 @@ export default function ReglagesPage() {
   const [openaiKey, setOpenaiKey] = useState("");
   const [anthropicKey, setAnthropicKey] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
+  const [fathomKey, setFathomKey] = useState("");
   const [elevenKey, setElevenKey] = useState("");
   const [hfSecret, setHfSecret] = useState("");
   const [sioKey, setSioKey] = useState("");
@@ -110,6 +113,10 @@ export default function ReglagesPage() {
       else delete payload.higgsfieldKeySecret;
       if (sioKey.trim()) payload.systemeioApiKey = sioKey.trim();
       else delete payload.systemeioApiKey;
+      if (fathomKey.trim()) payload.fathomApiKey = fathomKey.trim();
+      else delete payload.fathomApiKey;
+      delete (payload as Record<string, unknown>).fathomApiKeyMask;
+      delete (payload as Record<string, unknown>).fathomApiKeySource;
       if (tgToken.trim()) payload.telegramBotToken = tgToken.trim();
       else delete payload.telegramBotToken;
       delete (payload as Record<string, unknown>).telegramBotTokenMask;
@@ -592,6 +599,27 @@ export default function ReglagesPage() {
             </div>
           </Card>
 
+          <Card title="Fathom (comptes-rendus des calls de closing)">
+            <div className="flex flex-col gap-3.5">
+              {s.fathomApiKeyMask ? (
+                <InfoNote>
+                  Clé active : <code className="mono">{s.fathomApiKeyMask}</code> — source :{" "}
+                  <strong>{s.fathomApiKeySource === "env" ? ".env.local" : "ces réglages"}</strong>. À la fin de chaque call enregistré,
+                  Fathom envoie son résumé : il est condensé en quelques lignes et écrit dans le compte-rendu du rendez-vous, et le
+                  call passe « call fait » s&apos;il n&apos;était pas statué.
+                </InfoNote>
+              ) : (
+                <InfoNote>
+                  Aucune clé Fathom. Dans Fathom → Settings → API, génère une clé et colle-la ici. Ensuite, « Créer le webhook » ci-dessous.
+                </InfoNote>
+              )}
+              <Field label={s.fathomApiKeyMask ? "Remplacer la clé Fathom" : "Clé API Fathom"} hint="Laisse vide pour conserver la clé actuelle. Enregistre en bas de page, puis crée le webhook.">
+                <input className="input mono" type="password" placeholder="fathom_…" value={fathomKey} onChange={(e) => setFathomKey(e.target.value)} />
+              </Field>
+              {s.fathomApiKeyMask && <FathomPanel />}
+            </div>
+          </Card>
+
           <Card title="Systeme.io (leads de la landing page)">
             <div className="flex flex-col gap-3.5">
               {s.systemeioApiKeyMask ? (
@@ -958,5 +986,94 @@ export default function ReglagesPage() {
         </button>
       </div>
     </>
+  );
+}
+
+/* ------------------------------- Fathom ------------------------------- */
+
+interface FathomState {
+  configured: boolean;
+  webhookId: string;
+  webhookUrl: string;
+  secretSet: boolean;
+  lastSyncAt: string;
+  recent: { id: string; at: string; leadName: string; scheduledAt: string; url: string; summary: string }[];
+}
+
+/** Webhook, relecture manuelle, derniers comptes-rendus. */
+function FathomPanel() {
+  const toast = useToast();
+  const [st, setSt] = useState<FathomState | null>(null);
+  const [busy, setBusy] = useState("");
+  const load = () => api<FathomState>("/api/fathom").then(setSt).catch(() => setSt(null));
+  useEffect(() => {
+    void load();
+  }, []);
+  const webhook = async () => {
+    setBusy("webhook");
+    try {
+      const r = await api<{ webhook: { id: string; url: string }; secretSet: boolean }>("/api/fathom", { method: "POST", body: JSON.stringify({ action: "webhook", origin: window.location.origin }) });
+      toast(`Webhook posé chez Fathom (${r.webhook.url}).`);
+      void load();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy("");
+    }
+  };
+  const sync = async (days: number) => {
+    setBusy("sync");
+    try {
+      const r = await api<{ examined: number; attached: number; skipped: number; unmatched: string[] }>("/api/fathom", { method: "POST", body: JSON.stringify({ action: "sync", days }), timeoutMs: 180_000 });
+      toast(`${r.examined} réunion${r.examined > 1 ? "s" : ""} lue${r.examined > 1 ? "s" : ""} · ${r.attached} compte${r.attached > 1 ? "s" : ""}-rendu${r.attached > 1 ? "s" : ""} ajouté${r.attached > 1 ? "s" : ""} · ${r.skipped} déjà là${r.unmatched.length ? ` · ${r.unmatched.length} sans rendez-vous trouvé` : ""}.`);
+      void load();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy("");
+    }
+  };
+  if (!st) return null;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {st.webhookId ? (
+          <span className="badge badge-good !text-[11px]">Webhook posé · {st.webhookUrl.replace(/^https?:\/\//, "")}{st.secretSet ? " · signé" : ""}</span>
+        ) : (
+          <span className="badge badge-warn !text-[11px]">Webhook pas encore posé</span>
+        )}
+        <button className="btn btn-sm" onClick={() => void webhook()} disabled={busy !== ""}>
+          {busy === "webhook" ? "…" : st.webhookId ? "Reposer le webhook" : "Créer le webhook"}
+        </button>
+        <button className="btn btn-sm" onClick={() => void sync(7)} disabled={busy !== ""} title="Relire les réunions Fathom des 7 derniers jours">
+          {busy === "sync" ? "Lecture…" : "Relire 7 jours"}
+        </button>
+        <button className="btn btn-sm btn-ghost" onClick={() => void sync(30)} disabled={busy !== ""}>
+          30 jours
+        </button>
+        {st.lastSyncAt && <span className="dim text-[11.5px]">Dernière relecture {new Date(st.lastSyncAt).toLocaleString("fr-FR")}</span>}
+      </div>
+      {st.recent.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <div className="label-xs">Derniers comptes-rendus</div>
+          {st.recent.map((r) => (
+            <div key={r.id} className="text-[12.5px] rounded-[8px] px-3 py-2" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold">{r.leadName}</span>
+                <span className="dim text-[11.5px]">call du {new Date(r.scheduledAt).toLocaleString("fr-FR")}</span>
+                {r.url && (
+                  <a href={r.url} target="_blank" rel="noreferrer" className="link text-[11.5px]">
+                    enregistrement ↗
+                  </a>
+                )}
+              </div>
+              <div className="whitespace-pre-wrap leading-snug mt-1" style={{ color: "var(--text-2)" }}>
+                {r.summary || "(résumé vide)"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

@@ -14,6 +14,7 @@ import { getIclosedKey } from "./iclosed";
 import { syncIclosedOutcomes, syncIclosedUpcoming } from "./sales/iclosed-sync";
 import { getSystemeioKey, syncSystemeio } from "./systemeio";
 import { getTelegramToken, pollTelegramLinks, runTakeoverWarnings, runTelegramReminders } from "./telegram";
+import { getFathomKey, syncFathom } from "./fathom";
 
 const SIO_EVERY_MS = 2 * 60_000;
 const ICLOSED_EVERY_MS = 5 * 60_000;
@@ -74,6 +75,16 @@ async function tickIclosed() {
   }
 }
 
+/** Fathom : les comptes-rendus des calls enregistres, au plus toutes les 15 min (filet du webhook). */
+async function tickFathom() {
+  if (!getFathomKey()) return;
+  try {
+    await syncFathom();
+  } catch (e) {
+    console.warn("[scheduler] Fathom :", e instanceof Error ? e.message : String(e));
+  }
+}
+
 /**
  * Telegram, a chaque passage : liaison des comptes (messages recus par le
  * bot), avertissements avant reprise, puis le rappel periodique s'il est
@@ -105,6 +116,7 @@ export function startScheduler() {
       // iClosed toutes les 5 min : un tick sur deux et demi, on arrondit a un sur deux.
       if (n % Math.round(ICLOSED_EVERY_MS / SIO_EVERY_MS) === 0) await tickIclosed();
       await tickTelegram();
+      await tickFathom();
     } finally {
       state.running = false;
       n++;

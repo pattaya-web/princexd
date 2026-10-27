@@ -264,6 +264,12 @@ export interface Settings {
   /** Date du nettoyage unique des pseudos Instagram fabriques par l'import iClosed. */
   igHandlesCleanedAt?: string;
   systemeioLastSyncAt?: string;
+  /* --- Fathom (enregistreur des calls de closing, 2026-10-27) : cle API, webhook pose, derniere relecture. --- */
+  fathomApiKey?: string;
+  fathomWebhookId?: string;
+  fathomWebhookUrl?: string;
+  fathomWebhookSecret?: string;
+  fathomLastSyncAt?: string;
   /** Derniere synchro automatique des issues iClosed (calls passes). */
   salesLastOutcomeSyncAt?: string;
   /** Rejeu des utm / IDs Meta sur les leads deja en base (une seule fois). */
@@ -2234,6 +2240,11 @@ export interface Appointment {
   iclosedUrl: string;
   /** Identifiant iClosed, pour rapprocher plus tard via l'API ou le webhook. */
   iclosedEventId: string;
+  /* --- Fathom : l'enregistrement du call et son resume (src/lib/fathom.ts). --- */
+  fathomRecordingId?: string;
+  fathomUrl?: string;
+  fathomSummary?: string;
+  fathomAt?: string;
   /** Calendrier / type d'evenement iClosed (callType) sur lequel le prospect a reserve. */
   calendar?: string;
   /** Rendez-vous d'origine, si celui-ci est une reprogrammation. */

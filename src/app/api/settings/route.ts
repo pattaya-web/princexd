@@ -28,6 +28,8 @@ function publicView(s: Settings) {
   const elKey = elEnv ? process.env.ELEVENLABS_API_KEY!.trim() : (s.elevenLabsApiKey ?? "");
   const sioEnv = Boolean(process.env.SYSTEMEIO_API_KEY?.trim());
   const sioKey = sioEnv ? process.env.SYSTEMEIO_API_KEY!.trim() : (s.systemeioApiKey ?? "");
+  const faEnv = Boolean(process.env.FATHOM_API_KEY?.trim());
+  const faKey = faEnv ? process.env.FATHOM_API_KEY!.trim() : (s.fathomApiKey ?? "");
   const hfSingle = process.env.HIGGSFIELD_API_KEY?.trim();
   const hfEnv = Boolean(hfSingle || (process.env.HIGGSFIELD_API_KEY_ID?.trim() && process.env.HIGGSFIELD_API_KEY_SECRET?.trim()));
   const hfSecret = hfSingle || (hfEnv ? process.env.HIGGSFIELD_API_KEY_SECRET!.trim() : (s.higgsfieldKeySecret ?? ""));
@@ -68,6 +70,10 @@ function publicView(s: Settings) {
     systemeioApiKey: "",
     systemeioApiKeyMask: mask(sioKey),
     systemeioApiKeySource: sioEnv ? "env" : sioKey ? "reglages" : "absente",
+    fathomApiKey: "",
+    fathomWebhookSecret: "",
+    fathomApiKeyMask: mask(faKey),
+    fathomApiKeySource: faEnv ? "env" : faKey ? "reglages" : "absente",
     systemeioWebhookSecret: "",
     systemeioWebhookSecretSet: Boolean(process.env.SYSTEMEIO_WEBHOOK_SECRET?.trim() || s.systemeioWebhookSecret),
     editorAccessCode: s.editorAccessCode,
@@ -109,6 +115,10 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.higgsfieldKeySecret === "string" && !body.higgsfieldKeySecret.trim()) delete body.higgsfieldKeySecret;
   if (typeof body.systemeioApiKey === "string" && !body.systemeioApiKey.trim()) delete body.systemeioApiKey;
   if (typeof body.systemeioWebhookSecret === "string" && !body.systemeioWebhookSecret.trim()) delete body.systemeioWebhookSecret;
+  if (typeof body.fathomApiKey === "string" && !body.fathomApiKey.trim()) delete body.fathomApiKey;
+  if (typeof body.fathomWebhookSecret === "string" && !body.fathomWebhookSecret.trim()) delete body.fathomWebhookSecret;
+  delete (body as Record<string, unknown>).fathomApiKeyMask;
+  delete (body as Record<string, unknown>).fathomApiKeySource;
   // Jeton Telegram : vide = on garde ; « CLEAR » = on efface ; sinon on le verifie aupres de Telegram.
   const rawBody = body as Record<string, unknown>;
   delete rawBody.telegramBotTokenMask;
