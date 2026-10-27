@@ -12,8 +12,12 @@ import type { Student } from "./types";
  * restent ouverts. Module pur : serveur et navigateur.
  */
 
-/** Vrai : les onglets du parcours s'ouvrent l'un après l'autre. */
-export const LOCK_CHAIN = true;
+/**
+ * Vrai : les onglets du parcours s'ouvrent l'un après l'autre.
+ * Faux depuis le 2026-10-27 : tout est ouvert pour tous les élèves, le bouton
+ * « j'ai terminé » ne sert plus qu'à suivre l'avancement.
+ */
+export const LOCK_CHAIN = false;
 
 export type GateTab = "demarrage" | "produit" | "boutique" | "creatives" | "meta";
 
