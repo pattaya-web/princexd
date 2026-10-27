@@ -127,7 +127,8 @@ export function jobStatusResponse(req: NextRequest): Response | null {
   const job = getJob<unknown>(id);
   if (!job) return Response.json({ error: "Tâche introuvable (le serveur a peut-être redémarré) : relance." }, { status: 404 });
   if (job.status === "running") return Response.json({ status: "running", step: job.step, elapsed: elapsed(job) }, { status: 202 });
-  if (job.status === "error") return Response.json({ status: "error", error: job.error }, { status: 502 });
+  // 422 et pas 502 : derrière Cloudflare, un 502 de l'origine est remplacé par sa page d'erreur HTML et le message se perd.
+  if (job.status === "error") return Response.json({ status: "error", error: job.error }, { status: 422 });
   const r = job.result as StoredResponse | undefined;
   if (r && typeof r === "object" && r.__http) {
     jobs.delete(id);

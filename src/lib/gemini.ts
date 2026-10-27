@@ -210,9 +210,11 @@ export async function transcribeYoutubeFull(videoUrl: string, durationSec: numbe
 
   const parts: (GeminiTranscript | null)[] = chunks.map(() => null);
   let ended = false;
-  for (let i = 0; i < chunks.length && !ended; i += PARALLEL) {
-    const batch = chunks.slice(i, i + PARALLEL).map((span, k) => ({ span, idx: i + k }));
-    const last = Math.min(i + PARALLEL, chunks.length);
+  // Durée inconnue : le premier morceau seul (s'il échoue, c'est une vraie erreur), ensuite trois à la fois.
+  for (let i = 0; i < chunks.length && !ended; i += !known && i === 0 ? 1 : PARALLEL) {
+    const width = !known && i === 0 ? 1 : PARALLEL;
+    const batch = chunks.slice(i, i + width).map((span, k) => ({ span, idx: i + k }));
+    const last = Math.min(i + width, chunks.length);
     setStep(`Transcription par Gemini : partie${last > i + 1 ? "s" : ""} ${i + 1}${last > i + 1 ? ` à ${last}` : ""}${known ? ` sur ${chunks.length}` : ""} (10 min chacune)…`);
     const results = await Promise.all(
       batch.map(async ({ span }) => {
@@ -221,7 +223,7 @@ export async function transcribeYoutubeFull(videoUrl: string, durationSec: numbe
         } catch (e) {
           // Durée inconnue : un morceau au-delà de la fin n'a pas de parole (ou Gemini le refuse) → c'est la fin.
           const err = e as GeminiError;
-          if (!known && err.code !== 401 && parts.some(Boolean)) return null;
+          if (!known && err.code !== 401 && span.startSec > 0) return null;
           throw e;
         }
       }),
