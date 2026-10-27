@@ -227,6 +227,49 @@ export function applySetterByLinkOnly(db: DB): number {
     if (n) db.activityLogs.unshift({ id: newId(), at: now, actorId: "", actorName: "Système", action: "appointment.updated", entity: "appointment", entityId: "", summary: `Rendez-vous iClosed : règle stricte du lien signé appliquée (${n} changement${n > 1 ? "s" : ""})` });
     writeDB(db);
   }
+  /*
+   * v5 (2026-10-28) : pour le moment une seule setter sur le compte, Jora.
+   * Les autres setters passent inactifs (leur historique et leurs
+   * commissions restent, ils ne sont plus proposés nulle part). Mady a
+   * tranché nominativement : Kenzy et Ricardo sont à Jora, même si leur
+   * réservation porte le lien signé d'un autre setter. Attribution manuelle,
+   * que plus aucune passe ne touche.
+   */
+  if (!db.settings.salesSoloSetterAt) {
+    const jora = db.team.find((m) => norm(m.username ?? "") === "jora" || norm(m.name) === "jora");
+    if (jora) {
+      for (const m of db.team) {
+        if (m.id === jora.id || m.status === "inactif" || !memberRoles(m).includes("setter") || memberRoles(m).includes("closer")) continue;
+        m.status = "inactif";
+        db.activityLogs.unshift({ id: newId(), at: now, actorId: db.settings.salesOwnerMemberId ?? "", actorName: "Mady", action: "member.updated", entity: "member", entityId: m.id, summary: `${m.name} passé inactif : ${jora.name} seule setter pour le moment` });
+        n++;
+      }
+      const wanted = ["kenzy", "ricardo"];
+      for (const lead of db.leads) {
+        if (!wanted.includes(norm(lead.name))) continue;
+        if (lead.setterId !== jora.id) {
+          lead.setterId = jora.id;
+          n++;
+        }
+        for (const a of db.appointments) {
+          if (a.leadId !== lead.id || a.setterId === jora.id) continue;
+          a.setterId = jora.id;
+          a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Mady", from: a.status, to: a.status, note: `Attribué à ${jora.name} par Mady` }];
+          a.updatedAt = now;
+          db.activityLogs.unshift({ id: newId(), at: now, actorId: db.settings.salesOwnerMemberId ?? "", actorName: "Mady", action: "appointment.assigned", entity: "appointment", entityId: a.id, summary: `${jora.name} attribué comme setter` });
+          n++;
+        }
+        for (const s of db.sales) {
+          if (s.leadId !== lead.id || s.setterId === jora.id) continue;
+          s.setterId = jora.id;
+          s.updatedAt = now;
+          n++;
+        }
+      }
+    }
+    db.settings.salesSoloSetterAt = now;
+    writeDB(db);
+  }
   return n;
 }
 

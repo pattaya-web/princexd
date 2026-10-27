@@ -309,6 +309,8 @@ export interface Settings {
   salesSetterByLinkOnlyV3At?: string;
   /** v4 (règle finale, 2026-10-27 soir) : un setter ne garde que les calls signés de son lien (ou déclarés) ; le reste va au propriétaire. */
   salesSetterByLinkOnlyV4At?: string;
+  /** Bascule unique (2026-10-28) : Jora seule setter active (les autres passent inactifs), Kenzy et Ricardo lui sont attribués. */
+  salesSoloSetterAt?: string;
   /**
    * Regle de reprise (2026-10-14) : minutes sans action du setter au bout
    * desquelles un autre setter peut reprendre la conversation. 0 = desactive.
