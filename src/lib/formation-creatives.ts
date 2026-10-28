@@ -62,8 +62,10 @@ export const CREATIVE_FOLDERS: CreativeFolder[] = [
   {
     id: "notes",
     title: "Notes iPhone",
-    tagline: "Une capture de l'app Notes, comme un message perso.",
-    tips: ["Une liste courte : « 3 raisons pour lesquelles je garde ce collier ».", "Claude écrit le texte, le Studio fait la capture."],
+    tagline: "Une capture de l'app Notes de ton iPhone, comme un message qu'on s'écrit à soi-même.",
+    how: "Pas de design, pas de montage : la police de Notes, un titre, des puces, parfois des photos collées dessous. Ça ressemble à une liste perso ou à un témoignage, pas à une pub, donc on la lit. Trois angles qui marchent : la liste (« 4 raisons… »), l'histoire (« comment X a changé ma vie »), et la confession (« j'ai fait une bêtise, l'offre est live »).",
+    rule: "Littéralement : prends ton iPhone, ouvre Notes, écris ton texte, ajoute des photos, capture d'écran. Pas trop de texte. Des bullet points (c'est ce qu'on fait quand on prend des notes). Des photos de ton produit.",
+    tips: ["Un titre en gros qui dit tout, 3 à 5 puces courtes, une phrase de fin qui pousse à cliquer.", "Claude écrit le texte (prompt dans la bibliothèque), toi tu le tapes dans Notes et tu colles tes photos.", "Itération facile : la même note avec une preuve en plus (un avant / après, un chiffre, une capture)."],
   },
   {
     id: "chatgpt",
@@ -184,10 +186,79 @@ const NATIVE_EXAMPLES: CreativeExample[] = [
   },
 ];
 
+/** Notes iPhone (2026-10-29) : trois angles, la liste, l'histoire, la confession. */
+const NOTES_EXAMPLES: CreativeExample[] = [
+  {
+    id: "notes-soie-4-raisons",
+    folder: "notes",
+    kind: "image",
+    ratio: "3:4",
+    url: "/formation/creatives/notes-soie-4-raisons.jpg",
+    title: "La liste · « 4 raisons pour lesquelles notre soie n'est pas pas chère »",
+    note: "Titre qui assume le prix, 4 puces courtes, une phrase de fin avec un emoji, et les produits détourés collés sous la note. Tout est fait dans Notes : on écrit, on colle les photos, capture d'écran.",
+    prompt: `Dans Notes sur ton iPhone, écris (en français, adapte à ton produit) :
+
+[Titre] 4 raisons pour lesquelles notre [produit] n'est pas donné (et ne devrait pas l'être) :
+• [matière ou composant premium, en 5 mots]
+• [sensation ou confort, en 5 mots]
+• [détail de fabrication qu'on remarque tout de suite]
+• Parce que « pas cher » et « qui dure » ne vont pas ensemble 😌
+👉 Une fois essayé, tu comprendras
+
+Puis colle 4 à 6 photos de tes produits détourées (fond transparent) sous la liste, une seule ligne de texte entre chaque photo au maximum. Capture d'écran. Ratio 3:4 ou 1:1 au recadrage.`,
+  },
+  {
+    id: "notes-opal-dopamine",
+    folder: "notes",
+    kind: "image",
+    ratio: "3:4",
+    url: "/formation/creatives/notes-opal-dopamine.jpg",
+    title: "L'histoire · « Comment [ça] a changé ma vie »",
+    note: "Un témoignage en 4 blocs : le problème, la découverte, les résultats en puces, l'invitation. Pas une photo, juste du texte. Bonne itération : ajouter une capture du temps d'écran avant / après sous le texte, la preuve.",
+    prompt: `Dans Notes sur ton iPhone, écris (en français, adapte à ton produit) :
+
+[Titre] Comment [le produit / la méthode] a changé mon quotidien
+
+J'avais du mal à [le problème, une phrase concrète] : [le symptôme du quotidien, une phrase].
+
+Puis j'ai trouvé [produit] : [ce qu'il fait, en une phrase simple]… donc littéralement [le résultat immédiat].
+
+C'était LE déclic :
+• Plus de [problème 1]
+• Plus de [problème 2]
+• [Un chiffre : -50 % de…, 3 h de… en plus]
+
+Essaie [produit] aujourd'hui, tu verras la différence tout de suite.
+
+Capture d'écran, sans photo. Itération : colle sous le texte une capture « avant / après » (temps d'écran, pesée, compteur) qui prouve le chiffre.`,
+  },
+  {
+    id: "notes-weearth-angst",
+    folder: "notes",
+    kind: "image",
+    ratio: "1:1",
+    url: "/formation/creatives/notes-weearth-angst.jpg",
+    title: "La confession · « J'ai tellement peur 😭 »",
+    note: "Note allemande d'une marque : « un employé a créé une offre secrète parce que les prix étaient trop hauts, le patron l'a convoqué, l'offre est live ». Une histoire, une urgence, une offre. Zéro visuel, et ça scale.",
+    prompt: `Dans Notes sur ton iPhone, écris (en français, adapte à ton offre) :
+
+[Titre] J'ai tellement peur 😭
+
+Vous ne me connaissez pas, mais j'ai créé une offre secrète chez [marque] parce que les prix étaient trop hauts… et je viens de me faire convoquer par le patron. Apparemment j'ai exagéré.
+
+Il n'y a jamais eu une remise pareille dans toute l'histoire de la marque. N'oubliez pas que j'ai fait ça pour vous.
+
+L'offre secrète [marque] est en ligne 🔥
+Prends la tienne avec [montant] € de remise + [cadeau] OFFERT
+
+Capture d'écran, sans photo. Garde l'émoji du titre et le 🔥 : ce sont les seuls « visuels ».`,
+  },
+];
+
 /** Les exemples enregistrés par l'admin, puis ceux du code qui n'y sont pas encore (jamais perdus). */
 export function withFolderExamples(stored: CreativeExample[]): CreativeExample[] {
   const ids = new Set(stored.map((e) => e.id));
-  return [...stored, ...FOLDER_EXAMPLES.filter((e) => !ids.has(e.id)), ...NATIVE_EXAMPLES.filter((e) => !ids.has(e.id))];
+  return [...stored, ...FOLDER_EXAMPLES.filter((e) => !ids.has(e.id)), ...NATIVE_EXAMPLES.filter((e) => !ids.has(e.id)), ...NOTES_EXAMPLES.filter((e) => !ids.has(e.id))];
 }
 
 /**
@@ -455,6 +526,20 @@ J'ai ces angles : [colle tes 3 meilleurs angles de l'étape 1]. ${RATIO_RULE}
 Dis-moi exactement quelles créatives produire pour la campagne de test : combien de vidéos UGC (9:16), combien d'images statiques (3:4, 1:1 ou 9:16), quel angle pour chacune, quel hook. Objectif : 3 à 6 créatives, pas plus, qui testent des angles différents et pas des variantes du même.
 
 Pour chaque créative : nom de fichier à lui donner (ex. UGC-angle1-hookA-9x16), texte principal de la pub (3 lignes), titre (5 mots), description (1 ligne), appel à l'action. Puis donne-moi la grille de lecture pour J+3 : les 4 chiffres à regarder (dépense, CPM, CTR, coût par achat), les seuils pour couper, garder ou scaler chaque créative.`,
+  },
+  {
+    id: "p-notes-iphone",
+    kind: "strategie",
+    title: "Exemple · Notes iPhone : Claude t'écrit le texte de la note",
+    target: "Claude ou GPT → puis ton iPhone : Notes, tu tapes le texte, tu colles tes photos, capture d'écran",
+    text: `Tu es copywriter e-commerce. Mon produit : [produit, en une phrase]. Mon client : [qui, son problème]. Mon offre : [prix, remise, cadeau].
+
+Écris-moi 3 notes iPhone de pub, en français, prêtes à taper dans l'app Notes :
+1. LA LISTE : un titre qui assume le prix ou la promesse (« 4 raisons… »), 4 puces de 5 à 8 mots, une phrase de fin avec un emoji.
+2. L'HISTOIRE : « Comment [produit] a changé mon quotidien » : le problème (1 phrase), la découverte (1 phrase), 3 puces de résultats avec un chiffre, une invitation.
+3. LA CONFESSION : un employé de la marque a créé une offre secrète et s'est fait recadrer, l'offre est live : 3 courts paragraphes, un titre avec un emoji, la remise et le cadeau à la fin.
+
+Règles : pas plus de 70 mots par note, des puces, aucun jargon, le ton d'une vraie note perso. Rends les 3 notes dans 3 blocs à copier, sans commentaire.`,
   },
   {
     id: "p-native-photo",
