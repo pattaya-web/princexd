@@ -38,6 +38,8 @@ export interface ReviewCall {
   /** Date du call (ISO). */
   at: string;
   outcome: CallOutcome;
+  /** Prochaine relance posee sur ce call (ISO), "" sinon. */
+  followUpAt: string;
   /** Valeur du contrat si la vente est gagnee, 0 sinon. */
   amount: number;
   currency: string;
@@ -60,7 +62,17 @@ export function outcomeOf(db: DB, appt: Appointment): CallOutcome {
   if (sale || appt.status === "closed-won") return "won";
   const lead = db.leads.find((l) => l.id === appt.leadId);
   if (appt.status === "closed-lost" || lead?.stage === "closed-lost") return "lost";
+  // Une relance posee (statut follow-up, ou relance en attente sur ce call) : c'est statue, le prospect reflechit.
+  if (appt.status === "follow-up" || db.followUps.some((f) => f.appointmentId === appt.id && f.status === "pending")) return "followup";
   return "open";
+}
+
+/** La prochaine relance en attente sur ce call (date ISO), "" sinon. */
+function nextFollowUpAt(db: DB, appt: Appointment): string {
+  return db.followUps
+    .filter((f) => f.appointmentId === appt.id && f.status === "pending")
+    .map((f) => f.dueAt)
+    .sort()[0] ?? "";
 }
 
 function toCall(db: DB, appt: Appointment, names: Map<string, string>): ReviewCall {
@@ -72,6 +84,7 @@ function toCall(db: DB, appt: Appointment, names: Map<string, string>): ReviewCa
     leadName: lead?.name ?? "Lead supprimé",
     at: appt.scheduledAt,
     outcome: outcomeOf(db, appt),
+    followUpAt: nextFollowUpAt(db, appt),
     amount: sale ? Math.max(0, sale.contractValue - (sale.refundAmount || 0)) : 0,
     currency: sale?.currency || db.settings.salesCurrency || "EUR",
     closerName: names.get(appt.closerId) ?? "",
@@ -170,7 +183,7 @@ function parseJson<T>(raw: string): T {
 
 const strList = (v: unknown, max = 8): string[] => (Array.isArray(v) ? v.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, max) : []);
 
-const OUTCOME_FR: Record<CallOutcome, string> = { won: "VENTE CLOSÉE (le prospect a acheté)", lost: "PERDU (le prospect n'a pas acheté)", open: "pas encore statué" };
+const OUTCOME_FR: Record<CallOutcome, string> = { won: "VENTE CLOSÉE (le prospect a acheté)", lost: "PERDU (le prospect n'a pas acheté)", followup: "RELANCE PRÉVUE (pas acheté sur ce call, le prospect réfléchit, une relance est posée)", open: "pas encore statué" };
 
 const ANALYSIS_SYSTEM = `Tu es le meilleur coach de closing high-ticket francophone. Tu relis le transcript d'un call de vente de Mady (le closer : coaching e-commerce / IA, offre à plusieurs milliers d'euros) et tu lui rends un debrief brut, précis et utile, comme un coach qui veut qu'il gagne plus de calls.
 
@@ -316,7 +329,7 @@ export async function buildClosingScript(): Promise<ClosingScript> {
     .slice(0, 25)
     .map((c) => {
       const r = c.review!;
-      return `- ${c.leadName} (${c.outcome === "won" ? "closé" : c.outcome === "lost" ? "perdu" : "en attente"}, ${r.score}/10) : à améliorer → ${r.improvements.join(" | ")}. Consigne → ${r.nextTime}. Objections → ${r.objections.map((o) => o.objection).join(" | ") || "aucune"}.`;
+      return `- ${c.leadName} (${c.outcome === "won" ? "closé" : c.outcome === "lost" ? "perdu" : c.outcome === "followup" ? "relance prévue" : "en attente"}, ${r.score}/10) : à améliorer → ${r.improvements.join(" | ")}. Consigne → ${r.nextTime}. Objections → ${r.objections.map((o) => o.objection).join(" | ") || "aucune"}.`;
     })
     .join("\n");
 
@@ -420,7 +433,7 @@ export async function buildCallInsights(): Promise<CallInsights> {
   const lines = calls.map((c) => {
     const r = c.review!;
     return [
-      `### ${c.leadName} · ${new Date(c.at).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })} · ${c.outcome === "won" ? `CLOSÉ${c.amount ? ` ${Math.round(c.amount)} €` : ""}` : c.outcome === "lost" ? "PERDU" : "pas statué"} · note ${r.score}/10`,
+      `### ${c.leadName} · ${new Date(c.at).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })} · ${c.outcome === "won" ? `CLOSÉ${c.amount ? ` ${Math.round(c.amount)} €` : ""}` : c.outcome === "lost" ? "PERDU" : c.outcome === "followup" ? "RELANCE PRÉVUE" : "pas statué"} · note ${r.score}/10`,
       r.summary ? `Résumé : ${r.summary}` : "",
       r.why ? `Pourquoi : ${r.why}` : "",
       r.strengths.length ? `Bien : ${r.strengths.join(" | ")}` : "",
@@ -434,7 +447,8 @@ export async function buildCallInsights(): Promise<CallInsights> {
   });
   const won = calls.filter((c) => c.outcome === "won").length;
   const lost = calls.filter((c) => c.outcome === "lost").length;
-  const prompt = [`${calls.length} calls analysés : ${won} closés, ${lost} perdus, ${calls.length - won - lost} pas encore statués.`, "", ...lines, "", "Écris maintenant les enseignements, structure exacte demandée."].join("\n");
+  const followups = calls.filter((c) => c.outcome === "followup").length;
+  const prompt = [`${calls.length} calls analysés : ${won} closés, ${lost} perdus, ${followups} en relance, ${calls.length - won - lost - followups} pas encore statués.`, "", ...lines, "", "Écris maintenant les enseignements, structure exacte demandée."].join("\n");
   const text = (await askText(prompt, withBrandContext(INSIGHTS_SYSTEM, db.settings), 6000)).trim();
   if (!text) throw new Error("Le modèle a renvoyé un texte vide.");
   const at = new Date().toISOString();

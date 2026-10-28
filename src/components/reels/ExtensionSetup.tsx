@@ -33,7 +33,7 @@ export function ExtensionSetup({ stats }: { stats: ReelStats | null }) {
 
   return (
     <div className="grid lg:grid-cols-[1.2fr_1fr] gap-4 items-start">
-      <Card title="Installer l'extension Chrome (une fois)" subtitle="Déjà installée ? Retélécharge le zip, remplace les fichiers du dossier, puis chrome://extensions → bouton ↻ de Mvdy Reels (version 1.2.0 : pilote auto lancé depuis le tool, like).">
+      <Card title="Installer l'extension Chrome (une fois)" subtitle="Déjà installée ? Retélécharge le zip, remplace les fichiers du dossier, puis chrome://extensions → bouton ↻ de Mvdy Reels (version 1.2.1 : pilote auto lancé depuis le tool, like). Le badge en bas à gauche d'Instagram affiche la version qui tourne..">
         <ol className="flex flex-col gap-2.5 text-[13.5px] leading-relaxed">
           <Step n={1}>
             <a className="btn btn-sm btn-primary" href="/extension/mvdy-reels.zip" download>

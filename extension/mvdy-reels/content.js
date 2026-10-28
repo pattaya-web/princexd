@@ -34,7 +34,8 @@
     if (!badge) return;
     const off = settings.paused || !settings.token;
     const auto = settings.autopilot && onReelsFeed() && !off;
-    badge.textContent = off ? (settings.token ? "Mvdy Reels · en pause" : "Mvdy Reels · jeton manquant") : `Mvdy Reels · ${sent} envoyé${sent > 1 ? "s" : ""}${auto ? ` · pilote auto${autoStopped ? " (plafond)" : ""}` : ""}`;
+    const v = (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || "";
+    badge.textContent = off ? `Mvdy Reels v${v} · ${settings.token ? "en pause" : "jeton manquant"}` : `Mvdy Reels v${v} · ${sent} envoyé${sent > 1 ? "s" : ""}${auto ? ` · pilote auto${autoStopped ? " (plafond)" : ""}` : " · pilote off"}`;
     badge.style.background = off ? "#6b7280" : auto ? "#7c3aed" : "#006DBC";
   }
 
@@ -97,9 +98,27 @@
       return;
     }
     autoStopped = false;
-    const el = scrollContainer();
-    if (el) el.scrollBy({ top: el.clientHeight, behavior: "smooth" });
-    else window.scrollBy({ top: window.innerHeight, behavior: "smooth" });
+    // Le Reel suivant : la video qui suit celle a l'ecran, amenee au centre par scrollIntoView
+    // (marche quel que soit le conteneur, meme en overflow hidden). Sans suivante : on pousse
+    // le conteneur pour qu'Instagram charge la suite.
+    const videos = [...document.querySelectorAll("video")];
+    let current = -1;
+    let best = 0;
+    for (const [i, v] of videos.entries()) {
+      const r = v.getBoundingClientRect();
+      const visible = Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0));
+      if (visible > best) {
+        best = visible;
+        current = i;
+      }
+    }
+    const next = current >= 0 ? videos[current + 1] : videos[0];
+    if (next) next.scrollIntoView({ behavior: "smooth", block: "center" });
+    else {
+      const el = scrollContainer();
+      if (el) el.scrollBy({ top: el.clientHeight, behavior: "smooth" });
+      else window.scrollBy({ top: window.innerHeight, behavior: "smooth" });
+    }
     ticks.push(now);
     render();
     // Rythme soutenu mais humain : 2,5 a 4,5 secondes par Reel (Instagram charge le feed par paquets).

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "@/lib/client";
 import { Card, CopyButton, Empty, ErrorNote, Modal, useToast } from "@/components/ui";
-import { fmtDateTime, fmtMoney, relative } from "@/lib/format";
+import { fmtDate, fmtDateTime, fmtMoney, relative } from "@/lib/format";
 import type { ReviewCall, ClosingScript, CallOutcome } from "@/lib/fathom-review";
 import type { CallReview } from "@/lib/types";
 import type { CallsReviewPayload } from "@/app/api/sales/calls-review/route";
@@ -19,6 +19,7 @@ import type { CallsReviewPayload } from "@/app/api/sales/calls-review/route";
 const OUTCOME: Record<CallOutcome, { label: string; color: string }> = {
   won: { label: "Closé", color: "var(--good)" },
   lost: { label: "Perdu", color: "var(--critical)" },
+  followup: { label: "Relance", color: "#3b82f6" },
   open: { label: "À statuer", color: "var(--warning)" },
 };
 
@@ -97,7 +98,7 @@ function ReviewDetail({ r, call }: { r: CallReview; call: ReviewCall }) {
       {r.summary && <p className="text-[13px] leading-relaxed">{r.summary}</p>}
       {r.why && (
         <div className="rounded-lg px-3.5 py-2.5 text-[13px] leading-relaxed" style={{ background: `color-mix(in srgb, ${call.outcome === "won" ? "var(--good)" : call.outcome === "lost" ? "var(--critical)" : "var(--warning)"} 9%, transparent)`, border: `1px solid color-mix(in srgb, ${call.outcome === "won" ? "var(--good)" : call.outcome === "lost" ? "var(--critical)" : "var(--warning)"} 35%, transparent)` }}>
-          <strong>{call.outcome === "won" ? "Pourquoi ça a closé : " : call.outcome === "lost" ? "Pourquoi ça n'a pas closé : " : "Pourquoi : "}</strong>
+          <strong>{call.outcome === "won" ? "Pourquoi ça a closé : " : call.outcome === "lost" ? "Pourquoi ça n'a pas closé : " : call.outcome === "followup" ? "Pourquoi ça n'a pas closé sur ce call : " : "Pourquoi : "}</strong>
           {r.why}
         </div>
       )}
@@ -236,7 +237,7 @@ export function ClosingReviewCard({ currency = "EUR" }: { currency?: string }) {
 
   const calls = data?.calls ?? [];
   const rows = useMemo(() => calls.filter((c) => filter === "all" || c.outcome === filter), [calls, filter]);
-  const counts = useMemo(() => ({ won: calls.filter((c) => c.outcome === "won").length, lost: calls.filter((c) => c.outcome === "lost").length, open: calls.filter((c) => c.outcome === "open").length }), [calls]);
+  const counts = useMemo(() => ({ won: calls.filter((c) => c.outcome === "won").length, lost: calls.filter((c) => c.outcome === "lost").length, followup: calls.filter((c) => c.outcome === "followup").length, open: calls.filter((c) => c.outcome === "open").length }), [calls]);
   const wonTodo = calls.filter((c) => c.outcome === "won" && !c.review).length;
   const reviewedWon = calls.filter((c) => c.outcome === "won" && c.review).length;
   const avg = useMemo(() => {
@@ -297,6 +298,7 @@ export function ClosingReviewCard({ currency = "EUR" }: { currency?: string }) {
                   { key: "all", label: `Tous (${calls.length})` },
                   { key: "won", label: `Closés (${counts.won})` },
                   { key: "lost", label: `Perdus (${counts.lost})` },
+                  { key: "followup", label: `Relances (${counts.followup})` },
                   { key: "open", label: `À statuer (${counts.open})` },
                 ] as const
               ).map((f) => (
@@ -337,6 +339,7 @@ export function ClosingReviewCard({ currency = "EUR" }: { currency?: string }) {
                             <span className="text-[12px] font-semibold" style={{ color: o.color }}>
                               {o.label}
                             </span>
+                            {c.outcome === "followup" && c.followUpAt && <div className="dim text-[11px] num">le {fmtDate(c.followUpAt)}</div>}
                           </td>
                           <td className="text-right num text-[12.5px] whitespace-nowrap">{c.amount ? fmtMoney(c.amount, c.currency || currency) : <span className="dim">—</span>}</td>
                           <td>

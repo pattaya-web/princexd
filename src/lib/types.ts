@@ -2386,8 +2386,8 @@ export interface CallReview {
   appointmentId: ID;
   leadId: ID;
   recordingId: string;
-  /** Issue du call au moment de l'analyse : vente gagnee, perdue, ou pas encore statuee. */
-  outcome: "won" | "lost" | "open";
+  /** Issue du call au moment de l'analyse : vente gagnee, perdue, relance posee, ou pas encore statuee. */
+  outcome: "won" | "lost" | "followup" | "open";
   /** Note sur 10 du closer sur ce call. */
   score: number;
   /** Le call en 2-3 lignes. */
