@@ -105,6 +105,12 @@ export const FOLDER_EXAMPLES: CreativeExample[] = [
   { id: "venom-two-necklaces-jaune", folder: "punchy", kind: "image", ratio: "3:4", url: "/formation/creatives/venom-two-necklaces-jaune.jpg", title: "Two necklaces. One price. · jaune", note: "Le prix en énorme, badge rouge Buy 1 Get 1, fond jaune qui arrête le scroll. L'accroche la plus simple de la série." },
 ];
 
+/** Les prompts enregistrés par l'admin, puis ceux du code qui n'y sont pas encore (un nouveau prompt du code arrive toujours). */
+export function withDefaultPrompts(stored: CreativePrompt[]): CreativePrompt[] {
+  const ids = new Set(stored.map((p) => p.id));
+  return [...stored, ...DEFAULT_CREATIVE_PROMPTS.filter((p) => !ids.has(p.id))];
+}
+
 /** Les exemples enregistrés par l'admin, puis ceux du code qui n'y sont pas encore (jamais perdus). */
 export function withFolderExamples(stored: CreativeExample[]): CreativeExample[] {
   const ids = new Set(stored.map((e) => e.id));
@@ -377,6 +383,67 @@ Dis-moi exactement quelles créatives produire pour la campagne de test : combie
 
 Pour chaque créative : nom de fichier à lui donner (ex. UGC-angle1-hookA-9x16), texte principal de la pub (3 lignes), titre (5 mots), description (1 ligne), appel à l'action. Puis donne-moi la grille de lecture pour J+3 : les 4 chiffres à regarder (dépense, CPM, CTR, coût par achat), les seuils pour couper, garder ou scaler chaque créative.`,
   },
+  /* --- Les 4 créatives de Mady d'octobre 2026, prompt reconstitué pour chacune (GPT Image 2, avec la photo de référence du produit). --- */
+  {
+    id: "p-mady-patio-studio",
+    kind: "image",
+    title: "Exemple · Punchy sales studio : 2 fauteuils + table, 4 bénéfices en icônes, prix en gros (3:4)",
+    target: "Studio IA, onglet Image, ratio 3:4, avec la photo de référence de ton produit. Remplace le produit, les 4 bénéfices, les prix et la phrase du bas.",
+    text: `Vertical 3:4 ultra-realistic product advertisement, clean studio e-commerce look. Two identical outdoor swivel rocking armchairs with black aluminum frames and plush navy blue cushions, placed symmetrically left and right, slightly angled toward the center, with a small square black glass-top side table between them holding a champagne bottle and one filled flute. ${REF} Background: a smooth warm beige-to-cream gradient wall and floor, soft studio lighting from the top left, natural soft shadows under the furniture, no other objects.
+
+Text and graphic layout, all perfectly legible, no spelling mistakes, thin modern sans-serif in dark charcoal:
+- Top left: a thin circle icon of two rotating arrows, below it "360deg swivel".
+- Top right: a thin circle icon of a rocking chair with motion lines, below it "rocking motion".
+- Left, under the first icon: a thin circle icon of a shield with a check mark, below it "rustproof aluminum frame".
+- Right, under the second icon: a thin circle icon of a cushion, below it "plush navy cushions".
+- Below the furniture, centered: "$119.99" in medium grey with a strikethrough line.
+- Then, very large, centered: "$39.99" in black, bold hand-painted brush-stroke style, with the ".99" smaller and raised.
+- Very bottom, centered, small light grey letter-spaced sans-serif: "outdoor seating that actually feels good".
+
+Avoid: extra furniture, people, logos, watermark, cluttered background, blurry or warped letters, cartoon look.`,
+  },
+  {
+    id: "p-mady-patio-deck",
+    kind: "image",
+    title: "Exemple · Punchy sales en situation : terrasse, post-it jaune, 3 pastilles, prix en blanc (9:16)",
+    target: "Studio IA, onglet Image, ratio 9:16, avec la photo de référence de ton produit. Remplace le produit, la phrase du post-it, les 3 pastilles et les prix.",
+    text: `Vertical 9:16 ultra-realistic lifestyle photo for a Meta ad, shot like a real smartphone photo in bright daylight. Scene: a wooden backyard deck with a white railing, green lawn and tall leafy trees behind, two potted palms on the sides, a blue and white striped outdoor rug on the deck. On the rug: two identical outdoor swivel rocking armchairs with black aluminum frames and plush navy blue cushions, facing slightly inward, and between them a small square black glass-top side table with a champagne bottle and two filled glasses. ${REF} Sunlight from the upper left, soft natural shadows, slight depth of field on the trees.
+
+Text and graphic layout, all perfectly legible, no spelling mistakes:
+- Top center, slightly tilted, a yellow square sticky note held by a strip of beige masking tape, with black handwritten marker text on four lines: "best / $39.99 / I've spent / on the patio".
+- Just below the chairs, three rounded pill badges in a row, pale mint green background with black bold sans-serif text: "swivel + rock", "plush cushions", "easy to move".
+- Bottom: "was $119.99" in white with a thin red strikethrough on the price, then underneath, very large, bold white rounded sans-serif: "$39.99".
+
+Avoid: people, extra furniture, logos, watermark, blurry or warped letters, oversaturated colors, cartoon look.`,
+  },
+  {
+    id: "p-mady-slushie",
+    kind: "image",
+    title: "Exemple · Punchy sales cuisine : machine à slushie, question sur post-it, 3 bénéfices, prix en blanc (9:16)",
+    target: "Studio IA, onglet Image, ratio 9:16, avec la photo de référence de ton produit. Remplace le produit, la question du post-it, les 3 bénéfices et les prix.",
+    text: `Vertical 9:16 ultra-realistic photo for a Meta ad, shot like a real smartphone photo. Scene: a modern kitchen counter in grey stone, grey cabinets below, a warm grey wall, a potted plant and a glass jar blurred in the background. Center right: the black countertop slushie machine from the reference image, with a transparent hopper full of orange slush and a chrome pull lever, blue LED display lit. ${REF} Front left, closer to the camera: a clear plastic cup full of orange slush with a straw, printed "FROST & SIP" with a snowflake, a little slush overflowing onto the counter. Natural window light from the left, soft shadows, shallow depth of field.
+
+Text and graphic layout, all perfectly legible, no spelling mistakes:
+- Top center, slightly tilted, a yellow sticky note with black handwritten marker text on three lines: "Still buying / $9 slushies / all summer?" with a short underline under the last line, and a thin black hand-drawn arrow pointing down from the note toward the machine.
+- Left side, stacked vertically, three rounded pill badges in pale mint green with small black icons and bold black text: a snowflake icon + "No ice needed", a clock icon + "12-hr reservation", an ice cream icon + "Makes ice cream too.", with a small white hand-drawn arrow from the second badge pointing to the lever.
+- Bottom right: "was $79.99" in white with a thin red strikethrough on the price, then underneath, very large, bold white rounded sans-serif: "$29.99" with the ".99" smaller and raised.
+
+Avoid: people, hands, extra appliances, logos other than the cup print, watermark, blurry or warped letters, cartoon look.`,
+  },
+  {
+    id: "p-mady-weber",
+    kind: "image",
+    title: "Exemple · Badge, prix, tag : barbecue + housse dans un jardin, annotation manuscrite, pastille chiffre (3:4)",
+    target: "Studio IA, onglet Image, ratio 3:4, avec la photo de référence de ton produit. Remplace le produit, la phrase manuscrite, le chiffre de la pastille et les prix.",
+    text: `Vertical 3:4 ultra-realistic photo for a Meta ad, golden hour, shot like a real smartphone photo. Scene: a backyard concrete patio slab with grass, bushes and a wooden fence behind, a wooden deck railing on the right, warm low sunlight from the upper left with soft lens glow. Left: the black 22-inch kettle charcoal grill from the reference image, lid open and hanging on its hook, chrome legs, two black wheels, the cooking grate clearly visible and empty. Right: the same grill shape fully covered with a light grey fitted fabric cover with a small black brand patch, wheels visible at the bottom. ${REF}
+
+Text and graphic layout, all perfectly legible, no spelling mistakes:
+- Top right: a torn off-white paper label with black handwritten marker text on two lines: "Fits 13 burgers / on one grate." with a thin black hand-drawn arrow pointing down to the open grate.
+- Right, under the note, a small off-white rounded label: "$39.99" in bold handwritten style, followed by "was $99.99" in small red with a strikethrough.
+- Lower left, overlapping the grill legs: a pale mint green circle badge with black handwritten text on three lines: "363 sq in / cooking / space."
+
+Avoid: people, food, smoke, extra objects, watermark, blurry or warped letters, cartoon look.`,
+  },
   {
     id: "exemple-image-base",
     kind: "video",
@@ -412,7 +479,7 @@ export const DEFAULT_CREATIVES: StudentCreativesSettings = {
 
 export function creativesSettings(settings: Pick<Settings, "studentCreatives">): StudentCreativesSettings {
   const s = settings.studentCreatives ?? {};
-  const prompts = Array.isArray(s.prompts) && s.prompts.length ? s.prompts : DEFAULT_CREATIVE_PROMPTS;
+  const prompts = withDefaultPrompts(Array.isArray(s.prompts) && s.prompts.length ? s.prompts : DEFAULT_CREATIVE_PROMPTS);
   const examples = withFolderExamples(Array.isArray(s.examples) && s.examples.length ? s.examples : DEFAULT_EXAMPLES);
   return {
     exampleShopUrl: (s.exampleShopUrl ?? "").trim(),
