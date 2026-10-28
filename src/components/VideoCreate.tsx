@@ -5,7 +5,7 @@ import { DictateButton } from "@/components/Dictate";
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, useCollection, useLocalState } from "@/lib/client";
+import { api, type ApiError, useCollection, useLocalState } from "@/lib/client";
 import { uploadFile, takeFiles, clipboardFiles, droppedFiles } from "@/lib/upload-client";
 import { fmtInt, fmtUsdInEur } from "@/lib/format";
 import { CREATION } from "@/lib/studio/config";
@@ -155,6 +155,7 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
     setBusy(true);
     setError(null);
     const body: CreateRequest = {
+      requestId: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
       startImage: start.url,
       startImageName: start.name,
       productImages: products.map((p) => p.url),
@@ -168,7 +169,20 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
       variants,
     };
     try {
-      const r = await api<{ jobs: StudioJob[] }>("/api/studio/create", { method: "POST", body: JSON.stringify(body) });
+      // Le proxy répond 502 / 503 / 504 sans l'application (redéploiement, connexion coupée) :
+      // on réessaie quelques fois avec le même requestId, le serveur ne relance rien en double.
+      let r: { jobs: StudioJob[] } | null = null;
+      for (let attempt = 1; ; attempt++) {
+        try {
+          r = await api<{ jobs: StudioJob[] }>("/api/studio/create", { method: "POST", body: JSON.stringify(body) });
+          break;
+        } catch (e) {
+          if (!(e as ApiError).gateway || attempt >= 6) throw e;
+          setError(`Le serveur redémarre, nouvel essai dans quelques secondes (${attempt}/6)…`);
+          await new Promise((res) => setTimeout(res, 5_000));
+        }
+      }
+      setError(null);
       onQueued(r.jobs);
       toast(r.jobs.length > 1 ? `${r.jobs.length} variantes lancées.` : "Vidéo lancée. Le résultat arrive dans Résultats.");
     } catch (e) {

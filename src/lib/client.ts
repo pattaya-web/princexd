@@ -20,6 +20,9 @@ import type { CollectionName } from "./types";
  * un traitement long en « Erreur 502 ». `timeoutMs` devient alors la duree
  * totale acceptee (10 min par defaut).
  */
+/** Erreur renvoyée par `api` : `gateway` = réponse du proxy sans l'application (redémarrage, connexion coupée). */
+export type ApiError = Error & { status?: number; gateway?: boolean };
+
 export async function api<T>(url: string, init?: RequestInit & { timeoutMs?: number; job?: boolean }): Promise<T> {
   const { timeoutMs, job, ...rest } = init ?? {};
   const perCall = job ? 30_000 : timeoutMs;
@@ -67,7 +70,10 @@ export async function api<T>(url: string, init?: RequestInit & { timeoutMs?: num
     // Pas de corps JSON et 502 / 503 / 504 : la reponse vient du proxy, pas de l'application
     // (conteneur en cours de redemarrage apres un deploiement, ou requete trop longue pour lui).
     const gateway = !known && [502, 503, 504].includes(res.status);
-    throw new Error(known ?? (gateway ? `Le serveur a été interrompu (mise à jour en cours ou réponse trop longue, erreur ${res.status}). Réessaie dans une minute.` : `Erreur ${res.status}`));
+    const err: ApiError = new Error(known ?? (gateway ? `Le serveur a été interrompu (mise à jour en cours ou réponse trop longue, erreur ${res.status}). Réessaie dans une minute.` : `Erreur ${res.status}`));
+    err.status = res.status;
+    err.gateway = gateway;
+    throw err;
   }
   return body as T;
 }

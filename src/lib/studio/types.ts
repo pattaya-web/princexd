@@ -112,6 +112,8 @@ export interface TalkRequest {
 
 /** « Création » : une image de départ + un script → une vidéo où la personne parle, sans rien filmer. */
 export interface CreateRequest {
+  /** Identifiant tiré par le navigateur : renvoyer la même demande ne relance pas une génération (sert de batchId). */
+  requestId?: string;
   startImage: string;
   startImageName?: string;
   /** Photos du produit (0 à 4). Avec, l'image et le produit passent en références. */

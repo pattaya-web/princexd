@@ -73,7 +73,18 @@ export function createCreationJobs(req: CreateRequest, ownerId = ""): StudioJob[
   const credits = Math.round(CREATION.creditsPerSec[resolution] * seconds);
 
   const db = readDB();
-  const batchId = newId();
+  /*
+   * Le navigateur tire un requestId et le renvoie tel quel s'il doit
+   * réessayer (502 du proxy pendant un redéploiement, connexion coupée) :
+   * la même demande rend les mêmes jobs au lieu d'en créer (et facturer)
+   * d'autres. Il sert de batchId.
+   */
+  const requestId = typeof req.requestId === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(req.requestId) ? req.requestId : "";
+  if (requestId) {
+    const existing = db.studioJobs.filter((j) => j.batchId === requestId && (ownerId ? j.ownerId === ownerId : !j.ownerId));
+    if (existing.length) return existing;
+  }
+  const batchId = requestId || newId();
   const created: StudioJob[] = [];
   for (let i = 0; i < variants; i++) {
     const t = now();

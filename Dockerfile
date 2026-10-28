@@ -15,7 +15,8 @@ WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
-    HOSTNAME=0.0.0.0
+    HOSTNAME=0.0.0.0 \
+    KEEP_ALIVE_TIMEOUT=125000
 
 # yt-dlp (transcription par lien, medias des createurs) + ffmpeg pour les
 # formats qui exigent un remux. `python-is-python3` fournit la commande
@@ -30,6 +31,8 @@ RUN apt-get update \
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+# Keep-alive plus long que celui de Traefik : sinon des POST tombent en 502 au hasard (voir le fichier).
+COPY --from=builder /app/scripts/keepalive.cjs ./keepalive.cjs
 # Theme Shopify Aesthetic Lab servi aux eleves (hors public/, lu par /api/formation/theme/file).
 COPY --from=builder /app/content/theme ./content/theme
 # Boutique d'exemple (copie HTML lecture seule) servie aux eleves par /api/formation/boutique-exemple.
@@ -41,4 +44,4 @@ USER node
 VOLUME ["/app/data"]
 
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["node", "-r", "./keepalive.cjs", "server.js"]
