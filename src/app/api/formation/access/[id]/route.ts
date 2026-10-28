@@ -3,6 +3,7 @@ import { readDB, writeDB } from "@/lib/db";
 import { readSession, requireAdmin } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { toAccessRow } from "@/lib/formation";
+import { normalizeShopUrl } from "@/lib/formation-gate";
 import { checkStudentUsername } from "@/lib/formation-server";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   return handle(async () => {
     requireAdmin(readSession(req));
     const { id } = await ctx.params;
-    const raw = (await req.json().catch(() => ({}))) as { username?: unknown; portalAccess?: unknown; studioAccess?: unknown; kieApiKey?: unknown; accessApproved?: unknown; editorAccess?: unknown };
+    const raw = (await req.json().catch(() => ({}))) as { username?: unknown; portalAccess?: unknown; studioAccess?: unknown; kieApiKey?: unknown; accessApproved?: unknown; editorAccess?: unknown; shopUrl?: unknown };
     const db = readDB();
     const s = db.students.find((x) => x.id === id);
     if (!s) throw new Error("Élève introuvable.");
@@ -53,6 +54,20 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (typeof raw.accessApproved === "boolean") {
       if (raw.accessApproved) s.accessApprovedAt = s.accessApprovedAt || new Date().toISOString();
       else delete s.accessApprovedAt;
+    }
+
+    // Adresse de la boutique de l'élève : corrigée ou posée par l'admin (vide = effacée).
+    if (typeof raw.shopUrl === "string") {
+      const url = normalizeShopUrl(raw.shopUrl);
+      if (!raw.shopUrl.trim()) {
+        delete s.shopUrl;
+        delete s.shopUrlAt;
+      } else if (!url) {
+        throw new Error("Adresse de boutique illisible.");
+      } else if (url !== s.shopUrl) {
+        s.shopUrl = url;
+        s.shopUrlAt = new Date().toISOString();
+      }
     }
 
     writeDB(db);

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { Field, Modal, Spinner, useToast } from "@/components/ui";
+import { shopHref } from "@/lib/formation-gate";
 import type { StudentFollowUpPayload } from "@/app/api/formation/tasks/route";
 
 /**
@@ -85,6 +86,32 @@ export function StudentFollowUp({ studentId, onClose, onChanged }: { studentId: 
             <Link href="/eleves/onboarding" className="btn btn-sm btn-ghost">
               Message d&apos;onboarding
             </Link>
+          </div>
+
+          {/* Le parcours Scale X : où il en est, étape par étape, et l'adresse de sa boutique. */}
+          <div className="card-flat p-3 flex flex-col gap-2 text-[13px]">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <span className="label-xs">Parcours</span>
+              {data.parcours.map((t, i) => (
+                <span key={t.key} className={`badge !text-[11px] ${t.done ? "badge-good" : ""}`} title={t.done && t.doneAt ? `Validée le ${fmt(t.doneAt)}` : t.done ? "Validée" : "Pas encore validée"}>
+                  {t.done ? "✓" : `${i + 1}`} {t.label}
+                  {t.done && t.doneAt ? <span className="dim font-normal"> · {fmt(t.doneAt)}</span> : null}
+                </span>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="label-xs">Boutique</span>
+              {data.shopUrl ? (
+                <>
+                  <a href={shopHref(data.shopUrl)} target="_blank" rel="noreferrer" className="link font-medium">
+                    {data.shopUrl.replace(/^https?:\/\//, "")} ↗
+                  </a>
+                  <span className="dim text-[12px]">donnée le {fmt(data.shopUrlAt)}</span>
+                </>
+              ) : (
+                <span className="dim">pas encore donnée (l&apos;élève la saisit à l&apos;étape « Création de la boutique »)</span>
+              )}
+            </div>
           </div>
 
           {data.shopRequest && (

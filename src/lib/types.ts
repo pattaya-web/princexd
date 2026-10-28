@@ -855,6 +855,11 @@ export interface Student {
   accessRequestedAt?: string;
   accessApprovedAt?: string;
   tabsDone?: string[];
+  /** Date de validation de chaque étape du parcours (clé = onglet), pour le suivi admin. */
+  tabsDoneAt?: Record<string, string>;
+  /** Adresse de sa boutique (nom de domaine, .myshopify.com ou admin), donnée à l'étape « Création de la boutique ». */
+  shopUrl?: string;
+  shopUrlAt?: string;
 }
 
 /** « Demande ta boutique à Mady » : l'eleve donne son adresse Shopify, Mady genere avec le generateur. */

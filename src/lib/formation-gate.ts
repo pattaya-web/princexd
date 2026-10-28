@@ -84,3 +84,24 @@ export function gateState(student: Pick<Student, "accessRequestedAt" | "accessAp
     next: tabs.find((t) => t.unlocked && !t.done) ?? null,
   };
 }
+
+/**
+ * L'adresse de boutique que l'élève tape : « tamarque.com », « xxx.myshopify.com »,
+ * « https://admin.shopify.com/store/xxx »… On garde ce qu'il a écrit, nettoyé ;
+ * vide = rien d'utilisable.
+ */
+export function normalizeShopUrl(input: unknown): string {
+  const raw = String(input ?? "").trim().replace(/\s+/g, "");
+  if (!raw) return "";
+  const withScheme = /^[a-z]+:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const u = new URL(withScheme);
+    if (!u.hostname.includes(".")) return "";
+    return `${u.protocol}//${u.hostname}${u.pathname === "/" ? "" : u.pathname}`.slice(0, 300);
+  } catch {
+    return "";
+  }
+}
+
+/** Lien cliquable vers la boutique (l'adresse est déjà normalisée, on protège les anciennes valeurs). */
+export const shopHref = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);

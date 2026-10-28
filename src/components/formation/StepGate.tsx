@@ -22,10 +22,16 @@ export function StepGate({ tab, children }: { tab: GateTab; children: ReactNode 
   const toast = useToast();
   const [gate, setGate] = useState<GatePayload | null>(null);
   const [busy, setBusy] = useState(false);
+  /* Étape « boutique » : l'élève donne l'adresse de sa boutique, Mady la récupère dans son suivi. */
+  const [shopUrl, setShopUrl] = useState("");
+  const [shopSaved, setShopSaved] = useState("");
 
   const load = useCallback(async () => {
     try {
-      setGate(await api<GatePayload>("/api/formation/gate"));
+      const g = await api<GatePayload>("/api/formation/gate");
+      setGate(g);
+      setShopUrl(g.shopUrl);
+      setShopSaved(g.shopUrl);
     } catch {
       /* hors formation : pas de verrou */
     }
@@ -71,8 +77,11 @@ export function StepGate({ tab, children }: { tab: GateTab; children: ReactNode 
   const mark = async (done: boolean) => {
     setBusy(true);
     try {
-      const r = await api<GatePayload>("/api/formation/gate", { method: "POST", body: JSON.stringify({ action: "done", tab, done }) });
+      const withShop = tab === "boutique" && done && shopUrl.trim() ? { shopUrl: shopUrl.trim() } : {};
+      const r = await api<GatePayload>("/api/formation/gate", { method: "POST", body: JSON.stringify({ action: "done", tab, done, ...withShop }) });
       setGate(r);
+      setShopUrl(r.shopUrl);
+      setShopSaved(r.shopUrl);
       window.dispatchEvent(new Event(GATE_EVENT));
       if (r.preview) toast("Aperçu : la progression de l'élève n'est pas modifiée.");
       else if (done) toast(next ? `Étape validée. Suivant : ${next.label}.` : "🚀 Campagnes lancées : 100 %. Bravo.");
@@ -83,6 +92,44 @@ export function StepGate({ tab, children }: { tab: GateTab; children: ReactNode 
     }
   };
 
+  const saveShop = async () => {
+    setBusy(true);
+    try {
+      const r = await api<GatePayload>("/api/formation/gate", { method: "POST", body: JSON.stringify({ action: "shop", shopUrl: shopUrl.trim() }) });
+      setGate(r);
+      setShopUrl(r.shopUrl);
+      setShopSaved(r.shopUrl);
+      toast(r.preview ? "Aperçu : rien n'est enregistré." : "Adresse enregistrée : Mady l'a dans son suivi.");
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const shopField =
+    tab === "boutique" && gate.hasStudent ? (
+      <div className="card p-5 flex flex-col gap-2.5" style={{ borderColor: shopSaved ? "var(--good)" : "var(--accent-ring)" }}>
+        <div className="text-[14.5px] font-semibold">L&apos;adresse de ta boutique</div>
+        <p className="muted text-[13px] leading-relaxed">
+          Ton nom de domaine (ex. <strong>tamarque.com</strong>) ou ton adresse <strong>xxx.myshopify.com</strong>. Mady la récupère directement dans son suivi pour regarder ton travail, sans te la redemander.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <input className="input flex-1 min-w-[240px]" value={shopUrl} onChange={(e) => setShopUrl(e.target.value)} placeholder="tamarque.com ou xxx.myshopify.com" inputMode="url" autoCapitalize="off" spellCheck={false} />
+          {shopUrl.trim() && shopUrl.trim() !== shopSaved && (
+            <button type="button" className="btn btn-sm" onClick={() => void saveShop()} disabled={busy}>
+              Enregistrer l&apos;adresse
+            </button>
+          )}
+          {shopSaved && shopUrl.trim() === shopSaved && (
+            <a href={shopSaved} target="_blank" rel="noreferrer" className="btn btn-sm btn-ghost">
+              Ouvrir ma boutique ↗
+            </a>
+          )}
+        </div>
+      </div>
+    ) : null;
+
   return (
     <>
       {gate.preview && me.blockedBy && (
@@ -91,6 +138,7 @@ export function StepGate({ tab, children }: { tab: GateTab; children: ReactNode 
         </div>
       )}
       {children}
+      {shopField}
       {gate.hasStudent && (
         <div className="card p-5 flex flex-wrap items-center justify-between gap-3" style={{ borderColor: me.done ? "var(--good)" : "var(--accent-ring)" }}>
           {me.done ? (
@@ -112,7 +160,7 @@ export function StepGate({ tab, children }: { tab: GateTab; children: ReactNode 
           ) : (
             <>
               <div className="text-[14.5px] font-semibold">Quand c&apos;est fait, valide l&apos;étape.</div>
-              <button type="button" className="btn btn-primary" onClick={() => void mark(true)} disabled={busy}>
+              <button type="button" className="btn btn-primary" onClick={() => void mark(true)} disabled={busy || (tab === "boutique" && !shopUrl.trim())} title={tab === "boutique" && !shopUrl.trim() ? "Indique d'abord l'adresse de ta boutique" : undefined}>
                 {busy ? "…" : `✓ ${me.doneLabel}`}
               </button>
             </>

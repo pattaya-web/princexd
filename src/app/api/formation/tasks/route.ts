@@ -5,6 +5,7 @@ import { handle } from "@/lib/sales/http";
 import { ensureCourseSteps, newTask, stepItems, type StepItem } from "@/lib/formation-steps";
 import type { ShopRequest } from "@/lib/types";
 import { lessonProgress } from "@/lib/formation-education";
+import { gateState } from "@/lib/formation-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,11 @@ export interface StudentFollowUpPayload {
   lessonsDone: number;
   lessonsTotal: number;
   shopRequest: ShopRequest | null;
+  /** Adresse de sa boutique (étape « Création de la boutique »). */
+  shopUrl: string;
+  shopUrlAt: string;
+  /** Le parcours Scale X : chaque étape, validée ou non, avec sa date. */
+  parcours: { key: string; label: string; done: boolean; doneAt: string }[];
 }
 
 function payload(studentId: string): StudentFollowUpPayload {
@@ -40,6 +46,9 @@ function payload(studentId: string): StudentFollowUpPayload {
     lessonsDone: lessonProgress(s.completedLessons).done,
     lessonsTotal: lessonProgress(s.completedLessons).total,
     shopRequest: s.shopRequest ?? null,
+    shopUrl: s.shopUrl ?? "",
+    shopUrlAt: s.shopUrlAt ?? "",
+    parcours: gateState(s).tabs.map((t) => ({ key: t.key, label: t.label, done: t.done, doneAt: t.done ? (s.tabsDoneAt?.[t.key] ?? "") : "" })),
   };
 }
 

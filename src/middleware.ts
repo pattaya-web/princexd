@@ -65,7 +65,7 @@ const VA_APIS = ["/api/outreach/", "/api/sales/session", "/api/version"];
  * ses modules.
  */
 const STUDENT_PAGES = ["/formation", "/studio"];
-const STUDENT_ADMIN_PAGES = ["/formation/modules", "/formation/eleves", "/formation/ressources", "/formation/parcours"];
+const STUDENT_ADMIN_PAGES = ["/formation/modules", "/formation/eleves", "/formation/ressources", "/formation/parcours", "/formation/suivi"];
 /*
  * Studio IA par eleve : les routes de generation KIE (avec sa cle, voir
  * lib/studio-tenant) et ses propres generations ; /api/kie/upload est hors

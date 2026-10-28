@@ -492,6 +492,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
   {
     section: "Education",
     items: [
+      { href: "/formation/suivi", label: "Suivi des élèves", icon: "◎" },
       { href: "/formation/eleves", label: "Accès élèves", icon: "⚿" },
       { href: "/formation", label: "Vue élève", icon: "▶" },
       { href: "/formation/ressources", label: "Ressources (PDF)", icon: "▣" },
@@ -551,6 +552,7 @@ const SIMPLE_NAV: typeof NAV = [
   {
     section: "Élèves",
     items: [
+      { href: "/formation/suivi", label: "Suivi des élèves", icon: "◎" },
       { href: "/formation/eleves", label: "Accès élèves", icon: "⚿" },
       { href: "/formation", label: "Vue élève", icon: "▶" },
       { href: "/eleves/onboarding", label: "Onboarding élèves", icon: "✉" },
