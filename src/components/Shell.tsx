@@ -445,15 +445,23 @@ function DailyBar() {
  */
 const NAV: { section: string; items: { href: string; label: string; icon: string }[] }[] = [
   {
-    section: "Pilotage",
+    section: "Sales",
     items: [
-      { href: "/", label: "Dashboard", icon: "◈" },
-      { href: "/insights", label: "Winning Format", icon: "◎" },
+      { href: "/sales/dashboard", label: "Sales Dashboard", icon: "◎" },
+      { href: "/sales/leads", label: "Leads", icon: "☏" },
+      { href: "/sales/messages", label: "Messages", icon: "✉" },
+      { href: "/sales/rendez-vous", label: "CRM", icon: "▤" },
+      { href: "/meet", label: "Lien Meet", icon: "▶" },
+      { href: "/sales/commissions", label: "Commissions", icon: "▦" },
+      { href: "/va/outreach", label: "Outreach VA", icon: "✉" },
+      { href: "/sales/guide", label: "Guide d'utilisation", icon: "?" },
     ],
   },
   {
     section: "Contenu",
     items: [
+      { href: "/instagram", label: "Instagram", icon: "◈" },
+      { href: "/insights", label: "Winning Format", icon: "◎" },
       { href: "/content", label: "Content", icon: "◫" },
       { href: "/production", label: "Production", icon: "▣" },
       { href: "/swipe", label: "Swipe file", icon: "⇥" },
@@ -478,19 +486,6 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/tournage", label: "Kit tournage", icon: "▶" },
       { href: "/transcript", label: "Transcript", icon: "≡" },
       { href: "/youtube", label: "Vidéos YouTube", icon: "▶" },
-    ],
-  },
-  {
-    section: "Sales",
-    items: [
-      { href: "/sales/dashboard", label: "Sales Dashboard", icon: "◎" },
-      { href: "/sales/leads", label: "Leads", icon: "☏" },
-      { href: "/sales/messages", label: "Messages", icon: "✉" },
-      { href: "/sales/rendez-vous", label: "CRM", icon: "▤" },
-      { href: "/meet", label: "Lien Meet", icon: "▶" },
-      { href: "/sales/commissions", label: "Commissions", icon: "▦" },
-      { href: "/va/outreach", label: "Outreach VA", icon: "✉" },
-      { href: "/sales/guide", label: "Guide d'utilisation", icon: "?" },
     ],
   },
   {
@@ -533,27 +528,23 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
  */
 const SIMPLE_NAV: typeof NAV = [
   {
-    section: "Pilotage",
+    section: "Ventes",
     items: [
-      { href: "/", label: "Dashboard", icon: "◈" },
+      { href: "/sales/dashboard", label: "Sales Dashboard", icon: "◎" },
+      { href: "/sales/leads", label: "Leads", icon: "☏" },
+      { href: "/sales/rendez-vous", label: "CRM", icon: "▤" },
       { href: "/eleves/nouveau", label: "Assistant (chat)", icon: "💬" },
     ],
   },
   {
     section: "Contenu",
     items: [
+      { href: "/instagram", label: "Instagram", icon: "◈" },
+      { href: "/insights", label: "Winning Format", icon: "◎" },
       { href: "/swipe", label: "Swipe file", icon: "⇥" },
       { href: "/swipe/tournage", label: "Mes tournages", icon: "🎬" },
       { href: "/studio", label: "Studio IA", icon: "✦" },
       { href: "/content-os", label: "Content OS", icon: "☀" },
-    ],
-  },
-  {
-    section: "Ventes",
-    items: [
-      { href: "/sales/dashboard", label: "Sales Dashboard", icon: "◎" },
-      { href: "/sales/leads", label: "Leads", icon: "☏" },
-      { href: "/sales/rendez-vous", label: "CRM", icon: "▤" },
     ],
   },
   {
