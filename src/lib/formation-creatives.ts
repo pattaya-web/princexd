@@ -29,7 +29,14 @@ export interface CreativeFolder {
   tagline: string;
   /** Trois repères courts, pas plus. */
   tips: string[];
+  /** Deux ou trois phrases : ce que c'est, pourquoi ça marche. */
+  how?: string;
+  /** LA règle à retenir, mise en avant (ex. la phrase à écrire dans chaque prompt). */
+  rule?: string;
 }
+
+/** La phrase à écrire dans chaque prompt de photo réaliste : c'est elle qui enlève le rendu « IA ». */
+export const NATIVE_PHRASE = "shot on iPhone 15, native, ultra organic";
 
 /**
  * Les familles, dans l'ordre de la page. Les exemples de chaque famille sont
@@ -41,13 +48,16 @@ export const CREATIVE_FOLDERS: CreativeFolder[] = [
     id: "punchy",
     title: "Punchy sales",
     tagline: "L'offre en pleine face, à l'américaine. Le format qui vend le plus.",
+    how: "Une pub qui assume d'être une pub : le produit bien visible, une accroche en gros, le prix barré et le nouveau prix, deux ou trois bénéfices en pastilles. Elle vend tout de suite, à froid, et se décline en changeant juste le fond ou l'accroche.",
     tips: ["Une accroche en gros, l'offre en rouge, un badge d'urgence.", "Une seule idée, une seule offre, des mots courts.", "Décline la même créative sur 4 ou 5 fonds : Meta choisit."],
   },
   {
     id: "native",
     title: "Native ads",
-    tagline: "Ne ressemble pas à une pub : un post, un selfie, une capture. C'est la phrase qui arrête le scroll.",
-    tips: ["Pas de badge, pas de prix en rouge, pas de logo.", "Une phrase vraie et précise (« Got stopped 3 times today »).", "Moins cher au clic, use moins l'audience. Tout se fait à l'IA."],
+    tagline: "Une photo qui ne ressemble pas à une pub. Souvent sans aucun texte : c'est l'image qui arrête le scroll.",
+    how: "Une native ad se fond dans le feed : on dirait la photo d'un vrai client, prise au téléphone, pas une pub. Le plus souvent il n'y a pas de texte du tout : la scène raconte le problème (un pied gonflé, un dos qui gratte, une nuit sans sommeil) ou la situation absurde qu'il crée. La promesse vient ensuite, dans la légende et sur la page produit. Tout se fait à l'IA, avec des photos ultra réalistes.",
+    rule: `Dans chaque prompt de photo réaliste, écris toujours : « ${NATIVE_PHRASE} » (qualité iPhone 15, native, ultra organique). Sans ça, l'image a l'air générée.`,
+    tips: ["Pas de badge, pas de prix, pas de logo : une photo, point.", "Le problème montré sans pitié, ou la situation qui fait sourire. Le vrai, le moche, le quotidien.", "Moins cher au clic, use moins l'audience. Reste dans les règles Meta : pas de promesse médicale."],
   },
   {
     id: "notes",
@@ -111,10 +121,73 @@ export function withDefaultPrompts(stored: CreativePrompt[]): CreativePrompt[] {
   return [...stored, ...DEFAULT_CREATIVE_PROMPTS.filter((p) => !ids.has(p.id))];
 }
 
+/** Native ads (2026-10-29) : des photos sans texte, le problème ou la situation, qualité iPhone. */
+const NATIVE_EXAMPLES: CreativeExample[] = [
+  {
+    id: "native-pied-gonfle-avant-apres",
+    folder: "native",
+    kind: "image",
+    ratio: "1:1",
+    url: "/formation/creatives/native-pied-gonfle-avant-apres.jpg",
+    title: "Avant / après sans texte · pied gonflé au supermarché",
+    note: "Deux photos côte à côte, même lieu, même pantalon, même angle : à gauche le pied rouge et gonflé, à droite le pied normal. Aucun mot. Le feed comprend tout seul.",
+    prompt: `Square 1:1 side-by-side comparison, two photos separated by a thin white line, ${NATIVE_PHRASE}. Both photos: the same person standing barefoot on a shiny speckled supermarket floor, grey jogging pants, a black shopping cart partly visible on the left, store shelves blurred in the background, fluorescent lighting, low camera angle at floor level. Left photo: the right foot and ankle very swollen, red and puffy, skin tight and shiny. Right photo: the same foot normal, slim, natural skin tone. Identical framing, lighting and position in both photos. No text, no logo, no watermark, no retouching look.`,
+  },
+  {
+    id: "native-congelateur-garage",
+    folder: "native",
+    kind: "image",
+    ratio: "1:1",
+    url: "/formation/creatives/native-congelateur-garage.jpg",
+    title: "La situation absurde · pieds dans le congélateur",
+    note: "Une femme épuisée, pieds dans le congélateur du garage, glace à la main, regard caméra. Zéro texte : on rit, on comprend le problème (chaleur, jambes lourdes, bouffées), on clique.",
+    prompt: `Square 1:1 candid photo, ${NATIVE_PHRASE}, flash-free indoor lighting. A tired Asian woman in her thirties with messy hair in a loose bun, wearing an oversized black and cream buffalo-check flannel shirt, sits on a tall wooden bar stool in a cluttered home garage, both bare feet resting inside an open white chest freezer with cold mist rising out of it. She holds an orange ice pop and looks straight at the camera with a flat, exhausted expression. Around her: a pegboard of tools, black storage bins, a bicycle, a washer and dryer, a pickup truck parked on the right, fuzzy slippers and ice pop wrappers on the concrete floor. Realistic, slightly messy, authentic smartphone photo. No text, no logo, no watermark.`,
+  },
+  {
+    id: "native-eczema-dos",
+    folder: "native",
+    kind: "image",
+    ratio: "1:1",
+    url: "/formation/creatives/native-eczema-dos.jpg",
+    title: "Le problème en gros plan · dos irrité",
+    note: "Une épaule et un dos couverts de plaques rouges, photo clinique prise au téléphone. Brut, sans texte. Pour un produit peau, c'est l'image qui fait s'arrêter la bonne personne.",
+    prompt: `Square 1:1 close-up photo of a man's bare upper back and shoulder, ${NATIVE_PHRASE}, soft neutral indoor light, dark blurred background. The skin shows severe eczema: red inflamed patches, dry flaking skin, small raised bumps and scratches across the shoulder blade and upper arm. A small paper measuring ruler is taped on the right side of the back. Clinical but real, like a photo taken before a dermatologist appointment. No text, no logo, no watermark.`,
+  },
+  {
+    id: "native-infirmiere-pause",
+    folder: "native",
+    kind: "image",
+    ratio: "3:4",
+    url: "/formation/creatives/native-infirmiere-pause.jpg",
+    title: "La scène de vie · infirmière, jambes lourdes",
+    note: "Une infirmière endormie en salle de pause, pieds nus posés sur une chaise, veines et chevilles gonflées. On ne vend rien, on montre une journée de 12 heures. La cible se reconnaît.",
+    prompt: `Vertical 3:4 candid photo, ${NATIVE_PHRASE}, fluorescent hospital break-room lighting. A Black nurse in her fifties in light blue scrubs and rolled-up navy pants sleeps sitting back in a beige plastic chair, head tilted back, eyes closed, exhausted. Her bare feet rest on a second chair in the foreground, close to the camera: visible varicose veins, swollen ankles, dry skin. Background: a vending machine with snacks, a wall clock, an EXIT sign, a table with a paper coffee cup and a phone. Authentic, unposed, slightly grainy. No text, no logo, no watermark.`,
+  },
+  {
+    id: "native-ventre-before",
+    folder: "native",
+    kind: "image",
+    ratio: "1:1",
+    url: "/formation/creatives/native-ventre-before.jpg",
+    title: "Le « before » daté · ventre gonflé",
+    note: "Un ventre gonflé, les mains dessus, un papier « BEFORE - DATE : OCT 26 » dans le coin. Le seul texte est manuscrit et donne l'impression d'un vrai suivi. Le « after » vient dans la deuxième image ou la vidéo.",
+    prompt: `Square 1:1 candid photo, ${NATIVE_PHRASE}, natural window light. A woman sits on the edge of a bed with a floral grey duvet, wearing a cropped grey heather t-shirt and grey sweatpants, both hands resting on her very bloated, rounded belly, face not visible. Bedroom background: a wooden nightstand with a water bottle, a stack of papers and a candle, a window on the right. In the bottom right corner, a small piece of beige paper with black handwritten marker text on two lines: "BEFORE -" and "DATE: OCT 26". Authentic, unretouched. No other text, no logo, no watermark.`,
+  },
+  {
+    id: "native-concurrent-belura-ads",
+    folder: "native",
+    kind: "image",
+    ratio: "16:9",
+    url: "/formation/creatives/native-concurrent-belura-ads.jpg",
+    title: "Ce que fait une marque qui scale · 38 natives pour un complément digestif",
+    note: "Capture d'une bibliothèque de pubs : cuvette des toilettes, boîte de laxatif en main, prescription… Aucune n'a l'air d'une pub. Chaque image raconte le problème, la légende raconte l'histoire. À regarder pour comprendre, pas à copier.",
+  },
+];
+
 /** Les exemples enregistrés par l'admin, puis ceux du code qui n'y sont pas encore (jamais perdus). */
 export function withFolderExamples(stored: CreativeExample[]): CreativeExample[] {
   const ids = new Set(stored.map((e) => e.id));
-  return [...stored, ...FOLDER_EXAMPLES.filter((e) => !ids.has(e.id))];
+  return [...stored, ...FOLDER_EXAMPLES.filter((e) => !ids.has(e.id)), ...NATIVE_EXAMPLES.filter((e) => !ids.has(e.id))];
 }
 
 /**
@@ -382,6 +455,15 @@ J'ai ces angles : [colle tes 3 meilleurs angles de l'étape 1]. ${RATIO_RULE}
 Dis-moi exactement quelles créatives produire pour la campagne de test : combien de vidéos UGC (9:16), combien d'images statiques (3:4, 1:1 ou 9:16), quel angle pour chacune, quel hook. Objectif : 3 à 6 créatives, pas plus, qui testent des angles différents et pas des variantes du même.
 
 Pour chaque créative : nom de fichier à lui donner (ex. UGC-angle1-hookA-9x16), texte principal de la pub (3 lignes), titre (5 mots), description (1 ligne), appel à l'action. Puis donne-moi la grille de lecture pour J+3 : les 4 chiffres à regarder (dépense, CPM, CTR, coût par achat), les seuils pour couper, garder ou scaler chaque créative.`,
+  },
+  {
+    id: "p-native-photo",
+    kind: "image",
+    title: "Exemple · Native ad : une photo ultra réaliste, sans texte (le prompt type)",
+    target: "Studio IA, onglet Image, ratio 1:1 ou 3:4. Avec ta photo de référence si le produit est dans la scène ; sans, si tu montres seulement le problème. Remplace les [crochets].",
+    text: `[Square 1:1 / Vertical 3:4] candid photo, ${NATIVE_PHRASE}, [natural window light / fluorescent lighting / soft indoor light]. [Qui : âge, peau, cheveux, tenue, expression] [où : la pièce, les objets du quotidien autour, un peu de désordre] [quoi : le problème montré sans pitié, ou la situation absurde qu'il crée]. [Si le produit est dans la scène : the product must be exactly the one from the reference image, never redesigned.] Authentic, unposed, unretouched, like a photo sent to a friend. No text, no logo, no watermark, no studio look.
+
+Règles : une seule scène, un seul problème. Pas de badge, pas de prix. Si tu veux un seul mot de texte, fais-le manuscrit sur un papier dans la scène (« BEFORE », une date), jamais en typographie de pub.`,
   },
   /* --- Les 4 créatives de Mady d'octobre 2026, prompt reconstitué pour chacune (GPT Image 2, avec la photo de référence du produit). --- */
   {

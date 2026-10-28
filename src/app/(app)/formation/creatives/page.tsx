@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
-import { ErrorNote, Spinner, useToast } from "@/components/ui";
+import { CopyButton, ErrorNote, Spinner, useToast } from "@/components/ui";
 import { Annex } from "@/components/formation/Annex";
 import { StepGate } from "@/components/formation/StepGate";
 import { PortalFooter, SectionLabel } from "@/components/formation/portal";
@@ -182,9 +182,12 @@ function Lightbox({ e, onClose }: { e: CreativeExample; onClose: () => void }) {
           <div className="font-semibold">{e.title}</div>
           {e.note && <div className="opacity-80 mt-0.5">{e.note}</div>}
         </div>
-        <button type="button" className="btn btn-sm" onClick={onClose}>
-          Fermer
-        </button>
+        <div className="flex items-center gap-2">
+          {e.prompt && <CopyButton text={e.prompt} label="Copier le prompt" />}
+          <button type="button" className="btn btn-sm" onClick={onClose}>
+            Fermer
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -212,11 +215,18 @@ function FormatPicker({ folders, examplesOf, onOpen }: { folders: CreativeFolder
       </div>
       <div>
         <div className="text-[15px] font-semibold leading-snug">{f.tagline}</div>
+        {f.how && <p className="muted text-[13px] leading-relaxed mt-1.5 max-w-[72ch]">{f.how}</p>}
         <ul className="list-disc pl-5 mt-1.5 flex flex-col gap-0.5 muted text-[13px] leading-relaxed">
           {f.tips.map((t) => (
             <li key={t}>{t}</li>
           ))}
         </ul>
+        {f.rule && (
+          <div className="mt-2.5 rounded-lg px-3.5 py-2.5 text-[13px] leading-relaxed max-w-[72ch]" style={{ background: "color-mix(in srgb, var(--accent) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)" }}>
+            <strong>À retenir : </strong>
+            {f.rule}
+          </div>
+        )}
       </div>
       {ex.length > 0 ? (
         <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
