@@ -33,7 +33,7 @@ export function ExtensionSetup({ stats }: { stats: ReelStats | null }) {
 
   return (
     <div className="grid lg:grid-cols-[1.2fr_1fr] gap-4 items-start">
-      <Card title="Installer l'extension Chrome (une fois)" subtitle="Déjà installée ? Retélécharge le zip, remplace les fichiers du dossier, puis chrome://extensions → bouton ↻ de Mvdy Reels (version 1.1.0 : pilote auto + like).">
+      <Card title="Installer l'extension Chrome (une fois)" subtitle="Déjà installée ? Retélécharge le zip, remplace les fichiers du dossier, puis chrome://extensions → bouton ↻ de Mvdy Reels (version 1.2.0 : pilote auto lancé depuis le tool, like).">
         <ol className="flex flex-col gap-2.5 text-[13.5px] leading-relaxed">
           <Step n={1}>
             <a className="btn btn-sm btn-primary" href="/extension/mvdy-reels.zip" download>
@@ -51,7 +51,7 @@ export function ExtensionSetup({ stats }: { stats: ReelStats | null }) {
             Va sur <a className="underline" href="https://www.instagram.com/reels/" target="_blank" rel="noreferrer">instagram.com/reels</a> et scrolle comme d&apos;habitude. Un petit compteur bleu en bas à gauche confirme les envois. Reviens ici : onglet <b>Découvrir</b>.
           </Step>
           <Step n={5}>
-            Pour ne jamais tomber à court : dans l&apos;extension, coche <b>Pilote automatique</b> et laisse un onglet instagram.com/reels ouvert (même en arrière-plan). Elle scrolle à un rythme humain, 80 Reels par heure maximum. Coche aussi <b>Liker depuis le tool</b> pour que le bouton ♥ like le Reel sur Instagram en un clic.
+            Pour ne jamais tomber à court : bouton <b>▶ Remplir ma file</b> (onglet Découvrir). Il ouvre instagram.com/reels dans un onglet et le pilote automatique de l&apos;extension se lance tout seul : elle scrolle à ta place (2 à 4 s par Reel, 150 par heure max) tant que l&apos;onglet reste ouvert, même en arrière-plan. Ferme l&apos;onglet pour arrêter. Coche aussi <b>Liker depuis le tool</b> pour que le bouton ♥ like le Reel sur Instagram en un clic.
           </Step>
         </ol>
         <div className="mt-4 rounded-lg px-3.5 py-3 text-[12.5px] leading-relaxed" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>

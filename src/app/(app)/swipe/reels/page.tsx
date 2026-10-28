@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ExtensionSetup } from "@/components/reels/ExtensionSetup";
 import { ReelsTable } from "@/components/reels/ReelsTable";
-import { ReelsTinder } from "@/components/reels/ReelsTinder";
+import { AUTOPILOT_URL, ReelsTinder } from "@/components/reels/ReelsTinder";
 import { STAGE_COLOR } from "@/components/swipe/panels";
 import { ErrorNote, PageHeader, Spinner, Tabs, useToast } from "@/components/ui";
 import { api, useLocalState } from "@/lib/client";
@@ -148,6 +148,9 @@ export default function ReelsPage() {
         subtitle="Ton feed Instagram, à trier d'un geste : → à produire, ← passer. Le Reel gardé entre tout de suite dans tes contenus à faire."
         actions={
           <div className="flex items-center gap-2">
+            <a className="btn btn-sm btn-primary" href={AUTOPILOT_URL} target="_blank" rel="noreferrer" title="Ouvre instagram.com/reels dans un onglet : l'extension scrolle à ta place et remplit la file tant que l'onglet est ouvert">
+              ▶ Remplir ma file
+            </a>
             <button type="button" className="btn btn-sm" onClick={() => void load(true)} title="Recharger la file maintenant (sinon toutes les 5 s)">
               ↻ Actualiser
             </button>
@@ -191,6 +194,7 @@ export default function ReelsPage() {
               muted={muted}
               onToggleMuted={() => setMuted(!muted)}
               skippedRecent={stats.skippedRecent}
+              lastCaptureAt={stats.lastCaptureAt}
               onRequeue={() => {
                 api<{ requeued: number }>("/api/reels/decide", { method: "POST", body: JSON.stringify({ action: "requeue-recent" }) })
                   .then((r) => {

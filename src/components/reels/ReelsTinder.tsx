@@ -15,7 +15,11 @@ import type { Reel, ReelDecision } from "@/lib/types";
 
 const THRESHOLD = 110;
 
-export function ReelsTinder({ queue, onDecide, onUndo, canUndo, muted, onToggleMuted, skippedRecent, onRequeue }: { queue: Reel[]; onDecide: (reel: Reel, decision: Exclude<ReelDecision, "">) => void; onUndo: () => void; canUndo: boolean; muted: boolean; onToggleMuted: () => void; skippedRecent?: number; onRequeue?: () => void }) {
+/** Ouvre le feed Reels dans Chrome avec le pilote automatique de l'extension (lu dans l'adresse). */
+export const AUTOPILOT_URL = "https://www.instagram.com/reels/#mvdy-autopilot";
+
+export function ReelsTinder({ queue, onDecide, onUndo, canUndo, muted, onToggleMuted, skippedRecent, onRequeue, lastCaptureAt }: { queue: Reel[]; onDecide: (reel: Reel, decision: Exclude<ReelDecision, "">) => void; onUndo: () => void; canUndo: boolean; muted: boolean; onToggleMuted: () => void; skippedRecent?: number; onRequeue?: () => void; lastCaptureAt?: string }) {
+  const feeding = Boolean(lastCaptureAt) && Date.now() - Date.parse(lastCaptureAt as string) < 2 * 60_000;
   const current = queue[0] ?? null;
   const next = queue[1] ?? null;
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
@@ -173,10 +177,19 @@ export function ReelsTinder({ queue, onDecide, onUndo, canUndo, muted, onToggleM
           <div className="absolute inset-0 rounded-[22px] flex items-center justify-center p-6 text-center" style={{ background: "var(--surface-2)", border: "1px dashed var(--border-strong)" }}>
             <div>
               <div className="text-[34px] mb-2">🎬</div>
-              <div className="font-semibold text-[15px]">Plus rien à trier.</div>
+              <div className="font-semibold text-[15px]">{feeding ? "Les prochains Reels arrivent…" : "Plus rien à trier."}</div>
               <p className="muted text-[13px] mt-1.5 leading-relaxed">
-                Les Reels viennent de ton feed Instagram. Ouvre <b>instagram.com/reels</b> dans Chrome et scrolle, ou active le <b>pilote automatique</b> dans l&apos;extension et laisse l&apos;onglet ouvert : la file se remplit toute seule, cette page se met à jour.
+                {feeding ? (
+                  <>Ton onglet Instagram envoie encore des Reels (dernier reçu il y a moins de 2 min). Cette page se met à jour toute seule.</>
+                ) : (
+                  <>Les Reels viennent de ton feed Instagram. Clique ci-dessous : Instagram s&apos;ouvre dans un onglet, l&apos;extension scrolle à ta place, et ta file se remplit en continu tant que l&apos;onglet reste ouvert.</>
+                )}
               </p>
+              {!feeding && (
+                <a className="btn btn-primary mt-3" href={AUTOPILOT_URL} target="_blank" rel="noreferrer" title="Ouvre instagram.com/reels avec le pilote automatique de l'extension">
+                  ▶ Remplir ma file (ouvre Instagram)
+                </a>
+              )}
               {skippedRecent && onRequeue ? (
                 <button type="button" className="btn btn-sm mt-3" onClick={onRequeue} title="← = passer. Si c'était un accident, on les remet dans la file.">
                   Revoir les {skippedRecent} Reels passés aujourd&apos;hui

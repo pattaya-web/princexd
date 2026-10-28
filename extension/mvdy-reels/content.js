@@ -59,7 +59,7 @@
   /* ------------------------- Pilote automatique ------------------------ */
 
   const onReelsFeed = () => /^\/reels\/?$/.test(location.pathname);
-  const HOUR_CAP = 80;
+  const HOUR_CAP = 150;
   let autoTimer = null;
   let autoStopped = false;
   const ticks = [];
@@ -102,8 +102,8 @@
     else window.scrollBy({ top: window.innerHeight, behavior: "smooth" });
     ticks.push(now);
     render();
-    // Rythme humain : 4 a 8 secondes par Reel.
-    autoTimer = setTimeout(autoStep, 4000 + Math.random() * 4000);
+    // Rythme soutenu mais humain : 2,5 a 4,5 secondes par Reel (Instagram charge le feed par paquets).
+    autoTimer = setTimeout(autoStep, 2500 + Math.random() * 2000);
   }
 
   function syncAutopilot() {
@@ -177,8 +177,15 @@
 
   /* ------------------------------ Reglages ----------------------------- */
 
+  // Ouvert depuis le tool (bouton « Remplir ma file ») : le pilote s'active tout seul.
+  const wantAuto = location.hash === "#mvdy-autopilot";
   chrome.storage.sync.get({ paused: false, autopilot: false, autolike: false, token: "" }, (v) => {
     settings = { ...settings, ...v };
+    if (wantAuto && !settings.autopilot) {
+      settings.autopilot = true;
+      chrome.storage.sync.set({ autopilot: true });
+    }
+    if (wantAuto) flash("Pilote automatique lancé : laisse cet onglet ouvert, ta file se remplit.");
     ensureBadge();
     syncAutopilot();
     tryLike();
