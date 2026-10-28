@@ -66,7 +66,6 @@ export function CallsSection({ report, closer, onCloser }: { report: CallsReport
     : open === "upcoming"
       ? report.upcoming
       : report.calls.filter((c) => (open === "calls" ? true : open === "shows" ? c.status === "show" : open === "noshows" ? c.status === "noshow" : open === "pending" ? c.status === "pending" : open === "won" ? c.outcome === "won" : open === "lost" ? c.outcome === "lost" : c.outcome === "followup"));
-  const multiMonth = report.months.filter((m) => m.calls > 0).length > 1;
   const who = closer === "all" ? "toute l'équipe" : closer === "me" ? "moi" : (report.closers.find((c) => c.id === closer)?.name ?? "ce closer");
 
   return (
@@ -104,7 +103,7 @@ export function CallsSection({ report, closer, onCloser }: { report: CallsReport
         <Tile label="Perdus" value={int(t.lost)} color={t.lost ? BAD : undefined} sub="venus, pas closés" onClick={() => setOpen("lost")} />
       </div>
 
-      {multiMonth && <MonthsTable report={report} />}
+      {/* Mois par mois : voulu « plus tard » (2026-10-28), le composant MonthsTable reste pret. */}
 
       <Modal open={open !== null} onClose={() => setOpen(null)} title={open ? `${KIND_TITLE[open]} · ${rows.length}` : ""} wide>
         {rows.length === 0 ? (
@@ -167,8 +166,8 @@ export function CallsSection({ report, closer, onCloser }: { report: CallsReport
   );
 }
 
-/** Mois par mois, quand la periode en couvre plusieurs : memes regles que les tuiles. */
-function MonthsTable({ report }: { report: CallsReport }) {
+/** Mois par mois, quand la periode en couvre plusieurs : memes regles que les tuiles. Pas affiche pour l'instant. */
+export function MonthsTable({ report }: { report: CallsReport }) {
   const t = report.totals;
   const cur = report.currency;
   const shown = report.months.filter((m) => m.calls > 0);
