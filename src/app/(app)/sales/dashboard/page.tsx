@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { SourceChip } from "@/components/sales/AttributionBlock";
 import { AttentionCard } from "@/components/sales/DashboardBlocks";
+import { CallsByMonthCard } from "@/components/sales/CallsByMonthCard";
 import { ClosingReviewCard } from "@/components/sales/ClosingReviewCard";
 import { InvestmentsCard } from "@/components/sales/InvestmentsCard";
 import { UtmLinksTable } from "@/components/sales/UtmLinksTable";
@@ -416,6 +417,10 @@ export default function SalesDashboardPage() {
               <Tile label="Reste à encaisser" value={fmt(cf.remainingTotal, "money", currency)} color={cf.remainingTotal ? WARN : undefined} sub="toutes ventes actives · clique : qui doit quoi" onClick={() => void openRemaining()} />
               <Tile label="Ventes pas soldées" value={fmt(cf.pendingSales, "int", currency)} color={cf.overdueTotal ? WARN : undefined} sub={cf.overdueTotal ? `dont ${fmtMoney(cf.overdueTotal, currency)} en retard · clique : qui` : "échéances à venir, à jour · clique : qui"} onClick={() => void openRemaining()} />
             </div>
+          </Section>
+
+          <Section title="Mes calls par mois" hint="combien de calls faits, combien closés, combien généré : plage de dates à choisir">
+            <CallsByMonthCard />
           </Section>
 
           {/* Les alertes (relances, à confirmer) viennent APRÈS les chiffres : les chiffres d'abord. */}
