@@ -275,6 +275,8 @@ export interface Settings {
   closingScriptAt?: string;
   /** Nombre de calls (gagnes + perdus) sur lesquels le script s'appuie. */
   closingScriptCalls?: number;
+  /** Jeton de l'extension Chrome « Mvdy Reels » (Authorization: Bearer). Genere a la demande. */
+  reelsExtensionToken?: string;
   /* --- Google Agenda (liens Meet, 2026-10-27) : client OAuth de Mady, jeton de rafraichissement, compte connecte. --- */
   googleClientId?: string;
   googleClientSecret?: string;
@@ -1490,6 +1492,46 @@ export interface Swipe {
   createdAt: string;
 }
 
+/* ------------------------- Tinder des Reels (2026-10-28) ------------------------- */
+
+export type ReelDecision = "" | "keep" | "skip";
+
+/**
+ * Un Reel Instagram vu dans le feed de Mady, capture par l'extension Chrome
+ * pendant qu'elle scrolle, puis juge dans le tool (swipe droite = a
+ * produire, gauche = passe). Les chiffres sont ceux qu'Instagram affichait
+ * au moment de la capture ; absents (null) quand Instagram ne les donnait pas.
+ */
+export interface Reel {
+  id: ID;
+  /** Code du Reel dans son adresse (instagram.com/reel/<code>/). Unique. */
+  code: string;
+  url: string;
+  /** Pseudo du createur, sans @. */
+  author: string;
+  authorName: string;
+  caption: string;
+  likes: number | null;
+  comments: number | null;
+  plays: number | null;
+  durationSec: number | null;
+  /** Date de publication du Reel (ISO), "" si inconnue. */
+  takenAt: string;
+  /** Fichier video local (/api/media/...), "" tant que l'extension ne l'a pas envoye. */
+  video: string;
+  videoBytes?: number;
+  /** Vignette locale (/api/media/...), "" sinon. */
+  thumbnail: string;
+  decision: ReelDecision;
+  decidedAt?: string;
+  /** Swipe cree (ou retrouve) quand le Reel est garde. */
+  swipeId?: string;
+  /** Vrai si le swipe a ete cree par ce choix (il est retire si on annule). */
+  swipeCreated?: boolean;
+  capturedAt: string;
+  createdAt: string;
+}
+
 export function swipeProdStatus(s: Pick<Swipe, "prodStatus">): SwipeProdStatus {
   return s.prodStatus ?? "source";
 }
@@ -1644,6 +1686,8 @@ export interface DB {
   activityLogs: ActivityLog[];
   /** Analyses IA des calls de closing enregistres par Fathom (src/lib/fathom-review.ts). */
   callReviews: CallReview[];
+  /** Reels Instagram captures par l'extension Chrome (Tinder des Reels, /swipe/reels). */
+  reels: Reel[];
   shifts: Shift[];
   /** Pointage reel : sessions de travail demarrees et terminees par les membres. */
   workSessions: WorkSession[];

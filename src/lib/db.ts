@@ -105,6 +105,7 @@ const EMPTY_DB: DB = {
   commissionAdjustments: [],
   activityLogs: [],
   callReviews: [],
+  reels: [],
   shifts: [],
   workSessions: [],
   testimonials: [],
