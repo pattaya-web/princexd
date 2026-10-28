@@ -270,6 +270,11 @@ export interface Settings {
   fathomWebhookUrl?: string;
   fathomWebhookSecret?: string;
   fathomLastSyncAt?: string;
+  /* --- Script de closing (2026-10-28) : redige par l'IA a partir des transcripts Fathom des calls closes. --- */
+  closingScript?: string;
+  closingScriptAt?: string;
+  /** Nombre de calls (gagnes + perdus) sur lesquels le script s'appuie. */
+  closingScriptCalls?: number;
   /* --- Google Agenda (liens Meet, 2026-10-27) : client OAuth de Mady, jeton de rafraichissement, compte connecte. --- */
   googleClientId?: string;
   googleClientSecret?: string;
@@ -1637,6 +1642,8 @@ export interface DB {
   /** Bonus / malus poses par le proprietaire. */
   commissionAdjustments: CommissionAdjustment[];
   activityLogs: ActivityLog[];
+  /** Analyses IA des calls de closing enregistres par Fathom (src/lib/fathom-review.ts). */
+  callReviews: CallReview[];
   shifts: Shift[];
   /** Pointage reel : sessions de travail demarrees et terminees par les membres. */
   workSessions: WorkSession[];
@@ -2318,6 +2325,34 @@ export type PaymentType = "paid-in-full" | "installments" | "deposit" | "other";
  * L'attribution (`setterId` / `closerId`) est copiee depuis le rendez-vous au
  * moment de la vente et n'est jamais recalculee ensuite.
  */
+/**
+ * Analyse IA d'un call de closing, a partir du transcript Fathom : ce qui a
+ * marche, ce qu'il faut ameliorer, les objections et comment elles ont ete
+ * traitees. Une analyse par enregistrement ; relancer l'analyse la remplace.
+ */
+export interface CallReview {
+  id: ID;
+  appointmentId: ID;
+  leadId: ID;
+  recordingId: string;
+  /** Issue du call au moment de l'analyse : vente gagnee, perdue, ou pas encore statuee. */
+  outcome: "won" | "lost" | "open";
+  /** Note sur 10 du closer sur ce call. */
+  score: number;
+  /** Le call en 2-3 lignes. */
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  objections: { objection: string; handled: string; better: string }[];
+  /** Phrases du closer qui ont fait avancer le call, mot pour mot. */
+  keyLines: string[];
+  /** LA chose a faire differemment au prochain call. */
+  nextTime: string;
+  /** Taille du transcript analyse (caracteres), 0 si Fathom n'en avait pas. */
+  transcriptChars: number;
+  createdAt: string;
+}
+
 export interface Sale {
   id: ID;
   leadId: ID;

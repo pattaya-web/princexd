@@ -97,6 +97,19 @@ export async function listMeetings(createdAfter: string, maxPages = 5): Promise<
   return out;
 }
 
+export interface FathomTranscriptLine {
+  speaker?: { display_name?: string | null; matched_calendar_invitee_email?: string | null } | null;
+  text?: string | null;
+  /** HH:MM:SS depuis le debut de la reunion. */
+  timestamp?: string | null;
+}
+
+/** Le transcript complet d'un enregistrement (GET /recordings/{id}/transcript). */
+export async function getTranscript(recordingId: string): Promise<FathomTranscriptLine[]> {
+  const res = await call<{ transcript?: FathomTranscriptLine[] | null }>(`/recordings/${encodeURIComponent(recordingId)}/transcript`);
+  return res.transcript ?? [];
+}
+
 export interface FathomWebhook {
   id: string;
   url: string;
