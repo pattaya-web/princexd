@@ -12,7 +12,7 @@ export interface GatePayload extends GateState {
   preview: boolean;
   /** Vrai quand il y a un élève derrière la session (élève connecté, ou admin en « Voir comme »). */
   hasStudent: boolean;
-  /** Adresse de la boutique de l'élève (étape « Création de la boutique »), vide tant qu'il ne l'a pas donnée. */
+  /** Adresse de la boutique de l'élève (étape « Ta boutique »), vide tant qu'il ne l'a pas donnée. */
   shopUrl: string;
 }
 

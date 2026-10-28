@@ -10,7 +10,7 @@ import type { StudentStudioPayload } from "@/app/api/formation/studio/route";
 /**
  * Studio IA (Scale X) : la porte d'entrée de l'élève vers le Studio.
  *
- * Mady ouvre l'accès après l'étape créatives. L'élève crée son compte KIE,
+ * Ouvert dès le premier jour pour tout élève. L'élève crée son compte KIE,
  * colle sa clé API ici (vérifiée auprès de KIE, jamais réaffichée en clair),
  * voit son solde, et entre dans le Studio : il y génère images et vidéos sur
  * ses propres crédits, et ne voit que ses résultats.
@@ -65,7 +65,7 @@ export default function StudentStudioPage() {
         <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.03em" }}>
           Ton Studio IA.
         </h1>
-        <p className="muted text-[14px] mt-1 max-w-[64ch]">Images produit, pubs statiques, vidéos à partir d&apos;une image : les mêmes modèles que Mady (GPT Image 2, Seedance, Kling, Veo…), sur ta propre clé KIE et tes crédits. Tes résultats ne sont visibles que par toi.</p>
+        <p className="muted text-[14px] mt-1 max-w-[64ch]">Images produit, pubs statiques, vidéos à partir d&apos;une image : les mêmes modèles que Mady (GPT Image 2 pour les images, Seedance 2.5 pour les vidéos), sur ta propre clé KIE et tes crédits. Tes résultats ne sont visibles que par toi.</p>
         {data.preview && <div className="badge badge-warn w-fit !text-[11.5px] mt-3">Aperçu : tu vois Scale X comme {data.student?.name}.</div>}
       </header>
 
@@ -73,30 +73,23 @@ export default function StudentStudioPage() {
       <section className="card p-5">
         <div className="flex items-center justify-between gap-3">
           <SectionLabel n="01" title="Accès" />
-          <span className={`badge !text-[10.5px] ${data.access ? "badge-good" : "badge-warn"}`}>{data.access ? "Ouvert" : "Pas encore ouvert"}</span>
+          <span className={`badge !text-[10.5px] ${data.access ? "badge-good" : "badge-warn"}`}>{data.access ? "Ouvert" : "Ouvert dès le premier jour"}</span>
         </div>
-        {data.access ? (
-          <p className="muted text-[13.5px] mt-3 leading-relaxed">Mady t&apos;a ouvert le Studio. Il te reste à poser ta clé KIE ci-dessous, puis tu entres.</p>
-        ) : (
-          <p className="muted text-[13.5px] mt-3 leading-relaxed">
-            Mady ouvre le Studio dès que ton produit est validé sur WhatsApp (page{" "}
-            <Link href="/formation/produit" className="underline">
-              Recherche produit
-            </Link>
-            ). En attendant, crée ton compte KIE (étape 02) et lis la page{" "}
-            <Link href="/formation/creatives" className="underline">
-              Créatives
-            </Link>
-            .
-          </p>
-        )}
+        <p className="muted text-[13.5px] mt-3 leading-relaxed">
+          Ton Studio IA est ouvert dès le premier jour : crée ton compte KIE, pose ta clé sur la page Studio IA, 20 à 30 € de crédits.{" "}
+          {!data.hasKey && "Il te reste à poser ta clé KIE ci-dessous, puis tu entres."} Les prompts sont sur la page{" "}
+          <Link href="/formation/creatives" className="underline">
+            Créatives
+          </Link>
+          .
+        </p>
       </section>
 
       {/* 02 / Clé KIE */}
       <section className="card p-5">
         <SectionLabel n="02" title="Ta clé KIE" />
         <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">
-          KIE est la plateforme qui fait tourner les modèles. Tu paies tes générations toi-même, en crédits, à l&apos;usage : une image GPT Image 2 coûte quelques centimes, une vidéo Seedance de 10 secondes environ 1 à 2 €. Compte 20 à 30 € de crédits pour tes premières créatives.
+          KIE est la plateforme qui fait tourner les modèles. Tu paies tes générations toi-même, en crédits, à l&apos;usage : 0,03 € l&apos;image (GPT Image 2), 2 à 3 € la vidéo de 15 s (Seedance 2.5). Compte 20 à 30 € de crédits pour tes premières créatives.
         </p>
         <ol className="list-decimal pl-5 mt-3 flex flex-col gap-1.5 text-[13.5px]">
           <li>
@@ -142,7 +135,7 @@ export default function StudentStudioPage() {
       <section className="card p-5" style={{ borderColor: ready ? "var(--accent-ring)" : undefined }}>
         <SectionLabel n="03" title="Entrer dans le Studio" />
         <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">
-          Onglet <strong>Image</strong> : choisis GPT Image 2, importe ta photo de référence produit, colle le prompt écrit par Claude (page Créatives), choisis le ratio <strong>3:4</strong>, <strong>1:1</strong> ou <strong>9:16</strong>, génère. Onglet <strong>Vidéo</strong> : pars d&apos;une image générée, colle le prompt vidéo, toujours en <strong>9:16</strong>, 5 à 10 secondes par clip. Les résultats arrivent dans la galerie en haut, tu les télécharges avec la flèche.
+          Onglet <strong>Image</strong> : choisis GPT Image 2, importe ta photo de référence produit, colle le prompt écrit par Claude (page Créatives), choisis le ratio <strong>3:4</strong>, <strong>1:1</strong> ou <strong>9:16</strong>, génère. Onglet <strong>Création</strong> (Seedance 2.5) : pars d&apos;une image générée en 9:16, colle le prompt vidéo, toujours en <strong>9:16</strong>, 15 secondes, 5 plans de 3 s (réglage 16 s pour une vidéo de 15 s). Les résultats arrivent dans la galerie en haut, tu les télécharges avec la flèche.
         </p>
         <div className="flex flex-wrap items-center gap-3 mt-4">
           {ready ? (
@@ -157,7 +150,7 @@ export default function StudentStudioPage() {
           <Link href="/formation/creatives" className="btn btn-ghost">
             Les prompts (Créatives)
           </Link>
-          {!ready && <span className="dim text-[12.5px]">{!data.access ? "En attente de l'ouverture par Mady." : "Pose d'abord ta clé KIE."}</span>}
+          {!ready && <span className="dim text-[12.5px]">Pose d&apos;abord ta clé KIE.</span>}
         </div>
       </section>
 

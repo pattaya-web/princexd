@@ -6,7 +6,7 @@ import { ErrorNote, Spinner } from "@/components/ui";
 import { PortalFooter, waHelpLink } from "@/components/formation/portal";
 import type { DashboardPayload } from "@/app/api/formation/dashboard/route";
 
-/** Réserver un appel (Scale X) : le lien de réservation de Mady, et WhatsApp pour une question rapide. */
+/** Réserver un appel (Scale X) : le lien de réservation de Mady, et WhatsApp pour les urgences (après Claude Code). */
 export default function ReserverAppelPage() {
   const [data, setData] = useState<DashboardPayload | null>(null);
   const [error, setError] = useState("");
@@ -36,11 +36,11 @@ export default function ReserverAppelPage() {
             Choisir un créneau
           </a>
         ) : (
-          <div className="dim text-[13.5px]">{data.isAdmin ? "Renseigne le lien de réservation dans Formation → Parcours & étapes." : "Le lien de réservation arrive bientôt. En attendant, écris à Mady."}</div>
+          <div className="dim text-[13.5px]">{data.isAdmin ? "Renseigne le lien de réservation dans Formation → Parcours & étapes." : "Le lien de réservation arrive bientôt. En attendant, demande à Claude Code, puis à Mady si c'est urgent."}</div>
         )}
         {wa && (
           <a href={wa} target="_blank" rel="noreferrer" className="btn w-full">
-            Une question rapide ? WhatsApp
+            Urgence ? WhatsApp (après avoir essayé avec Claude)
           </a>
         )}
         <p className="dim text-[12.5px] leading-relaxed">Avant le call, prépare tes chiffres ou ta question précise : on avance plus vite.</p>

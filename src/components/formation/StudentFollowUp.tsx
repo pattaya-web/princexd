@@ -109,7 +109,7 @@ export function StudentFollowUp({ studentId, onClose, onChanged }: { studentId: 
                   <span className="dim text-[12px]">donnée le {fmt(data.shopUrlAt)}</span>
                 </>
               ) : (
-                <span className="dim">pas encore donnée (l&apos;élève la saisit à l&apos;étape « Création de la boutique »)</span>
+                <span className="dim">pas encore donnée (l&apos;élève la saisit à l&apos;étape « Ta boutique »)</span>
               )}
             </div>
           </div>

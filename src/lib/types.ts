@@ -871,7 +871,7 @@ export interface Student {
   tabsDone?: string[];
   /** Date de validation de chaque étape du parcours (clé = onglet), pour le suivi admin. */
   tabsDoneAt?: Record<string, string>;
-  /** Adresse de sa boutique (nom de domaine, .myshopify.com ou admin), donnée à l'étape « Création de la boutique ». */
+  /** Adresse de sa boutique (nom de domaine, .myshopify.com ou admin), donnée à l'étape « Ta boutique ». */
   shopUrl?: string;
   shopUrlAt?: string;
 }

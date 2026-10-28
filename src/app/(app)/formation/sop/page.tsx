@@ -176,7 +176,7 @@ export default function SopPage() {
             Une procédure par tâche.
           </h1>
           <p className="muted text-[14px] mt-1 max-w-[64ch]">
-            Claude Code, Shopify, produit, créatives, Meta : pour chaque tâche, les étapes dans l&apos;ordre, les messages à coller à Claude, à quoi tu vois que c&apos;est bon, et les erreurs qu&apos;on voit chez les élèves. Ouvre la fiche, suis-la, coche.
+            Claude Code, Shopify, produit, créatives, Meta : pour chaque tâche, les étapes dans l&apos;ordre, les messages à coller à Claude, à quoi tu vois que c&apos;est bon, et les erreurs qu&apos;on voit chez les élèves. Ouvre la fiche, suis-la.
           </p>
         </div>
         <input className="input !h-[34px] w-[220px] max-w-full text-[13px]" placeholder="Rechercher (ex. pixel, logo, .env)…" value={query} onChange={(e) => setQuery(e.target.value)} />

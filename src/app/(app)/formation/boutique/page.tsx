@@ -24,7 +24,7 @@ import type { StudentMethodSettings, StudentThemeFile } from "@/lib/types";
 const CLAUDE_STEPS = [
   { title: "Il décompresse le thème", text: "Le zip devient un dossier « theme » dans ton projet, avec les dossiers assets, sections, templates… Tu n'y touches pas." },
   { title: "Il se connecte à ta boutique avec le fichier .env", text: "Tu renommes .env.example en .env et tu y colles ton adresse .myshopify.com, ton Client ID et ton Client secret (Démarrage, étape 03). Jamais dans le chat. S'il dit « app not installed », tu installes l'app dans le Dev Dashboard et tu lui dis « c'est bon »." },
-  { title: "Il envoie le thème, tu le publies", text: "Le thème « Aesthetic » apparaît dans Shopify > Boutique en ligne > Thèmes : tu cliques Publier, tu enlèves le mot de passe. Tu lui dis : « publié, plus de mot de passe, je veux le live sur le thème publié, pas de lien de prévisualisation »." },
+  { title: "Il envoie le thème, tu le publies", text: "Le thème Aesthetic Lab apparaît dans Shopify > Boutique en ligne > Thèmes : tu cliques Publier, tu enlèves le mot de passe. Tu lui dis : « publié, plus de mot de passe, je veux le live sur le thème publié, pas de lien de prévisualisation »." },
   { title: "Il remplace le contenu, section par section", text: "Nom de marque, e-mail support, textes du hero, bénéfices, avis, FAQ, pied de page. Tes images et vidéos du dossier « creatives » à la place des aplats gris. Ton produit à la place des exemples. Tu valides chaque section." },
   { title: "Tu vérifies sur ta boutique (F5)", text: "Chaque modification arrive en live sur ta boutique. Un texte ne te plaît pas : « réécris ce titre, plus court ». Une image manque : il te dit laquelle et dans quel format. Puis commande test et Pixel." },
 ];
@@ -127,7 +127,7 @@ export default function BoutiquePage() {
     <div className="flex flex-col gap-5">
       <header>
         <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
-          Scale X / Création de la boutique
+          Scale X / Ta boutique
         </div>
         <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.03em" }}>
           Ta boutique en ligne aujourd&apos;hui. Zéro ligne de code, tu parles à Claude, il fait.
@@ -207,7 +207,7 @@ export default function BoutiquePage() {
             <span className="dim text-[12.5px]">{fmtBytes(data.theme.size)} · ne l&apos;ouvre pas, ne le décompresse pas</span>
           </div>
         ) : (
-          <div className="dim text-[12.5px] mt-4">{data.isAdmin ? "Aucun thème disponible : dépose un zip avec « Modifier la page »." : "Le thème arrive bientôt : demande à Mady si tu es prêt."}</div>
+          <div className="dim text-[12.5px] mt-4">{data.isAdmin ? "Aucun thème disponible : dépose un zip avec « Modifier la page »." : "Le thème arrive bientôt : demande d'abord à Claude Code, puis à Mady."}</div>
         )}
         {data.exampleShopUrl && (
           <p className="text-[13px] mt-3">

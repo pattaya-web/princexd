@@ -5,8 +5,8 @@ import type { Student } from "./types";
  *
  * Les onglets s'ouvrent en chaîne : Démarrage est ouvert d'emblée, puis
  * chaque onglet s'ouvre quand l'élève a validé le précédent (bouton en bas
- * de page) : Démarrage → Recherche produit → Création de la boutique →
- * Créatives → Campagnes Meta. Le formulaire d'onboarding (accueil) ne
+ * de page) : Démarrage → Recherche produit → Créatives → Ta boutique →
+ * Campagnes Meta. Le formulaire d'onboarding (accueil) ne
  * verrouille rien : quand l'élève dit l'avoir rempli, Mady reçoit une
  * notification et la marque « vu ». Studio IA, Mes étapes et Ressources
  * restent ouverts. Module pur : serveur et navigateur.
@@ -24,8 +24,8 @@ export type GateTab = "demarrage" | "produit" | "boutique" | "creatives" | "meta
 export const GATE_TABS: { key: GateTab; href: string; label: string; doneLabel: string }[] = [
   { key: "demarrage", href: "/formation/demarrage", label: "Démarrage", doneLabel: "J'ai tout installé (VS Code, Claude Code, Shopify)" },
   { key: "produit", href: "/formation/produit", label: "Recherche produit", doneLabel: "Mon produit est validé par Mady" },
-  { key: "boutique", href: "/formation/boutique", label: "Création de la boutique", doneLabel: "Ma boutique est en ligne" },
   { key: "creatives", href: "/formation/creatives", label: "Créatives", doneLabel: "Mes créatives sont prêtes" },
+  { key: "boutique", href: "/formation/boutique", label: "Ta boutique", doneLabel: "Ma boutique est en ligne" },
   { key: "meta", href: "/formation/meta", label: "Campagnes Meta", doneLabel: "Mes campagnes sont lancées 🚀" },
 ];
 

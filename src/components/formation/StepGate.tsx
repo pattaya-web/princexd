@@ -55,6 +55,7 @@ export function StepGate({ tab, children }: { tab: GateTab; children: ReactNode 
         <h1 className="text-[22px] font-semibold leading-tight" style={{ letterSpacing: "-0.02em" }}>
           {me.label}
         </h1>
+        {/* Verrou désactivé (LOCK_CHAIN = false) : texte inactif. */}
         {b?.kind === "approval" ? (
           <>
             <p className="muted text-[14px] leading-relaxed">Cette étape s&apos;ouvre quand Mady a validé ton formulaire d&apos;onboarding.</p>
@@ -64,6 +65,7 @@ export function StepGate({ tab, children }: { tab: GateTab; children: ReactNode 
           </>
         ) : b?.kind === "tab" ? (
           <>
+            {/* Verrou désactivé (LOCK_CHAIN = false) : texte inactif. */}
             <p className="muted text-[14px] leading-relaxed">Termine d&apos;abord l&apos;étape « {b.label} ».</p>
             <Link href={b.href} className="btn btn-primary btn-sm mt-1">
               Aller à {b.label} →
@@ -159,7 +161,7 @@ export function StepGate({ tab, children }: { tab: GateTab; children: ReactNode 
             </>
           ) : (
             <>
-              <div className="text-[14.5px] font-semibold">Quand c&apos;est fait, valide l&apos;étape.</div>
+              <div className="text-[14.5px] font-semibold">Quand c&apos;est fait, coche : Mady le voit dans son suivi.</div>
               <button type="button" className="btn btn-primary" onClick={() => void mark(true)} disabled={busy || (tab === "boutique" && !shopUrl.trim())} title={tab === "boutique" && !shopUrl.trim() ? "Indique d'abord l'adresse de ta boutique" : undefined}>
                 {busy ? "…" : `✓ ${me.doneLabel}`}
               </button>

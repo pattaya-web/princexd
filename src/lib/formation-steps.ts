@@ -13,7 +13,7 @@ import type { CourseStep, DB, Settings, Student, StudentPortalSettings, StudentT
 export const DEFAULT_PORTAL: StudentPortalSettings = {
   bookingUrl: "",
   whatsapp: "",
-  helpText: "Tu bloques ? Demande d'abord à Claude (page Démarrage, section 09) : il règle la plupart des problèmes en direct. Mady, c'est pour les urgences et les validations : réserve ton créneau.",
+  helpText: "Tu bloques ? Demande d'abord à Claude Code (page Démarrage, section 11) : capture d'écran + ce que tu voulais, il règle la plupart des problèmes en direct. Mady, c'est pour les urgences et les validations, sur WhatsApp : réserve ton créneau.",
   quote: "Plus vite tu lances, plus vite tu apprends. Le reste, c'est de l'optimisation.",
   quoteAuthor: "Mady",
   /** Vidéo d'accompagnement de Mady (YouTube non répertorié), remplaçable depuis Démarrage. */
@@ -49,7 +49,7 @@ const SEED: SeedV2[] = [
     was: /installe les outils/i,
     title: "Installe VS Code et Claude Code (15 min)",
     detail:
-      "Page Démarrage, sections 01 à 04 : tu installes VS Code, tu ajoutes l'extension Claude Code, tu ouvres ton dossier et tu colles le premier message à Claude. C'est lui qui installe et connecte le reste, tu dis oui. Prends Claude Max ({{claude}}) avant.\n\n✅ Fait quand : Claude te répond « C'est prêt » et ton aperçu de boutique s'ouvre dans le navigateur.",
+      "Page Démarrage, sections 01 à 05 : tu installes VS Code, tu ajoutes l'extension Claude Code, tu ouvres ton dossier et tu colles le premier message à Claude. C'est lui qui installe et connecte le reste, tu dis oui. Prends Claude Max ({{claude}}) avant.\n\n✅ Fait quand : Claude te répond « C'est prêt » et ton aperçu de boutique s'ouvre dans le navigateur.",
     link: "/formation/demarrage",
   },
   {
@@ -75,7 +75,7 @@ const SEED: SeedV2[] = [
   },
   {
     was: /modules fondations|guides fondations/i,
-    title: "Lis les guides Fondations (Education)",
+    title: "Lis les guides Fondations (Ressources)",
     detail:
       "Les guides PDF, dans l'ordre : la méthode, la recherche produit, la boutique, les créatives, Meta Ads. Lis-les en entier, coche chaque guide quand c'est fait : c'est comme ça que Mady suit ton avancement.\n\n✅ Fait quand : tous les guides Fondations sont cochés.",
     link: "/formation/sops",
@@ -91,36 +91,36 @@ const SEED: SeedV2[] = [
     was: /valide ton produit/i,
     title: "Fais valider ton produit par Mady",
     detail:
-      "Sur WhatsApp, Mady te dit lequel garder, le prix et l'angle. Il t'ouvre ensuite le Studio IA. Rien ne se construit avant cette validation.\n\n✅ Fait quand : le produit est validé et le Studio IA est ouvert pour toi.",
+      "Sur WhatsApp, Mady te dit lequel garder, le prix et l'angle. Rien ne se personnalise avant cette validation (produit, textes, images) ; la mise en place technique du thème, elle, se fait dès le Démarrage.\n\n✅ Fait quand : Mady a validé ton produit sur WhatsApp.",
     link: "/formation/produit",
   },
   {
     was: /cr[ée]e tes cr[ée]atives/i,
     title: "Crée tes créatives dans le Studio IA",
     detail:
-      "Page Studio IA : compte KIE, crédits (20 à 30 €), ta clé. Page Créatives : Claude ou GPT t'écrit tes prompts, tu les colles dans l'onglet Image avec ta photo de référence (ratio 3:4, 1:1 ou 9:16), puis l'onglet Vidéo (9:16). Objectif : 3 vidéos + 3 images, rangées dans un dossier « creatives ».\n\n✅ Fait quand : tes 6 créatives sont dans le dossier.",
+      "Page Studio IA : compte KIE, crédits (20 à 30 €), ta clé. Page Créatives : Claude ou GPT t'écrit tes prompts, tu les colles dans l'onglet Image avec ta photo de référence (ratio 3:4, 1:1 ou 9:16), puis l'onglet Création (Seedance 2.5, 9:16). Objectif : 5 à 8 créatives (par exemple 2 vidéos + 3 à 6 images), rangées dans un dossier « creatives ».\n\n✅ Fait quand : tes 5 à 8 créatives sont dans le dossier.",
     link: "/formation/creatives",
   },
   {
     was: /boutique est générée|boutique est generee|demande ta boutique|construis ta boutique|thème de mady/i,
     title: "Mets le thème de Mady sur ta boutique avec Claude Code",
     detail:
-      "Page Ta boutique : télécharge le thème, mets-le dans ton dossier « Prénom boutique » avec tes créatives, colle le message à Claude Code dans VS Code. Il remplace textes, images et vidéos par les tiens, section par section ; tu ne touches pas au design. Puis « mets en ligne », commande test (Démarrage, section 07).\n\n✅ Fait quand : tu peux acheter sur ta boutique depuis ton téléphone.",
+      "Page Ta boutique : télécharge le thème, mets-le dans ton dossier « Prénom boutique » avec tes créatives, colle le message à Claude Code dans VS Code. Il remplace textes, images et vidéos par les tiens, section par section ; tu ne touches pas au design. Puis « mets en ligne », commande test (Démarrage, section 09).\n\n✅ Fait quand : tu peux acheter sur ta boutique depuis ton téléphone.",
     link: "/formation/boutique",
   },
   {
     was: /pixel meta/i,
     title: "Installe le Pixel Meta et la Conversions API",
     detail:
-      "Page Démarrage, section 06 : application Facebook & Instagram dans Shopify, partage de données « Maximal », test des événements.\n\n✅ Fait quand : PageView, ViewContent, AddToCart, InitiateCheckout et Purchase apparaissent dans « Tester les événements », avec Navigateur ET Serveur.",
+      "Page Démarrage, section 10 : application Facebook & Instagram dans Shopify, partage de données « Maximal », test des événements.\n\n✅ Fait quand : PageView, ViewContent, AddToCart, InitiateCheckout et Purchase apparaissent dans « Tester les événements », avec Navigateur ET Serveur.",
     link: "/formation/demarrage#pixel",
   },
   {
     was: /premi[èe]re campagne/i,
     title: "Lance ta première campagne Meta Ads",
     detail:
-      "Suis le guide Meta Ads : campagne de test, audiences larges, 3 à 6 créatives, budget quotidien fixé avec Mady. Lancement à minuit, on ne touche à rien pendant 3 jours.\n\n✅ Fait quand : la campagne est active et dépense.",
-    link: "",
+      "Page Campagnes Meta, la trame standard : objectif Ventes, CBO 30 à 50 €/jour, 1 ad set large, 5 à 8 créatives. Lancement le soir, 3 jours sans toucher, décision à J+3, puis +20 % tous les 2 jours si ça tient.\n\n✅ Fait quand : la campagne est active et dépense.",
+    link: "/formation/meta",
   },
   {
     was: /j\+3/i,
@@ -145,7 +145,7 @@ export function ensureCourseSteps(db: DB): boolean {
 }
 
 /** Version du texte des étapes par défaut. Monter ce numéro réécrit les étapes déjà en base (ids conservés). */
-const SEED_VERSION = 5;
+const SEED_VERSION = 6;
 
 /**
  * Met à jour les étapes déjà en base vers la dernière version du texte par

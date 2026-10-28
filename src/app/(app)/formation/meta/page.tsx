@@ -62,20 +62,45 @@ export default function MetaPage() {
             <strong>Ta boutique encaisse.</strong> Commande test faite depuis ton téléphone (Démarrage, réglages Shopify).
           </li>
           <li>
-            <strong>Le Pixel Meta est posé</strong> et il remonte les événements (vue de page, ajout au panier, achat).
+            <strong>Le Pixel Meta est posé</strong> et il remonte les événements (vue de page, ajout au panier, achat). Pas encore fait :{" "}
+            <Link href="/formation/demarrage#pixel" className="underline">
+              Démarrage, section 10
+            </Link>
+            .
           </li>
           <li>
-            <strong>Tes créatives sont prêtes</strong> : images 3:4, 1:1 et 9:16, vidéos 9:16, générées dans le Studio IA.
+            <strong>Tes créatives sont prêtes</strong> : 5 à 8 créatives (images 3:4, 1:1 ou 9:16, vidéos 9:16), générées dans le Studio IA.
           </li>
         </ul>
         <div className="flex flex-wrap items-center gap-3 mt-4">
-          <Link href="/formation/creatives" className="btn btn-sm">
-            ← Créatives
+          <Link href="/formation/boutique" className="btn btn-sm">
+            ← Ta boutique
           </Link>
           <Link href="/formation/sops" className="text-[13px] font-medium hover:underline">
             Les guides Meta Business, Pixel et campagne (Ressources)
           </Link>
         </div>
+      </section>
+
+      <section className="card p-5">
+        <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
+          03 / LA TRAME STANDARD
+        </div>
+        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Trame standard en attendant la vidéo de Mady. Prérequis : le Pixel posé et vérifié (Démarrage, section 10).</p>
+        <ul className="list-disc pl-5 mt-3 flex flex-col gap-1.5 text-[13.5px] leading-relaxed">
+          <li>
+            <strong>Objectif Ventes</strong> (conversion Achat sur ton Pixel). Pas Trafic, pas Engagement.
+          </li>
+          <li>
+            <strong>1 campagne CBO à 30 à 50 €/jour</strong>, 1 ad set large (pays cible, pas d&apos;intérêts), <strong>5 à 8 créatives</strong>.
+          </li>
+          <li>
+            <strong>Lancement le soir</strong>, puis <strong>3 jours sans toucher</strong> : Meta apprend.
+          </li>
+          <li>
+            <strong>Décision à J+3</strong> : couper, garder ou scaler. Si ça tient, <strong>+20 % tous les 2 jours</strong>.
+          </li>
+        </ul>
       </section>
 
       <PortalFooter quote="La pub ne répare pas un produit moyen. Elle accélère un bon produit." author="Mady" />

@@ -784,11 +784,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {
               section: "Scale X",
               items: [
-                { href: "/formation", label: "Tableau de bord", icon: "◈" },
+                { href: "/formation", label: "Accueil", icon: "◈" },
                 { href: "/formation/demarrage", label: "Démarrage", icon: "⚑" },
                 { href: "/formation/produit", label: "Recherche produit", icon: "◎" },
-                { href: "/formation/boutique", label: "Création de la boutique", icon: "⌂" },
                 { href: "/formation/creatives", label: "Créatives", icon: "✦" },
+                { href: "/formation/boutique", label: "Ta boutique", icon: "⌂" },
                 { href: "/formation/meta", label: "Campagnes Meta", icon: "▲" },
                 { href: "/formation/studio", label: "Studio IA", icon: "◐" },
                 { href: "/formation/etapes", label: "Mes étapes", icon: "☑" },
@@ -892,6 +892,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   const gateTab = isStudent ? gateTabs.find((t) => t.href === itemPath) : undefined;
                   const previewLock = Boolean(gateTab?.unlocked && gateTab.blockedBy);
                   if (gateTab && !gateTab.unlocked) {
+                    /* Verrou désactivé (LOCK_CHAIN = false) : texte inactif. */
                     return (
                       <span
                         key={item.href}

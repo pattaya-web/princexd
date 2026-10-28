@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
     const theme = currentTheme(db.settings);
     // Les liens nécessaires, et rien d'autre (le formulaire et la vidéo sont sur l'accueil).
     const links = [
-      // Le thème Shopify de Mady en .zip, le même que sur Création de la boutique : les élèves le réclament dès le départ.
+      // Le thème Shopify de Mady en .zip, le même que sur Ta boutique : les élèves le réclament dès le départ.
       ...(theme ? [{ label: `Thème Shopify Aesthetic Lab (.zip)`, href: "/api/formation/theme/file", note: `${theme.fileName} · télécharge-le tel quel, sans le décompresser` }] : []),
       { label: "Visual Studio Code", href: "https://code.visualstudio.com/download", note: "l'application, gratuite · Windows et Mac" },
       { label: "BrandSearch", href: ob.brainsearchUrl, note: "recherche produit · lien de Mady" },

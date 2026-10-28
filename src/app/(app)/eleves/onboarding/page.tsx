@@ -116,7 +116,7 @@ export default function OnboardingPage() {
                 <Field label="Shopify (1 €), lien affilié">
                   <input className="input" value={form.shopifyUrl} onChange={(e) => set("shopifyUrl", e.target.value)} inputMode="url" />
                 </Field>
-                <Field label="Claude Pro Max (90 €/mois)" hint="Mets ton lien affilié quand tu en auras un ; sinon la page d'abonnement Claude.">
+                <Field label="Claude Max (90 €/mois)" hint="Mets ton lien affilié quand tu en auras un ; sinon la page d'abonnement Claude.">
                   <input className="input" value={form.claudeUrl} onChange={(e) => set("claudeUrl", e.target.value)} inputMode="url" />
                 </Field>
                 <Field label="BrandSearch, plan Starter (63 $/mois)" hint="Lien affilié de Mady (code royalscale), posé par défaut. Il sert aussi au bouton BrandSearch de la page Recherche produit.">

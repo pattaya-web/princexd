@@ -44,7 +44,7 @@ export default function ScaleXDashboard() {
       const r = await api<GatePayload>("/api/formation/gate", { method: "POST", body: JSON.stringify({ action: "request" }) });
       setGate(r);
       window.dispatchEvent(new Event(GATE_EVENT));
-      toast(r.preview ? "Aperçu : rien n'est enregistré." : "C'est noté. Mady valide et débloque Démarrage.");
+      toast(r.preview ? "Aperçu : rien n'est enregistré." : "C'est noté, Mady est prévenu. Tu peux continuer : page Démarrage.");
     } catch (e) {
       toast((e as Error).message, "err");
     } finally {

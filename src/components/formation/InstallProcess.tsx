@@ -103,7 +103,7 @@ function StepCard({ step, index, done, onToggle, isNext }: { step: GuideStep; in
 
 /**
  * Le process d'installation, en rangées dépliables : une rangée par
- * section (01 → 09), une seule ouverte à la fois. Dans une rangée, les
+ * section (01 → 11), une seule ouverte à la fois. Dans une rangée, les
  * étapes sont des cartes ; la prochaine à faire est mise en avant, les
  * faites se replient en une ligne barrée. Quand une rangée est complète,
  * elle se ferme avec un ✓ et la suivante s'ouvre toute seule. Une barre de

@@ -176,7 +176,7 @@ const NATIVE_EXAMPLES: CreativeExample[] = [
     ratio: "16:9",
     url: "/formation/creatives/native-concurrent-belura-ads.jpg",
     title: "Ce que fait une marque qui scale · 38 natives pour un complément digestif",
-    note: "Capture d'une bibliothèque de pubs : cuvette des toilettes, boîte de laxatif en main, prescription… Aucune n'a l'air d'une pub. Chaque image raconte le problème, la légende raconte l'histoire. À regarder pour comprendre, pas à copier.",
+    note: "Capture d'une bibliothèque de pubs : cuvette des toilettes, boîte de laxatif en main, prescription… Aucune n'a l'air d'une pub. Chaque image raconte le problème, la légende raconte l'histoire. À regarder pour comprendre, pas à copier. 16:9 = médias de la boutique uniquement, jamais en pub.",
   },
 ];
 
@@ -421,13 +421,13 @@ Mon produit : [description précise : ce que c'est, matière, couleur, ce qu'il 
 
 Je génère les images dans un studio IA (modèle GPT Image 2) en mettant une PHOTO DE RÉFÉRENCE de mon produit : le produit doit rester strictement identique sur chaque image (forme, couleurs, matière, logo), interdiction de le redessiner. ${RATIO_RULE}
 
-Inspire-toi de ces 5 formats qui marchent : (a) le prix en héros avec un post-it manuscrit qui pose une question, prix barré + nouveau prix énorme ; (b) problème / solution écrit à la main sur un papier déchiré, flèche vers le produit ; (c) packshot premium au centre avec 4 bénéfices fléchés autour et une garantie en sous-titre ; (d) avant / après en 3 cases façon BD ; (e) accroche provocante en haut, personne forte à gauche, produit géant à droite, bénéfices en colonnes.
+Inspire-toi de ces 5 déclinaisons des familles Punchy sales et Badge prix tag : (a) Punchy sales, le prix en héros avec un post-it manuscrit qui pose une question, prix barré + nouveau prix énorme ; (b) Punchy sales, problème / solution écrit à la main sur un papier déchiré, flèche vers le produit ; (c) Badge prix tag, packshot premium au centre avec 4 bénéfices fléchés autour et une garantie en sous-titre ; (d) Punchy sales, avant / après en 3 cases façon BD ; (e) Punchy sales, accroche provocante en haut, personne forte à gauche, produit géant à droite, bénéfices en colonnes.
 
 Propose-moi 5 concepts de pub statique. Pour chaque concept :
-1. Le nom du concept et le format choisi parmi (a) à (e).
+1. Le nom du concept et la déclinaison choisie parmi (a) à (e).
 2. Le ratio à choisir dans le studio : 3:4, 1:1 ou 9:16, et pourquoi.
 3. Le texte qui sera ÉCRIT SUR L'IMAGE : une accroche de 6 à 10 mots, un sous-titre de 12 mots max, un appel à l'action ou l'offre de 3 à 5 mots.
-4. Le prompt image en anglais, prêt à coller dans le studio : la scène, le produit (identique à ma photo de référence), le placement exact de chaque texte avec sa couleur et son style (bandeau jaune, post-it, texte blanc avec contour…), le style photo réelle, et une ligne « Avoid: … ». Précise que le texte doit être rendu lisible, sans faute.
+4. Le prompt image en anglais, prêt à coller dans le studio : la scène, le produit (identique à ma photo de référence), le placement exact de chaque texte avec sa couleur et son style (bandeau jaune, post-it, texte blanc avec contour…), le style photo réelle (écris toujours « ${NATIVE_PHRASE} » dans le prompt d'une photo réaliste), et une ligne « Avoid: … ». Précise que le texte doit être rendu lisible, sans faute.
 5. Le texte principal de la pub (au-dessus de l'image) : 3 lignes max, qui commence par le hook et finit par le lien.
 
 Donne aussi 2 variantes d'accroche par concept pour que je teste.`,
@@ -436,12 +436,12 @@ Donne aussi 2 variantes d'accroche par concept pour que je teste.`,
     id: "images-produit",
     kind: "image",
     title: "3. Images produit pour la boutique (bannières, lifestyle, avis)",
-    target: "Claude ou GPT → puis Studio IA, onglet Image, avec ta photo de référence",
+    target: "Claude ou GPT → puis Studio IA, onglet Image, avec ta photo de référence. 16:9 = médias de la boutique uniquement, jamais en pub.",
     text: `Tu es directeur artistique e-commerce. Ma marque : [nom]. Mon produit : [description précise : ce que c'est, matière, couleur, taille, ce qu'il fait]. Ma cible : [qui achète, âge, besoin]. Ton de marque : [ex. clean et premium / naturel et chaleureux / sportif]. Ma boutique est en français.
 
-Je génère dans un studio IA (GPT Image 2) avec une PHOTO DE RÉFÉRENCE de mon produit : le produit doit rester strictement identique sur chaque image (forme, couleurs, matière, logo), interdiction de le redessiner. Pour la boutique, les ratios possibles sont 1:1, 3:4, 9:16 et 16:9 (bannière).
+Je génère dans un studio IA (GPT Image 2) avec une PHOTO DE RÉFÉRENCE de mon produit : le produit doit rester strictement identique sur chaque image (forme, couleurs, matière, logo), interdiction de le redessiner. Pour la boutique, les ratios possibles sont 1:1, 3:4, 9:16 et 16:9 (bannière). Le 16:9 sert aux médias de la boutique uniquement, jamais en pub.
 
-Écris-moi UN prompt par image de la liste ci-dessous, en anglais, prêt à coller. Chaque prompt : photo-réaliste, style photo smartphone ou studio selon la section, personne crédible si besoin (pas de visage de célébrité), cadrage adapté au ratio, lumière naturelle, peau réelle, fond cohérent avec la marque, aucun texte dans l'image, aucun logo inventé. Termine chaque prompt par ce qu'il faut éviter.
+Écris-moi UN prompt par image de la liste ci-dessous, en anglais, prêt à coller. Chaque prompt : photo-réaliste, style photo smartphone ou studio selon la section, personne crédible si besoin (pas de visage de célébrité), cadrage adapté au ratio, lumière naturelle, peau réelle, fond cohérent avec la marque, aucun texte dans l'image, aucun logo inventé. Dans chaque prompt de photo réaliste, écris « ${NATIVE_PHRASE} ». Termine chaque prompt par ce qu'il faut éviter.
 
 Présente le résultat en liste : numéro, section, ratio, puis le prompt dans un bloc à copier. Pour les photos avis clients, varie les personnes, les lieux et les gestes. Pour les avant / après, même personne, même cadrage, même lumière, seule la différence promise change.
 
@@ -476,7 +476,7 @@ Pour chaque plan : le lieu, ce qu'on voit (une ligne), la phrase parlée exacte 
     id: "video-ia",
     kind: "video",
     title: "5. Transformer un script en prompt vidéo Seedance 2.5 (9:16, 15 s)",
-    target: "Claude ou GPT → puis Studio IA : image de base dans Image, puis onglet Vidéo",
+    target: "Claude ou GPT → puis Studio IA : image de base dans Image, puis onglet Création (Seedance 2.5)",
     text: `Tu es réalisateur de pubs vidéo UGC générées par IA avec le modèle Seedance 2.5. Je te donne un script, tu me rends DEUX choses : le prompt de l'image de base, puis le prompt vidéo complet.
 
 Mon script (5 plans de 3 s) : [colle le script de l'étape 4]
@@ -484,7 +484,7 @@ Mon produit : [description précise ; il doit rester identique à ma photo de r�
 Personnage : [ex. femme 25 ans, américaine, cheveux châtains, hoodie gris] (le même sur tous les plans)
 Langue parlée : [anglais américain / français]
 
-1) PROMPT IMAGE DE BASE (en anglais, ratio 9:16, pour GPT Image 2 avec ma photo de référence) : une photo réaliste type iPhone du personnage dans le décor du plan 1, avec le produit PORTÉ ou en main, bien visible, identique à la référence. Peau réelle, lumière naturelle, pas de texte. C'est cette image que je mettrai en entrée de la vidéo.
+1) PROMPT IMAGE DE BASE (en anglais, ratio 9:16, pour GPT Image 2 avec ma photo de référence) : une photo réaliste type iPhone du personnage dans le décor du plan 1, avec le produit PORTÉ ou en main, bien visible, identique à la référence. Écris « ${NATIVE_PHRASE} » dans le prompt. Peau réelle, lumière naturelle, pas de texte. C'est cette image que je mettrai en entrée de la vidéo.
 
 2) PROMPT VIDÉO (en anglais, 9:16, 15 secondes) avec exactement cette structure :
 - Première phrase : "Vertical 9:16 UGC TikTok ad, shot entirely on iPhone 15, realistic handheld footage, same [personnage] and same [produit] in every shot, consistent face, hair, outfit and lighting. Fast-paced energetic edit with quick natural jump cuts."
@@ -504,7 +504,7 @@ Rends les deux prompts dans deux blocs à copier, sans commentaire autour.`,
     target: "Claude ou GPT → puis Studio IA, onglet Image",
     text: `Tu es directeur artistique. Je veux 3 visuels « avant / après » pour mon produit : [description, ce qu'il change concrètement]. Cible : [cible]. Résultat promis : [résultat réaliste].
 
-Pour chaque visuel, écris 2 prompts en anglais pour un studio IA (GPT Image 2) : le prompt « avant » et le prompt « après ». Les deux doivent décrire exactement la même personne (décris-la précisément : âge, peau, cheveux, tenue), le même cadrage, la même lumière, le même décor et le même angle. Seule la différence promise change, de façon crédible. Ratio 1:1 (ou 3:4 si je veux l'utiliser en pub), photo smartphone réaliste, pas de texte, pas de logo, pas de retouche visible. Propose aussi une version « 3 cases façon BD » (avant / pendant / après) en un seul prompt 1:1 avec les titres BEFORE et AFTER écrits dans l'image.
+Pour chaque visuel, écris 2 prompts en anglais pour un studio IA (GPT Image 2) : le prompt « avant » et le prompt « après ». Les deux doivent décrire exactement la même personne (décris-la précisément : âge, peau, cheveux, tenue), le même cadrage, la même lumière, le même décor et le même angle. Seule la différence promise change, de façon crédible. Ratio 1:1 (ou 3:4 si je veux l'utiliser en pub), photo smartphone réaliste (écris « ${NATIVE_PHRASE} » dans chaque prompt), pas de texte, pas de logo, pas de retouche visible. Propose aussi une version « 3 cases façon BD » (avant / pendant / après) en un seul prompt 1:1 avec les titres BEFORE et AFTER écrits dans l'image.
 
 Ajoute pour chaque visuel la légende courte (5 mots) à mettre sous chaque image.`,
   },
@@ -513,11 +513,11 @@ Ajoute pour chaque visuel la légende courte (5 mots) à mettre sous chaque imag
     kind: "strategie",
     title: "7. Ton plan de créatives pour la première campagne",
     target: "Claude ou GPT",
-    text: `Tu es média buyer Meta Ads. Je lance ma première campagne de test avec un budget de [ex. 30 €/jour] pour mon produit : [description], cible : [cible], boutique : [URL].
+    text: `Tu es média buyer Meta Ads. Je lance ma première campagne de test (objectif Ventes, 1 CBO, 1 ad set large) avec un budget de [ex. 30 à 50 €/jour] pour mon produit : [description], cible : [cible], boutique : [URL].
 
 J'ai ces angles : [colle tes 3 meilleurs angles de l'étape 1]. ${RATIO_RULE}
 
-Dis-moi exactement quelles créatives produire pour la campagne de test : combien de vidéos UGC (9:16), combien d'images statiques (3:4, 1:1 ou 9:16), quel angle pour chacune, quel hook. Objectif : 3 à 6 créatives, pas plus, qui testent des angles différents et pas des variantes du même.
+Dis-moi exactement quelles créatives produire pour la campagne de test : combien de vidéos UGC (9:16), combien d'images statiques (3:4, 1:1 ou 9:16), quel angle pour chacune, quel hook. Objectif : 5 à 8 créatives (par exemple 2 vidéos + 3 à 6 images), pas plus, qui testent des angles différents et pas des variantes du même.
 
 Pour chaque créative : nom de fichier à lui donner (ex. UGC-angle1-hookA-9x16), texte principal de la pub (3 lignes), titre (5 mots), description (1 ligne), appel à l'action. Puis donne-moi la grille de lecture pour J+3 : les 4 chiffres à regarder (dépense, CPM, CTR, coût par achat), les seuils pour couper, garder ou scaler chaque créative.`,
   },
@@ -609,8 +609,8 @@ Avoid: people, food, smoke, extra objects, watermark, blurry or warped letters, 
     id: "exemple-image-base",
     kind: "video",
     title: "Exemple · l'image de base d'une vidéo (personne + produit porté)",
-    target: "Studio IA, onglet Image, ratio 9:16, avec ta photo de référence. C'est l'image que tu mets ensuite dans l'onglet Vidéo.",
-    text: `Vertical 9:16 realistic iPhone photo, front-camera selfie style. A young American woman in her mid-twenties, light brown hair in a loose bun, grey hoodie, genuine excited smile, stands at her apartment front door holding a small cardboard package next to her face. She is wearing the necklace from the reference image: exactly the same flat snake-print chain, same pattern, same thickness, same length, same clasp and metal color, realistic real-life scale on her neck. Natural daylight from a window, real skin texture with pores, slightly messy real apartment in the background, no text, no logo.
+    target: "Studio IA, onglet Image, ratio 9:16, avec ta photo de référence. C'est l'image que tu mets ensuite dans l'onglet Création (Seedance 2.5).",
+    text: `Vertical 9:16 realistic iPhone photo, ${NATIVE_PHRASE}, front-camera selfie style. A young American woman in her mid-twenties, light brown hair in a loose bun, grey hoodie, genuine excited smile, stands at her apartment front door holding a small cardboard package next to her face. She is wearing the necklace from the reference image: exactly the same flat snake-print chain, same pattern, same thickness, same length, same clasp and metal color, realistic real-life scale on her neck. Natural daylight from a window, real skin texture with pores, slightly messy real apartment in the background, no text, no logo.
 
 Avoid: beauty filter, smooth plastic skin, studio lighting, cinematic color grading, oversized or redesigned necklace, extra jewelry, deformed hands, watermark.`,
   },
@@ -618,16 +618,16 @@ Avoid: beauty filter, smooth plastic skin, studio lighting, cinematic color grad
     id: "exemple-video",
     kind: "video",
     title: "Exemple · le prompt vidéo Seedance 2.5 de Mady (15 s, 5 plans)",
-    target: "Studio IA, onglet Vidéo, 9:16, image d'entrée = l'image de base que tu viens de générer. Remplace le collier et les phrases par ton produit.",
+    target: "Studio IA, onglet Création (Seedance 2.5), 9:16, image d'entrée = l'image de base que tu viens de générer. Remplace le collier et les phrases par ton produit.",
     text: DEFAULT_VIDEO_EXAMPLE,
   },
 ];
 
 export const DEFAULT_CREATIVES_METHOD = `1. **Ta photo de référence.** La photo la plus nette de ton produit, produit bien visible, fond simple (site du fournisseur, AliExpress, ou ta propre photo). Tu la gardes sur ton ordinateur : elle sert à toutes tes images.
-2. **Tes prompts, écrits par Claude ou GPT.** Tu ne rédiges rien toi-même. Tu copies un prompt de la section 05 dans Claude ou GPT, tu remplis les crochets avec ton produit, il te renvoie des prompts prêts à coller.
-3. **Onglet Image du Studio IA.** Tu importes ta photo de référence, tu colles le prompt, tu choisis le ratio : **3:4**, **1:1** ou **9:16**. Tu génères, tu gardes la meilleure, tu la télécharges. Regarde les exemples de la section 04 : chacun a son prompt.
-4. **Les vidéos, en deux temps (section 03).** D'abord une image de base dans l'onglet Image : une personne dans une scène, ton produit porté ou en main, en 9:16. Puis l'onglet Vidéo : tu mets cette image + le prompt vidéo Seedance 2.5. Toujours en **9:16**, 15 secondes, 5 plans.
-5. **Objectif pour la première campagne :** 3 vidéos + 3 images pour ton produit. Pas de perfection, on teste vite et on garde ce qui marche.
+2. **Tes prompts, écrits par Claude ou GPT.** Tu ne rédiges rien toi-même. Tu copies un prompt de la section 07 dans Claude ou GPT, tu remplis les crochets avec ton produit, il te renvoie des prompts prêts à coller.
+3. **Onglet Image du Studio IA.** Tu importes ta photo de référence, tu colles le prompt, tu choisis le ratio : **3:4**, **1:1** ou **9:16**. Tu génères, tu gardes la meilleure, tu la télécharges. Regarde les exemples de la section 06 : chacun a son prompt.
+4. **Les vidéos, en deux temps (section 05).** D'abord une image de base dans l'onglet Image : une personne dans une scène, ton produit porté ou en main, en 9:16. Puis l'onglet Création (Seedance 2.5) : tu mets cette image + le prompt vidéo. Toujours en **9:16**, 15 secondes, 5 plans de 3 s (réglage 16 s pour une vidéo de 15 s).
+5. **Objectif pour la première campagne :** 5 à 8 créatives (par exemple 2 vidéos + 3 à 6 images) pour ton produit. Pas de perfection, on teste vite et on garde ce qui marche.
 6. **Range tout** dans le dossier « creatives » de ton projet : c'est là que Claude Code ira les chercher pour ta boutique.`;
 
 export const DEFAULT_CREATIVES: StudentCreativesSettings = {

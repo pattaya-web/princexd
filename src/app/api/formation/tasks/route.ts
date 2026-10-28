@@ -23,7 +23,7 @@ export interface StudentFollowUpPayload {
   lessonsDone: number;
   lessonsTotal: number;
   shopRequest: ShopRequest | null;
-  /** Adresse de sa boutique (étape « Création de la boutique »). */
+  /** Adresse de sa boutique (étape « Ta boutique »). */
   shopUrl: string;
   shopUrlAt: string;
   /** Le parcours Scale X : chaque étape, validée ou non, avec sa date. */

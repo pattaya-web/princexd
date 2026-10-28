@@ -35,7 +35,7 @@ export interface SuiviRow {
   percent: number;
   /** L'étape en cours : la première pas encore validée, null quand tout est fait. */
   current: { key: GateTab; label: string } | null;
-  /** Adresse de sa boutique, donnée à l'étape « Création de la boutique ». */
+  /** Adresse de sa boutique, donnée à l'étape « Ta boutique ». */
   shopUrl: string;
   shopUrlAt: string;
   shopRequest: { storeUrl: string; status: "demandee" | "livree"; requestedAt: string } | null;

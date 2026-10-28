@@ -160,7 +160,7 @@ export default function FormationPage() {
             ) : undefined
           }
         >
-          {data.isAdmin ? "Aucun module pour l'instant." : "Les vidéos arrivent plus tard : pour l'instant tout est dans les guides PDF (Education)."}
+          {data.isAdmin ? "Aucun module pour l'instant." : "Les vidéos sont sur les pages Recherche produit, Créatives et Ta boutique. Les guides PDF sont dans Ressources."}
         </Empty>
       ) : (
         <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)] items-start">

@@ -99,7 +99,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       },
       {
         title: "Connecte ton compte Claude",
-        text: "Clique sur Claude Code, puis Se connecter : ton navigateur s'ouvre, tu te connectes, tu reviens dans VS Code. Il te faut un abonnement payant : Mady conseille la formule à 90 € par mois (la 200 € n'est pas nécessaire).",
+        text: "Clique sur Claude Code, puis Se connecter : ton navigateur s'ouvre, tu te connectes, tu reviens dans VS Code. Il te faut un abonnement payant : Claude Max (90 €/mois), la 200 € n'est pas nécessaire.",
         link: { label: "Prendre l'abonnement Claude", href: "https://claude.ai/upgrade" },
       },
       {
@@ -152,7 +152,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       },
       {
         title: "Glisse le thème dedans",
-        text: "Télécharge le thème Aesthetic Lab de Mady (page Création de la boutique, ou le zip qu'il t'a envoyé sur WhatsApp). Glisse le fichier .zip dans ton dossier, tel quel : tu ne l'ouvres pas, tu ne le décompresses pas.",
+        text: "Télécharge le thème Aesthetic Lab de Mady (page Ta boutique, ou le zip qu'il t'a envoyé sur WhatsApp). Glisse le fichier .zip dans ton dossier, tel quel : tu ne l'ouvres pas, tu ne le décompresses pas.",
         link: { label: "Télécharger le thème", href: "/formation/boutique" },
       },
       {
@@ -202,7 +202,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     steps: [
       {
         title: "Publie le thème dans Shopify",
-        text: "Shopify > Boutique en ligne > Thèmes : le thème « Aesthetic » de Mady est apparu dans la liste (Claude vient de l'envoyer). Clique sur les trois points > Publier.",
+        text: "Shopify > Boutique en ligne > Thèmes : le thème Aesthetic Lab de Mady est apparu dans la liste (Claude vient de l'envoyer). Clique sur les trois points > Publier.",
         link: { label: "Ouvrir mes thèmes", href: "https://admin.shopify.com/themes" },
       },
       {
@@ -249,7 +249,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         title: "Annule",
         text: "Tu t'es trompé ? Il remet comme avant. Tu viens de comprendre le principe : tu parles, il fait.",
         cmds: [MSG_UNDO],
-        note: { kind: "ok", title: "La suite", text: "Logo, menus, couleurs, images, textes, page produit : tout est sur la page Création de la boutique, avec la vidéo de Mady." },
+        note: { kind: "ok", title: "La suite", text: "Logo, menus, couleurs, images, textes, page produit : tout est sur la page Ta boutique, avec la vidéo de Mady." },
       },
     ],
   },

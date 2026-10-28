@@ -2,7 +2,7 @@
  * SOP de la plateforme élèves (Scale X), octobre 2026.
  *
  * Une procédure par tâche, écrite d'après la méthode de Mady (vidéos
- * Démarrage, Création de la boutique, Créatives, guide d'installation) :
+ * Démarrage, Ta boutique, Créatives, guide d'installation) :
  * quand la faire, combien de temps, les étapes dans l'ordre, les messages
  * à coller à Claude, à quoi on voit que c'est bon, les erreurs vues chez
  * les élèves. Module pur : serveur et navigateur.
@@ -82,7 +82,7 @@ Quand c'est fait, dis-le moi en une phrase et je fais F5 pour vérifier.`,
     ],
     done: ["Chaque message a un contexte, une demande, un endroit.", "Tu vérifies sur la boutique après chaque modification.", "Tu n'as jamais passé plus de 10 minutes bloqué sans le dire à Claude."],
     mistakes: ["Dix demandes dans un seul message : il en rate la moitié.", "« Fais-moi une belle boutique » : trop vague, il invente.", "Rester bloqué en silence au lieu d'envoyer la capture d'écran.", "Coller tes secrets (Client secret, mots de passe) dans le chat : ils vont dans le fichier .env."],
-    links: [{ label: "La vidéo de Mady (Création de la boutique)", href: "/formation/boutique" }],
+    links: [{ label: "La vidéo de Mady (Ta boutique)", href: "/formation/boutique" }],
   },
   {
     id: "installer-claude-code",
@@ -93,12 +93,12 @@ Quand c'est fait, dis-le moi en une phrase et je fais F5 pour vérifier.`,
     goal: "Claude Code est ouvert dans VS Code, connecté à ton compte, avec le bon modèle.",
     when: "Jour 1, avant tout le reste.",
     time: "10 min",
-    tools: ["VS Code (gratuit)", "Extension « Claude Code for VS Code »", "Abonnement Claude (formule à 90 €/mois)"],
+    tools: ["VS Code (gratuit)", "Extension « Claude Code for VS Code »", "Claude Max (90 €/mois)"],
     steps: [
       "Télécharge VS Code (Windows ou Mac), installe-le en laissant tout par défaut, ouvre-le.",
       "Barre de gauche, tout en bas : Extensions. Tape « Claude Code », prends « Claude Code for VS Code » (éditeur Anthropic), Installer.",
       "Bouton « Claude Code » en haut à droite > Se connecter : le navigateur s'ouvre, tu te connectes, tu reviens dans VS Code.",
-      "Abonnement : la formule à 90 € par mois suffit, la 200 € n'est pas nécessaire.",
+      "Abonnement : Claude Max (90 €/mois) suffit, la 200 € n'est pas nécessaire.",
       "En bas du panneau Claude Code, choisis le modèle Fable 5.1 ou Opus 5.5. Le réglage « Effort », tu le laisses.",
       "Ouvre Claude Code en grand (icône en haut à droite du panneau) : plus confortable pour travailler.",
     ],
@@ -163,7 +163,7 @@ Je ne veux pas de lien de prévisualisation : je veux que chaque modification se
         text: `C'est bon, l'app est installée sur ma boutique. On avance.`,
       },
     ],
-    done: ["Le thème « Aesthetic » de Mady est le thème publié de ta boutique.", "La boutique est publique (plus de mot de passe).", "Tu demandes une modification à Claude, tu fais F5, elle est là."],
+    done: ["Le thème Aesthetic Lab de Mady est le thème publié de ta boutique.", "La boutique est publique (plus de mot de passe).", "Tu demandes une modification à Claude, tu fais F5, elle est là."],
     mistakes: ["App créée mais pas installée.", "Client secret collé dans le chat au lieu du fichier .env.", "Décompresser le zip à la main : Claude s'en occupe.", "Accepter un lien de prévisualisation : tu veux le live."],
     links: [
       { label: "Ouvrir mes paramètres Shopify", href: "https://admin.shopify.com/settings" },
@@ -177,7 +177,7 @@ Je ne veux pas de lien de prévisualisation : je veux que chaque modification se
     icon: "🛠",
     title: "Modifier ta boutique en parlant à Claude",
     goal: "Le thème de Mady est devenu TA boutique : ton produit, tes textes, ton logo, tes couleurs, tes images. Sans toucher au design.",
-    when: "Dès que Shopify est connecté, produit validé par Mady.",
+    when: "Produit validé, créatives prêtes.",
     time: "2 à 4 h, section par section",
     tools: ["VS Code + Claude Code", "3 onglets : admin Shopify, éditeur « Personnaliser », ta boutique", "Canva (logo 450 × 150)", "Extensions ColorZilla et CSS Peeper (facultatif)"],
     steps: [
@@ -219,7 +219,7 @@ Vérifie que l'accueil et la page produit s'affichent bien sur mobile.`,
     ],
     done: ["Plus aucun texte ou image de l'exemple de Mady.", "Logo, menus, couleurs, textes, page produit : tout est à toi.", "Commande test passée depuis ton téléphone, e-mail de commande reçu."],
     mistakes: ["Toucher au design ou à la structure : le thème est fait pour convertir, tu changes le contenu.", "Trop de produits : un seul produit, une seule page qui convertit.", "Des images de concurrent en production : elles servent à aller vite, tes vraies images viennent du Studio IA."],
-    links: [{ label: "La vidéo et les étapes (Création de la boutique)", href: "/formation/boutique" }],
+    links: [{ label: "La vidéo et les étapes (Ta boutique)", href: "/formation/boutique" }],
   },
   {
     id: "regler-shopify",
@@ -259,7 +259,7 @@ Vérifie que l'accueil et la page produit s'affichent bien sur mobile.`,
     icon: "🔎",
     title: "Trouver ton produit avec BrandSearch",
     goal: "Un tableau de 10 produits envoyé à Mady sur WhatsApp, et UN produit validé avec son prix et son angle.",
-    when: "Semaine 1, après le Démarrage. Rien ne se construit avant la validation.",
+    when: "Semaine 1, après le Démarrage. Rien ne se personnalise avant la validation (produit, textes, images) ; la mise en place technique du thème, elle, se fait dès le Démarrage.",
     time: "2 à 3 h",
     tools: ["BrandSearch (plan Starter, 63 $/mois)", "Page Recherche produit (le tableau)", "WhatsApp de Mady"],
     steps: [
@@ -268,7 +268,7 @@ Vérifie que l'accueil et la page produit s'affichent bien sur mobile.`,
       "Pour chaque produit, demande-toi : quelle douleur il règle ? (cervicales, sommeil, peau, temps perdu…). Un produit qui règle un problème se vend. Un gadget, non.",
       "Vérifie le prix : vente entre 30 et 80 € en général, au moins 3 fois le prix d'achat, livrable en 5 à 10 jours.",
       "Remplis le tableau de la page Recherche produit : produit, lien, prix de vente, pourquoi il marche (la douleur + la preuve que ça se vend).",
-      "Envoie les 10 produits à Mady en UN seul message WhatsApp. Il valide avec toi : lequel, le prix, l'angle. Puis il t'ouvre le Studio IA.",
+      "Envoie les 10 produits à Mady en UN seul message WhatsApp. Il valide avec toi : lequel, le prix, l'angle.",
     ],
     prompts: [
       {
@@ -282,8 +282,8 @@ Classe-les du meilleur au moins bon pour un débutant qui lance sa première bou
         text: `Mon produit : [nom, ce qu'il fait, prix de vente]. Ma cible : [qui]. Trouve-moi 5 angles marketing qui tapent sur une douleur précise et vendent une solution, avec pour chacun : la douleur, la promesse, une phrase d'accroche, et une idée de validation sociale (la copine qui demande où tu l'as acheté, les gens qui regardent dans la rue…).`,
       },
     ],
-    done: ["10 produits dans le tableau, avec le pourquoi.", "Message WhatsApp envoyé à Mady.", "Produit, prix et angle validés par Mady.", "Studio IA ouvert pour toi."],
-    mistakes: ["Choisir un produit qu'on aime au lieu d'un produit qui se vend déjà.", "Pas de douleur = pas de vente.", "Commencer la boutique avant la validation de Mady."],
+    done: ["10 produits dans le tableau, avec le pourquoi.", "Message WhatsApp envoyé à Mady.", "Produit, prix et angle validés par Mady."],
+    mistakes: ["Choisir un produit qu'on aime au lieu d'un produit qui se vend déjà.", "Pas de douleur = pas de vente.", "Personnaliser la boutique (produit, textes, images) avant la validation de Mady. La mise en place technique du thème, elle, se fait dès le Démarrage."],
     links: [{ label: "Page Recherche produit", href: "/formation/produit" }],
   },
 
@@ -294,35 +294,35 @@ Classe-les du meilleur au moins bon pour un débutant qui lance sa première bou
     n: "07",
     icon: "✦",
     title: "Créatives : l'angle, puis les prompts au micro",
-    goal: "Un drive avec 5 à 15 créatives (photos et vidéos, formats mélangés) et les médias de la boutique.",
-    when: "Produit validé, boutique en cours ou finie.",
+    goal: "Un drive avec 5 à 8 créatives (par exemple 2 vidéos + 3 à 6 images) et les médias de la boutique.",
+    when: "Produit validé, avant la boutique.",
     time: "1 h pour le premier batch",
-    tools: ["ChatGPT ou Claude (avec le micro)", "Studio IA de la plateforme (clé KIE branchée)", "Une photo de ton produit sur fond blanc"],
+    tools: ["Claude ou GPT (avec le micro)", "Studio IA de la plateforme (clé KIE posée sur la page Studio IA)", "Une photo de ton produit sur fond blanc"],
     steps: [
       "Ta référence : une photo de ton produit sur fond blanc, sans texte ni élément autour. Plus 2 à 4 photos sous différents angles pour les vidéos.",
       "Trouve l'angle AVANT de prompter : la douleur (cervicales, nuque brisée au réveil…), la solution, la validation sociale.",
-      "Demande les prompts au micro à ChatGPT ou Claude : produit, marché, prix, formats voulus. Exige les prompts bruts, un par un, chacun avec sa negative prompt (pas de rendu IA, ultra réaliste).",
-      "Les formats qui marchent : punchy sales (gros titre, gros prix, badges, flèches, prix entouré), avant / après, épuré (petit texte, prix discret), note iPhone, conversation entre deux copines. Chaque élément qui accroche l'œil est un hook visuel : il en faut, mais pas trop.",
+      "Demande les prompts au micro à Claude ou GPT : produit, marché, prix, formats voulus. Exige les prompts bruts, un par un. Écris toujours « shot on iPhone 15, native, ultra organic » dans le prompt d'une photo réaliste.",
+      "Les 7 familles de la page Créatives : Punchy sales, Native ads, Notes iPhone, Tweet, Avant / après, Badge prix tag, Vidéo 9:16. Chaque élément qui accroche l'œil est un hook visuel : il en faut, mais pas trop.",
       "Génère en chaîne dans le Studio IA : image de référence, prompt collé, format, Générer. Ctrl + A, Ctrl + V, suivant. 0,03 € l'image.",
-      "Trie : garde ce qui a un gros titre, un prix visible, un hook visuel, une mise en situation. Jette ce qui est surchargé. Une erreur (texte faux, mauvais pays) ? Recolle le prompt à Chat, dis-lui ce qui cloche au micro, il le réécrit.",
-      "Formats pour Meta : statiques en 1:1 et 3:4 (9:16 en plus si tu veux), vidéos en 9:16.",
-      "Livraison : un drive avec 5 à 15 créatives + les médias de la boutique (images produit, visuels de la page d'accueil, faux packaging si besoin). Premium, pas bâclé.",
+      "Trie : garde ce qui a un gros titre, un prix visible, un hook visuel, une mise en situation. Jette ce qui est surchargé. Une erreur (texte faux, mauvais pays) ? Recolle le prompt à Claude ou GPT, dis-lui ce qui cloche au micro, il le réécrit.",
+      "Formats pour Meta : statiques en 3:4, 1:1 ou 9:16, vidéos en 9:16.",
+      "Livraison : un drive avec 5 à 8 créatives (par exemple 2 vidéos + 3 à 6 images) + les médias de la boutique (images produit, visuels de la page d'accueil, faux packaging si besoin). Premium, pas bâclé.",
     ],
     prompts: [
       {
         title: "Demander les angles (au micro ou collé)",
-        text: `Voici mon produit : [nom, ce qu'il fait, prix de vente, marché US ou France]. Trouve-moi des angles marketing en respectant ces formats : punchy sales, avant / après, note iPhone, UGC. On tape sur la douleur et on vend une solution, avec de la validation sociale.`,
+        text: `Voici mon produit : [nom, ce qu'il fait, prix de vente, marché US ou France]. Trouve-moi des angles marketing en respectant ces 7 familles : Punchy sales, Native ads, Notes iPhone, Tweet, Avant / après, Badge prix tag, Vidéo 9:16. On tape sur la douleur et on vend une solution, avec de la validation sociale.`,
       },
       {
         title: "Demander le batch de prompts images",
-        text: `Fais-moi 5 prompts « punchy sales » en 3:4 pour le marché [US / France], produit à [prix], avec badges, étiquettes, flèches, produit et prix entourés ; 5 prompts plus sobres avec de l'avant / après ; 1 format note iPhone ; et 3 images de référence pour des vidéos Seedance (une fille dans son lit qui déballe le produit, un unboxing, une réaction). Donne-moi les prompts bruts, un par un, chacun avec sa negative prompt (pas de rendu IA, ultra réaliste, pas de texte déformé). Les textes sur l'image sont en [anglais / français], sans faute.`,
+        text: `Fais-moi 5 prompts « punchy sales » en 3:4 pour le marché [US / France], produit à [prix], avec badges, étiquettes, flèches, produit et prix entourés ; 5 prompts plus sobres avec de l'avant / après ; 1 format note iPhone ; et 3 images de référence pour des vidéos Seedance (une fille dans son lit qui déballe le produit, un unboxing, une réaction). Donne-moi les prompts bruts, un par un. Dans chaque prompt de photo réaliste, écris « shot on iPhone 15, native, ultra organic », et termine par une ligne « Avoid » (pas de texte déformé). Les textes sur l'image sont en [anglais / français], sans faute.`,
       },
       {
         title: "Corriger une créative ratée",
         text: `Voilà le prompt que tu m'as donné : [colle le prompt]. Sur l'image générée, [ce qui cloche : « Designed in France » alors que c'est pour les US / texte illisible / trop d'éléments]. Réécris le prompt pour corriger ça, même structure.`,
       },
     ],
-    done: ["Première série de 10 créatives générée et triée.", "Au moins une de chaque : punchy sales, avant / après, épuré ou note iPhone.", "Drive partagé à Mady avec 5 à 15 créatives + médias boutique."],
+    done: ["Première série de créatives générée et triée.", "Au moins deux familles différentes (Punchy sales, Native ads, Notes iPhone…).", "Drive partagé à Mady avec 5 à 8 créatives (par exemple 2 vidéos + 3 à 6 images) + médias boutique."],
     mistakes: ["Prompter sans angle : des jolies images qui ne vendent rien.", "Trop de texte et trop d'éléments sur une image.", "Une seule créative : Meta a besoin de 5 à 8 variantes pour apprendre."],
     links: [{ label: "La vidéo et les 11 étapes (Créatives)", href: "/formation/creatives" }],
   },
@@ -335,12 +335,12 @@ Classe-les du meilleur au moins bon pour un débutant qui lance sa première bou
     goal: "Tu génères une image en 30 secondes et une vidéo 9:16 propre, sans gaspiller ton crédit KIE.",
     when: "À chaque batch de créatives et pour les médias de la boutique.",
     time: "10 min par batch",
-    tools: ["Studio IA (onglet Image : GPT Image 2 · onglet Création : Seedance 2.5)", "Clé API KIE (Démarrage)", "Tes photos produit"],
+    tools: ["Studio IA (onglet Image : GPT Image 2 · onglet Création : Seedance 2.5)", "Clé API KIE (page Studio IA)", "Tes photos produit"],
     steps: [
       "Images : onglet Image, image de référence (produit sur fond blanc), prompt collé, format 3:4 ou 1:1, Générer. 0,03 € l'image. Génère par 5, trie, recommence.",
       "Vidéos : génère D'ABORD l'image de départ en 9:16 (pas en 3:4, sinon la vidéo sort en 3:4 : Mady a fait l'erreur pour toi).",
       "Onglet Création : image de départ 9:16 + 2 à 4 photos du produit (face, dos, côté) + prompt complet : hook, changements de séquence, validation sociale, appel à l'action à 15 secondes. Ou juste le script si la personne parle face caméra.",
-      "Réglages : Auto, 16 s, 720 (ou 480 pour tester). Une vidéo coûte 2 à 3 € : surveille ton crédit KIE, génère une vidéo, regarde, puis la suivante.",
+      "Réglages : Auto, 16 s (pour une vidéo de 15 s), 720 (ou 480 pour tester). Une vidéo coûte 2 à 3 € : surveille ton crédit KIE, génère une vidéo, regarde, puis la suivante.",
       "Adapte les prompts exemples de Mady (sous la vidéo Créatives) à ton produit avec Claude, en gardant la même structure.",
       "Si le serveur renvoie une erreur, le formulaire réessaie tout seul : ne clique pas dix fois sur Générer.",
     ],
@@ -376,7 +376,7 @@ Classe-les du meilleur au moins bon pour un débutant qui lance sa première bou
       "Dans Shopify > Applications : installe « Facebook & Instagram ». Connecte ton compte, choisis ton compte publicitaire et ton Pixel (crée-le si on te le propose).",
       "Partage des données : Maximal.",
       "Vérifie : ouvre ta boutique, ajoute un produit au panier. Dans Gestionnaire d'événements > Tester les événements, des lignes vertes apparaissent.",
-      "Pas envie de cliquer partout ? Claude (pour Chrome ou l'app) peut créer le Pixel et le connecter à ta boutique pendant que tu regardes.",
+      "Pas envie de cliquer partout ? Claude pour Chrome peut créer le Pixel et le connecter à ta boutique pendant que tu regardes.",
     ],
     prompts: [
       { title: "Claude crée et connecte ton Pixel", text: `Ouvre mon Gestionnaire d'événements Meta et ma boutique Shopify. Crée un Pixel Meta pour ma boutique [nom] s'il n'existe pas, connecte-le via l'application Facebook & Instagram de Shopify avec le partage de données Maximal, puis teste : vue de page, ajout au panier, achat. Dis-moi ce qui remonte.` },
@@ -402,7 +402,7 @@ Classe-les du meilleur au moins bon pour un débutant qui lance sa première bou
     note: "Trame standard de Scale X : la vidéo de Mady sur les campagnes arrive sur la page Campagnes Meta et affinera ces réglages. En attendant, c'est cette structure qu'on utilise.",
     steps: [
       "Objectif : Ventes (conversion Achat sur ton Pixel). Pas Trafic, pas Engagement.",
-      "Structure de test : 1 campagne, budget au niveau de la campagne (CBO) de 30 à 50 € par jour, 1 ensemble de publicités large (pays cible, 18-65, pas d'intérêts, placements Advantage+), 5 à 8 publicités (tes créatives : 2 vidéos, 3 à 5 images, formats mélangés).",
+      "Structure de test : 1 campagne, budget au niveau de la campagne (CBO) de 30 à 50 € par jour, 1 ensemble de publicités large (pays cible, 18-65, pas d'intérêts, placements Advantage+), 5 à 8 publicités (tes créatives : par exemple 2 vidéos + 3 à 6 images, formats mélangés).",
       "Texte de la pub : la douleur en première ligne, la promesse, le prix ou l'offre, un appel à l'action. Titre court. Lien vers ta page produit.",
       "Lance le soir, et NE TOUCHE À RIEN pendant 3 jours : Meta apprend. Chaque modification relance l'apprentissage.",
       "Chaque matin, lis 4 chiffres par publicité : CPM (coût pour 1 000 vues), CTR (taux de clic, vise plus de 1 %), coût par ajout au panier, coût par achat (CPA).",
@@ -437,7 +437,7 @@ Classe-les du meilleur au moins bon pour un débutant qui lance sa première bou
     goal: "Tu avances tous les jours, tu ne restes jamais bloqué, et Mady est sollicité pour les bonnes choses.",
     when: "Tout le temps.",
     time: "1 h par jour minimum",
-    tools: ["Claude (Code, Chrome ou l'app)", "WhatsApp de Mady", "Chrome Remote Desktop (installé une fois)", "Page Mes étapes"],
+    tools: ["Claude Code ou Claude pour Chrome", "WhatsApp de Mady", "Chrome Remote Desktop (installé une fois)", "Page Mes étapes"],
     steps: [
       "Chaque session : ouvre Mes étapes, prends la prochaine étape non cochée, fais-la, coche-la. Une étape finie vaut mieux que trois commencées.",
       "Valide chaque étape du parcours en bas de page quand c'est fait : Mady le voit dans son suivi et sait où tu en es.",
@@ -451,7 +451,7 @@ Classe-les du meilleur au moins bon pour un débutant qui lance sa première bou
       { title: "Le message à Mady, si Claude n'y arrive pas", text: `Salut Mady, je bloque sur [étape]. J'ai essayé avec Claude : [ce qu'il a proposé], ça donne [résultat]. Capture jointe. Tu peux regarder quand tu as 2 min ?` },
     ],
     done: ["Une étape cochée par session.", "Chaque blocage passé par Claude avant Mady.", "Chrome Remote Desktop installé."],
-    mistakes: ["Rester bloqué trois jours sans rien dire.", "Envoyer « ça marche pas » sans capture ni contexte.", "Sauter des étapes : la boutique avant le produit validé."],
+    mistakes: ["Rester bloqué trois jours sans rien dire.", "Envoyer « ça marche pas » sans capture ni contexte.", "Sauter des étapes : personnaliser la boutique (produit, textes, images) avant le produit validé. La mise en place technique du thème, elle, se fait dès le Démarrage."],
     links: [
       { label: "Mes étapes", href: "/formation/etapes" },
       { label: "Installer Chrome Remote Desktop", href: "https://remotedesktop.google.com/access" },

@@ -9,7 +9,7 @@ import type { Settings, StudentOnboardingSettings } from "./types";
  *   {{prenom}}       prénom de l'élève
  *   {{formulaire}}   lien du formulaire d'onboarding
  *   {{shopify}}      lien affilié Shopify (1 €)
- *   {{claude}}       lien Claude Pro Max (affilié quand il y en aura un)
+ *   {{claude}}       lien Claude Max (affilié quand il y en aura un)
  *   {{brainsearch}}  lien BrandSearch (affilié quand il y en aura un) ; {{brandsearch}} accepté aussi
  *   {{plateforme}}   adresse de connexion à la plateforme de formation
  *   {{identifiant}}  identifiant de l'élève sur la plateforme
@@ -33,17 +33,17 @@ function brandsearchLink(stored: string): string {
 
 export const DEFAULT_ONBOARDING_MESSAGE = `Bienvenue dans l'accompagnement {{prenom}} 🔥
 
-T'as pris la bonne décision, maintenant on avance. Voici les 3 choses à faire AVANT notre premier call, dans l'ordre.
+T'as pris la bonne décision, maintenant on avance. Voici les 3 choses à faire AVANT notre premier call, dans l'ordre : 1. le formulaire (sur la plateforme) 2. la page Démarrage 3. tu m'écris « C'est fait ».
 
-1️⃣ LE FORMULAIRE D'ONBOARDING (5 min)
+1️⃣ LE FORMULAIRE D'ONBOARDING (5 min, sur la plateforme)
 👉 {{formulaire}}
 C'est ce qui me permet de préparer ton accompagnement sur mesure : où tu en es, ton objectif, pourquoi tu m'as choisi. On ne démarre pas sans.
 
-2️⃣ LES OUTILS (on bosse avec dès le premier jour)
+2️⃣ LA PAGE DÉMARRAGE : LES OUTILS (on bosse avec dès le premier jour)
 La méthode : on trouve le produit avec BrandSearch, on construit la boutique avec Claude Code, on crée les créatives avec l'IA et on lance les pubs avec le Gestionnaire de publicités Meta.
 
 • Shopify, 1 € les premiers mois avec mon lien 👉 {{shopify}}
-• Claude Pro Max (90 €/mois), c'est lui qui construit ta boutique 👉 {{claude}}
+• Claude Max (90 €/mois), c'est lui qui construit ta boutique 👉 {{claude}}
 • Visual Studio Code (gratuit), c'est là que tourne Claude Code 👉 https://code.visualstudio.com
 • BrandSearch, plan Starter (63 $/mois), pour trouver les produits 👉 {{brainsearch}}
 • Un compte Meta Business + Gestionnaire de publicités (gratuit) 👉 https://business.facebook.com
@@ -51,13 +51,14 @@ La méthode : on trouve le produit avec BrandSearch, on construit la boutique av
 
 Installe tout maintenant : chaque jour sans ces outils, c'est un jour de retard sur ton lancement.
 
-3️⃣ TA PLATEFORME DE FORMATION
+TA PLATEFORME DE FORMATION (c'est là que sont le formulaire et la page Démarrage)
 👉 {{plateforme}}
 Identifiant : {{identifiant}} (pas de mot de passe, ton identifiant suffit)
 Mot de passe : {{motdepasse}}
-Regarde les premiers modules avant notre call et coche chaque étape quand elle est faite : c'est comme ça que je suis ton avancement.
+Va sur la page Démarrage avant notre call et coche chaque étape quand elle est faite : c'est comme ça que je suis ton avancement.
 
-Dès que les 3 étapes sont faites, écris-moi « C'est fait » ici et on cale ton premier call.
+3️⃣ ÉCRIS-MOI « C'EST FAIT »
+Dès que le formulaire et la page Démarrage sont faits, écris-moi « C'est fait » ici et on cale ton premier call.
 
 À très vite,
 Mady`;
@@ -137,7 +138,7 @@ export const ONBOARDING_TAGS: { tag: string; label: string }[] = [
   { tag: "{{prenom}}", label: "prénom de l'élève" },
   { tag: "{{formulaire}}", label: "formulaire d'onboarding" },
   { tag: "{{shopify}}", label: "lien Shopify affilié" },
-  { tag: "{{claude}}", label: "lien Claude Pro Max" },
+  { tag: "{{claude}}", label: "lien Claude Max" },
   { tag: "{{brainsearch}}", label: "lien BrandSearch" },
   { tag: "{{plateforme}}", label: "page de connexion" },
   { tag: "{{identifiant}}", label: "identifiant plateforme" },

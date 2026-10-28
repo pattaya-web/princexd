@@ -15,15 +15,15 @@ import type { CreativeExample, CreativePrompt, StudentCreativesSettings } from "
 
 /**
  * Créatives (Scale X) : après la validation du produit. L'accès au Studio IA
- * (ouvert par Mady, crédits KIE à acheter), comment faire une créative
+ * (ouvert dès le premier jour, crédits KIE à acheter), comment faire une créative
  * (onglet Image : photo de référence + prompt, ratios 3:4 / 1:1 / 9:16,
  * vidéo en 9:16), des exemples, et les prompts à copier dans Claude ou GPT
  * pour qu'ils écrivent les prompts du Studio. L'admin modifie tout sur place.
  *
  * Depuis le 2026-10-27 : sous la vidéo, pourquoi les créatives passent avant
  * tout, l'histoire d'Alison (collier Venom, 10 jours, 1 000 $ / jour), puis
- * les familles de créatives (punchy sales, native ads, Notes iPhone,
- * ChatGPT, tweet, avant / après, badge, vidéo) avec leurs exemples
+ * les 7 familles de créatives (Punchy sales, Native ads, Notes iPhone,
+ * Tweet, Avant / après, Badge prix tag, Vidéo 9:16) avec leurs exemples
  * (`CreativeExample.folder`). Les exemples sans famille restent dans
  * « Des exemples, avec leur prompt ».
  */
@@ -129,7 +129,7 @@ function VideoExample() {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(DEFAULT_VIDEO_EXAMPLE);
-      toast("Prompt vidéo copié. Onglet Vidéo, ton image de base en entrée, 9:16. Remplace le produit et les phrases.");
+      toast("Prompt vidéo copié. Onglet Création (Seedance 2.5), ton image de base en entrée, 9:16. Remplace le produit et les phrases.");
     } catch {
       toast("Copie impossible : ouvre le prompt et sélectionne le texte.", "err");
     }
@@ -516,7 +516,7 @@ export default function CreativesPage() {
           <section className="card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <SectionLabel n="02" title="Les formats qui marchent" />
-              <span className="dim text-[12.5px]">Images en 1:1 ou 3:4 · vidéos en 9:16</span>
+              <span className="dim text-[12.5px]">Images 3:4, 1:1 ou 9:16 · vidéos 9:16</span>
             </div>
             <div className="mt-4">
               <FormatPicker folders={CREATIVE_FOLDERS} examplesOf={folderExamples} onOpen={setZoom} />
@@ -527,28 +527,23 @@ export default function CreativesPage() {
           <section className="card p-5" style={{ borderColor: studioState === "prêt" ? "var(--accent-ring)" : undefined }}>
             <div className="flex items-center justify-between gap-3">
               <SectionLabel n="03" title="Ton accès au Studio IA" />
-              <span className={`badge !text-[10.5px] ${studioState === "prêt" ? "badge-good" : "badge-warn"}`}>{studioState === "prêt" ? "Prêt" : studioState === "sans clé" ? "Ouvert · clé à poser" : "Pas encore ouvert"}</span>
+              <span className={`badge !text-[10.5px] ${studioState === "prêt" ? "badge-good" : "badge-warn"}`}>{studioState === "prêt" ? "Prêt" : studioState === "sans clé" ? "Ouvert · clé à poser" : "Ouvert"}</span>
             </div>
             <ol className="list-decimal pl-5 mt-3 flex flex-col gap-1.5 text-[13.5px] leading-relaxed">
               <li>
-                <strong>Mady t&apos;ouvre le Studio</strong> une fois ton produit validé sur WhatsApp. {!studio.access && "Pas encore fait ? Envoie-lui tes produits (page Recherche produit)."}
+                <strong>Ton Studio IA est ouvert dès le premier jour</strong> : crée ton compte KIE, pose ta clé sur la page Studio IA, 20 à 30 € de crédits.
               </li>
               <li>
-                <strong>Tu achètes tes crédits</strong> sur kie.ai (20 à 30 € pour tes premières créatives) et tu colles ta clé sur la page Studio IA.
+                <strong>Tu achètes tes crédits</strong> sur kie.ai (20 à 30 € pour tes premières créatives : 0,03 € l&apos;image, 2 à 3 € la vidéo) et tu colles ta clé sur la page Studio IA.
               </li>
               <li>
-                <strong>Tu génères</strong> : onglet Image pour les visuels, onglet Vidéo pour les vidéos. Tes résultats ne sont visibles que par toi.
+                <strong>Tu génères</strong> : onglet Image pour les visuels, onglet Création (Seedance 2.5) pour les vidéos. Tes résultats ne sont visibles que par toi.
               </li>
             </ol>
             <div className="flex flex-wrap items-center gap-3 mt-4">
               <Link href="/formation/studio" className="btn btn-primary btn-sm">
-                {studioState === "prêt" ? "Ouvrir le Studio IA" : studioState === "sans clé" ? "Poser ma clé KIE" : "Voir la page Studio IA"}
+                {studioState === "prêt" ? "Ouvrir le Studio IA" : "Poser ma clé KIE"}
               </Link>
-              {!studio.access && (
-                <Link href="/formation/produit" className="text-[13px] font-medium hover:underline">
-                  Recherche produit →
-                </Link>
-              )}
             </div>
           </section>
 
@@ -584,7 +579,7 @@ export default function CreativesPage() {
                 <p className="muted text-[12.5px] mt-1 leading-relaxed">Une personne dans une scène, ton produit <strong>porté ou en main</strong>, bien visible. Ta photo de référence en entrée, ratio 9:16. Prompt écrit par Claude (prompt 5) ou l&apos;exemple ci-dessous.</p>
               </div>
               <div className="card-flat p-4">
-                <div className="label-xs num">02 · Onglet Vidéo</div>
+                <div className="label-xs num">02 · Onglet Création</div>
                 <div className="text-[14px] font-semibold mt-1 leading-snug">Image + prompt vidéo</div>
                 <p className="muted text-[12.5px] mt-1 leading-relaxed">Tu mets <strong>l&apos;image que tu viens de faire</strong> en entrée, tu colles le prompt vidéo (modèle Seedance 2.5, 9:16). Le prompt décrit la voix, le produit, les 5 plans, les sons et ce qu&apos;il faut éviter.</p>
               </div>
@@ -639,7 +634,7 @@ export default function CreativesPage() {
               <strong>Tes créatives sont prêtes ?</strong> Mets-les dans le dossier « creatives » de ton projet et passe à ta boutique : le thème de Mady, avec ton produit dedans.
             </div>
             <Link href="/formation/boutique" className="btn btn-sm shrink-0">
-              Étape suivante : Création de la boutique →
+              Étape suivante : Ta boutique →
             </Link>
           </section>
         </>
