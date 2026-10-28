@@ -63,7 +63,7 @@ Le copywriting : colle l'adresse de la boutique du concurrent à Claude : « Ana
 Ta page produit : « Garde un seul produit, supprime les exemples, crée le mien : titre, description, prix, prix barré, mes images ». Puis commande test depuis ton téléphone.
 L'éditeur de thème Shopify en secours : « Personnaliser » permet de remettre une section ou de corriger un détail à la souris. Ce n'est pas le but, Claude fait tout, mais c'est là.
 Si ça bloque, tu parles : capture d'écran du message rouge, « voilà l'erreur, corrige et continue ». Claude répond à toutes tes questions. Et Mady reste dispo sur WhatsApp.`,
-  creativesVideoUrl: "",
+  creativesVideoUrl: "https://youtu.be/cFohD4i16nM",
   creativesVideoSummary: "",
   creativesVideoSteps: "",
   metaVideoUrl: "",
@@ -84,7 +84,7 @@ export function methodSettings(settings: Pick<Settings, "studentMethod">): Stude
     shopVideoUrl: s.shopVideoUrl === undefined ? DEFAULT_METHOD.shopVideoUrl : s.shopVideoUrl.trim(),
     shopVideoSummary: (s.shopVideoSummary ?? "").trim() || DEFAULT_METHOD.shopVideoSummary,
     shopVideoSteps: (s.shopVideoSteps ?? "").trim() || DEFAULT_METHOD.shopVideoSteps,
-    creativesVideoUrl: (s.creativesVideoUrl ?? "").trim(),
+    creativesVideoUrl: (s.creativesVideoUrl ?? "").trim() || DEFAULT_METHOD.creativesVideoUrl,
     creativesVideoSummary: (s.creativesVideoSummary ?? "").trim(),
     creativesVideoSteps: (s.creativesVideoSteps ?? "").trim(),
     metaVideoUrl: (s.metaVideoUrl ?? "").trim(),
