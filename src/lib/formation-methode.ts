@@ -64,8 +64,24 @@ Ta page produit : « Garde un seul produit, supprime les exemples, crée le mien
 L'éditeur de thème Shopify en secours : « Personnaliser » permet de remettre une section ou de corriger un détail à la souris. Ce n'est pas le but, Claude fait tout, mais c'est là.
 Si ça bloque, tu parles : capture d'écran du message rouge, « voilà l'erreur, corrige et continue ». Claude répond à toutes tes questions. Et Mady reste dispo sur WhatsApp.`,
   creativesVideoUrl: "https://youtu.be/cFohD4i16nM",
-  creativesVideoSummary: "",
-  creativesVideoSteps: "",
+  creativesVideoSummary: `Dans cette vidéo, Mady fait les créatives du produit d'Ahmed (un coussin cervical orthopédique) en direct dans le Studio IA de la plateforme. Le principe : tu ne dessines rien, tu promptes. Tu prends le micro, tu expliques à ChatGPT ou à Claude ce que tu veux (le produit, le marché, le prix, les formats), il te sort les prompts, et tu les copies-colles dans le Studio IA. En moins de dix minutes de vidéo, neuf créatives sont générées, à 0,03 € l'image.
+
+Les formats qui marchent (marché US et francophone) : la « punchy sales » (gros titre, gros prix, badges, étiquettes, flèches, produit et prix entourés : très américain, très efficace), l'avant / après, la créative épurée (petit texte, prix discret), la note iPhone (très bonne : la personne clique direct), et la conversation entre deux copines. Chaque élément qui accroche l'œil (post-it, badge, flèche jaune, prix entouré, headline) est un « hook visuel » : il en faut. Trop d'éléments et trop de texte, c'est raté.
+
+Avant les prompts, l'angle : trouve la douleur. Le coussin, c'est les cervicales, le mauvais sommeil, la nuque brisée avant le petit-déjeuner. Tu vends une solution à un problème, plus la validation sociale (la copine au café qui demande où tu as acheté le tien, tout le monde qui regarde dans la rue). Tout produit se vend si tu as trouvé l'angle.
+
+Pour la vidéo (Seedance 2.5) : toujours partir d'une image de référence générée en 9:16 (pas en 3:4, sinon la vidéo sort en 3:4 : Mady a fait l'erreur pour toi), plus deux à quatre photos de ton produit sous différents angles, et un prompt complet avec un hook, des changements de séquence, de la validation sociale et un appel à l'action à 15 secondes. Une vidéo coûte 2 à 3 €. Demande à Chat une « negative prompt » avec chaque prompt (pas de rendu IA, ultra réaliste). Ce que Mady attend : un drive avec 5 à 15 créatives (photos et vidéos, formats mélangés), plus les médias de la boutique (images produit, visuels de la page d'accueil, faux packaging si besoin). La suite, c'est les campagnes Meta : prends de l'avance en demandant à Claude de créer ton Ads Manager et ton Pixel.`,
+  creativesVideoSteps: `Prépare le Studio IA : clé API KIE branchée (Démarrage), onglet Image (GPT Image 2) pour les statiques, onglet Création (Seedance 2.5) pour les vidéos. Ta référence : une photo de ton produit sur fond blanc, sans texte ni élément autour.
+Trouve ton angle avant de prompter : demande à ChatGPT ou à Claude « voici mon produit, trouve-moi des angles marketing en respectant les formats (punchy sales, avant / après, note iPhone, UGC) : on tape sur la douleur et on vend une solution, avec de la validation sociale ».
+Demande les prompts au micro : « fais-moi 5 prompts punchy sales en 3:4 pour le marché US, produit à 59,99 $, avec badges, étiquettes, flèches, produit et prix entourés ; 5 prompts plus sobres avec de l'avant / après ; un format note iPhone ; et 3 images de référence pour des vidéos Seedance (une fille dans son lit qui déballe le produit, un unboxing, une réaction) ». Exige les prompts bruts, un par un, chacun avec sa negative prompt (pas de rendu IA, réaliste).
+Génère en chaîne : image de référence, prompt collé, format 3:4, Générer. Ctrl + A, Ctrl + V, prompt suivant. Les créatives, c'est du copier-coller : dix créatives en moins de dix minutes, 0,03 € l'image.
+Trie le premier batch : garde ce qui a un gros titre, un prix visible, un hook visuel, une mise en situation (elle se touche le cou). Jette ce qui est surchargé. Une erreur (« Designed in France » pour un produit US) ? Recolle le prompt à Chat, dis-lui au micro ce qui cloche, il le réécrit.
+Les formats pour Meta : statiques en 1:1 et 3:4 (le 9:16 statique en plus si tu veux), vidéos en 9:16.
+Image de référence vidéo au format vertical : pour Seedance, génère d'abord l'image de départ en 9:16 (pas en 3:4, sinon la vidéo sort en 3:4).
+Crée la vidéo (onglet Création) : image de départ en 9:16, deux à quatre photos de ton produit (face, dos, côté), prompt complet (hook, changement de séquence, validation sociale, appel à l'action à 15 s) ou juste le script si la personne parle face caméra. Auto, 16 s, 720 ou 480. 2 à 3 € la vidéo : surveille ton crédit KIE.
+Adapte les prompts de Mady : copie la structure d'un prompt exemple (sous la vidéo) et dis à Claude « mon coach m'a envoyé cette structure pour des vidéos Seedance 2.5, adapte-la à mon produit avec la même structure, voici ma page produit ». Ajoute « la personne dit le prix du produit » si tu veux.
+Ta livraison : un drive avec 5 à 15 créatives (photos et vidéos, formats mélangés), plus les médias de la boutique (images produit et visuels de la page d'accueil, faux packaging si tu veux) pour une boutique premium, pas bâclée.
+Prends de l'avance : demande à Claude (Cowork ou Code) de créer ton compte Ads Manager et ton Pixel et de les connecter à ta boutique. Prochaine vidéo : les campagnes Meta. Claude et ChatGPT sont tes meilleurs amis : micro, captures d'écran, corrections, tout le temps.`,
   metaVideoUrl: "",
   metaVideoSummary: "",
   metaVideoSteps: "",
@@ -85,8 +101,8 @@ export function methodSettings(settings: Pick<Settings, "studentMethod">): Stude
     shopVideoSummary: (s.shopVideoSummary ?? "").trim() || DEFAULT_METHOD.shopVideoSummary,
     shopVideoSteps: (s.shopVideoSteps ?? "").trim() || DEFAULT_METHOD.shopVideoSteps,
     creativesVideoUrl: (s.creativesVideoUrl ?? "").trim() || DEFAULT_METHOD.creativesVideoUrl,
-    creativesVideoSummary: (s.creativesVideoSummary ?? "").trim(),
-    creativesVideoSteps: (s.creativesVideoSteps ?? "").trim(),
+    creativesVideoSummary: (s.creativesVideoSummary ?? "").trim() || DEFAULT_METHOD.creativesVideoSummary,
+    creativesVideoSteps: (s.creativesVideoSteps ?? "").trim() || DEFAULT_METHOD.creativesVideoSteps,
     metaVideoUrl: (s.metaVideoUrl ?? "").trim(),
     metaVideoSummary: (s.metaVideoSummary ?? "").trim(),
     metaVideoSteps: (s.metaVideoSteps ?? "").trim(),
