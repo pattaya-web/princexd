@@ -174,7 +174,24 @@ export default function ReelsPage() {
                 .
               </div>
             ) : null}
-            <ReelsTinder queue={queue} onDecide={decide} onUndo={undo} canUndo={history.length > 0} muted={muted} onToggleMuted={() => setMuted(!muted)} />
+            <ReelsTinder
+              queue={queue}
+              onDecide={decide}
+              onUndo={undo}
+              canUndo={history.length > 0}
+              muted={muted}
+              onToggleMuted={() => setMuted(!muted)}
+              skippedRecent={stats.skippedRecent}
+              onRequeue={() => {
+                api<{ requeued: number }>("/api/reels/decide", { method: "POST", body: JSON.stringify({ action: "requeue-recent" }) })
+                  .then((r) => {
+                    toast(`${r.requeued} Reel${r.requeued > 1 ? "s" : ""} remis dans la file.`);
+                    setHistory([]);
+                    void load(true);
+                  })
+                  .catch((e: Error) => toast(e.message, "err"));
+              }}
+            />
           </div>
 
           <aside className="flex flex-col gap-3 lg:sticky lg:top-4">

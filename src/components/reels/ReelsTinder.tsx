@@ -15,7 +15,7 @@ import type { Reel, ReelDecision } from "@/lib/types";
 
 const THRESHOLD = 110;
 
-export function ReelsTinder({ queue, onDecide, onUndo, canUndo, muted, onToggleMuted }: { queue: Reel[]; onDecide: (reel: Reel, decision: Exclude<ReelDecision, "">) => void; onUndo: () => void; canUndo: boolean; muted: boolean; onToggleMuted: () => void }) {
+export function ReelsTinder({ queue, onDecide, onUndo, canUndo, muted, onToggleMuted, skippedRecent, onRequeue }: { queue: Reel[]; onDecide: (reel: Reel, decision: Exclude<ReelDecision, "">) => void; onUndo: () => void; canUndo: boolean; muted: boolean; onToggleMuted: () => void; skippedRecent?: number; onRequeue?: () => void }) {
   const current = queue[0] ?? null;
   const next = queue[1] ?? null;
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
@@ -177,6 +177,11 @@ export function ReelsTinder({ queue, onDecide, onUndo, canUndo, muted, onToggleM
               <p className="muted text-[13px] mt-1.5 leading-relaxed">
                 Les Reels viennent de ton feed Instagram. Ouvre <b>instagram.com/reels</b> dans Chrome et scrolle, ou active le <b>pilote automatique</b> dans l&apos;extension et laisse l&apos;onglet ouvert : la file se remplit toute seule, cette page se met à jour.
               </p>
+              {skippedRecent && onRequeue ? (
+                <button type="button" className="btn btn-sm mt-3" onClick={onRequeue} title="← = passer. Si c'était un accident, on les remet dans la file.">
+                  Revoir les {skippedRecent} Reels passés aujourd&apos;hui
+                </button>
+              ) : null}
             </div>
           </div>
         )}

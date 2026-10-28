@@ -241,6 +241,21 @@ export function decideReel(id: string, decision: Reel["decision"], opts: { stage
   return { reel, swipe: null };
 }
 
+/** Remet dans la file les Reels passes dans les dernieres 24 h (un ← de trop, ca arrive). */
+export function requeueRecentSkips(): number {
+  const db = readDB();
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  let n = 0;
+  for (const r of db.reels) {
+    if (r.decision !== "skip" || !r.decidedAt || Date.parse(r.decidedAt) <= dayAgo) continue;
+    r.decision = "";
+    delete r.decidedAt;
+    n++;
+  }
+  if (n) writeDB(db);
+  return n;
+}
+
 /** Classement / note d'un Reel garde : ecrits sur son swipe. */
 export function annotateReel(id: string, patch: { stage?: SwipeStage | ""; note?: string }): { reel: Reel; swipe: Swipe | null } {
   const db = readDB();
@@ -304,6 +319,8 @@ export interface ReelStats {
   kept: number;
   skipped: number;
   keptToday: number;
+  /** Passes dans les dernieres 24 h : on peut les remettre dans la file (leur video est encore la). */
+  skippedRecent: number;
   lastCaptureAt: string;
   /** Octets occupes par les videos encore sur le disque. */
   bytes: number;
@@ -315,6 +332,8 @@ export function reelStats(db: DB): ReelStats {
   let kept = 0;
   let skipped = 0;
   let keptToday = 0;
+  let skippedRecent = 0;
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
   let bytes = 0;
   let last = "";
   for (const r of db.reels) {
@@ -322,11 +341,14 @@ export function reelStats(db: DB): ReelStats {
     else if (r.decision === "keep") {
       kept++;
       if ((r.decidedAt ?? "").slice(0, 10) === today) keptToday++;
-    } else skipped++;
+    } else {
+      skipped++;
+      if (r.decidedAt && Date.parse(r.decidedAt) > dayAgo) skippedRecent++;
+    }
     if (r.video) bytes += r.videoBytes ?? 0;
     if (r.capturedAt > last) last = r.capturedAt;
   }
-  return { queue, kept, skipped, keptToday, lastCaptureAt: last, bytes };
+  return { queue, kept, skipped, keptToday, skippedRecent, lastCaptureAt: last, bytes };
 }
 
 /** La file a juger : les plus recents d'abord (le feed du jour). */
