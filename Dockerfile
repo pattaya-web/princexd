@@ -32,7 +32,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 # Keep-alive plus long que celui de Traefik : sinon des POST tombent en 502 au hasard (voir le fichier).
-COPY --from=builder /app/scripts/keepalive.cjs ./keepalive.cjs
+COPY --from=builder /app/keepalive.cjs ./keepalive.cjs
 # Theme Shopify Aesthetic Lab servi aux eleves (hors public/, lu par /api/formation/theme/file).
 COPY --from=builder /app/content/theme ./content/theme
 # Boutique d'exemple (copie HTML lecture seule) servie aux eleves par /api/formation/boutique-exemple.

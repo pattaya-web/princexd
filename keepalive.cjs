@@ -1,5 +1,5 @@
 /**
- * Préchargé par `node -r ./keepalive.cjs server.js` dans l'image Docker.
+ * Préchargé par `node -r ./keepalive.cjs server.js` dans l'image Docker (à la racine : `scripts/` est exclu du build).
  *
  * Node ferme une connexion keep-alive inactive après 5 s ; Traefik (le proxy
  * de Coolify) garde les siennes 90 s et réutilise une connexion que Node est
