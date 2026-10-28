@@ -291,6 +291,8 @@ export interface Settings {
   studentLucasAddedAt?: string;
   /** Bascule unique (2026-10-28) : Lucas est aussi le monteur, son bouton « Espace monteur » est ouvert. */
   studentLucasEditorAt?: string;
+  /** Bascule unique (2026-10-28) : son prénom s'écrit Luca, identifiant « luca ». */
+  studentLucaRenamedAt?: string;
   /**
    * Date de depart des chiffres du Sales Dashboard (AAAA-MM-JJ). Tout ce qui
    * est avant est ignore : leads, calls, no-shows, ventes. Pour repartir sur

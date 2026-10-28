@@ -316,6 +316,17 @@ export function readDB(): DB {
     settings.studentLucasEditorAt = new Date().toISOString();
     writeDB(cache.db);
   }
+  // Son prenom s'ecrit Luca, sans s : identifiant « luca » et fiche corrigee.
+  if (!settings.studentLucaRenamedAt) {
+    const lucas = cache.db.students.find((st) => (st.username ?? "").toLowerCase() === "lucas");
+    const taken = cache.db.students.some((st) => (st.username ?? "").toLowerCase() === "luca") || cache.db.team.some((m) => (m.username ?? "").toLowerCase() === "luca");
+    if (lucas && !taken) {
+      lucas.username = "luca";
+      lucas.name = lucas.name.replace(/^Lucas/, "Luca");
+    }
+    settings.studentLucaRenamedAt = new Date().toISOString();
+    writeDB(cache.db);
+  }
   return cache.db;
 }
 
