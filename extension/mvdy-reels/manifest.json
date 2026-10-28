@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Mvdy Reels",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Envoie les Reels de ton feed Instagram vers ton tool (Tinder des Reels) pendant que tu scrolles normalement.",
   "permissions": ["storage"],
   "host_permissions": [

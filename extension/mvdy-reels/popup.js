@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const DEFAULTS = { baseUrl: "https://mvdyprince.fr", token: "", paused: false };
+const DEFAULTS = { baseUrl: "https://mvdyprince.fr", token: "", paused: false, autopilot: false, autolike: false };
 
 function setStatus(text, cls) {
   const el = $("status");
@@ -22,6 +22,8 @@ chrome.storage.sync.get(DEFAULTS, (v) => {
   $("baseUrl").value = v.baseUrl || DEFAULTS.baseUrl;
   $("token").value = v.token || "";
   $("paused").checked = Boolean(v.paused);
+  $("autopilot").checked = Boolean(v.autopilot);
+  $("autolike").checked = Boolean(v.autolike);
   if (!v.token) setStatus("Colle le jeton du tool, puis Enregistrer.", "err");
   else refresh();
 });
@@ -47,8 +49,8 @@ $("test").addEventListener("click", () => {
   });
 });
 
-$("paused").addEventListener("change", (e) => {
-  chrome.storage.sync.set({ paused: e.target.checked });
-});
+$("paused").addEventListener("change", (e) => chrome.storage.sync.set({ paused: e.target.checked }));
+$("autopilot").addEventListener("change", (e) => chrome.storage.sync.set({ autopilot: e.target.checked }));
+$("autolike").addEventListener("change", (e) => chrome.storage.sync.set({ autolike: e.target.checked }));
 
 setInterval(refresh, 2000);

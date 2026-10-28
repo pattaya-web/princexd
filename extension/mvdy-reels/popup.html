@@ -14,7 +14,7 @@
       button.primary { background: #006DBC; color: #fff; border-color: #006DBC; }
       .status { margin-top: 10px; font-size: 12px; color: #374151; background: #f3f4f6; border-radius: 8px; padding: 8px 10px; white-space: pre-line; }
       .ok { color: #16a34a; } .err { color: #dc2626; }
-      .toggle { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12.5px; }
+      .toggle { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; font-size: 12.5px; line-height: 1.35; } .toggle input { margin-top: 2px; }
       .tip { color: #6b7280; font-size: 11.5px; margin-top: 10px; }
     </style>
   </head>
@@ -33,10 +33,12 @@
       <button id="test">Tester la connexion</button>
     </div>
 
+    <label class="toggle"><input id="autopilot" type="checkbox" /> <span><b>Pilote automatique</b> : scroller les Reels tout seul quand un onglet instagram.com/reels est ouvert (rythme humain, 80 Reels / heure max). Laisse l'onglet ouvert.</span></label>
+    <label class="toggle"><input id="autolike" type="checkbox" /> <span><b>Liker depuis le tool</b> : le bouton ♥ du tool ouvre le Reel ici et clique « J'aime » une fois (un vrai like de ton compte).</span></label>
     <label class="toggle"><input id="paused" type="checkbox" /> Mettre la capture en pause</label>
 
     <div id="status" class="status">…</div>
-    <div class="tip">Ouvre <b>instagram.com/reels</b> et scrolle. Chaque Reel vu est envoyé une seule fois (vidéo comprise). Rien n'est liké ni publié à ta place.</div>
+    <div class="tip">Ouvre <b>instagram.com/reels</b> et scrolle. Chaque Reel vu est envoyé une seule fois (vidéo comprise). Aucun like sans ton clic, rien n'est publié à ta place.</div>
     <script src="popup.js"></script>
   </body>
 </html>

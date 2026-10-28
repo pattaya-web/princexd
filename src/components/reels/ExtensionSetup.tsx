@@ -33,7 +33,7 @@ export function ExtensionSetup({ stats }: { stats: ReelStats | null }) {
 
   return (
     <div className="grid lg:grid-cols-[1.2fr_1fr] gap-4 items-start">
-      <Card title="Installer l'extension Chrome (une fois)">
+      <Card title="Installer l'extension Chrome (une fois)" subtitle="Déjà installée ? Retélécharge le zip, remplace les fichiers du dossier, puis chrome://extensions → bouton ↻ de Mvdy Reels (version 1.1.0 : pilote auto + like).">
         <ol className="flex flex-col gap-2.5 text-[13.5px] leading-relaxed">
           <Step n={1}>
             <a className="btn btn-sm btn-primary" href="/extension/mvdy-reels.zip" download>
@@ -50,10 +50,13 @@ export function ExtensionSetup({ stats }: { stats: ReelStats | null }) {
           <Step n={4}>
             Va sur <a className="underline" href="https://www.instagram.com/reels/" target="_blank" rel="noreferrer">instagram.com/reels</a> et scrolle comme d&apos;habitude. Un petit compteur bleu en bas à gauche confirme les envois. Reviens ici : onglet <b>Découvrir</b>.
           </Step>
+          <Step n={5}>
+            Pour ne jamais tomber à court : dans l&apos;extension, coche <b>Pilote automatique</b> et laisse un onglet instagram.com/reels ouvert (même en arrière-plan). Elle scrolle à un rythme humain, 80 Reels par heure maximum. Coche aussi <b>Liker depuis le tool</b> pour que le bouton ♥ like le Reel sur Instagram en un clic.
+          </Step>
         </ol>
         <div className="mt-4 rounded-lg px-3.5 py-3 text-[12.5px] leading-relaxed" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
           <div className="font-semibold mb-1">Pourquoi une extension, et pas l&apos;API Instagram ?</div>
-          L&apos;API officielle de Meta ne donne ni le feed personnalisé « Pour toi », ni la vidéo des Reels des autres comptes, ni le like d&apos;un Reel d&apos;autrui ; et Instagram bloque notre serveur. L&apos;extension lit simplement, dans <b>ton</b> Chrome connecté, les Reels que ton feed t&apos;affiche déjà, et les envoie ici (fiche + fichier vidéo). Elle ne clique rien, ne like rien et ne publie rien à ta place. Pour liker : bouton <b>Instagram ↗</b> (ou touche O), ça ouvre le Reel dans Instagram.
+          L&apos;API officielle de Meta ne donne ni le feed personnalisé « Pour toi », ni la vidéo des Reels des autres comptes, ni le like d&apos;un Reel d&apos;autrui ; et Instagram bloque notre serveur. L&apos;extension lit simplement, dans <b>ton</b> Chrome connecté, les Reels que ton feed t&apos;affiche déjà, et les envoie ici (fiche + fichier vidéo). Elle ne publie rien à ta place et ne like que sur ton clic : le bouton <b>♥</b> du tool ouvre le Reel dans ton Instagram et clique « J&apos;aime » (option « Liker depuis le tool »). Un clic = un like, du vrai compte. Le pilote automatique scrolle ton feed à ta place, à un rythme humain : ça reste ton navigateur et ton compte, mais c&apos;est de l&apos;automatisation, Instagram peut ne pas aimer si on exagère, d&apos;où le plafond.
         </div>
       </Card>
 

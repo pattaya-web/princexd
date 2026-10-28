@@ -59,6 +59,8 @@ export function ReelsTinder({ queue, onDecide, onUndo, canUndo, muted, onToggleM
         if (canUndo) onUndo();
       } else if (e.key.toLowerCase() === "o" && current) {
         window.open(current.url, "_blank", "noopener");
+      } else if (e.key.toLowerCase() === "l" && current) {
+        window.open(`${current.url}#mvdy-like`, "_blank", "noopener");
       } else if (e.key.toLowerCase() === "m") {
         onToggleMuted();
       } else if (e.key === " ") {
@@ -173,7 +175,7 @@ export function ReelsTinder({ queue, onDecide, onUndo, canUndo, muted, onToggleM
               <div className="text-[34px] mb-2">🎬</div>
               <div className="font-semibold text-[15px]">Plus rien à trier.</div>
               <p className="muted text-[13px] mt-1.5 leading-relaxed">
-                Ouvre <b>instagram.com/reels</b> dans Chrome avec l&apos;extension active et scrolle ton feed : les Reels arrivent ici tout seuls.
+                Les Reels viennent de ton feed Instagram. Ouvre <b>instagram.com/reels</b> dans Chrome et scrolle, ou active le <b>pilote automatique</b> dans l&apos;extension et laisse l&apos;onglet ouvert : la file se remplit toute seule, cette page se met à jour.
               </p>
             </div>
           </div>
@@ -191,12 +193,15 @@ export function ReelsTinder({ queue, onDecide, onUndo, canUndo, muted, onToggleM
         <button type="button" className="btn !rounded-full !w-[62px] !h-[62px] !p-0 text-[26px] font-bold" style={{ color: "#22c55e", borderColor: "color-mix(in srgb, #22c55e 45%, transparent)" }} onClick={() => fly(1)} disabled={!current} title="Garder : à produire (→)">
           ✓
         </button>
-        <a className={`btn !rounded-full !w-[44px] !h-[44px] !p-0 text-[16px] ${current ? "" : "pointer-events-none opacity-50"}`} href={current?.url ?? "#"} target="_blank" rel="noreferrer" title="Ouvrir sur Instagram pour liker (O)">
+        <a className={`btn !rounded-full !w-[44px] !h-[44px] !p-0 text-[18px] ${current ? "" : "pointer-events-none opacity-50"}`} style={{ color: "#e1306c", borderColor: "color-mix(in srgb, #e1306c 45%, transparent)" }} href={current ? `${current.url}#mvdy-like` : "#"} target="_blank" rel="noreferrer" title="Liker : ouvre le Reel sur Instagram et l'extension clique J'aime (L) · option « Liker depuis le tool » à activer dans l'extension">
+          ♥
+        </a>
+        <a className={`btn !rounded-full !w-[44px] !h-[44px] !p-0 text-[16px] ${current ? "" : "pointer-events-none opacity-50"}`} href={current?.url ?? "#"} target="_blank" rel="noreferrer" title="Ouvrir sur Instagram (O)">
           ↗
         </a>
       </div>
       <div className="dim text-[11.5px] text-center">
-        ← passer · → garder · retour = annuler · O = Instagram · M = son · espace = pause · ou glisse la carte
+        ← passer · → garder · retour = annuler · L = liker · O = Instagram · M = son · espace = pause · ou glisse la carte
       </div>
     </div>
   );

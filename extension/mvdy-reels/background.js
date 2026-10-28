@@ -9,7 +9,7 @@
  * Instagram repond. Le tool, lui, ne contacte jamais Instagram.
  */
 
-const DEFAULTS = { baseUrl: "https://mvdyprince.fr", token: "", paused: false };
+const DEFAULTS = { baseUrl: "https://mvdyprince.fr", token: "", paused: false, autopilot: false, autolike: false };
 const MAX_VIDEO = 120 * 1024 * 1024;
 /** Codes deja traites (toutes sessions) : pour ne pas redeclarer 300 fois le meme Reel. */
 const KNOWN_MAX = 3000;
