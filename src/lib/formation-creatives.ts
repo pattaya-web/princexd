@@ -68,12 +68,6 @@ export const CREATIVE_FOLDERS: CreativeFolder[] = [
     tips: ["Un titre en gros qui dit tout, 3 à 5 puces courtes, une phrase de fin qui pousse à cliquer.", "Claude écrit le texte (prompt dans la bibliothèque), toi tu le tapes dans Notes et tu colles tes photos.", "Itération facile : la même note avec une preuve en plus (un avant / après, un chiffre, une capture)."],
   },
   {
-    id: "chatgpt",
-    title: "ChatGPT",
-    tagline: "Une question posée à ChatGPT, et sa réponse qui recommande ton produit.",
-    tips: ["Parfait pour les cadeaux et les produits « problème → solution ».", "Deux arguments dans la réponse, pas plus."],
-  },
-  {
     id: "twitter",
     title: "Tweet",
     tagline: "Un tweet avec avatar, pseudo, phrase qui claque et chiffres de likes.",
