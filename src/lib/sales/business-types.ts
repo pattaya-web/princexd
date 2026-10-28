@@ -24,6 +24,9 @@ export const PIPELINE_STAGES: { key: PipelineStage; label: string }[] = [
 
 /** Cle speciale de `?detail=` (business.ts, leadsForGroup) : les ventes derriere la tuile « Closés », vente la plus recente en premier. */
 export const CLOSED_DETAIL_KEY = "closed";
+/** Les leads venus au call (tuile « Shows ») et ceux qui ne sont pas venus (tuile « No-shows »). */
+export const SHOWS_DETAIL_KEY = "shows";
+export const NO_SHOWS_DETAIL_KEY = "noshows";
 
 export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = { SCHEDULED: "Planifié", CANCELLED: "Annulé", NO_SHOW: "No-show", SHOWED: "Showed" };
 export const SALE_STATUS_LABEL: Record<SaleStatusView, string> = { PENDING: "En attente", WON: "Gagné", LOST: "Perdu", FOLLOW_UP: "Follow-up" };

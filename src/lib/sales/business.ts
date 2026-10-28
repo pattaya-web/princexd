@@ -15,7 +15,7 @@ import { dayIn } from "../mediabuying/metrics";
 import type { DateRange, MetaSnapshot } from "../mediabuying/types";
 import { mockBusinessData, type MockBusiness } from "./mock-leads";
 import { backfillAttribution, ensureFunnelsV2, FUNNELS, funnelLabel, SOURCE_CHANNEL_LABEL } from "./attribution";
-import { CLOSED_DETAIL_KEY, PIPELINE_STAGES, type BookingStatus, type Cashflow, type DueInstallment, type LeadBusiness, type PipelineStage, type RemainingSale, type SaleStatusView, type ShowStatus } from "./business-types";
+import { CLOSED_DETAIL_KEY, NO_SHOWS_DETAIL_KEY, PIPELINE_STAGES, SHOWS_DETAIL_KEY, type BookingStatus, type Cashflow, type DueInstallment, type LeadBusiness, type PipelineStage, type RemainingSale, type SaleStatusView, type ShowStatus } from "./business-types";
 import { paymentView } from "./installments";
 
 export * from "./business-types";
@@ -651,6 +651,14 @@ export function leadsForGroup(db: DB, opts: { range: DateRange; filters: Busines
     return scoped
       .filter((r) => r.saleStatus === "WON")
       .sort((a, b) => b.soldAt.localeCompare(a.soldAt))
+      .slice(0, 500);
+  }
+  // Les tuiles « Shows » / « No-shows » : memes compteurs que les totaux, du call le plus recent au plus ancien.
+  if (key === SHOWS_DETAIL_KEY || key === NO_SHOWS_DETAIL_KEY) {
+    const want: BookingStatus = key === SHOWS_DETAIL_KEY ? "SHOWED" : "NO_SHOW";
+    return scoped
+      .filter((r) => r.bookingStatus === want)
+      .sort((a, b) => (b.appointmentAt ?? "").localeCompare(a.appointmentAt ?? ""))
       .slice(0, 500);
   }
   return scoped

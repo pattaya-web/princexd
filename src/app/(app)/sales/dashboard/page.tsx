@@ -14,7 +14,7 @@ import { api, useLocalState } from "@/lib/client";
 import { fmtDate, fmtDateTime, fmtMoney, label as crmLabel } from "@/lib/format";
 import { RANGE_PRESETS, type RangePreset } from "@/lib/mediabuying/metrics";
 import { funnelLabel } from "@/lib/sales/attribution";
-import { BOOKING_STATUS_LABEL, CLOSED_DETAIL_KEY, SALE_STATUS_LABEL, type DueInstallment, type RemainingSale } from "@/lib/sales/business-types";
+import { BOOKING_STATUS_LABEL, CLOSED_DETAIL_KEY, NO_SHOWS_DETAIL_KEY, SALE_STATUS_LABEL, SHOWS_DETAIL_KEY, type DueInstallment, type RemainingSale } from "@/lib/sales/business-types";
 import { PAYMENT_STATE_LABEL } from "@/lib/sales/installments";
 import type { BusinessGroupRow, BusinessMetrics, BusinessReport, GroupBy, LeadBusiness } from "@/lib/sales/business";
 import type { AttentionBlock } from "@/app/api/sales/dashboard/route";
@@ -103,6 +103,9 @@ interface Filters {
   bookingStatus: string;
   saleStatus: string;
 }
+/** Ce que la fenetre de detail liste : les leads d'une ligne, les closes, les shows ou les no-shows. */
+type DetailKind = "group" | "closed" | "shows" | "noshows";
+
 const NO_FILTERS: Filters = { source: "", funnel: "", campaignId: "", adsetId: "", adId: "", crmStage: "", bookingStatus: "", saleStatus: "" };
 
 /**
@@ -119,7 +122,7 @@ export default function SalesDashboardPage() {
   const [report, setReport] = useState<BusinessReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [detail, setDetail] = useState<{ row: BusinessGroupRow | null; kind: "group" | "closed"; leads: LeadBusiness[] | null } | null>(null);
+  const [detail, setDetail] = useState<{ row: BusinessGroupRow | null; kind: DetailKind; leads: LeadBusiness[] | null } | null>(null);
   /* La tuile « Reste à encaisser » : qui doit quoi. null = fermee, [] en chargement. */
   const [remaining, setRemaining] = useState<RemainingSale[] | null>(null);
   const [remainingLoading, setRemainingLoading] = useState(false);
@@ -193,10 +196,10 @@ export default function SalesDashboardPage() {
     };
   }, [query]);
 
-  const openDetail = async (row: BusinessGroupRow | null, kind: "group" | "closed" = "group") => {
+  const openDetail = async (row: BusinessGroupRow | null, kind: DetailKind = "group") => {
     setDetail({ row, kind, leads: null });
     try {
-      const key = kind === "closed" ? CLOSED_DETAIL_KEY : (row?.key ?? "all");
+      const key = kind === "closed" ? CLOSED_DETAIL_KEY : kind === "shows" ? SHOWS_DETAIL_KEY : kind === "noshows" ? NO_SHOWS_DETAIL_KEY : (row?.key ?? "all");
       const r = await api<{ leads: LeadBusiness[] }>(`/api/sales/business?${query}&detail=${encodeURIComponent(key)}`);
       setDetail({ row, kind, leads: r.leads });
     } catch (e) {
@@ -395,8 +398,8 @@ export default function SalesDashboardPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
               <Tile label="Leads" value={fmt(t.leads, "int", currency)} sub={`${fmt(t.qualifiedLeads, "int", currency)} qualifiés`} />
               <Tile label="Rendez-vous" value={fmt(t.bookings, "int", currency)} sub={`Booking rate ${fmt(t.bookingRate, "pct", currency)}`} />
-              <Tile label="Shows" value={fmt(t.shows, "int", currency)} color={t.shows ? GOOD : undefined} sub="venus au call" />
-              <Tile label="No-shows" value={fmt(t.noShows, "int", currency)} color={t.noShows ? BAD : undefined} sub="pas venus" />
+              <Tile label="Shows" value={fmt(t.shows, "int", currency)} color={t.shows ? GOOD : undefined} sub="venus au call · clique : qui" onClick={() => void openDetail(null, "shows")} />
+              <Tile label="No-shows" value={fmt(t.noShows, "int", currency)} color={t.noShows ? BAD : undefined} sub="pas venus · clique : qui" onClick={() => void openDetail(null, "noshows")} />
               <Tile label="Show rate" value={fmt(t.showRate, "pct", currency)} color={t.showRate === null ? undefined : t.showRate >= 70 ? GOOD : t.showRate >= 50 ? WARN : BAD} sub="shows / calls passés" big />
               <Tile label="À statuer" value={fmt(t.pendingOutcome, "int", currency)} color={t.pendingOutcome ? WARN : undefined} sub="calls passés sans issue · clique : onglet Calls" onClick={() => window.open("/sales/calls", "_self")} />
               <Tile label="À venir" value={fmt(t.upcomingCalls, "int", currency)} sub="calls pas encore passés · clique : onglet Calls" onClick={() => window.open("/sales/calls", "_self")} />
@@ -410,7 +413,7 @@ export default function SalesDashboardPage() {
               <Tile label="Cash encaissé" value={fmt(t.cashCollected, "money", currency)} color={t.cashCollected ? GOOD : undefined} sub="sur ces ventes" />
               <Tile label="Cash ce mois" value={fmt(cf.cashMonth, "money", currency)} sub="encaissé depuis le 1er" />
               <Tile label="Reste à encaisser" value={fmt(cf.remainingTotal, "money", currency)} color={cf.remainingTotal ? WARN : undefined} sub="toutes ventes actives · clique : qui doit quoi" onClick={() => void openRemaining()} />
-              <Tile label="Ventes pas soldées" value={fmt(cf.pendingSales, "int", currency)} color={cf.overdueTotal ? WARN : undefined} sub={cf.overdueTotal ? `dont ${fmtMoney(cf.overdueTotal, currency)} en retard` : "échéances à venir, à jour"} />
+              <Tile label="Ventes pas soldées" value={fmt(cf.pendingSales, "int", currency)} color={cf.overdueTotal ? WARN : undefined} sub={cf.overdueTotal ? `dont ${fmtMoney(cf.overdueTotal, currency)} en retard · clique : qui` : "échéances à venir, à jour · clique : qui"} onClick={() => void openRemaining()} />
             </div>
           </Section>
 
@@ -638,11 +641,11 @@ export default function SalesDashboardPage() {
         )}
       </Modal>
 
-      <Modal open={detail !== null} onClose={() => setDetail(null)} title={detail?.kind === "closed" ? "Closés · qui a closé quoi" : detail?.row ? `${detail.row.label} · leads` : "Leads de la sélection"} wide>
+      <Modal open={detail !== null} onClose={() => setDetail(null)} title={detail?.kind === "closed" ? "Closés · qui a closé quoi" : detail?.kind === "shows" ? "Shows · qui est venu au call" : detail?.kind === "noshows" ? "No-shows · qui n'est pas venu" : detail?.row ? `${detail.row.label} · leads` : "Leads de la sélection"} wide>
         {!detail?.leads ? (
           <Spinner label="Chargement des leads…" />
         ) : detail.leads.length === 0 ? (
-          <Empty>{detail.kind === "closed" ? "Aucune vente sur la période (avec ces filtres)." : "Aucun lead."}</Empty>
+          <Empty>{detail.kind === "closed" ? "Aucune vente sur la période (avec ces filtres)." : detail.kind === "shows" ? "Aucun show sur la période." : detail.kind === "noshows" ? "Aucun no-show sur la période." : "Aucun lead."}</Empty>
         ) : detail.kind === "closed" ? (
           <div className="flex flex-col gap-4">
             {/* Le bilan par closer, puis chaque vente. */}
@@ -722,6 +725,7 @@ export default function SalesDashboardPage() {
                   <th>Arrivé</th>
                   <th>Source</th>
                   <th>Call</th>
+                  <th>Closer</th>
                   <th>Vente</th>
                   <th className="!text-right">CA</th>
                   <th className="!text-right">Cash</th>
@@ -731,11 +735,12 @@ export default function SalesDashboardPage() {
                 {detail.leads.map((l) => (
                   <tr key={l.leadId}>
                     <td>
-                      <div className="text-[13px] font-medium">
+                      <Link href={`/sales/rendez-vous?q=${encodeURIComponent(l.name)}`} className="text-[13px] font-medium link" title="Ouvrir dans le CRM">
                         {l.name}
-                        {l.mock && <span className="dim text-[10px]"> démo</span>}
-                      </div>
+                      </Link>
+                      {l.mock && <span className="dim text-[10px]"> démo</span>}
                       <div className="dim text-[11px]">{l.handle || l.email || l.phone}</div>
+                      {l.setterName && <div className="text-[10.5px]" style={{ color: "var(--accent)" }}>setting {l.setterName}</div>}
                     </td>
                     <td className="num text-[12px] whitespace-nowrap">{fmtDateTime(l.acquiredAt)}</td>
                     <td>
@@ -746,6 +751,7 @@ export default function SalesDashboardPage() {
                       {l.bookingStatus ? BOOKING_STATUS_LABEL[l.bookingStatus] : "—"}
                       {l.appointmentAt && <div className="dim text-[10.5px] num">{fmtDateTime(l.appointmentAt)}</div>}
                     </td>
+                    <td className="text-[12px] whitespace-nowrap">{l.closerName || <span className="dim">—</span>}</td>
                     <td className="text-[12px]" style={{ color: l.saleStatus === "WON" ? GOOD : l.saleStatus === "LOST" ? BAD : undefined }}>
                       {SALE_STATUS_LABEL[l.saleStatus]}
                     </td>

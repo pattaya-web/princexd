@@ -1161,3 +1161,256 @@ b {
   from { background-position: 0% 0; }
   to { background-position: 200% 0; }
 }
+
+
+/* ---------------------------------------------------------------
+   Sales Dashboard : habillage « galaxie ». Posé par le Shell sur le
+   conteneur racine quand la page est /sales/dashboard. Clair : blanc net,
+   particules et halos bleus. Sombre : noir profond, étoiles, étincelles.
+   Les gains en vert émeraude, les pertes en rouge sang.
+   --------------------------------------------------------------- */
+.sd-skin {
+  --bg: #ffffff;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-2: rgba(246, 249, 253, 0.9);
+  --surface-3: rgba(236, 243, 250, 0.95);
+  --border: rgba(0, 109, 188, 0.14);
+  --border-strong: rgba(0, 109, 188, 0.3);
+  --accent: #006dbc;
+  --accent-hover: #005a9c;
+  --accent-soft: #e6f1fa;
+  --accent-ring: #9cc9ea;
+  --grad-accent: linear-gradient(135deg, #006dbc 0%, #2a8fd8 100%);
+  --grid: rgba(0, 109, 188, 0.1);
+  --good: #059669;
+  --emerald: #059669;
+  --warning: #d97706;
+  --critical: #b3121b;
+  --sd-n1: rgba(0, 109, 188, 0.2);
+  --sd-n2: rgba(42, 143, 216, 0.16);
+  --sd-n3: rgba(16, 185, 129, 0.1);
+  --sd-cursor: #006dbc;
+  --sd-cursor-edge: rgba(255, 255, 255, 0.9);
+  --sd-cursor-glow: rgba(0, 109, 188, 0.55);
+  --sd-ring: rgba(0, 109, 188, 0.4);
+  --shadow-lg: 0 16px 40px -12px rgb(0 109 188 / 0.22), 0 2px 8px -2px rgb(23 26 43 / 0.08);
+  background: var(--bg);
+  color: var(--text);
+  position: relative;
+  isolation: isolate;
+  cursor: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .sd-skin {
+    color-scheme: dark;
+    --bg: #030407;
+    --surface: rgba(12, 14, 22, 0.66);
+    --surface-2: rgba(18, 21, 32, 0.72);
+    --surface-3: rgba(26, 30, 44, 0.78);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.18);
+    --text: #f3f4f9;
+    --text-2: #a9aec4;
+    --text-3: #6f748f;
+    --accent: #3b9eff;
+    --accent-hover: #5fb0ff;
+    --accent-soft: rgba(59, 158, 255, 0.14);
+    --accent-ring: rgba(59, 158, 255, 0.45);
+    --accent-on: #ffffff;
+    --grad-accent: linear-gradient(135deg, #006dbc 0%, #3b9eff 100%);
+    --chart-surface: rgba(12, 14, 22, 0.66);
+    --grid: rgba(255, 255, 255, 0.07);
+    --good: #10b981;
+    --emerald: #10b981;
+    --warning: #f5b544;
+    --critical: #ef233c;
+    --sd-n1: rgba(0, 109, 188, 0.34);
+    --sd-n2: rgba(16, 185, 129, 0.16);
+    --sd-n3: rgba(99, 72, 220, 0.26);
+    --sd-cursor: #05060a;
+    --sd-cursor-edge: rgba(255, 255, 255, 0.85);
+    --sd-cursor-glow: rgba(255, 255, 255, 0.55);
+    --sd-ring: rgba(255, 255, 255, 0.35);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 10px 30px -14px rgb(0 0 0 / 0.7);
+    --shadow-lg: 0 18px 50px -18px rgb(0 109 188 / 0.35), 0 2px 8px -2px rgb(0 0 0 / 0.6);
+  }
+}
+:root[data-theme="dark"] .sd-skin {
+    color-scheme: dark;
+    --bg: #030407;
+    --surface: rgba(12, 14, 22, 0.66);
+    --surface-2: rgba(18, 21, 32, 0.72);
+    --surface-3: rgba(26, 30, 44, 0.78);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.18);
+    --text: #f3f4f9;
+    --text-2: #a9aec4;
+    --text-3: #6f748f;
+    --accent: #3b9eff;
+    --accent-hover: #5fb0ff;
+    --accent-soft: rgba(59, 158, 255, 0.14);
+    --accent-ring: rgba(59, 158, 255, 0.45);
+    --accent-on: #ffffff;
+    --grad-accent: linear-gradient(135deg, #006dbc 0%, #3b9eff 100%);
+    --chart-surface: rgba(12, 14, 22, 0.66);
+    --grid: rgba(255, 255, 255, 0.07);
+    --good: #10b981;
+    --emerald: #10b981;
+    --warning: #f5b544;
+    --critical: #ef233c;
+    --sd-n1: rgba(0, 109, 188, 0.34);
+    --sd-n2: rgba(16, 185, 129, 0.16);
+    --sd-n3: rgba(99, 72, 220, 0.26);
+    --sd-cursor: #05060a;
+    --sd-cursor-edge: rgba(255, 255, 255, 0.85);
+    --sd-cursor-glow: rgba(255, 255, 255, 0.55);
+    --sd-ring: rgba(255, 255, 255, 0.35);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 10px 30px -14px rgb(0 0 0 / 0.7);
+    --shadow-lg: 0 18px 50px -18px rgb(0 109 188 / 0.35), 0 2px 8px -2px rgb(0 0 0 / 0.6);
+}
+.sd-skin a,
+.sd-skin button,
+.sd-skin input,
+.sd-skin textarea,
+.sd-skin select,
+.sd-skin summary,
+.sd-skin label,
+.sd-skin [role="button"] {
+  cursor: none;
+}
+.sd-skin .card,
+.sd-skin .card-flat {
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+.sd-skin .card {
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.sd-skin .card[role="button"]:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-color: var(--border-strong);
+}
+.sd-skin h1 {
+  background: linear-gradient(92deg, var(--text) 0%, var(--text) 45%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Le fond : nébuleuses qui respirent derrière le ciel d'étoiles. */
+.sd-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--bg);
+}
+.sd-stars {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.sd-nebula {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.9;
+  will-change: transform;
+}
+.sd-nebula-1 {
+  width: 60vmax;
+  height: 60vmax;
+  left: -16vmax;
+  top: -22vmax;
+  background: radial-gradient(circle at 40% 40%, var(--sd-n1), transparent 65%);
+  animation: sd-drift-1 30s ease-in-out infinite alternate;
+}
+.sd-nebula-2 {
+  width: 50vmax;
+  height: 50vmax;
+  right: -16vmax;
+  top: 18vh;
+  background: radial-gradient(circle at 60% 50%, var(--sd-n2), transparent 65%);
+  animation: sd-drift-2 36s ease-in-out infinite alternate;
+}
+.sd-nebula-3 {
+  width: 46vmax;
+  height: 46vmax;
+  left: 24vw;
+  bottom: -24vmax;
+  background: radial-gradient(circle at 50% 50%, var(--sd-n3), transparent 65%);
+  animation: sd-drift-3 42s ease-in-out infinite alternate;
+}
+@keyframes sd-drift-1 {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(12vw, 10vh, 0) scale(1.18); }
+}
+@keyframes sd-drift-2 {
+  from { transform: translate3d(0, 0, 0) scale(1.05); }
+  to { transform: translate3d(-10vw, 16vh, 0) scale(0.9); }
+}
+@keyframes sd-drift-3 {
+  from { transform: translate3d(0, 0, 0) scale(0.95); }
+  to { transform: translate3d(8vw, -12vh, 0) scale(1.2); }
+}
+
+/* Le curseur : rond sombre qui scintille, anneau qui suit avec retard. */
+.sd-dot,
+.sd-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 9999;
+  pointer-events: none;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.sd-dot {
+  width: 12px;
+  height: 12px;
+  background: var(--sd-cursor);
+  border: 1.5px solid var(--sd-cursor-edge);
+  animation: sd-shimmer 1.6s ease-in-out infinite;
+  transition: opacity 0.25s ease, width 0.12s ease, height 0.12s ease;
+}
+.sd-dot.sd-dot-press {
+  width: 18px;
+  height: 18px;
+}
+.sd-ring {
+  width: 36px;
+  height: 36px;
+  border: 1.5px solid var(--sd-ring);
+  background: radial-gradient(circle, color-mix(in srgb, var(--sd-cursor-glow) 30%, transparent), transparent 70%);
+}
+@keyframes sd-shimmer {
+  0%, 100% { box-shadow: 0 0 6px 1px var(--sd-cursor-glow), 0 0 18px 4px color-mix(in srgb, var(--sd-cursor-glow) 40%, transparent); }
+  50% { box-shadow: 0 0 14px 4px var(--sd-cursor-glow), 0 0 34px 10px color-mix(in srgb, var(--sd-cursor-glow) 55%, transparent); }
+}
+@media (pointer: coarse) {
+  .sd-skin,
+  .sd-skin a,
+  .sd-skin button,
+  .sd-skin input,
+  .sd-skin textarea,
+  .sd-skin select,
+  .sd-skin summary,
+  .sd-skin label,
+  .sd-skin [role="button"] {
+    cursor: auto;
+  }
+  .sd-dot,
+  .sd-ring {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sd-nebula,
+  .sd-dot {
+    animation: none;
+  }
+}
