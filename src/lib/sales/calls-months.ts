@@ -1,5 +1,6 @@
 import type { Appointment, DB, Sale } from "../types";
 import { dayIn } from "../mediabuying/metrics";
+import { defaultCloserId } from "./closers";
 
 /**
  * Calls par mois (Sales Dashboard) : combien de calls Mady a faits chaque
@@ -39,6 +40,12 @@ export interface CallsMonthsReport {
   from: string;
   to: string;
   currency: string;
+  /** Closer retenu ("" = tous). */
+  closerId: string;
+  /** Mon compte (closer par defaut), pour le choix « Moi ». */
+  meId: string;
+  /** Les closers qui apparaissent sur des calls, pour le selecteur. */
+  closers: { id: string; name: string }[];
   months: MonthCalls[];
   totals: MonthCalls;
   statsSince: string;
@@ -76,7 +83,13 @@ function saleOf(sales: Sale[], appt: Appointment): Sale | null {
  * inclus), les mois sans call compris pour que la serie reste lisible, et
  * les totaux. Les rendez-vous a venir ne sont jamais comptes.
  */
-export function callsByMonth(db: DB, opts: { from: string; to: string }, now = new Date()): CallsMonthsReport {
+export function callsByMonth(db: DB, opts: { from: string; to: string; closerId?: string }, now = new Date()): CallsMonthsReport {
+  const meId = defaultCloserId(db);
+  const closerId = opts.closerId ?? "";
+  // Un call sans closer attribue est le mien : je suis le closer par defaut.
+  const mine = (id: string) => id === closerId || (!id && closerId === meId);
+  const names = new Map(db.team.map((m) => [m.id, m.name]));
+  const seenClosers = new Map<string, string>();
   const since = db.settings.salesStatsSince ?? "";
   let from = opts.from;
   if (/^\d{4}-\d{2}-\d{2}$/.test(since) && from < since) from = since;
@@ -107,6 +120,9 @@ export function callsByMonth(db: DB, opts: { from: string; to: string }, now = n
     const row = byMonth.get(day.slice(0, 7));
     if (!row) continue;
     const sale = saleOf(db.sales, a);
+    const callCloser = sale?.closerId || a.closerId || "";
+    if (callCloser && !seenClosers.has(callCloser)) seenClosers.set(callCloser, names.get(callCloser) ?? "Closer inconnu");
+    if (closerId && !mine(callCloser)) continue;
     const won = Boolean(sale) || a.status === "closed-won";
     const showed = SHOWED.includes(a.status) || won;
     const noShow = a.status === "no-show";
@@ -132,6 +148,9 @@ export function callsByMonth(db: DB, opts: { from: string; to: string }, now = n
     from,
     to,
     currency,
+    closerId,
+    meId,
+    closers: [...seenClosers].map(([id, name]) => ({ id, name })).sort((a, b) => (a.id === meId ? -1 : b.id === meId ? 1 : a.name.localeCompare(b.name))),
     months: [...byMonth.values()].map(finish).reverse(),
     totals: finish(totals),
     statsSince: since,

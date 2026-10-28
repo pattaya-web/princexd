@@ -42,6 +42,8 @@ const int = (v: number) => new Intl.NumberFormat("fr-FR").format(v);
 export function CallsByMonthCard() {
   const [preset, setPreset] = useLocalState<Preset>("sales.dash.months.preset", "6m");
   const [custom, setCustom] = useLocalState<{ from: string; to: string }>("sales.dash.months.custom", { from: "", to: "" });
+  /** "me" = mes calls (defaut), "all" = toute l'equipe, sinon l'id d'un closer. */
+  const [closer, setCloser] = useLocalState<string>("sales.dash.months.closer", "me");
   const [report, setReport] = useState<CallsMonthsReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +58,7 @@ export function CallsByMonthCard() {
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    api<CallsMonthsReport>(`/api/sales/calls-months?from=${range.from}&to=${range.to}`)
+    api<CallsMonthsReport>(`/api/sales/calls-months?from=${range.from}&to=${range.to}&closer=${encodeURIComponent(closer)}`)
       .then((r) => {
         if (!alive) return;
         setReport(r);
@@ -67,7 +69,7 @@ export function CallsByMonthCard() {
     return () => {
       alive = false;
     };
-  }, [range, tick]);
+  }, [range, closer, tick]);
 
   useEffect(() => {
     const on = () => setTick((t) => t + 1);
@@ -84,10 +86,19 @@ export function CallsByMonthCard() {
   return (
     <Card
       padded={false}
-      title="Calls faits, closés, générés"
-      subtitle="un call compte au mois où il a eu lieu · rendez-vous annulés ou déplacés exclus · calls à venir non comptés"
+      title={closer === "me" ? "Mes calls : faits, closés, générés" : closer === "all" ? "Calls de l'équipe : faits, closés, générés" : `Calls de ${report?.closers.find((c) => c.id === closer)?.name ?? "ce closer"}`}
+      subtitle={`un call compte au mois où il a eu lieu · annulés, déplacés et à venir exclus${closer === "me" ? " · les calls sans closer attribué sont les miens" : ""}`}
       actions={
         <div className="flex items-center gap-1.5 flex-wrap">
+          <select className="select select-sm !w-auto" value={closer} onChange={(e) => setCloser(e.target.value)} title="Quels calls : les miens, ceux de toute l'équipe, ou d'un closer">
+            <option value="me">Mes calls</option>
+            <option value="all">Toute l'équipe</option>
+            {(report?.closers ?? []).filter((c) => c.id !== report?.meId).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
           <select className="select select-sm !w-auto" value={preset} onChange={(e) => setPreset(e.target.value as Preset)}>
             {PRESETS.map((p) => (
               <option key={p.key} value={p.key}>
