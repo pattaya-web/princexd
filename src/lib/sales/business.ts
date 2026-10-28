@@ -346,7 +346,7 @@ function spendFor(ds: BusinessDataset, spendBy: Map<string, number>, scope: Meta
   return total;
 }
 
-function matches(r: LeadBusiness, f: BusinessFilters): boolean {
+export function matches(r: LeadBusiness, f: BusinessFilters): boolean {
   if (f.source && r.sourceChannel !== f.source) return false;
   if (f.funnel && r.funnelSource !== f.funnel) return false;
   if (f.campaignId && r.campaignId !== f.campaignId) return false;

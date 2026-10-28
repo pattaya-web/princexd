@@ -25,7 +25,7 @@ import { PHASE_PREFIX } from "./types";
 
 /* ------------------------------ Periodes ------------------------------ */
 
-export type RangePreset = "today" | "yesterday" | "last3" | "last7" | "last14" | "last30" | "custom";
+export type RangePreset = "today" | "yesterday" | "last3" | "last7" | "last14" | "last21" | "last30" | "month" | "last90" | "all" | "custom";
 
 export const RANGE_PRESETS: { key: RangePreset; label: string }[] = [
   { key: "today", label: "Aujourd'hui" },
@@ -68,8 +68,16 @@ export function rangeFor(preset: RangePreset, today: string, custom?: Partial<Da
       return { from: shiftDay(today, -6), to: today };
     case "last14":
       return { from: shiftDay(today, -13), to: today };
+    case "last21":
+      return { from: shiftDay(today, -20), to: today };
     case "last30":
       return { from: shiftDay(today, -29), to: today };
+    case "month":
+      return { from: `${today.slice(0, 7)}-01`, to: today };
+    case "last90":
+      return { from: shiftDay(today, -89), to: today };
+    case "all":
+      return { from: "2020-01-01", to: today };
     case "custom": {
       const from = custom?.from || shiftDay(today, -6);
       const to = custom?.to || today;

@@ -1,27 +1,39 @@
 import { NextRequest } from "next/server";
 import { readDB } from "@/lib/db";
-import { callsByMonth } from "@/lib/sales/calls-months";
+import { rangeFromQuery } from "@/lib/mediabuying/http";
+import { callsReport } from "@/lib/sales/calls-months";
 import { defaultCloserId } from "@/lib/sales/closers";
 import { readSession, requireAdmin } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
+import type { BusinessFilters } from "@/lib/sales/business";
+import type { SourceChannel } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Calls par mois entre `from` et `to` (jours inclus). Sans bornes : les 6 derniers mois. `closer` : "me" (defaut), "all", ou un id. */
+/**
+ * Les calls du Sales Dashboard : meme periode (`preset`, `from`, `to`) et
+ * memes filtres que /api/sales/business, plus `closer` = "all" (defaut),
+ * "me", ou l'id d'un closer. Totaux, mois par mois, liste des calls et
+ * rendez-vous a venir, d'un seul calcul.
+ */
 export async function GET(req: NextRequest) {
   return handle(() => {
     requireAdmin(readSession(req));
-    const p = req.nextUrl.searchParams;
-    const now = new Date();
-    const dflt = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const from = DAY.test(p.get("from") ?? "") ? String(p.get("from")) : `${dflt.getFullYear()}-${pad(dflt.getMonth() + 1)}-01`;
-    const to = DAY.test(p.get("to") ?? "") ? String(p.get("to")) : `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     const db = readDB();
-    const c = p.get("closer") ?? "me";
+    const q = req.nextUrl.searchParams;
+    const range = rangeFromQuery(req, "Europe/Paris");
+    const c = q.get("closer") ?? "all";
     const closerId = c === "all" ? "" : c === "me" ? defaultCloserId(db) : c;
-    return callsByMonth(db, { from, to, closerId }, now);
+    const filters: BusinessFilters = {
+      source: (q.get("source") ?? "") as SourceChannel | "",
+      funnel: q.get("funnel") ?? "",
+      campaignId: q.get("campaignId") ?? "",
+      adsetId: q.get("adsetId") ?? "",
+      adId: q.get("adId") ?? "",
+      crmStage: (q.get("crmStage") ?? "") as BusinessFilters["crmStage"],
+      bookingStatus: (q.get("bookingStatus") ?? "") as BusinessFilters["bookingStatus"],
+      saleStatus: (q.get("saleStatus") ?? "") as BusinessFilters["saleStatus"],
+    };
+    return callsReport(db, { from: range.from, to: range.to, closerId, filters });
   });
 }

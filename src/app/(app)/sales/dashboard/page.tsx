@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { SourceChip } from "@/components/sales/AttributionBlock";
 import { AttentionCard } from "@/components/sales/DashboardBlocks";
-import { CallsByMonthCard } from "@/components/sales/CallsByMonthCard";
+import { CallsSection } from "@/components/sales/CallsSection";
 import { ClosingReviewCard } from "@/components/sales/ClosingReviewCard";
 import { InvestmentsCard } from "@/components/sales/InvestmentsCard";
 import { UtmLinksTable } from "@/components/sales/UtmLinksTable";
@@ -14,7 +14,8 @@ import { Card, Empty, ErrorNote, Modal, PageHeader, Spinner, Tabs } from "@/comp
 import { ShopifyAffiliate } from "@/components/ShopifyAffiliate";
 import { api, useLocalState } from "@/lib/client";
 import { fmtDate, fmtDateTime, fmtMoney, label as crmLabel } from "@/lib/format";
-import { RANGE_PRESETS, type RangePreset } from "@/lib/mediabuying/metrics";
+import type { RangePreset } from "@/lib/mediabuying/metrics";
+import type { CallsReport } from "@/lib/sales/calls-months";
 import { funnelLabel } from "@/lib/sales/attribution";
 import { BOOKING_STATUS_LABEL, CLOSED_DETAIL_KEY, NO_SHOWS_DETAIL_KEY, SALE_STATUS_LABEL, SHOWS_DETAIL_KEY, type DueInstallment, type RemainingSale } from "@/lib/sales/business-types";
 import { PAYMENT_STATE_LABEL } from "@/lib/sales/installments";
@@ -108,6 +109,18 @@ interface Filters {
 /** Ce que la fenetre de detail liste : les leads d'une ligne, les closes, les shows ou les no-shows. */
 type DetailKind = "group" | "closed" | "shows" | "noshows";
 
+/** Les periodes du dashboard : des chips, du plus court au plus long. */
+const DASH_PRESETS: { key: RangePreset; label: string }[] = [
+  { key: "last7", label: "7 jours" },
+  { key: "last14", label: "14 jours" },
+  { key: "last21", label: "21 jours" },
+  { key: "last30", label: "30 jours" },
+  { key: "month", label: "Ce mois" },
+  { key: "last90", label: "3 mois" },
+  { key: "all", label: "Tout" },
+  { key: "custom", label: "Dates" },
+];
+
 const NO_FILTERS: Filters = { source: "", funnel: "", campaignId: "", adsetId: "", adId: "", crmStage: "", bookingStatus: "", saleStatus: "" };
 
 /**
@@ -122,6 +135,9 @@ export default function SalesDashboardPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [groupBy, setGroupBy] = useLocalState<GroupBy>("sales.dash.group", "source");
   const [report, setReport] = useState<BusinessReport | null>(null);
+  /* Les calls (date du call, un rendez-vous = un call) : meme periode, memes filtres, closer au choix. */
+  const [closer, setCloser] = useLocalState<string>("sales.dash.closer", "all");
+  const [calls, setCalls] = useState<CallsReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<{ row: BusinessGroupRow | null; kind: DetailKind; leads: LeadBusiness[] | null } | null>(null);
@@ -197,6 +213,16 @@ export default function SalesDashboardPage() {
       alive = false;
     };
   }, [query]);
+
+  useEffect(() => {
+    let alive = true;
+    api<CallsReport>(`/api/sales/calls-months?${query}&closer=${encodeURIComponent(closer)}`)
+      .then((r) => alive && setCalls(r))
+      .catch((e: Error) => alive && setError(e.message));
+    return () => {
+      alive = false;
+    };
+  }, [query, closer]);
 
   const openDetail = async (row: BusinessGroupRow | null, kind: DetailKind = "group") => {
     setDetail({ row, kind, leads: null });
@@ -279,16 +305,25 @@ export default function SalesDashboardPage() {
         title="Sales Dashboard"
         actions={
           <div className="flex items-center gap-1.5 flex-wrap">
-            <select className="select select-sm !w-auto" value={preset} onChange={(e) => setPreset(e.target.value as RangePreset)}>
-              {RANGE_PRESETS.map((p) => (
-                <option key={p.key} value={p.key}>
+            <div className="inline-flex gap-0.5 p-0.5 rounded-full" style={{ background: "var(--surface-3)" }} role="tablist" aria-label="Période">
+              {DASH_PRESETS.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={preset === p.key}
+                  className="px-2.5 h-[26px] rounded-full text-[12px] font-medium transition-colors whitespace-nowrap"
+                  style={preset === p.key ? { background: "var(--accent)", color: "#fff" } : { color: "var(--muted)" }}
+                  onClick={() => setPreset(p.key)}
+                >
                   {p.label}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
             {preset === "custom" && (
               <>
                 <input className="input !h-[30px] !w-auto !text-[12.5px]" type="date" value={custom.from} onChange={(e) => setCustom({ ...custom, from: e.target.value })} />
+                <span className="dim text-[12px]">→</span>
                 <input className="input !h-[30px] !w-auto !text-[12.5px]" type="date" value={custom.to} onChange={(e) => setCustom({ ...custom, to: e.target.value })} />
               </>
             )}
@@ -308,7 +343,7 @@ export default function SalesDashboardPage() {
       />
       {report && (
         <div className="dim text-[11.5px] num -mt-4 mb-4">
-          Période : {fmtDate(`${report.range.from}T12:00:00Z`)} → {fmtDate(`${report.range.to}T12:00:00Z`)} · leads comptés à leur date d&apos;arrivée, leurs calls et ventes suivent.
+          Période : {fmtDate(`${report.range.from}T12:00:00Z`)} → {fmtDate(`${report.range.to}T12:00:00Z`)}
         </div>
       )}
       {error && <div className="mb-3"><ErrorNote>{error}</ErrorNote></div>}
@@ -396,31 +431,25 @@ export default function SalesDashboardPage() {
       {!report && loading && <Spinner label="Calcul du dashboard…" />}
       {report && t && cf && (
         <>
-          <Section title="Calls" hint="sur la période">
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
-              <Tile label="Leads" value={fmt(t.leads, "int", currency)} sub={`${fmt(t.qualifiedLeads, "int", currency)} qualifiés`} />
-              <Tile label="Rendez-vous" value={fmt(t.bookings, "int", currency)} sub={`Booking rate ${fmt(t.bookingRate, "pct", currency)}`} />
-              <Tile label="Shows" value={fmt(t.shows, "int", currency)} color={t.shows ? GOOD : undefined} sub="venus au call · clique : qui" onClick={() => void openDetail(null, "shows")} />
-              <Tile label="No-shows" value={fmt(t.noShows, "int", currency)} color={t.noShows ? BAD : undefined} sub="pas venus · clique : qui" onClick={() => void openDetail(null, "noshows")} />
-              <Tile label="Show rate" value={fmt(t.showRate, "pct", currency)} color={t.showRate === null ? undefined : t.showRate >= 70 ? GOOD : t.showRate >= 50 ? WARN : BAD} sub="shows / calls passés" big />
-              <Tile label="À statuer" value={fmt(t.pendingOutcome, "int", currency)} color={t.pendingOutcome ? WARN : undefined} sub="calls passés sans issue · clique : onglet Calls" onClick={() => window.open("/sales/calls", "_self")} />
-              <Tile label="À venir" value={fmt(t.upcomingCalls, "int", currency)} sub="calls pas encore passés · clique : onglet Calls" onClick={() => window.open("/sales/calls", "_self")} />
-            </div>
+          <Section title="Calls" hint="sur la période, à la date du call · clique une tuile pour la liste">
+            {calls ? <CallsSection report={calls} closer={closer} onCloser={setCloser} /> : <Spinner label="Calcul des calls…" />}
           </Section>
 
-          <Section title="Ventes" hint="sur la période">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-              <Tile label="Closés" value={fmt(t.sales, "int", currency)} color={t.sales ? GOOD : undefined} sub={`Close rate ${fmt(t.closeRate, "pct", currency)} · clique : qui a closé`} big onClick={() => void openDetail(null, "closed")} />
-              <Tile label="CA (contrats)" value={fmt(t.revenue, "money", currency)} sub="valeur des contrats signés" />
-              <Tile label="Cash encaissé" value={fmt(t.cashCollected, "money", currency)} color={t.cashCollected ? GOOD : undefined} sub="sur ces ventes" />
-              <Tile label="Cash ce mois" value={fmt(cf.cashMonth, "money", currency)} sub="encaissé depuis le 1er" />
+          <Section title="Trésorerie" hint="toutes ventes actives, hors période">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              <Tile label="Cash ce mois" value={fmt(cf.cashMonth, "money", currency)} color={cf.cashMonth ? GOOD : undefined} sub="encaissé depuis le 1er, toutes ventes" />
               <Tile label="Reste à encaisser" value={fmt(cf.remainingTotal, "money", currency)} color={cf.remainingTotal ? WARN : undefined} sub="toutes ventes actives · clique : qui doit quoi" onClick={() => void openRemaining()} />
               <Tile label="Ventes pas soldées" value={fmt(cf.pendingSales, "int", currency)} color={cf.overdueTotal ? WARN : undefined} sub={cf.overdueTotal ? `dont ${fmtMoney(cf.overdueTotal, currency)} en retard · clique : qui` : "échéances à venir, à jour · clique : qui"} onClick={() => void openRemaining()} />
             </div>
           </Section>
 
-          <Section title="Mes calls par mois" hint="combien de calls faits, combien closés, combien généré : plage de dates à choisir">
-            <CallsByMonthCard />
+          <Section title="Acquisition" hint="leads arrivés sur la période (à leur date d'arrivée) : combien prennent un call">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <Tile label="Leads arrivés" value={fmt(t.leads, "int", currency)} sub={`${fmt(t.validLeads, "int", currency)} joignables`} />
+              <Tile label="Qualifiés" value={fmt(t.qualifiedLeads, "int", currency)} sub="joints ou call pris" />
+              <Tile label="Ont pris un call" value={fmt(t.bookings, "int", currency)} sub="rendez-vous non annulé" />
+              <Tile label="Booking rate" value={fmt(t.bookingRate, "pct", currency)} sub="ont pris un call / leads arrivés" />
+            </div>
           </Section>
 
           {/* Les alertes (relances, à confirmer) viennent APRÈS les chiffres : les chiffres d'abord. */}
