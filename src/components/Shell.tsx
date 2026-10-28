@@ -493,10 +493,8 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/instagram", label: "Instagram", icon: "◈" },
       { href: "/insights", label: "Winning Format", icon: "◎" },
       { href: "/content", label: "Content", icon: "◫" },
-      { href: "/production", label: "Production", icon: "▣" },
       { href: "/swipe", label: "Swipe file", icon: "⇥" },
       { href: "/swipe/reels", label: "Tinder des Reels", icon: "♥" },
-      { href: "/swipe/tournage", label: "Mes tournages", icon: "🎬" },
     ],
   },
   {
@@ -575,7 +573,6 @@ const SIMPLE_NAV: typeof NAV = [
       { href: "/insights", label: "Winning Format", icon: "◎" },
       { href: "/swipe", label: "Swipe file", icon: "⇥" },
       { href: "/swipe/reels", label: "Tinder des Reels", icon: "♥" },
-      { href: "/swipe/tournage", label: "Mes tournages", icon: "🎬" },
       { href: "/studio", label: "Studio IA", icon: "✦" },
       { href: "/content-os", label: "Content OS", icon: "☀" },
     ],

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { newId, readDB, writeDB } from "@/lib/db";
 import { canSee, Forbidden, readSession, requireAdmin, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
+import { isSetterSession, saleForSetter } from "@/lib/sales/setter-view";
 import { listLogs, patchAppointment } from "@/lib/sales/repo";
 import { CONFIRMATIONS } from "@/lib/sales/constants";
 import type { AppointmentConfirmation } from "@/lib/types";
@@ -25,7 +26,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (!appointment || !canSee(session, appointment)) throw new Forbidden("Rendez-vous introuvable.");
 
     const lead = db.leads.find((l) => l.id === appointment.leadId) ?? null;
-    const sale = db.sales.find((s) => s.appointmentId === appointment.id) ?? null;
+    const rawSale = db.sales.find((s) => s.appointmentId === appointment.id) ?? null;
+    // Le setter voit le montant annonce, pas le vrai prix.
+    const sale = rawSale && isSetterSession(session) ? saleForSetter(rawSale) : rawSale;
     const followUps = db.followUps.filter((f) => f.appointmentId === appointment.id);
     const names = new Map(db.team.map((m) => [m.id, m.name]));
 

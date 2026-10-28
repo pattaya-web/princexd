@@ -27,6 +27,7 @@ import type {
 import { isAttended, isDead } from "./constants";
 import { inRange, type Range } from "./period";
 import { memberRoles, type CommercialRole } from "./roles";
+import { saleForSetter } from "./setter-view";
 
 /** Une ligne du grand livre : un evenement, un montant, et son explication. */
 export interface CommissionEntry {
@@ -138,9 +139,10 @@ export function entriesForRole(
   const mineAppointments = appointments.filter((a) =>
     role === "setter" ? a.setterId === member.id : a.closerId === member.id,
   );
-  const mineSales = sales.filter((s) =>
-    role === "setter" ? s.setterId === member.id : s.closerId === member.id,
-  );
+  // Le setter est commissionne sur le montant que Mady lui annonce (setterAmount), le closer sur le vrai.
+  const mineSales = sales
+    .filter((s) => (role === "setter" ? s.setterId === member.id : s.closerId === member.id))
+    .map((s) => (role === "setter" ? saleForSetter(s) : s));
 
   /* --- Commissions declenchees par un rendez-vous --- */
   for (const appt of mineAppointments) {
@@ -384,11 +386,9 @@ export function buildLedger(
           (role === "setter" ? a.setterId === member.id : a.closerId === member.id) &&
           inRange(a.scheduledAt, range),
       );
-      const mineSales = sales.filter(
-        (s) =>
-          (role === "setter" ? s.setterId === member.id : s.closerId === member.id) &&
-          inRange(s.soldAt, range),
-      );
+      const mineSales = sales
+        .filter((s) => (role === "setter" ? s.setterId === member.id : s.closerId === member.id) && inRange(s.soldAt, range))
+        .map((s) => (role === "setter" ? saleForSetter(s) : s));
 
       // Les primes (onboarding, geste) sont tracees mais ne soldent pas de commission.
       const paidTotal = firstRowOfMember

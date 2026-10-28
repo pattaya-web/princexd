@@ -80,6 +80,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         paymentMethod: (sale.paymentMethod as string) || "",
         soldAt: (sale.soldAt as string) || new Date().toISOString(),
         notes: (sale.notes as string) || "",
+        ...(sale.setterAmount !== undefined && sale.setterAmount !== null && sale.setterAmount !== "" ? { setterAmount: Math.max(0, num(sale.setterAmount)) } : {}),
       };
     }
 

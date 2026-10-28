@@ -14,6 +14,7 @@ import {
   setterLeaderboard,
 } from "@/lib/sales/analytics";
 import { buildLedger } from "@/lib/sales/commissions";
+import { isSetterSession, salesForSetter } from "@/lib/sales/setter-view";
 import { publicMember } from "@/lib/sales/repo";
 import { sessionHas } from "@/lib/sales/roles";
 import type { Appointment, Sale } from "@/lib/types";
@@ -92,6 +93,9 @@ export async function GET(req: NextRequest) {
         (s) => (asSetter && s.setterId === session.memberId) || (asCloser && s.closerId === session.memberId),
       );
     }
+
+    // Un setter voit le montant annonce par Mady, pas le vrai prix du closing.
+    if (isSetterSession(session)) sales = salesForSetter(sales);
 
     const visibleApptIds = new Set(appointments.map((a) => a.id));
     const followUps = db.followUps.filter(

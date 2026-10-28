@@ -306,6 +306,8 @@ export interface OutcomeInput {
     paymentExpectedAt?: string;
     /** Vente iClosed : montant connu, facon de payer a preciser (pas d'echeancier invente). */
     paymentUnspecified?: boolean;
+    /** Montant annonce au setter (voir Sale.setterAmount). */
+    setterAmount?: number;
   };
   /** Renseigne pour un follow-up ou une reprogrammation. */
   followUp?: { dueAt: string; notes: string; closerId?: string; heat?: FollowUpHeat };
@@ -370,6 +372,7 @@ export function recordOutcome(session: Session, id: string, input: OutcomeInput)
       notes: input.sale.notes || "",
       paymentExpectedAt: input.sale.cashCollected > 0 ? "" : (input.sale.paymentExpectedAt ?? ""),
       paymentUnspecified: Boolean(input.sale.paymentUnspecified),
+      ...(input.sale.setterAmount !== undefined ? { setterAmount: Math.max(0, input.sale.setterAmount || 0) } : {}),
     };
     const schedule = values.paymentUnspecified ? [] : buildSchedule(values.contractValue, values.cashCollected, values.installments, values.soldAt, values.paymentExpectedAt);
     if (existing) {
@@ -618,7 +621,7 @@ export function patchAppointment(
 export function patchSale(
   session: Session,
   id: string,
-  patch: Partial<Pick<Sale, "cashCollected" | "contractValue" | "status" | "refundAmount" | "notes" | "offer" | "paymentType" | "installments" | "paymentMethod" | "schedule" | "soldAt" | "paymentExpectedAt">>,
+  patch: Partial<Pick<Sale, "cashCollected" | "contractValue" | "status" | "refundAmount" | "notes" | "offer" | "paymentType" | "installments" | "paymentMethod" | "schedule" | "soldAt" | "paymentExpectedAt" | "setterAmount">>,
 ) {
   const db = readDB();
   const sale = db.sales.find((s) => s.id === id);

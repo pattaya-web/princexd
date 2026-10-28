@@ -3,6 +3,7 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { canSee, Forbidden, readSession, requireAdmin, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
+import { isSetterSession, saleForSetter } from "@/lib/sales/setter-view";
 import { CHANNEL_LABEL } from "@/lib/sales/templates";
 import { fmtDateTime, parisDay, parisToIso } from "@/lib/format";
 import { leadIsOut, LINK_CHANNELS, LINK_CHANNEL_LABEL, type DB, type Lead, type LeadCallStatus, type LinkChannel, type TemplateChannel } from "@/lib/types";
@@ -80,7 +81,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     }
     const names = new Map(db.team.map((m) => [m.id, m.name]));
     // La vente en cours du lead (la plus recente non annulee), pour la fiche.
-    const sale = db.sales.filter((s) => s.leadId === lead.id && s.status !== "cancelled").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    const rawSale = db.sales.filter((s) => s.leadId === lead.id && s.status !== "cancelled").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    // Le setter voit le montant annonce par Mady, pas le vrai prix.
+    const sale = rawSale && isSetterSession(session) ? saleForSetter(rawSale) : rawSale;
     const cancelledSale = sale ? undefined : db.sales.filter((s) => s.leadId === lead.id && s.status === "cancelled").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
     /*
      * Noms et creative Meta, resolus depuis le dernier instantane du media

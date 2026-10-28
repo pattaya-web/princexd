@@ -103,6 +103,8 @@ export function AppointmentDetail({
   };
   const [contractValue, setContractValue] = useState("");
   const [cashCollected, setCashCollected] = useState("");
+  /* Montant annonce au setter : ce qu'il verra de cette vente. Vide = le vrai montant. */
+  const [setterAmount, setSetterAmount] = useState("");
   /* « Payé en N fois » : 1 = comptant. Les échéances suivantes se calculent toutes seules. */
   const [installments, setInstallments] = useState("1");
   const [followUpAt, setFollowUpAt] = useState("");
@@ -260,6 +262,7 @@ export function AppointmentDetail({
     offer: "",
     contractValue: "",
     cashCollected: "",
+    setterAmount: "",
     paymentType: "paid-in-full" as PaymentType,
     installments: "1",
     soldAt: "",
@@ -279,6 +282,7 @@ export function AppointmentDetail({
       soldAt: sale.soldAt.slice(0, 10),
       status: sale.status,
       refundAmount: String(sale.refundAmount || ""),
+      setterAmount: sale.setterAmount === undefined || sale.setterAmount === null ? "" : String(sale.setterAmount),
       notes: sale.notes ?? "",
     });
     setEditingSale(true);
@@ -308,6 +312,7 @@ export function AppointmentDetail({
           soldAt: saleForm.soldAt ? parisToIso(`${saleForm.soldAt}T12:00`) : detail.sale.soldAt,
           status: saleForm.status,
           refundAmount: Math.max(0, Number(saleForm.refundAmount) || 0),
+          setterAmount: saleForm.setterAmount.trim() === "" ? null : Math.max(0, Number(saleForm.setterAmount) || 0),
           notes: saleForm.notes,
         }),
       });
@@ -502,6 +507,7 @@ export function AppointmentDetail({
         offer,
         contractValue: contract,
         cashCollected: cash,
+        ...(setterAmount.trim() !== "" ? { setterAmount: Math.max(0, Number(setterAmount) || 0) } : {}),
         currency: detail?.currency ?? "EUR",
         paymentType: Number(installments) > 1 ? "installments" : "paid-in-full",
         installments: Math.max(1, Number(installments) || 1),
@@ -713,6 +719,9 @@ export function AppointmentDetail({
                   placeholder="5000"
                   onChange={(e) => setContractValue(e.target.value)}
                 />
+              </Field>
+              <Field label={`Montant annoncé au setter (${detail.currency})`} hint="Ce que le setter verra de cette vente, et sa base de commission. Vide = le vrai montant. Jamais compté dans le dashboard.">
+                <input className="input num" type="number" min={0} value={setterAmount} placeholder="ex. 1500" onChange={(e) => setSetterAmount(e.target.value)} />
               </Field>
               <Field label={`Cash encaissé aujourd'hui (${detail.currency})`}>
                 <input
@@ -1090,6 +1099,9 @@ export function AppointmentDetail({
                       </Field>
                       <Field label={`Valeur de contrat (${sale.currency})`}>
                         <input className="input num" type="number" min={0} value={saleForm.contractValue} onChange={(e) => setSaleForm({ ...saleForm, contractValue: e.target.value })} />
+                      </Field>
+                      <Field label={`Montant annoncé au setter (${sale.currency})`} hint="Ce que le setter voit, et sa base de commission. Vide = le vrai montant. Jamais compté dans le dashboard.">
+                        <input className="input num" type="number" min={0} value={saleForm.setterAmount} onChange={(e) => setSaleForm({ ...saleForm, setterAmount: e.target.value })} />
                       </Field>
                       <Field label={`Cash encaissé au total (${sale.currency})`} hint="Acompte + échéances déjà reçues.">
                         <input className="input num" type="number" min={0} value={saleForm.cashCollected} onChange={(e) => setSaleForm({ ...saleForm, cashCollected: e.target.value })} />

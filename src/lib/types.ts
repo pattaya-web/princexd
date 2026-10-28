@@ -275,6 +275,13 @@ export interface Settings {
   closingScriptAt?: string;
   /** Nombre de calls (gagnes + perdus) sur lesquels le script s'appuie. */
   closingScriptCalls?: number;
+  /* --- Pilote automatique des analyses (2026-10-29) : enseignements rediges par l'IA a partir de toutes les analyses. --- */
+  callInsights?: string;
+  callInsightsAt?: string;
+  /** Nombre d'analyses existantes quand les enseignements ont ete rediges (pour savoir s'il y a du neuf). */
+  callInsightsCount?: number;
+  /** Dernier passage du pilote automatique Fathom (analyses, enseignements, script). */
+  fathomAutopilotAt?: string;
   /** Jeton de l'extension Chrome « Mvdy Reels » (Authorization: Bearer). Genere a la demande. */
   reelsExtensionToken?: string;
   /* --- Google Agenda (liens Meet, 2026-10-27) : client OAuth de Mady, jeton de rafraichissement, compte connecte. --- */
@@ -2392,6 +2399,8 @@ export interface CallReview {
   keyLines: string[];
   /** LA chose a faire differemment au prochain call. */
   nextTime: string;
+  /** Pourquoi ca a close / pourquoi ca n'a pas close : la raison de fond (2026-10-29). */
+  why?: string;
   /** Taille du transcript analyse (caracteres), 0 si Fathom n'en avait pas. */
   transcriptChars: number;
   createdAt: string;
@@ -2414,6 +2423,13 @@ export interface Sale {
   status: SaleStatus;
   /** Montant rembourse. La vente d'origine n'est jamais effacee. */
   refundAmount: number;
+  /**
+   * Montant annonce au setter (2026-10-29) : ce qu'il voit de cette vente
+   * dans son espace et la base de sa commission. Jamais compte dans le
+   * Sales Dashboard (qui lit contractValue / cashCollected). Absent = il
+   * voit le vrai montant.
+   */
+  setterAmount?: number;
   refundedAt: string;
   notes: string;
   createdBy: ID;

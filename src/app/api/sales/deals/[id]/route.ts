@@ -33,6 +33,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (body.notes !== undefined) patch.notes = String(body.notes);
     if (body.paymentMethod !== undefined) patch.paymentMethod = String(body.paymentMethod);
     if (body.contractValue !== undefined) patch.contractValue = Math.max(0, num(body.contractValue));
+    // Montant annonce au setter : vide = il voit le vrai montant.
+    if (body.setterAmount !== undefined) patch.setterAmount = body.setterAmount === null || body.setterAmount === "" ? undefined : Math.max(0, num(body.setterAmount));
     if (body.cashCollected !== undefined) patch.cashCollected = Math.max(0, num(body.cashCollected));
     if (body.refundAmount !== undefined) patch.refundAmount = Math.max(0, num(body.refundAmount));
     if (body.installments !== undefined) patch.installments = Math.max(0, num(body.installments));

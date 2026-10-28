@@ -3,6 +3,7 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { canSee, readSession, requireAdmin, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
+import { isSetterSession, saleForSetter } from "@/lib/sales/setter-view";
 import { getSystemeioKey, syncSystemeio } from "@/lib/systemeio";
 import { LINK_CHANNELS, LINK_CHANNEL_LABEL, type LinkChannel, leadIsOut, type Lead } from "@/lib/types";
 import { applyTouch, backfillMetaIds } from "@/lib/sales/attribution";
@@ -243,7 +244,11 @@ export async function GET(req: NextRequest) {
             // Ce que le closer a note apres le call, et la vente : l'avancee que le setter suit.
             closerNote: (appt?.closerNotes ?? "").trim(),
             lostReason: appt?.lostReason ?? "",
-            saleAmount: appt ? (db.sales.find((sl) => sl.appointmentId === appt.id && sl.status !== "cancelled")?.contractValue ?? 0) : 0,
+            saleAmount: (() => {
+              const sl = appt ? db.sales.find((x) => x.appointmentId === appt.id && x.status !== "cancelled") : undefined;
+              if (!sl) return 0;
+              return isSetterSession(session) ? saleForSetter(sl).contractValue : sl.contractValue;
+            })(),
             currency: db.settings.salesCurrency || "EUR",
           };
         })
