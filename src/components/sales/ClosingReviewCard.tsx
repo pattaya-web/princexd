@@ -95,6 +95,12 @@ function ReviewDetail({ r, call }: { r: CallReview; call: ReviewCall }) {
   return (
     <div className="flex flex-col gap-4 px-4 py-4" style={{ background: "color-mix(in srgb, var(--surface-2) 60%, transparent)" }}>
       {r.summary && <p className="text-[13px] leading-relaxed">{r.summary}</p>}
+      {r.why && (
+        <div className="rounded-lg px-3.5 py-2.5 text-[13px] leading-relaxed" style={{ background: `color-mix(in srgb, ${call.outcome === "won" ? "var(--good)" : call.outcome === "lost" ? "var(--critical)" : "var(--warning)"} 9%, transparent)`, border: `1px solid color-mix(in srgb, ${call.outcome === "won" ? "var(--good)" : call.outcome === "lost" ? "var(--critical)" : "var(--warning)"} 35%, transparent)` }}>
+          <strong>{call.outcome === "won" ? "Pourquoi ça a closé : " : call.outcome === "lost" ? "Pourquoi ça n'a pas closé : " : "Pourquoi : "}</strong>
+          {r.why}
+        </div>
+      )}
       {r.nextTime && (
         <div className="rounded-lg px-3.5 py-2.5 text-[13px] flex gap-2 items-start" style={{ background: "color-mix(in srgb, var(--accent) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)" }}>
           <span className="shrink-0">🎯</span>
@@ -244,7 +250,7 @@ export function ClosingReviewCard({ currency = "EUR" }: { currency?: string }) {
       <Card
         padded={false}
         title="Mes calls de closing"
-        subtitle="Chaque call enregistré par Fathom, relu par l'IA : ce qui a marché, ce qu'il faut améliorer, les objections. Et ton script de closing, construit sur tes vrais calls."
+        subtitle="Chaque call enregistré par Fathom est relu par l'IA tout seul dans l'heure qui suit : pourquoi ça a closé ou pas, ce qui a marché, à améliorer, les objections. Ton script de closing se met à jour seul."
         actions={
           <>
             {avg !== null && (

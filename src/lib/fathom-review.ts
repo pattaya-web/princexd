@@ -184,6 +184,7 @@ Tu réponds UNIQUEMENT avec un objet JSON, sans texte autour :
 {
   "score": nombre de 0 à 10 (qualité du closing sur ce call, indépendamment du résultat),
   "summary": "le call en 2-3 phrases : qui est le prospect, où il en est, ce qu'il veut, comment ça s'est fini",
+  "why": "POURQUOI ça a closé (ce qui a fait basculer : le déclic, le moment, la phrase) ou POURQUOI ça n'a pas closé (la vraie raison de fond, pas l'excuse du prospect) : 2 à 4 phrases, précises, avec le moment",
   "strengths": ["3 à 5 choses que Mady a bien faites, précises, avec le moment"],
   "improvements": ["3 à 6 points à améliorer : ce qui s'est passé → pourquoi c'est un problème → quoi dire ou faire à la place"],
   "objections": [{"objection": "l'objection telle que dite par le prospect", "handled": "comment Mady l'a traitée", "better": "la réponse plus forte"}],
@@ -221,7 +222,7 @@ export async function analyzeCall(appointmentId: string): Promise<{ call: Review
     .filter((l) => l !== "")
     .join("\n");
   const raw = await askText(prompt, withBrandContext(ANALYSIS_SYSTEM, db.settings), 4000);
-  const j = parseJson<{ score?: unknown; summary?: unknown; strengths?: unknown; improvements?: unknown; objections?: unknown; keyLines?: unknown; nextTime?: unknown }>(raw);
+  const j = parseJson<{ score?: unknown; summary?: unknown; why?: unknown; strengths?: unknown; improvements?: unknown; objections?: unknown; keyLines?: unknown; nextTime?: unknown }>(raw);
   const score = Math.max(0, Math.min(10, Math.round(Number(j.score) || 0)));
   const objections = (Array.isArray(j.objections) ? j.objections : [])
     .map((o) => {
@@ -246,6 +247,7 @@ export async function analyzeCall(appointmentId: string): Promise<{ call: Review
     objections,
     keyLines: strList(j.keyLines),
     nextTime: String(j.nextTime ?? "").trim().slice(0, 400),
+    why: String(j.why ?? "").trim().slice(0, 900),
     transcriptChars: text.length,
     createdAt: now,
   };
@@ -333,4 +335,176 @@ export async function buildClosingScript(): Promise<ClosingScript> {
   const at = new Date().toISOString();
   saveSettings({ closingScript: text, closingScriptAt: at, closingScriptCalls: reviewed.length });
   return { text, at, calls: reviewed.length };
+}
+
+/* ------------------------- Pilote automatique (2026-10-29) ------------------------- */
+
+/**
+ * Le cockpit ne demande rien : chaque call enregistre par Fathom est analyse
+ * tout seul dans l'heure qui suit (le temps que Fathom produise le
+ * transcript), les enseignements sont reecrits quand il y a du neuf, et le
+ * script de closing est mis a jour quand assez de nouveaux calls sont
+ * analyses. Appele par le planificateur toutes les 2 minutes ; chaque
+ * passage fait peu de choses (2 analyses max) pour ne jamais bloquer.
+ */
+
+/** Un call doit avoir au moins cet age avant qu'on demande son transcript. */
+const ANALYZE_AFTER_MS = 45 * 60_000;
+/** Apres un echec (pas encore de transcript, erreur modele), on attend avant de retenter. */
+const RETRY_AFTER_MS = 2 * 60 * 60_000;
+const INSIGHTS_MIN_NEW = 3;
+const SCRIPT_MIN_NEW = 5;
+const DAY_MS = 24 * 60 * 60_000;
+
+const attempts: Map<string, number> = ((globalThis as unknown as { __fathomAttempts?: Map<string, number> }).__fathomAttempts ??= new Map());
+
+/** Analyse les calls enregistres pas encore relus, les plus recents d'abord. Renvoie le nombre d'analyses faites. */
+export async function autoAnalyzeCalls(max = 2): Promise<number> {
+  if (!getFathomKey()) return 0;
+  const db = readDB();
+  const now = Date.now();
+  const reviewed = new Set(db.callReviews.map((r) => r.appointmentId));
+  const todo = db.appointments
+    .filter((a) => a.fathomRecordingId && a.status !== "cancelled" && !reviewed.has(a.id) && now - Date.parse(a.scheduledAt) > ANALYZE_AFTER_MS)
+    .filter((a) => now - (attempts.get(a.id) ?? 0) > RETRY_AFTER_MS)
+    .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))
+    .slice(0, max);
+  let done = 0;
+  for (const a of todo) {
+    attempts.set(a.id, now);
+    try {
+      await analyzeCall(a.id);
+      done++;
+    } catch (e) {
+      console.warn(`[fathom] analyse auto du call ${a.id} :`, e instanceof Error ? e.message : String(e));
+    }
+  }
+  return done;
+}
+
+export interface CallInsights {
+  text: string;
+  at: string;
+  calls: number;
+}
+
+export function currentInsights(): CallInsights | null {
+  const s = getSettings();
+  return s.callInsights ? { text: s.callInsights, at: s.callInsightsAt ?? "", calls: s.callInsightsCount ?? 0 } : null;
+}
+
+const INSIGHTS_SYSTEM = `Tu es le meilleur coach de closing high-ticket francophone. Mady (closer, coach e-commerce / IA, offre à plusieurs milliers d'euros) te donne les analyses de TOUS ses calls de vente enregistrés : closés et perdus, avec la note, le résumé, pourquoi ça a closé ou pas, les objections, les points à améliorer, les phrases qui ont marché.
+
+Tu écris ses ENSEIGNEMENTS : ce que ses calls disent vraiment, en croisant tout. Pas de généralités de coach : chaque affirmation s'appuie sur ce qui revient dans ses calls, avec les noms des prospects quand c'est utile. Tutoie Mady, français direct, phrases courtes, montants en euros.
+
+Structure exacte (markdown simple, titres avec #) :
+# Ce que tes calls disent
+## Pourquoi ça close
+(3 à 6 points : les patterns communs aux calls closés, concrets)
+## Pourquoi ça ne close pas
+(3 à 6 points : les vraies raisons de fond des calls perdus, pas les excuses des prospects)
+## Les objections qui reviennent, et la réponse qui marche
+(une ligne par objection : « objection » → la meilleure réponse, en s'appuyant sur ce qui a marché)
+## Tes points à travailler, par ordre de fréquence
+(les points à améliorer qui reviennent le plus, avec dans combien de calls)
+## Tes phrases qui closent
+(5 à 8 phrases mot pour mot, à garder)
+## Les 3 consignes du moment
+(numérotées, une phrase chacune, la plus importante en premier)`;
+
+/** Reecrit les enseignements a partir de toutes les analyses existantes. */
+export async function buildCallInsights(): Promise<CallInsights> {
+  const db = readDB();
+  const calls = listReviewCalls(db, 300).filter((c) => c.review);
+  if (!calls.length) throw new Error("Aucun call analysé pour l'instant.");
+  const lines = calls.map((c) => {
+    const r = c.review!;
+    return [
+      `### ${c.leadName} · ${new Date(c.at).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })} · ${c.outcome === "won" ? `CLOSÉ${c.amount ? ` ${Math.round(c.amount)} €` : ""}` : c.outcome === "lost" ? "PERDU" : "pas statué"} · note ${r.score}/10`,
+      r.summary ? `Résumé : ${r.summary}` : "",
+      r.why ? `Pourquoi : ${r.why}` : "",
+      r.strengths.length ? `Bien : ${r.strengths.join(" | ")}` : "",
+      r.improvements.length ? `À améliorer : ${r.improvements.join(" | ")}` : "",
+      r.objections.length ? `Objections : ${r.objections.map((o) => `« ${o.objection} » (traitée : ${o.handled || "—"} ; mieux : ${o.better || "—"})`).join(" | ")}` : "",
+      r.keyLines.length ? `Phrases : ${r.keyLines.map((l) => `« ${l} »`).join(" ")}` : "",
+      r.nextTime ? `Consigne : ${r.nextTime}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  });
+  const won = calls.filter((c) => c.outcome === "won").length;
+  const lost = calls.filter((c) => c.outcome === "lost").length;
+  const prompt = [`${calls.length} calls analysés : ${won} closés, ${lost} perdus, ${calls.length - won - lost} pas encore statués.`, "", ...lines, "", "Écris maintenant les enseignements, structure exacte demandée."].join("\n");
+  const text = (await askText(prompt, withBrandContext(INSIGHTS_SYSTEM, db.settings), 6000)).trim();
+  if (!text) throw new Error("Le modèle a renvoyé un texte vide.");
+  const at = new Date().toISOString();
+  saveSettings({ callInsights: text, callInsightsAt: at, callInsightsCount: calls.length });
+  return { text, at, calls: calls.length };
+}
+
+export interface ReviewStats {
+  recorded: number;
+  reviewed: number;
+  pending: number;
+  won: number;
+  lost: number;
+  avg: number | null;
+  avgWon: number | null;
+  avgLost: number | null;
+  lastReviewAt: string;
+  autopilotAt: string;
+  /** La consigne du call analyse le plus recent. */
+  nextTime: string;
+}
+
+export function reviewStats(db: DB): ReviewStats {
+  const calls = listReviewCalls(db, 500);
+  const reviewed = calls.filter((c) => c.review);
+  const mean = (xs: ReviewCall[]) => (xs.length ? xs.reduce((a, c) => a + (c.review?.score ?? 0), 0) / xs.length : null);
+  const wonR = reviewed.filter((c) => c.outcome === "won");
+  const lostR = reviewed.filter((c) => c.outcome === "lost");
+  const latest = [...reviewed].sort((a, b) => (b.review?.createdAt ?? "").localeCompare(a.review?.createdAt ?? ""))[0];
+  return {
+    recorded: calls.length,
+    reviewed: reviewed.length,
+    pending: calls.length - reviewed.length,
+    won: wonR.length,
+    lost: lostR.length,
+    avg: mean(reviewed),
+    avgWon: mean(wonR),
+    avgLost: mean(lostR),
+    lastReviewAt: latest?.review?.createdAt ?? "",
+    autopilotAt: db.settings.fathomAutopilotAt ?? "",
+    nextTime: latest?.review?.nextTime ?? "",
+  };
+}
+
+/** Un passage du pilote : analyses en attente, puis enseignements et script s'il y a du neuf. */
+export async function runFathomAutopilot(): Promise<void> {
+  if (!getFathomKey()) return;
+  await autoAnalyzeCalls(2);
+  const db = readDB();
+  const s = db.settings;
+  const now = Date.now();
+  const reviewed = db.callReviews.length;
+  const lastCount = s.callInsightsCount ?? 0;
+  const lastAt = s.callInsightsAt ? Date.parse(s.callInsightsAt) : 0;
+  if (reviewed > 0 && reviewed !== lastCount && (reviewed - lastCount >= INSIGHTS_MIN_NEW || lastCount === 0 || now - lastAt > DAY_MS)) {
+    try {
+      await buildCallInsights();
+    } catch (e) {
+      console.warn("[fathom] enseignements :", e instanceof Error ? e.message : String(e));
+    }
+  }
+  const wonReviewed = listReviewCalls(db, 500).filter((c) => c.review && c.outcome === "won").length;
+  const scriptCount = s.closingScriptCalls ?? 0;
+  const scriptAt = s.closingScriptAt ? Date.parse(s.closingScriptAt) : 0;
+  if (wonReviewed > 0 && (!s.closingScript || (reviewed - scriptCount >= SCRIPT_MIN_NEW && now - scriptAt > DAY_MS))) {
+    try {
+      await buildClosingScript();
+    } catch (e) {
+      console.warn("[fathom] script :", e instanceof Error ? e.message : String(e));
+    }
+  }
+  saveSettings({ fathomAutopilotAt: new Date().toISOString() });
 }

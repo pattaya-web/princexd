@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { SourceChip } from "@/components/sales/AttributionBlock";
 import { AttentionCard } from "@/components/sales/DashboardBlocks";
 import { CallsSection } from "@/components/sales/CallsSection";
-import { ClosingReviewCard } from "@/components/sales/ClosingReviewCard";
+import { CallsAnalysisTeaser } from "@/components/sales/CallsAnalysis";
 import { InvestmentsCard } from "@/components/sales/InvestmentsCard";
 import { UtmLinksTable } from "@/components/sales/UtmLinksTable";
 import { SetterTasksAdminCard } from "@/components/sales/SetterTasksCard";
@@ -463,9 +463,9 @@ export default function SalesDashboardPage() {
           )}
           {ops?.attention && <AttentionCard block={ops.attention} />}
 
-          <Section title="Mes calls de closing" hint="relus par l'IA depuis les enregistrements Fathom : points à améliorer, objections, et ton script">
-            <ClosingReviewCard currency={currency} />
-          </Section>
+          <div className="mb-4">
+            <CallsAnalysisTeaser />
+          </div>
 
           <Section title="Échéances" hint="d'après les échéanciers saisis sur les ventes">
             <div className="grid lg:grid-cols-2 gap-3">

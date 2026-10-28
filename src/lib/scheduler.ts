@@ -15,6 +15,9 @@ import { syncIclosedOutcomes, syncIclosedUpcoming } from "./sales/iclosed-sync";
 import { getSystemeioKey, syncSystemeio } from "./systemeio";
 import { getTelegramToken, pollTelegramLinks, runTakeoverWarnings, runTelegramReminders } from "./telegram";
 import { getFathomKey, syncFathom } from "./fathom";
+import { runFathomAutopilot } from "./fathom-review";
+import { syncStaleCreators } from "./creators-sync";
+import { getIgToken } from "./instagram";
 
 const SIO_EVERY_MS = 2 * 60_000;
 const ICLOSED_EVERY_MS = 5 * 60_000;
@@ -83,6 +86,22 @@ async function tickFathom() {
   } catch (e) {
     console.warn("[scheduler] Fathom :", e instanceof Error ? e.message : String(e));
   }
+  // Puis le pilote : analyses des calls en attente, enseignements, script.
+  try {
+    await runFathomAutopilot();
+  } catch (e) {
+    console.warn("[scheduler] pilote Fathom :", e instanceof Error ? e.message : String(e));
+  }
+}
+
+/** Concurrence : les comptes suivis se rafraichissent tout seuls (12 h), quelques-uns par passage. */
+async function tickCreators() {
+  if (!getIgToken()) return;
+  try {
+    await syncStaleCreators(3);
+  } catch (e) {
+    console.warn("[scheduler] concurrents :", e instanceof Error ? e.message : String(e));
+  }
 }
 
 /**
@@ -117,6 +136,7 @@ export function startScheduler() {
       if (n % Math.round(ICLOSED_EVERY_MS / SIO_EVERY_MS) === 0) await tickIclosed();
       await tickTelegram();
       await tickFathom();
+      await tickCreators();
     } finally {
       state.running = false;
       n++;
