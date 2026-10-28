@@ -36,6 +36,8 @@ export default function ReelsPage() {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<History[]>([]);
   const [session, setSession] = useState<{ seen: number; kept: number }>({ seen: 0, kept: 0 });
+  /** Reels arrives du feed depuis l'ouverture de la page (affiche dans le compteur). */
+  const [freshCount, setFreshCount] = useState(0);
   const [last, setLast] = useState<{ reel: Reel; swipeId: string; stage: SwipeStage | ""; note: string } | null>(null);
   const noteTimer = useRef<number | null>(null);
 
@@ -45,7 +47,8 @@ export default function ReelsPage() {
       const r = await api<ReelsPayload>("/api/reels");
       setStats(r.stats);
       setKept(r.kept);
-      // On ne bouscule pas la carte en cours : les nouveaux arrivent a la suite.
+      // On ne bouscule pas la carte en cours, mais les nouveaux Reels passent juste derriere elle :
+      // ce qui vient d'arriver du feed se trie en premier, pas apres tout le reste.
       setQueue((cur) => {
         if (!cur.length) return r.queue;
         const have = new Set(cur.map((x) => x.id));
@@ -53,7 +56,9 @@ export default function ReelsPage() {
         const byId = new Map(r.queue.map((x) => [x.id, x]));
         // Les videos arrivees entre-temps remplacent les fiches sans video.
         const refreshed = cur.map((x) => byId.get(x.id) ?? x).filter((x) => byId.has(x.id) || !x.decision);
-        return [...refreshed, ...fresh];
+        if (!fresh.length) return refreshed;
+        setFreshCount((n) => n + fresh.length);
+        return [refreshed[0], ...fresh, ...refreshed.slice(1)];
       });
       setError(null);
     } catch (e) {
@@ -210,7 +215,7 @@ export default function ReelsPage() {
           <aside className="flex flex-col gap-3 lg:sticky lg:top-4">
             <div className="card p-4">
               <div className="grid grid-cols-3 gap-2 text-center">
-                <Stat label="À trier" value={queue.length} />
+                <Stat label="À trier" value={queue.length} sub={freshCount ? `+${freshCount} arrivés` : undefined} />
                 <Stat label="Vus (session)" value={session.seen} />
                 <Stat label="Gardés (session)" value={session.kept} color="var(--good)" />
               </div>
@@ -276,13 +281,18 @@ export default function ReelsPage() {
   );
 }
 
-function Stat({ label, value, color }: { label: string; value: number; color?: string }) {
+function Stat({ label, value, color, sub }: { label: string; value: number; color?: string; sub?: string }) {
   return (
     <div>
       <div className="text-[22px] font-semibold num leading-none" style={{ color }}>
         {value}
       </div>
       <div className="label-xs mt-1">{label}</div>
+      {sub && (
+        <div className="text-[11px] font-semibold mt-0.5" style={{ color: "var(--good)" }}>
+          {sub}
+        </div>
+      )}
     </div>
   );
 }
