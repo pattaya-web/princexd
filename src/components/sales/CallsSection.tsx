@@ -177,7 +177,7 @@ function MonthsTable({ report }: { report: CallsReport }) {
     <div className="card overflow-x-auto" style={{ padding: 0 }}>
       <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
         <span className="text-[13px] font-semibold">Mois par mois</span>
-        <span className="dim text-[11.5px]">mêmes règles que les tuiles · les mois sans call sont grisés</span>
+        <span className="dim text-[11.5px]">une ligne = un mois seul · la ligne Total = toute la période = les tuiles · mois sans call grisés</span>
       </div>
       <table className="table w-full text-[13px]">
         <thead>
@@ -197,11 +197,18 @@ function MonthsTable({ report }: { report: CallsReport }) {
         <tbody>
           {report.months.map((m) => {
             const share = t.revenue > 0 ? (m.revenue / t.revenue) * 100 : 0;
+            // Mois coupe par la periode (ex. « 30 jours » commence le 29) : on le dit, sinon on compare un bout de mois a un mois entier.
+            const [y, mo] = m.month.split("-").map(Number);
+            const lastDay = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+            const fromD = report.from.slice(0, 7) === m.month ? Number(report.from.slice(8, 10)) : 1;
+            const toD = report.to.slice(0, 7) === m.month ? Number(report.to.slice(8, 10)) : lastDay;
+            const partial = fromD > 1 || toD < lastDay ? `du ${fromD === 1 ? "1er" : fromD} au ${toD}` : "";
             return (
               <tr key={m.month} className={m.calls === 0 ? "dim" : ""}>
                 <td className="whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{m.label}</span>
+                    {partial && <span className="dim text-[11px]">{partial}</span>}
                     {best && best.month === m.month && shown.length > 1 && (
                       <span className="badge !text-[10.5px]" style={{ color: GOOD }}>
                         meilleur mois
@@ -241,7 +248,10 @@ function MonthsTable({ report }: { report: CallsReport }) {
         </tbody>
         <tfoot>
           <tr className="font-semibold" style={{ borderTop: "2px solid var(--border)" }}>
-            <td>Total</td>
+            <td>
+              Total de la période
+              <div className="dim text-[10.5px] font-normal">= les tuiles au-dessus</div>
+            </td>
             <td className="text-right num">{int(t.calls)}</td>
             <td className="text-right num">{int(t.shows)}</td>
             <td className="text-right num">{int(t.noShows)}</td>
