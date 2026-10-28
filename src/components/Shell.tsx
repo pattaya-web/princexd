@@ -19,6 +19,35 @@ import { fmtInt, fmtMoney, fmtUsdInEur, setUsdToEur } from "@/lib/format";
 
 type Theme = "light" | "dark" | "system";
 
+/**
+ * Actualiser : recharge toute l'application, comme le bouton de Chrome.
+ * L'app de bureau (Edge --app) n'a pas de barre d'adresse : sans ce bouton,
+ * aucun moyen simple de forcer un rechargement apres une mise a jour.
+ */
+export function RefreshButton() {
+  const [spinning, setSpinning] = useState(false);
+  const go = () => {
+    setSpinning(true);
+    // reload() repasse par le serveur pour la page ; la version deployee est toujours la bonne.
+    window.location.reload();
+  };
+  return (
+    <button
+      type="button"
+      onClick={go}
+      className="h-[30px] px-2.5 rounded-full text-[12px] font-medium flex items-center gap-1.5"
+      style={{ background: "var(--surface-3)", color: "var(--text-2)" }}
+      title="Actualiser toute l'application (F5)"
+      aria-label="Actualiser"
+    >
+      <span className={spinning ? "animate-spin inline-block" : "inline-block"} aria-hidden>
+        ↻
+      </span>
+      <span className="hidden sm:inline">Actualiser</span>
+    </button>
+  );
+}
+
 export function ThemeToggle() {
   const [theme, setTheme] = useLocalState<Theme>("mvp-theme", "system");
 
@@ -951,6 +980,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <AlertsBell />
             </div>
           )}
+          <div className="shrink-0">
+            <RefreshButton />
+          </div>
           <div className="shrink-0">
             <ThemeToggle />
           </div>

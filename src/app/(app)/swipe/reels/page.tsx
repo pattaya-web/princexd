@@ -66,12 +66,18 @@ export default function ReelsPage() {
   useEffect(() => {
     void load();
   }, [load]);
-  // Le feed se remplit pendant que Mady scrolle : on regarde souvent quand la file est vide, moins souvent sinon.
+  // Le feed se remplit pendant que l'extension tourne : synchro toutes les 5 s, et des que l'onglet revient au premier plan.
   useEffect(() => {
-    const ms = queue.length === 0 ? 8_000 : 40_000;
-    const t = window.setInterval(() => void load(true), ms);
-    return () => window.clearInterval(t);
-  }, [queue.length, load]);
+    const t = window.setInterval(() => void load(true), 5_000);
+    const onVisible = () => document.visibilityState === "visible" && void load(true);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [load]);
 
   const decide = useCallback(
     async (reel: Reel, decision: Exclude<ReelDecision, "">) => {
@@ -142,6 +148,9 @@ export default function ReelsPage() {
         subtitle="Ton feed Instagram, à trier d'un geste : → à produire, ← passer. Le Reel gardé entre tout de suite dans tes contenus à faire."
         actions={
           <div className="flex items-center gap-2">
+            <button type="button" className="btn btn-sm" onClick={() => void load(true)} title="Recharger la file maintenant (sinon toutes les 5 s)">
+              ↻ Actualiser
+            </button>
             <Tabs
               value={tab}
               onChange={setTab}
