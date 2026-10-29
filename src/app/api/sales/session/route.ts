@@ -10,6 +10,7 @@ import {
   readSession,
   sessionFor,
   issueVaToken,
+  loginNeedsPassword,
   verifyOwnerLogin,
   ownerAccount,
   verifyPassword,
@@ -204,9 +205,14 @@ export async function POST(req: NextRequest) {
   if (!matched) {
     if (disabled) return NextResponse.json({ error: "Ce compte a été désactivé." }, { status: 403 });
     // Identifiant seul et pas d'eleve derriere : la page de connexion n'affiche
-    // le champ mot de passe qu'a ce moment-la (admin, equipe, ancienne fiche eleve).
+    // le champ mot de passe que si l'identifiant est un compte qui en a un
+    // (admin, equipe, VA). Sinon, c'est un identifiant inconnu : un eleve
+    // n'a jamais de mot de passe, il faut le lui dire clairement.
     if (username && !password) {
-      return NextResponse.json({ error: "Ce compte a un mot de passe.", needPassword: true }, { status: 401 });
+      if (loginNeedsPassword(username)) {
+        return NextResponse.json({ error: "Ce compte a un mot de passe.", needPassword: true }, { status: 401 });
+      }
+      return NextResponse.json({ error: "Identifiant inconnu. Vérifie l'identifiant que ton coach t'a envoyé (prenom.nom) : il suffit, il n'y a pas de mot de passe." }, { status: 401 });
     }
     return NextResponse.json({ error: "Identifiant ou mot de passe incorrect." }, { status: 401 });
   }

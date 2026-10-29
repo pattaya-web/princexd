@@ -78,7 +78,7 @@ export default function LoginPage() {
               Bienvenue.
             </h1>
             <p className="muted text-[14px] mt-2 mb-6 leading-relaxed">
-              {needPassword ? "Ce compte a un mot de passe : saisis-le pour continuer." : "Entre l'identifiant qui t'a été transmis."}
+              {needPassword ? "Ce compte a un mot de passe : saisis-le pour continuer." : "Entre l'identifiant qui t'a été transmis. Élève : ton identifiant suffit, pas de mot de passe."}
             </p>
 
             <label className="block">

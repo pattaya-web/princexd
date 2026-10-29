@@ -182,6 +182,28 @@ export function issueVaToken(): string {
   return issueToken({ role: "va", memberId: "", memberName: "VA Outreach" });
 }
 
+/**
+ * Cet identifiant ouvre-t-il un compte a mot de passe (admin, equipe, VA) ?
+ *
+ * La page de connexion n'affiche le champ mot de passe que dans ce cas. Un
+ * identifiant inconnu n'en a pas : un eleve qui se trompe d'identifiant (ou
+ * dont l'acces n'a pas encore ete cree) doit lire « identifiant inconnu »,
+ * pas « ce compte a un mot de passe », qui le fait chercher un mot de passe
+ * qui n'existe pas.
+ */
+export function loginNeedsPassword(username: string): boolean {
+  const u = normalizeUsername(username);
+  if (!u) return false;
+  // Mode historique : mot de passe seul de l'environnement, identifiant ignore.
+  if (ownerAuthEnabled() && !ownerAccount()) return true;
+  if (ownerAccount()?.username === u) return true;
+  const envUser = process.env.VA_USERNAME?.trim();
+  if (envUser && normalizeUsername(envUser) === u) return true;
+  const db = readDB();
+  if (db.settings.vaUsername && normalizeUsername(db.settings.vaUsername) === u) return true;
+  return db.team.some((m) => normalizeUsername(m.username ?? "") === u && Boolean(m.passwordHash));
+}
+
 /* ------------------------------ Acces eleve ------------------------------ */
 
 /**
