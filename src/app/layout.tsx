@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { Suspense } from "react";
 import { ToastHost } from "@/components/ui";
+import { DraftAutosave } from "@/components/DraftAutosave";
 import "./globals.css";
 
 /*
@@ -66,7 +68,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
       </head>
       <body>
-        <ToastHost>{children}</ToastHost>
+        <ToastHost>
+          {/* Sauvegarde automatique de tout texte tape dans l'app (voir /brouillons). */}
+          <Suspense fallback={null}>
+            <DraftAutosave />
+          </Suspense>
+          {children}
+        </ToastHost>
       </body>
     </html>
   );

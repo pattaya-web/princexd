@@ -132,6 +132,7 @@ const EMPTY_DB: DB = {
   settingExamples: [],
   setterTasks: [],
   meetLinks: [],
+  drafts: [],
 };
 
 function ensureFile() {

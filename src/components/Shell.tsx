@@ -556,6 +556,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
       { href: "/marque", label: "Ma marque", icon: "◆" },
       { href: "/ressources", label: "Ressources", icon: "▤" },
       { href: "/todo", label: "To-do", icon: "☑" },
+      { href: "/brouillons", label: "Brouillons", icon: "✎" },
       { href: "/reglages", label: "Réglages", icon: "⚙" },
     ],
   },
@@ -601,6 +602,7 @@ const SIMPLE_NAV: typeof NAV = [
     section: "Réglages",
     items: [
       { href: "/marque", label: "Ma marque", icon: "◆" },
+      { href: "/brouillons", label: "Brouillons", icon: "✎" },
       { href: "/reglages", label: "Réglages", icon: "⚙" },
     ],
   },

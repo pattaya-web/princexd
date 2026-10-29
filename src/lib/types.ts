@@ -1747,6 +1747,29 @@ export interface DB {
   setterTasks: SetterTask[];
   /** Liens Google Meet generes (Outils → Lien Meet). */
   meetLinks: MeetLink[];
+  /** Brouillons : tout texte tape ou colle dans l'app, sauvegarde en continu (voir DraftAutosave). */
+  drafts: Draft[];
+}
+
+/**
+ * Un champ de texte en cours de saisie, sauvegarde automatiquement a chaque
+ * frappe pour etre retrouve au retour sur la page (changement d'onglet,
+ * fermeture, coupure). Cle = (who, page, field).
+ */
+export interface Draft {
+  id: ID;
+  /** Qui tape : « owner », ou role:memberId pour un membre / eleve. */
+  who: string;
+  /** pathname + search de la page. */
+  page: string;
+  /** Identifiant stable du champ dans la page (id, name, placeholder… + rang). */
+  field: string;
+  /** Libelle lisible du champ (placeholder ou label) pour la page Brouillons. */
+  label: string;
+  value: string;
+  /** Valeur du champ avant que l'utilisateur ne tape (pour restaurer au bon moment). */
+  base: string;
+  updatedAt: string;
 }
 
 /* ===================================================================== *
