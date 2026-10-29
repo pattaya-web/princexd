@@ -1198,9 +1198,11 @@ function IclosedOptIns({ version, onChanged }: { version: number; onChanged: () 
   const [sheetId, setSheetId] = useState<string | null>(null);
   const rows = data?.rows ?? [];
   const hot = rows.filter((r) => r.status === "QUALIFIED" && !r.callStatus && !r.appointmentAt).length;
+  const fresh = rows.filter((r) => !r.callStatus && !r.appointmentAt).length;
   return (
     <>
-      <details className="card">
+      {/* Deplie tout seul tant qu'il reste des contacts jamais contactes : c'est du chaud. */}
+      <details className="card" open={fresh > 0}>
         <summary className="cursor-pointer select-none px-4 sm:px-5 py-3.5 flex items-center gap-2 flex-wrap">
           <span className="text-[15px] font-semibold">Leads iClosed · opt-in sans rendez-vous</span>
           <span className="badge !text-[10.5px] !py-0 num">{rows.length}</span>

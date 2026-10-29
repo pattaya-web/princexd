@@ -145,8 +145,20 @@ export interface IclosedContact {
   lastName: string | null;
   email: string | null;
   phoneNumber: string | null;
+  /** iClosed garde parfois un second email / numero (ex. le meme sans le 0). */
+  secondary_email?: string | null;
+  secondary_phoneNumber?: string | null;
   createdAt: string;
-  /** POTENTIAL, QUALIFIED, DISQUALIFIED, STRATEGY_CALL_BOOKED (verifie le 2026-10-27). */
+  /**
+   * POTENTIAL, QUALIFIED, DISQUALIFIED, STRATEGY_CALL_BOOKED (verifie le
+   * 2026-10-27). Pas toujours a jour : un contact QUALIFIED peut avoir
+   * reserve deux minutes plus tard (Stacy, 2026-10-27), d'ou le croisement
+   * avec nos rendez-vous dans /api/sales/iclosed/contacts. Les reponses au
+   * questionnaire d'un contact SANS reservation ne sont pas exposees par
+   * l'API publique (ni /contacts/{id}, ni endpoint d'answers : 404, verifie
+   * le 2026-10-29) ; elles n'arrivent qu'avec l'eventCall, une fois le call
+   * reserve.
+   */
   status: string;
   country: string | null;
   timeZone?: string;
@@ -155,16 +167,32 @@ export interface IclosedContact {
   user?: IclosedUser;
 }
 
-/** Les contacts, les plus recents d'abord (page 0 = les derniers). */
-export async function fetchContacts(maxPages = 3, perPage = 100): Promise<IclosedContact[]> {
+/**
+ * Les contacts du compte, les plus recents d'abord.
+ *
+ * ATTENTION (verifie le 2026-10-29) : sans tri explicite, `/v1/contacts`
+ * renvoie les contacts du PLUS ANCIEN au plus recent (page 0 = decembre
+ * 2024). Le dashboard lisait trois pages de 100 et ne voyait donc que les
+ * 300 contacts les plus vieux : les formulaires de la semaine n'arrivaient
+ * jamais chez le setter. Le tri se demande avec
+ * `orderBy=desc&orderColumn=createdAt` (les deux ensemble, sinon HTTP 400 ;
+ * `sort`, `order`, `status`, `dateFrom` sont ignores). On lit page par page
+ * et on s'arrete des que la page atteint des contacts plus vieux que
+ * `sinceDays`, ou a `maxPages` (quota iClosed : 200 requetes / heure).
+ */
+export async function fetchContacts(sinceDays = 365, maxPages = 10, perPage = 100): Promise<IclosedContact[]> {
   const out: IclosedContact[] = [];
+  const floor = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
   for (let page = 0; page < maxPages; page++) {
-    const res = await call<{ data: { contacts: IclosedContact[]; count: number } }>(`/v1/contacts?limit=${perPage}&page=${page}`);
+    const res = await call<{ data: { contacts: IclosedContact[]; count: number } }>(
+      `/v1/contacts?limit=${perPage}&page=${page}&orderBy=desc&orderColumn=createdAt`,
+    );
     const batch = res.data?.contacts ?? [];
     out.push(...batch);
-    if (batch.length < perPage || out.length >= (res.data?.count ?? 0)) break;
+    const oldest = batch.at(-1)?.createdAt ?? "";
+    if (batch.length < perPage || out.length >= (res.data?.count ?? 0) || (oldest && oldest < floor)) break;
   }
-  return out;
+  return out.filter((c) => !c.createdAt || c.createdAt >= floor);
 }
 
 export async function fetchDeals() {

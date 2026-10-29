@@ -148,7 +148,7 @@ export default function LeadsOverviewPage() {
       {view === "iclosed" ? (
         <Card
           title="Formulaire iClosed rempli, pas de rendez-vous"
-          subtitle={ic?.fetchedAt ? `Lu chez iClosed ${relative(ic.fetchedAt)} · les 300 contacts les plus récents, hors RDV pris. À rappeler ou à relancer : ils étaient à un clic de réserver.` : "iClosed garde les coordonnées même quand la personne ne va pas au bout."}
+          subtitle={ic?.fetchedAt ? `Lu chez iClosed ${relative(ic.fetchedAt)} · tous les contacts des 12 derniers mois sans rendez-vous, les plus récents d'abord (dès qu'un nom, un numéro ou un email est laissé). À rappeler ou à relancer : ils étaient à un clic de réserver.` : "iClosed garde les coordonnées même quand la personne ne va pas au bout."}
           padded={false}
           actions={
             <button className="btn btn-sm" onClick={() => void refreshIc()} disabled={icForcing}>

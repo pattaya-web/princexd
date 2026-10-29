@@ -14,10 +14,17 @@ import type { IclosedContactRow } from "@/app/api/sales/iclosed/contacts/route";
  * on voit qui l'a appelee et ce qu'elle a repondu, on statue en un clic.
  */
 export const OPTIN_GROUPS: { status: string; title: string; hint: string; tone: string }[] = [
-  { status: "QUALIFIED", title: "Qualifiés · pas de rendez-vous", hint: "Ont rempli le questionnaire avec les bons critères (budget à investir), puis n'ont pas pris le call. Les plus chauds.", tone: "var(--good)" },
-  { status: "POTENTIAL", title: "Formulaire commencé", hint: "Ont laissé nom / téléphone / email sur le calendrier sans finir le questionnaire.", tone: "#f97316" },
-  { status: "DISQUALIFIED", title: "Disqualifiés · pas de rendez-vous", hint: "Ont répondu au questionnaire sans remplir les critères.", tone: "var(--text-3)" },
+  { status: "QUALIFIED", title: "Qualifiés · pas de rendez-vous", hint: "Ont répondu à tout le questionnaire avec les bons critères (budget à investir), puis n'ont pas choisi de créneau. Les plus chauds : à appeler en premier.", tone: "var(--good)" },
+  { status: "POTENTIAL", title: "Formulaire commencé", hint: "Ont laissé nom / téléphone / email sur le calendrier et se sont arrêtés avant la fin du questionnaire.", tone: "#f97316" },
+  { status: "DISQUALIFIED", title: "Disqualifiés · pas de rendez-vous", hint: "Ont répondu au questionnaire sans remplir les critères (iClosed ne leur a pas proposé de créneau).", tone: "var(--text-3)" },
 ];
+
+/** Ce qu'iClosed nous dit du formulaire : l'API ne donne pas les réponses tant que le call n'est pas réservé. */
+const FORM_STATE: Record<string, string> = {
+  QUALIFIED: "questionnaire rempli, critères OK (réponses non transmises par iClosed avant la réservation)",
+  POTENTIAL: "questionnaire pas terminé",
+  DISQUALIFIED: "questionnaire rempli, critères non remplis",
+};
 
 const CALL_STATUS: Record<string, string> = {
   "no-answer": "Pas de réponse",
@@ -96,10 +103,21 @@ export function IclosedOptInsList({ rows, limit, onChanged, onOpen }: { rows: Ic
                           <span className="dim text-[11.5px]">sans numéro</span>
                         )}
                         {r.country && <span className="dim text-[11px]">{r.country}</span>}
+                        {r.timezone && r.timezone !== "Europe/Paris" && (
+                          <span className="dim text-[11px]" title="Fuseau horaire laissé sur le calendrier">
+                            {r.timezone}
+                          </span>
+                        )}
                       </span>
                       <span className="dim text-[11.5px] block">
                         Formulaire {relative(r.createdAt)} · {fmtDateTime(r.createdAt)}
-                        {r.email ? ` · ${r.email}` : ""}
+                        {r.email ? " · " : ""}
+                        {r.email && (
+                          <button type="button" className="link" onClick={() => void copy(r.email)} title="Copier l'email">
+                            {r.email}
+                          </button>
+                        )}
+                        {FORM_STATE[r.status] ? ` · ${FORM_STATE[r.status]}` : ""}
                       </span>
                       {/* Qui l'a appele, ce qu'il a repondu. */}
                       {(r.callStatus || r.setterName) && (
