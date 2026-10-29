@@ -231,6 +231,16 @@ export function CreditsWidget() {
             </span>
             {low && <span className="badge badge-warn !py-0">Bas</span>}
           </div>
+          {/* Page de facturation KIE : recharger sans chercher dans leur menu. */}
+          <a
+            href="https://kie.ai/billing"
+            target="_blank"
+            rel="noreferrer"
+            className={`btn btn-sm w-full mt-2 !h-[26px] !text-[11.5px] ${low ? "btn-primary" : ""}`}
+            title="Ouvre la page Billing de kie.ai pour acheter des crédits"
+          >
+            Recharger ↗
+          </a>
         </>
       )}
     </div>

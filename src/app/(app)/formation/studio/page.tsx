@@ -99,7 +99,13 @@ export default function StudentStudioPage() {
             </a>{" "}
             (e-mail ou Google).
           </li>
-          <li>Recharge des crédits : menu Billing / Credits, carte bancaire.</li>
+          <li>
+            Recharge des crédits sur{" "}
+            <a href="https://kie.ai/billing" target="_blank" rel="noreferrer" className="underline" style={{ color: "var(--accent)" }}>
+              kie.ai/billing
+            </a>{" "}
+            (carte bancaire).
+          </li>
           <li>Ouvre « API Key » dans le menu, clique « Create / Copy » et copie la clé (une longue suite de lettres et de chiffres).</li>
           <li>Colle-la ci-dessous. Elle est vérifiée auprès de KIE puis gardée pour toi ; personne ne la revoit en clair.</li>
         </ol>
@@ -110,6 +116,9 @@ export default function StudentStudioPage() {
                 Clé en place : <span className="mono">{data.keyMask}</span>
               </span>
               <span className={`badge !text-[10.5px] ${data.credits !== null ? "badge-good" : "badge-warn"}`}>{data.credits !== null ? `${data.credits} crédits` : "clé refusée"}</span>
+              <a href="https://kie.ai/billing" target="_blank" rel="noreferrer" className="btn btn-sm" title="Acheter des crédits sur kie.ai (page Billing)">
+                Recharger ↗
+              </a>
               {data.creditsError && <span className="dim text-[12px] w-full">{data.creditsError}</span>}
               <button type="button" className="btn btn-sm btn-ghost" onClick={() => void save("CLEAR")} disabled={saving}>
                 Effacer
