@@ -42,16 +42,18 @@ export async function POST(req: NextRequest) {
     const guestEmail = String(b.guestEmail ?? "").trim().toLowerCase().slice(0, 120);
     if (guestEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(guestEmail)) throw new Error("Email de l'invité invalide.");
     const timeZone = b.timeZone === "Europe/Paris" ? "Europe/Paris" : "Asia/Dubai";
-    const startAt = String(b.startAt ?? "");
+    // Reunion instantanee : elle commence maintenant, pas besoin de choisir une heure.
+    const instant = b.instant === true;
+    const startAt = instant ? new Date().toISOString() : String(b.startAt ?? "");
     if (Number.isNaN(Date.parse(startAt))) throw new Error("Date et heure du call manquantes.");
     const durationMin = Math.min(Math.max(Number(b.durationMin) || 30, 10), 240);
     const endAt = new Date(Date.parse(startAt) + durationMin * 60_000).toISOString();
-    const title = String(b.title ?? "").trim().slice(0, 120) || `${MEET_KINDS[kind]}${guestName ? ` · ${guestName}` : ""} · Mady`;
+    const title = String(b.title ?? "").trim().slice(0, 120) || `${instant ? "Réunion instantanée" : MEET_KINDS[kind]}${guestName ? ` · ${guestName}` : ""} · Mady`;
     const note = String(b.note ?? "").trim().slice(0, 2000);
     const ev = await createMeetEvent({ title, description: note, startAt: new Date(startAt).toISOString(), endAt, timeZone, attendees: guestEmail ? [guestEmail] : [] });
     const db = readDB();
     db.meetLinks ??= [];
-    const link: MeetLink = { id: newId(), kind, title, guestName, guestEmail, startAt: new Date(startAt).toISOString(), timeZone, durationMin, meetUrl: ev.meetUrl, eventUrl: ev.eventUrl, eventId: ev.id, note, createdAt: new Date().toISOString() };
+    const link: MeetLink = { id: newId(), kind, title, guestName, guestEmail, startAt: new Date(startAt).toISOString(), timeZone, durationMin, meetUrl: ev.meetUrl, eventUrl: ev.eventUrl, eventId: ev.id, note, createdAt: new Date().toISOString(), ...(instant ? { instant: true } : {}) };
     db.meetLinks.unshift(link);
     writeDB(db);
     return { link };

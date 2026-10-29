@@ -31,12 +31,13 @@ function localInput(iso: string, tz: string): string {
 }
 
 /** Le message prêt à envoyer au prospect, dans son fuseau. */
-function invitation(l: Pick<MeetLink, "guestName" | "startAt" | "timeZone" | "meetUrl" | "kind">): string {
+function invitation(l: Pick<MeetLink, "guestName" | "startAt" | "timeZone" | "meetUrl" | "kind" | "instant">): string {
+  const hello = l.guestName ? `Salut ${l.guestName.split(" ")[0]}, ` : "Salut, ";
+  if (l.instant) return `${hello}voici le lien pour notre ${l.kind === "student" ? "call" : "appel"}, je t'attends dedans :\n${l.meetUrl}`;
   const tz = l.timeZone;
   const tzLabel = tz === FR ? "heure de Paris" : "heure de Dubaï";
   const day = new Intl.DateTimeFormat("fr-FR", { timeZone: tz, weekday: "long", day: "numeric", month: "long" }).format(new Date(l.startAt));
   const hour = new Intl.DateTimeFormat("fr-FR", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date(l.startAt));
-  const hello = l.guestName ? `Salut ${l.guestName.split(" ")[0]}, ` : "Salut, ";
   return `${hello}voici le lien pour notre ${l.kind === "student" ? "call" : "appel"} ${day} à ${hour} (${tzLabel}) :\n${l.meetUrl}\nÀ tout à l'heure !`;
 }
 
@@ -95,21 +96,45 @@ export default function MeetPage() {
     }
   };
 
-  const create = async () => {
-    if (!startIso) return toast("Choisis la date et l'heure.", "err");
-    setBusy(true);
+  const [instantBusy, setInstantBusy] = useState(false);
+
+  const create = async (instant = false) => {
+    if (!instant && !startIso) return toast("Choisis la date et l'heure.", "err");
+    /*
+     * Reunion instantanee : l'onglet Meet est ouvert tout de suite (dans le
+     * clic, sinon le navigateur bloque la fenetre) puis pointe sur le lien
+     * des qu'il existe ; le lien est aussi copie pour l'envoyer au prospect.
+     */
+    const tab = instant ? window.open("", "_blank") : null;
+    if (instant) setInstantBusy(true);
+    else setBusy(true);
     try {
-      const r = await api<{ link: MeetLink }>("/api/google/meet", { method: "POST", body: JSON.stringify({ kind, guestName, guestEmail, startAt: startIso, timeZone: tz, durationMin: duration, note }), timeoutMs: 60_000 });
+      const body = instant
+        ? { kind, guestName, guestEmail, instant: true, timeZone: tz, durationMin: duration, note }
+        : { kind, guestName, guestEmail, startAt: startIso, timeZone: tz, durationMin: duration, note };
+      const r = await api<{ link: MeetLink }>("/api/google/meet", { method: "POST", body: JSON.stringify(body), timeoutMs: 60_000 });
       setLast(r.link);
-      toast(guestEmail ? "Lien Meet créé, invitation envoyée." : "Lien Meet créé.");
+      if (tab) {
+        tab.location.href = r.link.meetUrl;
+        try {
+          await navigator.clipboard.writeText(r.link.meetUrl);
+          toast("Réunion lancée, lien copié : envoie-le au prospect.");
+        } catch {
+          toast("Réunion lancée. Copie le lien ci-contre pour le prospect.");
+        }
+      } else {
+        toast(guestEmail ? "Lien Meet créé, invitation envoyée." : "Lien Meet créé.");
+      }
       setGuestName("");
       setGuestEmail("");
       setNote("");
       void load();
     } catch (e) {
+      tab?.close();
       toast((e as Error).message, "err");
     } finally {
       setBusy(false);
+      setInstantBusy(false);
     }
   };
 
@@ -133,7 +158,15 @@ export default function MeetPage() {
 
   return (
     <div>
-      <PageHeader title="Lien Meet" subtitle="Un call de vente ou un call élève à l'heure de Dubaï ou de France : le lien Meet est généré, le rendez-vous est posé dans ton Google Agenda, l'invité reçoit l'invitation." />
+      <PageHeader
+        title="Lien Meet"
+        subtitle="Un call de vente ou un call élève à l'heure de Dubaï ou de France : le lien Meet est généré, le rendez-vous est posé dans ton Google Agenda, l'invité reçoit l'invitation. Pour un call tout de suite, « Réunion instantanée »."
+        actions={
+          <button className="btn btn-primary" onClick={() => void create(true)} disabled={instantBusy || busy || !data?.connected} title="Démarre un Meet maintenant : l'onglet s'ouvre et le lien est copié">
+            {instantBusy ? <span className="spinner" /> : "⚡ Réunion instantanée"}
+          </button>
+        }
+      />
       {error && <ErrorNote>{error}</ErrorNote>}
 
       {data && !data.connected && (
@@ -203,8 +236,11 @@ export default function MeetPage() {
             <Field label="Note (dans l'événement)">
               <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optionnel" />
             </Field>
-            <div className="flex justify-end">
-              <button className="btn btn-primary" onClick={() => void create()} disabled={busy || !data?.connected}>
+            <div className="flex justify-end items-center gap-2 flex-wrap">
+              <button className="btn" onClick={() => void create(true)} disabled={instantBusy || busy || !data?.connected} title="Démarre maintenant, avec l'invité et la durée ci-dessus si tu les as remplis">
+                {instantBusy ? <span className="spinner" /> : "⚡ Maintenant"}
+              </button>
+              <button className="btn btn-primary" onClick={() => void create()} disabled={busy || instantBusy || !data?.connected}>
                 {busy ? <span className="spinner" /> : "Générer le lien Meet"}
               </button>
             </div>
@@ -213,7 +249,7 @@ export default function MeetPage() {
 
         <div className="flex flex-col gap-4">
           {last && (
-            <Card title="Lien prêt" subtitle={last.guestEmail ? `Invitation envoyée à ${last.guestEmail}` : "Copie le message et envoie-le."}>
+            <Card title={last.instant ? "Réunion en cours" : "Lien prêt"} subtitle={last.guestEmail ? `Invitation envoyée à ${last.guestEmail}` : last.instant ? "Le Meet est ouvert dans un autre onglet. Envoie le lien au prospect." : "Copie le message et envoie-le."}>
               <div className="flex flex-col gap-2.5">
                 <div className="flex items-center gap-2 flex-wrap">
                   <a href={last.meetUrl} target="_blank" rel="noreferrer" className="link mono text-[13px] break-all">
@@ -222,6 +258,11 @@ export default function MeetPage() {
                   <button className="btn btn-sm btn-primary" onClick={() => void copy(last.meetUrl, "Lien Meet copié.")}>
                     Copier le lien
                   </button>
+                  {last.instant && (
+                    <a className="btn btn-sm" href={last.meetUrl} target="_blank" rel="noreferrer">
+                      Rejoindre ↗
+                    </a>
+                  )}
                 </div>
                 <pre className="text-[13px] leading-relaxed whitespace-pre-wrap rounded-[8px] px-3 py-2.5" style={{ fontFamily: "inherit", background: "var(--surface-2)", border: "1px solid var(--border)" }}>
                   {invitation(last)}
@@ -254,6 +295,7 @@ export default function MeetPage() {
                     <span className="min-w-0 flex-1 basis-[200px]">
                       <span className="block text-[13px] font-medium truncate">{l.title}</span>
                       <span className="dim text-[11.5px] block">
+                        {l.instant ? "⚡ Instantanée · " : ""}
                         {fmtDate(l.startAt, l.timeZone)} {fmtTime(l.startAt, l.timeZone)} ({l.timeZone === FR ? "France" : "Dubaï"}) · {l.durationMin} min
                         {l.guestEmail ? ` · ${l.guestEmail}` : ""}
                       </span>

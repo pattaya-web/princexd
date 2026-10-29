@@ -759,6 +759,8 @@ export interface MeetLink {
   eventId: string;
   note: string;
   createdAt: string;
+  /** Reunion instantanee : demarree « maintenant », sans heure prevue a l'avance. */
+  instant?: boolean;
 }
 
 /**
