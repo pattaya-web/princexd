@@ -226,25 +226,55 @@ export function ReelsTinder({ queue, onDecide, onUndo, canUndo, muted, onToggleM
 }
 
 /** La video locale si l'extension l'a envoyee ; sinon l'embed Instagram, le temps du transfert. */
+/**
+ * Le son est actif par defaut. Si le navigateur refuse de lancer une video
+ * sonore sans geste de l'utilisateur (premiere ouverture de la page), on la
+ * lance muette et on affiche un bandeau « clique pour le son » : un clic
+ * remet le son, et le navigateur accepte ensuite tous les Reels suivants.
+ */
 function Player({ reel, muted, onToggleMuted }: { reel: Reel; muted: boolean; onToggleMuted: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [failed, setFailed] = useState(false);
+  const [blocked, setBlocked] = useState(false);
   useEffect(() => {
     setFailed(false);
+    setBlocked(false);
+    const v = videoRef.current;
+    if (!v) return;
+    v.currentTime = 0;
+    v.muted = muted;
+    void v.play().catch(() => {
+      if (muted || !videoRef.current) return;
+      // Autoplay sonore refuse : on joue muet, le bandeau propose le son.
+      videoRef.current.muted = true;
+      setBlocked(true);
+      void videoRef.current.play().catch(() => undefined);
+    });
+  }, [reel.id, muted]);
+
+  const unblock = () => {
     const v = videoRef.current;
     if (v) {
-      v.currentTime = 0;
+      v.muted = false;
       void v.play().catch(() => undefined);
     }
-  }, [reel.id]);
+    setBlocked(false);
+    if (muted) onToggleMuted();
+  };
 
   if (reel.video && !failed) {
     return (
       <>
         <video ref={videoRef} src={reel.video} poster={reel.thumbnail || undefined} className="absolute inset-0 w-full h-full object-cover" autoPlay loop playsInline muted={muted} onError={() => setFailed(true)} />
-        <button type="button" className="absolute top-3 right-3 w-[34px] h-[34px] rounded-full text-[15px] text-white" style={{ background: "rgba(0,0,0,.45)" }} onClick={onToggleMuted} title={muted ? "Activer le son (M)" : "Couper le son (M)"}>
-          {muted ? "🔇" : "🔊"}
-        </button>
+        {blocked ? (
+          <button type="button" className="absolute top-3 right-3 h-[34px] px-3 rounded-full text-[12.5px] font-semibold text-white" style={{ background: "rgba(0,0,0,.6)" }} onClick={unblock} title="Le navigateur a lancé la vidéo sans son : clique pour l'activer">
+            🔇 Clique pour le son
+          </button>
+        ) : (
+          <button type="button" className={`absolute top-3 right-3 h-[34px] rounded-full text-white ${muted ? "px-3 text-[12.5px] font-semibold" : "w-[34px] text-[15px]"}`} style={{ background: "rgba(0,0,0,.45)" }} onClick={onToggleMuted} title={muted ? "Activer le son (M)" : "Couper le son (M)"}>
+            {muted ? "🔇 Son coupé" : "🔊"}
+          </button>
+        )}
       </>
     );
   }

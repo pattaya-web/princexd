@@ -89,6 +89,21 @@ const pending = new Map<string, Promise<void>>();
 const failed = new Map<string, { at: number; message: string }>();
 const FAIL_TTL_MS = 10 * 60 * 1000;
 
+/**
+ * Le fichier envoye par l'extension Chrome « Mvdy Reels » pour cette
+ * publication, s'il existe (voir lib/reels : `reel.video` = /api/media/x.mp4).
+ * C'est le MP4 complet du feed, avec sa piste audio : quand un Reel du
+ * Tinder passe dans la Swipe file, le lecteur le joue directement au lieu
+ * de l'embed Instagram, qui demarre muet et que le serveur ne peut pas
+ * remplacer (Instagram bloque les telechargements depuis le VPS).
+ */
+function reelVideoName(url: string): string | null {
+  const key = url.toLowerCase();
+  const reel = readDB().reels.find((r) => r.video && clean(r.url).toLowerCase() === key);
+  const name = reel?.video?.startsWith("/api/media/") ? reel.video.slice("/api/media/".length) : "";
+  return name && fs.existsSync(path.join(MEDIA_DIR, name)) ? name : null;
+}
+
 /** Nom du fichier local (dans data/media) d'une publication, telecharge si besoin. */
 export async function ensureCreatorVideo(rawUrl: string): Promise<string> {
   const url = clean(rawUrl);
@@ -96,6 +111,8 @@ export async function ensureCreatorVideo(rawUrl: string): Promise<string> {
   const name = `v${hashKey(url)}.mp4`;
   const target = path.join(MEDIA_DIR, name);
   if (fs.existsSync(target)) return name;
+  const fromReel = reelVideoName(url);
+  if (fromReel) return fromReel;
 
   const recent = failed.get(url);
   if (recent && Date.now() - recent.at < FAIL_TTL_MS) throw new DownloadError(recent.message);
@@ -134,8 +151,10 @@ export async function ensureCreatorVideo(rawUrl: string): Promise<string> {
 
 /** Fichier local (nom) si deja en cache, sans rien telecharger. */
 export function cachedVideoName(rawUrl: string): string | null {
-  const name = `v${hashKey(clean(rawUrl))}.mp4`;
-  return fs.existsSync(path.join(MEDIA_DIR, name)) ? name : null;
+  const url = clean(rawUrl);
+  const name = `v${hashKey(url)}.mp4`;
+  if (fs.existsSync(path.join(MEDIA_DIR, name))) return name;
+  return reelVideoName(url);
 }
 
 /**

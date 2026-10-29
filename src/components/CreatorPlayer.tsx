@@ -106,11 +106,11 @@ export function CreatorPlayer({ permalink, src, onReady }: { permalink: string; 
         />
         {ready ? (
           <button className="btn btn-sm btn-primary" onClick={() => setUseVideo(true)}>
-            ▶ Lecteur complet prêt (avance rapide)
+            ▶ Lecteur complet prêt (avance rapide, son)
           </button>
         ) : failed ? (
           <span className="dim text-[11.5px] text-center">
-            Lecture via Instagram, sans avance rapide : le serveur n&apos;a pas pu récupérer le fichier.
+            Lecture via Instagram : le lecteur démarre muet, clique sur son icône haut-parleur pour le son. Le serveur n&apos;a pas pu récupérer le fichier (pas d&apos;avance rapide).
           </span>
         ) : checked ? (
           <span className="dim text-[11.5px] inline-flex items-center gap-1.5">

@@ -28,7 +28,8 @@ const BLUE: React.CSSProperties & Record<string, string> = { "--accent": "#006DB
 export default function ReelsPage() {
   const toast = useToast();
   const [tab, setTab] = useLocalState<Tab>("reels.tab", "discover");
-  const [muted, setMuted] = useLocalState<boolean>("reels.muted", true);
+  // Son actif par defaut (nouvelle cle : l'ancienne gardait « muet » chez ceux qui avaient deja ouvert la page).
+  const [muted, setMuted] = useLocalState<boolean>("reels.sound-off", false);
   const [queue, setQueue] = useState<Reel[]>([]);
   const [kept, setKept] = useState<KeptReel[]>([]);
   const [stats, setStats] = useState<ReelStats | null>(null);
