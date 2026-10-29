@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { igEmbedUrl } from "@/components/CreatorPlayer";
+import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { fmtCompact, relative } from "@/lib/format";
 import type { Reel, ReelDecision } from "@/lib/types";
 
@@ -154,9 +155,12 @@ export function ReelsTinder({ queue, onDecide, onUndo, canUndo, muted, onToggleM
                 <a href={current.author ? `https://www.instagram.com/${current.author}/` : current.url} target="_blank" rel="noreferrer" className="font-semibold text-[14px] hover:underline truncate">
                   {current.author ? `@${current.author}` : "Créateur inconnu"}
                 </a>
-                <a href={current.url} target="_blank" rel="noreferrer" className="shrink-0 text-[12px] px-2 py-1 rounded-md" style={{ background: "rgba(255,255,255,.16)" }} title="Ouvrir le Reel sur Instagram (O)">
-                  Instagram ↗
-                </a>
+                <span className="shrink-0 flex items-center gap-1.5">
+                  <CopyLinkButton url={current.url} label="Copier le lien" className="text-[12px] px-2 py-1 rounded-md text-white" style={{ background: "rgba(255,255,255,.16)" }} />
+                  <a href={current.url} target="_blank" rel="noreferrer" className="text-[12px] px-2 py-1 rounded-md" style={{ background: "rgba(255,255,255,.16)" }} title="Ouvrir le Reel sur Instagram (O)">
+                    Instagram ↗
+                  </a>
+                </span>
               </div>
               {current.authorName && <div className="text-[12px] opacity-80 truncate">{current.authorName}</div>}
               {current.caption && (

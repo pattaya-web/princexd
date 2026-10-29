@@ -9,6 +9,7 @@ import { STAGE_COLOR } from "@/components/swipe/panels";
 import { ErrorNote, PageHeader, Spinner, Tabs, useToast } from "@/components/ui";
 import { api, useLocalState } from "@/lib/client";
 import type { KeptReel, ReelStats } from "@/lib/reels";
+import { CopyLinkButton } from "@/components/CopyLinkButton";
 import type { ReelsPayload } from "@/app/api/reels/route";
 import { SWIPE_STAGES, type Reel, type ReelDecision, type SwipeStage } from "@/lib/types";
 
@@ -250,9 +251,12 @@ export default function ReelsPage() {
                     <Link href={`/swipe?s=${last.swipeId}`} className="text-[12px] underline">
                       Ouvrir la fiche →
                     </Link>
-                    <a href={last.reel.url} target="_blank" rel="noreferrer" className="text-[12px] underline">
-                      Instagram ↗
-                    </a>
+                    <span className="flex items-center gap-3">
+                      <CopyLinkButton url={last.reel.url} label="Copier le lien" className="text-[12px] underline" />
+                      <a href={last.reel.url} target="_blank" rel="noreferrer" className="text-[12px] underline">
+                        Instagram ↗
+                      </a>
+                    </span>
                   </div>
                 </>
               ) : (

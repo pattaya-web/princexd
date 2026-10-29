@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Empty, Modal, useToast } from "@/components/ui";
+import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { STAGE_COLOR } from "@/components/swipe/panels";
 import { api } from "@/lib/client";
 import { fmtCompact, fmtDate } from "@/lib/format";
@@ -196,6 +197,7 @@ export function ReelsTable({ rows, onChange }: { rows: KeptReel[]; onChange: (ne
                     </td>
                     <td className="whitespace-nowrap num dim text-[12px]">{r.decidedAt ? fmtDate(r.decidedAt) : "—"}</td>
                     <td className="text-right whitespace-nowrap">
+                      <CopyLinkButton url={r.url} label="Copier" />{" "}
                       <a className="btn btn-sm" href={r.url} target="_blank" rel="noreferrer" title="Ouvrir sur Instagram (liker, commenter)">
                         Instagram ↗
                       </a>{" "}

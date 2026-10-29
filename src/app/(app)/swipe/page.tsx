@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CreatorPlayer, DownloadButton } from "@/components/CreatorPlayer";
+import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { isLocalMedia, ThumbImg } from "@/components/MediaThumb";
 import { api, useCollection } from "@/lib/client";
 import { Card, Empty, ErrorNote, Modal, PageHeader, Spinner, Tabs, useToast } from "@/components/ui";
@@ -328,6 +329,7 @@ export default function SwipePage() {
               <a className="btn btn-sm" href={playing.url} target="_blank" rel="noreferrer">
                 Ouvrir sur {playing.platform === "instagram" ? "Instagram" : playing.platform}
               </a>
+              <CopyLinkButton url={playing.url} />
               <button
                 className="btn btn-sm btn-ghost ml-auto"
                 onClick={() => {
@@ -395,6 +397,8 @@ function SwipeCard({ s, working, active, onOpen, onNeed, onPlay, onSend }: { s: 
             <a href={s.url} target="_blank" rel="noreferrer" className="link">
               original ↗
             </a>
+            {" · "}
+            <CopyLinkButton url={s.url} label="copier le lien" className="link" />
             {" · "}
             {relative(s.createdAt)}
           </div>
@@ -530,6 +534,7 @@ function Detail({
           <a href={s.url} target="_blank" rel="noreferrer" className="btn btn-sm">
             Original ↗
           </a>
+          <CopyLinkButton url={s.url} />
           <button className="btn btn-sm btn-ghost" onClick={() => void onDelete()}>
             Supprimer
           </button>
