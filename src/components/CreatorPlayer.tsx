@@ -25,14 +25,36 @@ export function igEmbedUrl(permalink: string): string | null {
   return `https://www.instagram.com/${kind}/${m[2]}/embed/`;
 }
 
-type Ready = { src: string } | null;
+/** `audio` : false = fichier sans piste son (le lecteur le dit), null = inconnu. */
+type Ready = { src: string; audio: boolean | null } | null;
 
 export function CreatorPlayer({ permalink, src, onReady }: { permalink: string; src: string; onReady?: (localSrc: string) => void }) {
+  const toast = useToast();
   const embed = igEmbedUrl(permalink);
   const [ready, setReady] = useState<Ready>(null);
   const [useVideo, setUseVideo] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
+  const [refetching, setRefetching] = useState(false);
+  const sep = src.includes("?") ? "&" : "?";
+
+  /** Re-telecharge le fichier par l'API officielle (fichier muet ou abime). */
+  const refetch = async () => {
+    setRefetching(true);
+    try {
+      const r = await fetch(`${src}${sep}refetch=1`, { cache: "no-store" });
+      const b = (await r.json().catch(() => ({}))) as { ok?: boolean; src?: string; audio?: boolean | null; error?: string };
+      if (!r.ok || !b.ok || !b.src) throw new Error(b.error ?? `Erreur ${r.status}`);
+      // Nouvelle adresse (cache-busting) : le navigateur relit le fichier.
+      setReady({ src: `${b.src}?r=${Date.now()}`, audio: b.audio ?? null });
+      setUseVideo(true);
+      toast(b.audio === false ? "Fichier re-téléchargé, mais toujours sans piste audio : la source Instagram est muette." : "Fichier re-téléchargé.");
+    } catch (e) {
+      toast((e as Error).message, "err");
+    } finally {
+      setRefetching(false);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -40,15 +62,14 @@ export function CreatorPlayer({ permalink, src, onReady }: { permalink: string; 
     setUseVideo(false);
     setFailed(null);
     setChecked(false);
-    const sep = src.includes("?") ? "&" : "?";
 
     // 1. Deja en cache ? Reponse en un aller-retour, sans telechargement.
     fetch(`${src}${sep}cached=1`, { cache: "no-store" })
       .then(async (res) => {
-        const body = (await res.json().catch(() => ({}))) as { ok?: boolean; src?: string };
+        const body = (await res.json().catch(() => ({}))) as { ok?: boolean; src?: string; audio?: boolean | null };
         if (!alive) return;
         if (res.ok && body.ok && body.src) {
-          setReady({ src: body.src });
+          setReady({ src: body.src, audio: body.audio ?? null });
           setUseVideo(true);
           setChecked(true);
           onReady?.(body.src);
@@ -57,10 +78,10 @@ export function CreatorPlayer({ permalink, src, onReady }: { permalink: string; 
         setChecked(true);
         // 2. Pas en cache : on prepare en fond. L'embed occupe l'ecran en attendant.
         return fetch(`${src}${sep}prepare=1`, { cache: "no-store" }).then(async (r2) => {
-          const b2 = (await r2.json().catch(() => ({}))) as { ok?: boolean; src?: string; error?: string };
+          const b2 = (await r2.json().catch(() => ({}))) as { ok?: boolean; src?: string; audio?: boolean | null; error?: string };
           if (!alive) return;
           if (r2.ok && b2.ok && b2.src) {
-            setReady({ src: b2.src });
+            setReady({ src: b2.src, audio: b2.audio ?? null });
             onReady?.(b2.src);
             // Sans embed possible (TikTok, YouTube), on bascule directement.
             if (!embed) setUseVideo(true);
@@ -81,15 +102,30 @@ export function CreatorPlayer({ permalink, src, onReady }: { permalink: string; 
 
   if (useVideo && ready) {
     return (
-      <video
-        src={ready.src}
-        controls
-        autoPlay
-        playsInline
-        preload="auto"
-        className="w-full rounded-[9px]"
-        style={{ maxHeight: "70vh", background: "#000" }}
-      />
+      <div className="w-full flex flex-col gap-2">
+        <video
+          key={ready.src}
+          src={ready.src}
+          controls
+          autoPlay
+          playsInline
+          preload="auto"
+          className="w-full rounded-[9px]"
+          style={{ maxHeight: "70vh", background: "#000" }}
+        />
+        {ready.audio === false ? (
+          <div className="flex items-center gap-2 flex-wrap text-[12px] px-2.5 py-2 rounded-md" style={{ background: "var(--surface-2)", color: "var(--critical)" }}>
+            <span>Ce fichier n&apos;a pas de piste audio : ce n&apos;est pas ton casque. Le serveur peut le reprendre depuis Instagram.</span>
+            <button type="button" className="btn btn-sm" disabled={refetching} onClick={() => void refetch()}>
+              {refetching ? "Re-téléchargement…" : "Re-télécharger avec le son"}
+            </button>
+          </div>
+        ) : (
+          <span className="dim text-[11px]">
+            Fichier serveur{ready.audio ? " · piste audio présente (si rien ne sort, vérifie le mélangeur de volume Windows pour Edge)" : ""}
+          </span>
+        )}
+      </div>
     );
   }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readDB } from "@/lib/db";
 import { hashKey } from "@/lib/thumb-cache";
-import { cachedVideoName, ensureCreatorVideo } from "@/lib/video-source";
+import { cachedVideoName, ensureCreatorVideo, hasAudioTrack, refetchCreatorVideo } from "@/lib/video-source";
 import { DownloadError, isSupportedUrl } from "@/lib/ytdlp";
 
 export const dynamic = "force-dynamic";
@@ -26,17 +26,19 @@ export async function GET(req: NextRequest) {
   }
   const q = req.nextUrl.searchParams;
 
+  //  - ?refetch=1   re-telecharge par l'API officielle (fichier muet ou abime)
+  //  `audio` : true / false / null (ffprobe absent) sur cached, prepare et refetch.
   if (q.get("cached") === "1") {
     const name = cachedVideoName(raw);
-    return NextResponse.json(name ? { ok: true, src: `/api/media/${name}` } : { ok: false });
+    return NextResponse.json(name ? { ok: true, src: `/api/media/${name}`, audio: await hasAudioTrack(name) } : { ok: false });
   }
 
   try {
-    const name = await ensureCreatorVideo(raw);
+    const name = q.get("refetch") === "1" ? await refetchCreatorVideo(raw) : await ensureCreatorVideo(raw);
     const local = `/api/media/${name}`;
 
     if (q.get("probe") === "1") return NextResponse.json({ ok: true, src: local });
-    if (q.get("prepare") === "1") return NextResponse.json({ ok: true, src: local });
+    if (q.get("prepare") === "1" || q.get("refetch") === "1") return NextResponse.json({ ok: true, src: local, audio: await hasAudioTrack(name) });
 
     if (q.get("download") === "1") {
       const db = readDB();

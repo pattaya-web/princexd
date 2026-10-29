@@ -149,6 +149,48 @@ export async function ensureCreatorVideo(rawUrl: string): Promise<string> {
   return name;
 }
 
+/* Piste audio presente ? Par nom de fichier, memorise : ffprobe ne tourne qu'une fois. */
+const audioKnown = new Map<string, boolean>();
+
+/**
+ * Vrai si le fichier en cache a une piste audio, faux s'il est muet,
+ * null si ffprobe manque. Sert au lecteur pour le dire franchement
+ * (« ce fichier n'a pas de son ») au lieu de laisser chercher le casque.
+ */
+export async function hasAudioTrack(name: string): Promise<boolean | null> {
+  const known = audioKnown.get(name);
+  if (known !== undefined) return known;
+  try {
+    const { stdout } = await run("ffprobe", ["-v", "error", "-select_streams", "a", "-show_entries", "stream=codec_type", "-of", "csv=p=0", path.join(MEDIA_DIR, name)], { timeout: 30_000 });
+    const has = /audio/.test(stdout);
+    audioKnown.set(name, has);
+    return has;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Re-telecharge le fichier par l'API officielle (seule voie fiable sur le
+ * VPS) et remplace le cache. Refuse quand aucune source officielle n'existe :
+ * on ne supprime jamais un fichier qu'on ne saurait pas recreer.
+ */
+export async function refetchCreatorVideo(rawUrl: string): Promise<string> {
+  const url = clean(rawUrl);
+  if (!isSupportedUrl(url)) throw new DownloadError("Lien non reconnu.", 400);
+  const official = await officialVideoUrl(url);
+  if (!official) throw new DownloadError("Pas de source officielle pour cette vidéo (ni une de mes publications, ni un créateur suivi) : impossible de la re-télécharger depuis le serveur.", 404);
+  const name = `v${hashKey(url)}.mp4`;
+  const target = path.join(MEDIA_DIR, name);
+  const fresh = `${target}.new`;
+  await fs.promises.mkdir(MEDIA_DIR, { recursive: true });
+  await downloadFromUrl(official, fresh);
+  await fs.promises.rename(fresh, target);
+  audioKnown.delete(name);
+  failed.delete(url);
+  return name;
+}
+
 /** Fichier local (nom) si deja en cache, sans rien telecharger. */
 export function cachedVideoName(rawUrl: string): string | null {
   const url = clean(rawUrl);
