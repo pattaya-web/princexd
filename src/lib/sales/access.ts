@@ -191,17 +191,20 @@ export function issueVaToken(): string {
  * pas « ce compte a un mot de passe », qui le fait chercher un mot de passe
  * qui n'existe pas.
  */
-export function loginNeedsPassword(username: string): boolean {
+export function loginNeedsPassword(username: string): "account" | "legacy" | false {
   const u = normalizeUsername(username);
   if (!u) return false;
-  // Mode historique : mot de passe seul de l'environnement, identifiant ignore.
-  if (ownerAuthEnabled() && !ownerAccount()) return true;
-  if (ownerAccount()?.username === u) return true;
+  if (ownerAccount()?.username === u) return "account";
   const envUser = process.env.VA_USERNAME?.trim();
-  if (envUser && normalizeUsername(envUser) === u) return true;
+  if (envUser && normalizeUsername(envUser) === u) return "account";
   const db = readDB();
-  if (db.settings.vaUsername && normalizeUsername(db.settings.vaUsername) === u) return true;
-  return db.team.some((m) => normalizeUsername(m.username ?? "") === u && Boolean(m.passwordHash));
+  if (db.settings.vaUsername && normalizeUsername(db.settings.vaUsername) === u) return "account";
+  if (db.team.some((m) => normalizeUsername(m.username ?? "") === u && Boolean(m.passwordHash))) return "account";
+  // Mode historique : mot de passe seul de l'environnement, identifiant ignore.
+  // N'importe quel identifiant peut donc etre celui de l'admin : on laisse le
+  // champ, mais en disant que ce n'est pas un identifiant eleve.
+  if (ownerAuthEnabled() && !ownerAccount()) return "legacy";
+  return false;
 }
 
 /* ------------------------------ Acces eleve ------------------------------ */

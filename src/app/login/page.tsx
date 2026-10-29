@@ -22,6 +22,8 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [needPassword, setNeedPassword] = useState(false);
+  /** Identifiant qui n'est pas un eleve : le champ mot de passe s'ouvre (admin possible), avec l'explication pour un eleve qui se trompe. */
+  const [unknown, setUnknown] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -41,11 +43,12 @@ export default function LoginPage() {
       } catch {
         throw new Error("Connexion au serveur impossible. Vérifie ta connexion et réessaie.");
       }
-      const data = (await res.json().catch(() => ({}))) as { redirect?: string; error?: string; needPassword?: boolean };
+      const data = (await res.json().catch(() => ({}))) as { redirect?: string; error?: string; needPassword?: boolean; unknown?: boolean };
       if (!res.ok) {
         if (data.needPassword && !needPassword) {
           // Pas une erreur pour l'utilisateur : on ouvre juste le second champ.
           setNeedPassword(true);
+          setUnknown(Boolean(data.unknown));
           setLoading(false);
           return;
         }
@@ -78,7 +81,11 @@ export default function LoginPage() {
               Bienvenue.
             </h1>
             <p className="muted text-[14px] mt-2 mb-6 leading-relaxed">
-              {needPassword ? "Ce compte a un mot de passe : saisis-le pour continuer." : "Entre l'identifiant qui t'a été transmis. Élève : ton identifiant suffit, pas de mot de passe."}
+              {needPassword && unknown
+                ? "Cet identifiant n'est pas un identifiant élève. Si tu es élève, vérifie celui que ton coach t'a envoyé (prenom.nom) : il suffit, il n'y a pas de mot de passe. Sinon, saisis ton mot de passe."
+                : needPassword
+                  ? "Ce compte a un mot de passe : saisis-le pour continuer."
+                  : "Entre l'identifiant qui t'a été transmis. Élève : ton identifiant suffit, pas de mot de passe."}
             </p>
 
             <label className="block">
@@ -91,6 +98,7 @@ export default function LoginPage() {
                   setUsername(e.target.value);
                   if (needPassword) {
                     setNeedPassword(false);
+                    setUnknown(false);
                     setPassword("");
                   }
                 }}

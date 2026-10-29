@@ -209,10 +209,15 @@ export async function POST(req: NextRequest) {
     // (admin, equipe, VA). Sinon, c'est un identifiant inconnu : un eleve
     // n'a jamais de mot de passe, il faut le lui dire clairement.
     if (username && !password) {
-      if (loginNeedsPassword(username)) {
+      const need = loginNeedsPassword(username);
+      if (need === "account") {
         return NextResponse.json({ error: "Ce compte a un mot de passe.", needPassword: true }, { status: 401 });
       }
-      return NextResponse.json({ error: "Identifiant inconnu. Vérifie l'identifiant que ton coach t'a envoyé (prenom.nom) : il suffit, il n'y a pas de mot de passe." }, { status: 401 });
+      const unknown = "Identifiant inconnu côté élèves. Si tu es élève, vérifie l'identifiant que ton coach t'a envoyé (prenom.nom) : il suffit, il n'y a pas de mot de passe.";
+      if (need === "legacy") {
+        return NextResponse.json({ error: unknown, needPassword: true, unknown: true }, { status: 401 });
+      }
+      return NextResponse.json({ error: unknown }, { status: 401 });
     }
     return NextResponse.json({ error: "Identifiant ou mot de passe incorrect." }, { status: 401 });
   }
