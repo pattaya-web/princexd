@@ -12,7 +12,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const COOLIFY = "http://185.97.146.171:8000/api/v1";
+// Nom d'hôte plutôt que l'IP : le 2026-10-30 la route IPv4 vers le VPS est tombée depuis le PC, l'IPv6 passait.
+const COOLIFY = "http://srv1998631.hstgr.cloud:8000/api/v1";
 const APP_UUID = "3ebdarupnoajyk3ygbvebial";
 const TOKEN_FILE = path.join(os.homedir(), ".princexd-coolify-token");
 
