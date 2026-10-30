@@ -3,15 +3,16 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { Empty, ErrorNote, Spinner } from "@/components/ui";
-import { LessonGuides } from "@/components/formation/LessonGuides";
+import { FaqVideos } from "@/components/formation/FaqVideos";
 import { PortalFooter } from "@/components/formation/portal";
 import type { CourseResourcesPayload } from "@/app/api/formation/resources/route";
 
 /**
- * Ressources (Scale X) : les guides PDF du cours, étape par étape (ex-page
- * Education, fusionnée ici en octobre 2026), puis les PDF complémentaires
- * déposés par Mady. Les vidéos sont sur les pages du parcours ; ici, le
- * détail écrit.
+ * Ressources (Scale X) : les questions rapides en vidéo (une objection, la
+ * réponse de Mady en 5-10 min, gérées sur place par l'admin), puis les PDF
+ * déposés par Mady. Les guides PDF du cours (ex-page Education) ne sont plus
+ * affichés depuis le 2026-10-30 : ce qu'ils disaient est dans les vidéos du
+ * parcours.
  */
 
 function fmtSize(bytes: number): string {
@@ -43,20 +44,20 @@ export default function RessourcesElevePage() {
           <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight" style={{ letterSpacing: "-0.03em" }}>
             Ressources
           </h1>
-          <p className="muted text-[14px] mt-1 max-w-[64ch]">Les vidéos sont sur chaque page du parcours. Ici, les étapes détaillées en PDF : les guides du cours dans l&apos;ordre, puis les PDF complémentaires (procédures, checklists, modèles).</p>
+          <p className="muted text-[14px] mt-1 max-w-[64ch]">Les réponses en vidéo aux questions qui reviennent le plus, puis les PDF à garder sous la main (procédures, checklists, modèles).</p>
         </div>
         <div className="flex items-center gap-2">
           {data.resources.length > 4 && <input className="input !h-[34px] w-[220px] max-w-full text-[13px]" placeholder="Rechercher…" value={query} onChange={(e) => setQuery(e.target.value)} />}
         </div>
       </header>
 
-      <LessonGuides />
+      <FaqVideos />
 
       <div className="label-xs mt-2" style={{ letterSpacing: "0.12em" }}>
-        02 / PDF COMPLÉMENTAIRES
+        02 / PDF
       </div>
       {rows.length === 0 ? (
-        <Empty>{q ? `Aucune ressource ne correspond à « ${query} ».` : "Aucun PDF complémentaire pour l'instant."}</Empty>
+        <Empty>{q ? `Aucune ressource ne correspond à « ${query} ».` : "Aucun PDF pour l'instant."}</Empty>
       ) : (
         <ul className="card divide-y" style={{ borderColor: "var(--border)" }}>
           {rows.map((r) => (

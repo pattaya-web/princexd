@@ -148,6 +148,10 @@ export interface Settings {
   studentTheme?: StudentThemeFile;
   /** Etapes par defaut de la marche a suivre posees une fois. */
   courseStepsSeededAt?: string;
+  /** Titre de la section « Questions rapides » dans Ressources (plateforme eleves), modifiable par Mady. */
+  studentFaqTitle?: string;
+  /** Premiere question rapide posee une fois (video « créer des avis »). */
+  courseFaqSeededAt?: string;
   /** Version du texte des étapes par défaut posée en base (voir formation-steps.ts). */
   courseStepsSeedVersion?: number;
   /** Content OS : habitudes du jour, priorités, routine hebdo, ressources, chantiers. */
@@ -949,6 +953,21 @@ export interface CourseModule {
  * etape quand elle est faite ; le coach voit ou il en est. `link` peut porter
  * une balise d'onboarding ({{formulaire}}, {{shopify}}…) remplacee a l'affichage.
  */
+/**
+ * Une question rapide en vidéo (2026-10-30), dans Ressources de la plateforme
+ * eleves : l'objection ou la question telle que les eleves la posent
+ * (« Comment je fais pour créer des avis ? ») et la video YouTube de 5-10 min
+ * qui y repond. Evite a Mady de reexpliquer la meme chose a chaque eleve.
+ */
+export interface CourseFaqVideo {
+  id: ID;
+  question: string;
+  youtubeUrl: string;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CourseStep {
   id: ID;
   title: string;
@@ -1714,6 +1733,8 @@ export interface DB {
   courseModules: CourseModule[];
   /** Annexes PDF de la formation, a piocher pour les envoyer aux eleves. */
   courseResources: CourseResource[];
+  /** Questions rapides en vidéo (Ressources de la plateforme eleves) : une objection, une video de 5-10 min. */
+  courseFaq: CourseFaqVideo[];
   courseSteps: CourseStep[];
   /** Tableaux de strategie creative (facon Miro) de la section Ads. */
   adBoards: AdBoard[];
