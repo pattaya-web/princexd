@@ -538,7 +538,8 @@ function NewFolder({
     >
       <div className="flex flex-col gap-4">
         <Field label="Titre" hint="Ce que le monteur verra en premier. Sans titre, le nom du premier rush est repris.">
-          <input className="input w-full" placeholder="Ex. Reel dashboard Shopify · 3 000 € en 30 jours" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+          {/* Pas de brouillon sur le titre ni le lien : seule la consigne est gardée en modèle d'un dossier à l'autre (demande de Mady, 2026-10-30). */}
+          <input className="input w-full" placeholder="Ex. Reel dashboard Shopify · 3 000 € en 30 jours" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus data-nodraft />
         </Field>
 
         <Field label="Rushs">
@@ -589,7 +590,7 @@ function NewFolder({
 
         <Field label="Inspiration" hint="Optionnel. Un lien vers la vidéo qui t'a plu, et/ou le fichier si tu l'as enregistré.">
           <div className="grid sm:grid-cols-2 gap-2">
-            <input className="input" placeholder="Lien Instagram, TikTok, YouTube…" value={refLink} onChange={(e) => setRefLink(e.target.value)} />
+            <input className="input" placeholder="Lien Instagram, TikTok, YouTube…" value={refLink} onChange={(e) => setRefLink(e.target.value)} data-nodraft />
             {refFile ? (
               <div className="flex items-center gap-2 text-[12px] rounded-[7px] px-2.5" style={{ background: "var(--surface-2)" }}>
                 <span className="flex-1 min-w-0 truncate">{refFile.name}</span>
