@@ -53,6 +53,37 @@ export default function MetaPage() {
         placeholder="La vidéo arrive bientôt. En attendant : Meta Business, compte publicitaire et Pixel (Ressources, guides 08 et 09)."
       />
 
+      <section className="card p-5" id="omega">
+        <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
+          L&apos;APP PIXEL : OMEGA FACEBOOK PIXEL
+        </div>
+        <h2 className="text-[18px] font-semibold mt-2" style={{ letterSpacing: "-0.02em" }}>
+          Installe Omega Facebook Pixel sur ta boutique (9,99 € / mois).
+        </h2>
+        <p className="text-[13.5px] mt-2 leading-relaxed max-w-[64ch]">
+          C&apos;est obligatoire avant de lancer tes campagnes. L&apos;application Facebook &amp; Instagram de Shopify pose le Pixel, mais elle perd une partie des événements (iPhone, bloqueurs de pub, cookies refusés). Omega renvoie aussi les événements côté serveur (API Conversions) : Meta voit <strong>vraiment</strong> qui regarde, qui ajoute au panier et qui achète. Sans ça, tes campagnes apprennent sur des données à moitié vides et tu paies tes pubs plus cher.
+        </p>
+        <ul className="list-disc pl-5 mt-3 flex flex-col gap-1.5 text-[13.5px] leading-relaxed">
+          <li>
+            <strong>Installe l&apos;app</strong> depuis l&apos;App Store Shopify, prends l&apos;abonnement à 9,99 € / mois (c&apos;est un coût de ta boutique, comme Shopify).
+          </li>
+          <li>
+            <strong>Connecte ton Pixel Meta</strong> (celui de ton compte publicitaire) et active l&apos;API Conversions avec le jeton que l&apos;app te demande.
+          </li>
+          <li>
+            <strong>Vérifie</strong> : ajoute un produit au panier sur ta boutique, puis Gestionnaire d&apos;événements Meta → Tester les événements. Tu dois voir les événements remonter deux fois (navigateur + serveur), c&apos;est normal, Omega les dédoublonne.
+          </li>
+        </ul>
+        <div className="flex flex-wrap items-center gap-3 mt-4">
+          <a className="btn btn-primary btn-sm" href="https://apps.shopify.com/facebook-multi-pixels" target="_blank" rel="noreferrer">
+            Installer Omega Facebook Pixel ↗
+          </a>
+          <a className="text-[13px] font-medium hover:underline" href="https://business.facebook.com/events_manager" target="_blank" rel="noreferrer">
+            Gestionnaire d&apos;événements Meta ↗
+          </a>
+        </div>
+      </section>
+
       <section className="card p-5">
         <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
           02 / AVANT DE LANCER
@@ -67,6 +98,9 @@ export default function MetaPage() {
               Démarrage, section 10
             </Link>
             .
+          </li>
+          <li>
+            <strong>Omega Facebook Pixel est installé</strong> (bloc ci-dessus) et l&apos;API Conversions est active : sinon Meta ne voit qu&apos;une partie de tes ventes.
           </li>
           <li>
             <strong>Tes créatives sont prêtes</strong> : 5 à 8 créatives (images 3:4, 1:1 ou 9:16, vidéos 9:16), générées dans le Studio IA.

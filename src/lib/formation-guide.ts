@@ -301,6 +301,11 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         text: "Dans l'application, partie Partage des données, choisis Maximal. C'est tout.",
       },
       {
+        title: "Installe Omega Facebook Pixel (9,99 € / mois)",
+        text: "Admin Shopify > Applications > cherche « Omega Facebook Pixel » > Installer, puis prends l'abonnement à 9,99 € / mois. L'app de Shopify perd une partie des événements (iPhone, bloqueurs de pub) ; Omega les renvoie aussi côté serveur (API Conversions). C'est nécessaire pour que Meta voie vraiment tes ventes et que tes campagnes apprennent sur de la vraie data. Connecte ton Pixel et active l'API Conversions dans l'app.",
+        link: { label: "Omega Facebook Pixel (App Store Shopify)", href: "https://apps.shopify.com/facebook-multi-pixels" },
+      },
+      {
         title: "Vérifie",
         text: "Va sur ta boutique, ouvre un produit, ajoute-le au panier. Dans Meta (Gestionnaire d'événements > Tester les événements) tu dois voir apparaître des lignes vertes. Si tu ne vois rien, demande à Claude : « Vérifie que mon Pixel Meta remonte bien les événements ».",
         link: { label: "Gestionnaire d'événements Meta", href: "https://business.facebook.com/events_manager" },
