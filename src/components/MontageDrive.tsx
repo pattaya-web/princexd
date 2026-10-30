@@ -211,7 +211,19 @@ function FolderDetail({
   const [progress, setProgress] = useState<Progress | null>(null);
   const [refLink, setRefLink] = useState("");
   const [brief, setBrief] = useState(job.brief);
+  const [title, setTitle] = useState(job.title);
   const [comment, setComment] = useState("");
+  useEffect(() => setTitle(job.title), [job.title]);
+
+  /** Titre modifiable après coup (« Reel 4 » qui était en fait le Reel 3) : enregistré en quittant le champ ou avec Entrée. */
+  const saveTitle = () => {
+    const t = title.trim();
+    if (!t) {
+      setTitle(job.title);
+      return;
+    }
+    if (t !== job.title) void onPatch({ title: t }).then(() => toast("Titre modifié."));
+  };
 
   const rushes = job.media.filter((m) => m.kind === "rush");
   const photos = job.media.filter((m) => m.kind === "photo");
@@ -321,6 +333,22 @@ function FolderDetail({
         </div>
 
         {progress && <ProgressBar p={progress} />}
+
+        {role === "owner" && (
+          <Section title="Titre" hint="Ce que le monteur voit en premier">
+            <input
+              className="input w-full"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur();
+              }}
+              placeholder="Ex. Reel 3 · dashboard Shopify"
+              data-nodraft
+            />
+          </Section>
+        )}
 
         <Section
           title="Rushs"
