@@ -259,6 +259,9 @@ export default function StudentAccessPage() {
                       <button className="btn btn-sm btn-ghost ml-1" onClick={() => void viewAs(s)} title="Ouvrir la plateforme comme cet élève">
                         Voir comme
                       </button>
+                      <Link href={`/formation/espace?student=${s.id}`} className="btn btn-sm btn-ghost ml-1" title="Ses tableaux, son drive, ses notes">
+                        Espace
+                      </Link>
                     </td>
                   </tr>
                 ))}

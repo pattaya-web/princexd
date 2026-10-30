@@ -532,6 +532,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     items: [
       { href: "/formation/suivi", label: "Suivi des élèves", icon: "◎" },
       { href: "/formation/eleves", label: "Accès élèves", icon: "⚿" },
+      { href: "/formation/espace", label: "Espaces élèves", icon: "▦" },
       { href: "/formation", label: "Vue élève", icon: "▶" },
       { href: "/formation/ressources", label: "Ressources (PDF)", icon: "▣" },
     ],
@@ -593,6 +594,7 @@ const SIMPLE_NAV: typeof NAV = [
     items: [
       { href: "/formation/suivi", label: "Suivi des élèves", icon: "◎" },
       { href: "/formation/eleves", label: "Accès élèves", icon: "⚿" },
+      { href: "/formation/espace", label: "Espaces élèves", icon: "▦" },
       { href: "/formation", label: "Vue élève", icon: "▶" },
       { href: "/eleves/onboarding", label: "Onboarding élèves", icon: "✉" },
       { href: "/boutiques", label: "Générateur boutique", icon: "🛍" },
@@ -804,6 +806,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 { href: "/formation/shopify", label: "Astuces Shopify", icon: "✚" },
                 { href: "/formation/meta", label: "Campagnes Meta", icon: "▲" },
                 { href: "/formation/studio", label: "Studio IA", icon: "◐" },
+                { href: "/formation/espace", label: "Mon espace", icon: "▦" },
                 { href: "/formation/etapes", label: "Mes étapes", icon: "☑" },
                 { href: "/formation/sop", label: "SOP", icon: "≡" },
                 { href: "/formation/sops", label: "Ressources", icon: "▤" },

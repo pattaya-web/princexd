@@ -1751,6 +1751,8 @@ export interface DB {
   meetLinks: MeetLink[];
   /** Brouillons : tout texte tape ou colle dans l'app, sauvegarde en continu (voir DraftAutosave). */
   drafts: Draft[];
+  /** Espace de travail des élèves (Scale X → Mon espace) : tableaux, drive, notes. */
+  studentWorkspaces: StudentWorkspace[];
 }
 
 /**
@@ -2690,4 +2692,56 @@ export interface ActivityLog {
   summary: string;
   /** Autre entite concernee : pour « lead.takeover », le setter qui a perdu la conversation. */
   relatedId?: ID;
+}
+
+/* ------------------------- Espace élève (Scale X) ------------------------- */
+
+/** Un tableau libre de l'élève (concurrents, prix produits…) : colonnes nommées, lignes de texte. */
+export interface WorkspaceTable {
+  id: ID;
+  name: string;
+  columns: string[];
+  /** Une ligne = une cellule par colonne, texte libre. */
+  rows: string[][];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Un dossier du drive de l'élève (Créatives, Photos produit…). */
+export interface WorkspaceFolder {
+  id: ID;
+  name: string;
+  createdAt: string;
+}
+
+/** Un fichier déposé dans le drive : posé dans data/media sous `stored`, comme les uploads du Studio. */
+export interface WorkspaceFile {
+  id: ID;
+  folderId: ID;
+  /** Nom d'origine, modifiable. */
+  name: string;
+  /** Nom sur le disque (data/media/<stored>). */
+  stored: string;
+  size: number;
+  mime: string;
+  /** Commentaire libre (de l'élève ou de Mady). */
+  note: string;
+  /** Qui l'a déposé : l'élève ou Mady. */
+  by: "student" | "admin";
+  createdAt: string;
+}
+
+/**
+ * L'espace de travail d'un élève : tout ce qu'il notait avant dans Excel,
+ * Google Sheets ou un Drive, centralisé sur sa plateforme et lisible par Mady.
+ */
+export interface StudentWorkspace {
+  id: ID;
+  studentId: ID;
+  notes: string;
+  tables: WorkspaceTable[];
+  folders: WorkspaceFolder[];
+  files: WorkspaceFile[];
+  createdAt: string;
+  updatedAt: string;
 }
