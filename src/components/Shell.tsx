@@ -801,6 +801,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 { href: "/formation/produit", label: "Recherche produit", icon: "◎" },
                 { href: "/formation/creatives", label: "Créatives", icon: "✦" },
                 { href: "/formation/boutique", label: "Ta boutique", icon: "⌂" },
+                { href: "/formation/shopify", label: "Astuces Shopify", icon: "✚" },
                 { href: "/formation/meta", label: "Campagnes Meta", icon: "▲" },
                 { href: "/formation/studio", label: "Studio IA", icon: "◐" },
                 { href: "/formation/etapes", label: "Mes étapes", icon: "☑" },
