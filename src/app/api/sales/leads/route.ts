@@ -3,7 +3,7 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { canSee, readSession, requireAdmin, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
-import { isSetterSession, saleForSetter } from "@/lib/sales/setter-view";
+import { appointmentForSetter, isSetterSession, visibleSaleForSetter } from "@/lib/sales/setter-view";
 import { getSystemeioKey, syncSystemeio } from "@/lib/systemeio";
 import { LINK_CHANNELS, LINK_CHANNEL_LABEL, type LinkChannel, leadIsOut, type Lead } from "@/lib/types";
 import { applyTouch, backfillMetaIds } from "@/lib/sales/attribution";
@@ -224,9 +224,11 @@ export async function GET(req: NextRequest) {
       const mine = db.leads
         .filter((l) => Boolean(l.declaredAt) && visible(l))
         .map((l) => {
-          const appt = db.appointments
+          const rawAppt = db.appointments
             .filter((a) => a.leadId === l.id && a.status !== "cancelled")
             .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))[0];
+          // Un closing pas encore envoye au setter reste pour lui un call fait, sans note.
+          const appt = rawAppt && isSetterSession(session) ? appointmentForSetter(rawAppt, db.sales) : rawAppt;
           return {
             id: l.id,
             name: l.name,
@@ -247,7 +249,8 @@ export async function GET(req: NextRequest) {
             saleAmount: (() => {
               const sl = appt ? db.sales.find((x) => x.appointmentId === appt.id && x.status !== "cancelled") : undefined;
               if (!sl) return 0;
-              return isSetterSession(session) ? saleForSetter(sl).contractValue : sl.contractValue;
+              const shown = isSetterSession(session) ? visibleSaleForSetter(sl) : sl;
+              return shown ? shown.contractValue : 0;
             })(),
             currency: db.settings.salesCurrency || "EUR",
           };

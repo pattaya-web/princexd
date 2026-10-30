@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { readDB } from "@/lib/db";
 import { canSeeMember, Forbidden, readSession, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
+import { setterSafeDB } from "@/lib/sales/setter-view";
+
 import { rangeFromParams } from "@/lib/sales/period";
 import { closerLeaderboard, dailySeries, setterLeaderboard } from "@/lib/sales/analytics";
 import { buildLedger, describeRule, effectiveRule } from "@/lib/sales/commissions";
@@ -23,7 +25,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const { id } = await ctx.params;
     if (!canSeeMember(session, id)) throw new Forbidden("Cette fiche ne vous est pas accessible.");
 
-    const db = readDB();
+    const db = setterSafeDB(readDB(), session);
     const member = db.team.find((m) => m.id === id);
     if (!member) throw new Forbidden("Membre introuvable.");
 

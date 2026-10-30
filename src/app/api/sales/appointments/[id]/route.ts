@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { newId, readDB, writeDB } from "@/lib/db";
 import { canSee, Forbidden, readSession, requireAdmin, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
-import { isSetterSession, saleForSetter } from "@/lib/sales/setter-view";
+import { isSetterSession, saleForSetter, setterSafeDB } from "@/lib/sales/setter-view";
 import { listLogs, patchAppointment } from "@/lib/sales/repo";
 import { CONFIRMATIONS } from "@/lib/sales/constants";
 import type { AppointmentConfirmation } from "@/lib/types";
@@ -18,7 +18,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   return handle(async () => {
     const session = requireSales(readSession(req));
     const { id } = await ctx.params;
-    const db = readDB();
+    // Lecture seule : un setter ne voit pas un closing qui ne lui a pas encore ete envoye.
+    const db = setterSafeDB(readDB(), session);
 
     const appointment = db.appointments.find((a) => a.id === id);
     // Meme reponse qu'un rendez-vous inexistant : ne pas confirmer l'existence

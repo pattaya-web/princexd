@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { readDB } from "@/lib/db";
 import { canSee, readSession, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
+import { setterSafeDB } from "@/lib/sales/setter-view";
+
 import type { FollowUp } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -64,7 +66,7 @@ export interface SuiviClosed {
 export async function GET(req: NextRequest) {
   return handle(() => {
     const session = requireSales(readSession(req));
-    const db = readDB();
+    const db = setterSafeDB(readDB(), session);
     const leads = new Map(db.leads.map((l) => [l.id, l]));
     const names = new Map(db.team.map((m) => [m.id, m.name]));
     const name = (id: string) => (id ? (names.get(id) ?? "—") : "");

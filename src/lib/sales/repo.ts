@@ -398,6 +398,8 @@ export function recordOutcome(session: Session, id: string, input: OutcomeInput)
         status: "active",
         refundAmount: 0,
         refundedAt: "",
+        // Le setter ne voit le closing que quand Mady le lui envoie (Sales Dashboard → À envoyer au setter).
+        ...(appt.setterId ? { setterHold: true } : {}),
         createdBy: session.memberId,
         createdAt: now,
         updatedAt: now,
@@ -581,6 +583,8 @@ export function patchAppointment(
     if (patch.setterId !== undefined && sale.setterId !== patch.setterId) {
       sale.setterId = patch.setterId;
       sale.updatedAt = appt.updatedAt;
+      // Nouveau setter sur un closing jamais envoye : il attend l'envoi de Mady, comme les autres.
+      if (patch.setterId && !sale.setterSentAt) sale.setterHold = true;
     }
   }
   if (patch.setterId !== undefined && patch.setterId !== beforeSetter) {
@@ -621,7 +625,7 @@ export function patchAppointment(
 export function patchSale(
   session: Session,
   id: string,
-  patch: Partial<Pick<Sale, "cashCollected" | "contractValue" | "status" | "refundAmount" | "notes" | "offer" | "paymentType" | "installments" | "paymentMethod" | "schedule" | "soldAt" | "paymentExpectedAt" | "setterAmount">>,
+  patch: Partial<Pick<Sale, "cashCollected" | "contractValue" | "status" | "refundAmount" | "notes" | "offer" | "paymentType" | "installments" | "paymentMethod" | "schedule" | "soldAt" | "paymentExpectedAt" | "setterAmount" | "setterCash">>,
 ) {
   const db = readDB();
   const sale = db.sales.find((s) => s.id === id);

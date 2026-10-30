@@ -3,7 +3,7 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { canSee, Forbidden, readSession, requireAdmin, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { sessionHas } from "@/lib/sales/roles";
-import { isSetterSession, saleForSetter } from "@/lib/sales/setter-view";
+import { isSetterSession, saleForSetter, setterSafeDB } from "@/lib/sales/setter-view";
 import { CHANNEL_LABEL } from "@/lib/sales/templates";
 import { fmtDateTime, parisDay, parisToIso } from "@/lib/format";
 import { leadIsOut, LINK_CHANNELS, LINK_CHANNEL_LABEL, type DB, type Lead, type LeadCallStatus, type LinkChannel, type TemplateChannel } from "@/lib/types";
@@ -67,7 +67,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   return handle(async () => {
     const session = requireSales(readSession(req));
     const { id } = await ctx.params;
-    const db = readDB();
+    // Lecture seule : un setter lit la base sans les closings qui ne lui ont pas encore ete envoyes.
+    const db = setterSafeDB(readDB(), session);
     const lead = db.leads.find((l) => l.id === id);
     if (!lead) throw new Error("Lead introuvable.");
     const unassigned = !lead.setterId;

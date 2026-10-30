@@ -2459,6 +2459,19 @@ export interface Sale {
    * voit le vrai montant.
    */
   setterAmount?: number;
+  /** Encaisse annonce au setter (2026-10-30), a cote du contrat annonce (`setterAmount`). Absent = meme montant que le contrat annonce. */
+  setterCash?: number;
+  /**
+   * Closing pas encore envoye au setter (2026-10-30) : tant que c'est vrai,
+   * le setter ne voit ni la vente, ni l'issue « closé » du call, ni la note
+   * du closer, et aucune commission ne lui est calculee dessus. Mady
+   * l'envoie depuis le Sales Dashboard (« À envoyer au setter ») en fixant
+   * ce qu'elle lui annonce. Les ventes d'avant n'ont pas ce drapeau : elles
+   * restent visibles comme avant.
+   */
+  setterHold?: boolean;
+  /** Date (ISO) a laquelle le closing a ete envoye au setter. */
+  setterSentAt?: string;
   refundedAt: string;
   notes: string;
   createdBy: ID;

@@ -14,7 +14,7 @@ import {
   setterLeaderboard,
 } from "@/lib/sales/analytics";
 import { buildLedger } from "@/lib/sales/commissions";
-import { isSetterSession, salesForSetter } from "@/lib/sales/setter-view";
+import { setterSafeDB } from "@/lib/sales/setter-view";
 import { publicMember } from "@/lib/sales/repo";
 import { sessionHas } from "@/lib/sales/roles";
 import type { Appointment, Sale } from "@/lib/types";
@@ -62,7 +62,8 @@ export async function GET(req: NextRequest) {
     // Correctifs d'attribution a appliquer une fois : ici aussi, pour que l'accueil
     // d'un setter soit juste meme si la synchro iClosed n'a pas pu tourner.
     applySetterByLinkOnly(readDB());
-    const db = readDB();
+    // Un setter lit la base aux montants annonces par Mady, sans les closings qu'elle ne lui a pas encore envoyes.
+    const db = setterSafeDB(readDB(), session);
     const range = rangeFromParams(req.nextUrl.searchParams);
     const currency = db.settings.salesCurrency || "EUR";
 
@@ -94,8 +95,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Un setter voit le montant annonce par Mady, pas le vrai prix du closing.
-    if (isSetterSession(session)) sales = salesForSetter(sales);
 
     const visibleApptIds = new Set(appointments.map((a) => a.id));
     const followUps = db.followUps.filter(

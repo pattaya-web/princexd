@@ -9,6 +9,8 @@ import { entriesFor } from "@/lib/sales/commissions";
 import { rangeFromParams } from "@/lib/sales/period";
 import { inRange } from "@/lib/sales/period";
 import { syncIclosedUpcoming } from "@/lib/sales/iclosed-sync";
+import { setterSafeDB } from "@/lib/sales/setter-view";
+
 import type { AppointmentConfirmation, AppointmentSource, AppointmentStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -107,7 +109,8 @@ export async function GET(req: NextRequest) {
      */
     if (p.get("period") === "upcoming") await syncIclosedUpcoming().catch(() => null);
     cleanInventedHandles();
-    const db = readDB();
+    // Lecture seule : un setter voit les montants annonces, et pas les closings pas encore envoyes.
+    const db = setterSafeDB(readDB(), session);
 
     const range = rangeFromParams(p);
     // ?since=<iso> avec period=upcoming : l'agenda garde aussi les calls

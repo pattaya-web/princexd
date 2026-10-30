@@ -9,6 +9,7 @@ import { CallsAnalysisTeaser } from "@/components/sales/CallsAnalysis";
 import { InvestmentsCard } from "@/components/sales/InvestmentsCard";
 import { UtmLinksTable } from "@/components/sales/UtmLinksTable";
 import { SetterTasksAdminCard } from "@/components/sales/SetterTasksCard";
+import { SetterSendsCard } from "@/components/sales/SetterSendsCard";
 import type { UtmLinkRow } from "@/lib/sales/utm-links";
 import { Card, Empty, ErrorNote, Modal, PageHeader, Spinner, Tabs } from "@/components/ui";
 import { ShopifyAffiliate } from "@/components/ShopifyAffiliate";
@@ -496,6 +497,10 @@ export default function SalesDashboardPage() {
                 {cf.upcoming.length ? <Due rows={cf.upcoming} tone="var(--accent)" /> : <div className="dim text-[12.5px] px-3.5 py-4">Les paiements en plusieurs fois apparaissent ici avec leur date.</div>}
               </Card>
             </div>
+          </Section>
+
+          <Section title="À envoyer au setter" hint="un closing n'arrive chez le setter que quand tu l'envoies, au montant que tu lui annonces">
+            <SetterSendsCard />
           </Section>
 
           <Section title="Mes setters" hint="une relance que tu envoies atterrit sur son accueil, avec le contexte">

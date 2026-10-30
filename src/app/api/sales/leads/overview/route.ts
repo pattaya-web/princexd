@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { readDB } from "@/lib/db";
 import { readSession, requireSales } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
+import { setterSafeDB } from "@/lib/sales/setter-view";
+
 import { funnelLabel, funnelsOf } from "@/lib/sales/attribution";
 import { leadBusiness, type LeadBusiness } from "@/lib/sales/business";
 import { getSystemeioKey, syncSystemeio } from "@/lib/systemeio";
@@ -41,7 +43,7 @@ const pathOf = (url: string) => {
  */
 export async function GET(req: NextRequest) {
   return handle(async () => {
-    requireSales(readSession(req));
+    const session = requireSales(readSession(req));
     let syncError = "";
     if (getSystemeioKey()) {
       try {
@@ -51,7 +53,7 @@ export async function GET(req: NextRequest) {
       }
     } else syncError = "aucune clé API Systeme.io sur ce serveur (Réglages → Systeme.io).";
 
-    const db = readDB();
+    const db = setterSafeDB(readDB(), session);
     const funnels = funnelsOf(db);
     const names = new Map(db.team.map((m) => [m.id, m.name]));
     const currency = db.settings.salesCurrency || "EUR";
