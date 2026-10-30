@@ -1571,6 +1571,8 @@ export interface Generation {
   swipeSlot?: string;
   /** Eleve proprietaire (Studio IA par eleve). Absent = generation de l'admin / du monteur. */
   ownerId?: string;
+  /** « 32:9 » : format demandé par l'admin, obtenu en recadrant le résultat du modèle après coup (lib/studio/wide). */
+  crop?: string;
   createdAt: string;
   updatedAt: string;
 }

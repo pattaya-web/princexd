@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
 import { onProviderCallback } from "@/lib/studio/jobs";
+import { applyWideCrop } from "@/lib/studio/wide";
 import { warmThumb } from "@/lib/thumbs";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +36,9 @@ export async function POST(req: NextRequest) {
 
   gen.state = (data.state as typeof gen.state) ?? "success";
   gen.resultUrls = urls;
-  for (const u of urls) warmThumb(u);
+  // Format 32:9 demandé : recadrage avant d'exposer le résultat.
+  await applyWideCrop(gen);
+  for (const u of gen.resultUrls) warmThumb(u);
   gen.failMsg = data.failMsg ?? "";
   gen.creditsConsumed = Number(data.creditsConsumed ?? gen.creditsConsumed);
   gen.updatedAt = new Date().toISOString();

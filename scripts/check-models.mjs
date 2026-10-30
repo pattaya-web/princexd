@@ -206,7 +206,8 @@ async function main() {
       // Derogation assumee, justifiee en commentaire dans le catalogue.
       if (block.includes(`check-models: allow ${key}`)) continue;
       const mine = [...list.matchAll(/"([^"]*)"/g)].map((m) => m[1]);
-      const off = mine.filter((v) => !declared.has(v));
+      // « 32:9 » est recadré côté serveur après génération (src/lib/studio/wide.ts), jamais envoyé tel quel.
+      const off = mine.filter((v) => !declared.has(v) && v !== "32:9");
       if (off.length) wrongValues.push([key, off, [...declared]]);
     }
 

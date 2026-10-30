@@ -86,7 +86,11 @@ export interface ModelDef {
   fields: ModelField[];
 }
 
-const ASPECTS_IMG = ["auto", "1:1", "9:16", "16:9", "3:4", "4:3", "2:3", "3:2", "4:5", "5:4", "21:9"];
+/**
+ * « 32:9 » n'existe chez aucun modèle : réservé à l'admin (écran ultra-large),
+ * la route demande le format large le plus proche puis recadre (lib/studio/wide).
+ */
+const ASPECTS_IMG = ["auto", "1:1", "9:16", "16:9", "3:4", "4:3", "2:3", "3:2", "4:5", "5:4", "21:9", "32:9"];
 const ASPECTS_VID = ["9:16", "16:9", "1:1"];
 
 const promptField = (placeholder: string, required = true): ModelField => ({
@@ -526,7 +530,7 @@ const IMAGE: ModelDef[] = [
     fields: [
       promptField("Homme 25 ans en hoodie noir devant un laptop dans un café, photo iPhone, grain léger."),
       { key: "image_urls", label: "Images de référence", type: "files", accept: "image", max: 12 },
-      { key: "image_size", label: "Format", type: "select", options: ["square_hd", "square", "portrait_4_3", "portrait_3_2", "portrait_16_9", "landscape_4_3", "landscape_3_2", "landscape_16_9", "landscape_21_9"], default: "portrait_4_3" , compact: true },
+      { key: "image_size", label: "Format", type: "select", options: ["square_hd", "square", "portrait_4_3", "portrait_3_2", "portrait_16_9", "landscape_4_3", "landscape_3_2", "landscape_16_9", "landscape_21_9", "32:9"], default: "portrait_4_3" , compact: true },
     ],
   },
   {

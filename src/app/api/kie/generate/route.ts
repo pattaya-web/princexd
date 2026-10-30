@@ -3,6 +3,7 @@ import { createTask, KieError } from "@/lib/kie";
 import { insert } from "@/lib/db";
 import { getModel } from "@/lib/models";
 import { scopeError, studioScope, withScope } from "@/lib/studio-tenant";
+import { WIDE_RATIO, wideSubstitute } from "@/lib/studio/wide";
 import type { Generation } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -74,6 +75,20 @@ export async function POST(req: NextRequest) {
    */
   if (payload.background === "auto") delete payload.background;
 
+  /*
+   * « 32:9 » (écran ultra-large) : aucun modèle ne le propose. Réservé à
+   * l'admin ; on demande le format large le plus proche que le modèle
+   * connaisse et la génération est recadrée en 32:9 à l'arrivée (callback
+   * ou sondage), voir lib/studio/wide.
+   */
+  let crop = "";
+  for (const key of ["aspect_ratio", "image_size"]) {
+    if (payload[key] !== WIDE_RATIO) continue;
+    if (scope.ownerId) return NextResponse.json({ error: "Le format 32:9 est réservé à l'admin." }, { status: 403 });
+    payload[key] = wideSubstitute(target, key);
+    crop = WIDE_RATIO;
+  }
+
   const base = process.env.PUBLIC_BASE_URL?.trim();
   // Le callback n'est utile que si le tool est joignable depuis Internet.
   const callback = base && !base.includes("localhost") ? `${base}/api/kie/callback` : undefined;
@@ -108,6 +123,7 @@ export async function POST(req: NextRequest) {
       // Prompts IA d'un swipe : le resultat reste rattache a sa fiche.
       ...(swipeId && !scope.ownerId ? { swipeId: String(swipeId), swipeSlot: String(swipeSlot ?? "") } : {}),
       ...(scope.ownerId ? { ownerId: scope.ownerId } : {}),
+      ...(crop ? { crop } : {}),
       updatedAt: new Date().toISOString(),
     }) as unknown as Generation;
     return NextResponse.json(row);

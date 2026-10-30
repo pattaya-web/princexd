@@ -649,8 +649,8 @@ function StudioInner() {
                             value={String(input[f.key] ?? "")}
                             onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
                           >
-                            {f.options?.map((o) => (
-                              <option key={o} value={o}>{f.optionLabels?.[o] ?? (o || "Auto")}</option>
+                            {f.options?.filter((o) => !isStudent || o !== "32:9").map((o) => (
+                              <option key={o} value={o}>{f.optionLabels?.[o] ?? (o === "32:9" ? "32:9 · ultra-large" : o || "Auto")}</option>
                             ))}
                           </select>
                         ) : (
@@ -718,8 +718,8 @@ function StudioInner() {
                               value={String(input[f.key] ?? "")}
                               onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
                             >
-                              {f.options?.map((o) => (
-                                <option key={o} value={o}>{f.optionLabels?.[o] ?? (o || "Auto")}</option>
+                              {f.options?.filter((o) => !isStudent || o !== "32:9").map((o) => (
+                                <option key={o} value={o}>{f.optionLabels?.[o] ?? (o === "32:9" ? "32:9 · ultra-large" : o || "Auto")}</option>
                               ))}
                             </select>
                           ) : f.type === "number" ? (

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTask, KieError } from "@/lib/kie";
 import { readDB, withKieKey, writeDB } from "@/lib/db";
 import { keyForOwner, ownGenerations, scopeError, studioScope } from "@/lib/studio-tenant";
+import { applyWideCrop } from "@/lib/studio/wide";
 import { warmThumb } from "@/lib/thumbs";
 
 export const dynamic = "force-dynamic";
@@ -76,7 +77,9 @@ export async function GET(req: NextRequest) {
     changed = true;
     gen.state = rec.state;
     gen.resultUrls = rec.resultUrls;
-    for (const u of rec.resultUrls ?? []) warmThumb(u);
+    // Format 32:9 demandé : recadrage avant d'exposer le résultat.
+    await applyWideCrop(gen);
+    for (const u of gen.resultUrls ?? []) warmThumb(u);
     gen.creditsConsumed = rec.creditsConsumed;
     gen.failMsg = rec.failMsg;
     gen.progress = rec.progress;
