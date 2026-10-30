@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client";
+import { fmtDateTime } from "@/lib/format";
 import { useSalesData } from "@/lib/sales/client";
 import { hasRole } from "@/lib/sales/roles";
 import { PageHeader, useToast } from "@/components/ui";
@@ -88,6 +89,20 @@ export default function AgendaPage() {
     }
   };
 
+  /** Reprogrammation depuis la carte (horloge ou glisser-déposer) : l'agenda du CRM fait foi, iClosed n'est pas touché. */
+  const reschedule = async (id: string, iso: string) => {
+    try {
+      await api(`/api/sales/appointments/${id}`, { method: "PATCH", body: JSON.stringify({ scheduledAt: iso }) });
+      const row = (data?.rows ?? []).find((r) => r.id === id);
+      toast(`${row?.leadName ?? "Rendez-vous"} déplacé au ${fmtDateTime(iso)} (FR). Pense à prévenir le lead.`);
+      void reload();
+      bump();
+    } catch (e) {
+      toast((e as Error).message, "err");
+      throw e;
+    }
+  };
+
   const chips: { key: string; label: string; n: number }[] = [
     { key: "all", label: "Tous", n: (data?.rows ?? []).length },
     { key: "none", label: "Sans closer", n: (data?.rows ?? []).filter((r) => !r.closerId).length },
@@ -98,7 +113,7 @@ export default function AgendaPage() {
     <>
       <PageHeader
         title="Agenda des calls"
-        subtitle="Tous les calls à venir, iClosed et rendez-vous posés à la main. Le « + » d'un jour ajoute un rendez-vous, un clic sur une carte permet de changer l'heure."
+        subtitle="Tous les calls à venir, iClosed et rendez-vous posés à la main. Le « + » d'un jour ajoute un rendez-vous, l'horloge d'une carte (ou un glisser-déposer vers un autre jour) la reprogramme sans passer par iClosed."
         actions={
           <>
             <button className="btn" onClick={() => void syncNow()} disabled={syncing} title="Relire iClosed tout de suite">
@@ -146,6 +161,7 @@ export default function AgendaPage() {
         onOpen={setOpenId}
         closers={closers}
         onAssign={assign}
+        onReschedule={reschedule}
         onAdd={(day) => {
           setAddDay(day);
           setAdding(true);

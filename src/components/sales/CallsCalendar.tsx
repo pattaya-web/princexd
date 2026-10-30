@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
-import { fmtDateTime, fmtTime, isoToParisInput, label as statusLabel, parisDay, SECOND_TZ } from "@/lib/format";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { fmtDateTime, fmtTime, isoToParisInput, label as statusLabel, parisDay, parisToIso, SECOND_TZ } from "@/lib/format";
 import { Card } from "@/components/ui";
 import { canConfirm, CONFIRMATION_LABEL } from "@/lib/sales/constants";
 import type { AppointmentRow } from "@/app/api/sales/appointments/route";
@@ -73,6 +73,97 @@ function NowLine({ now, next, compact }: { now: number; next: AppointmentRow | n
   );
 }
 
+
+/** Un call encore a venir, qu'on peut deplacer (un call conclu garde sa date). */
+function canMove(r: AppointmentRow, now: number): boolean {
+  if (r.status === "no-show") return true;
+  return (r.status === "booked" || r.status === "confirmed" || r.status === "rescheduled") && Date.parse(r.scheduledAt) >= now - 3_600_000;
+}
+
+/** Meme heure de Paris, un autre jour : l'ISO du call deplace. */
+function sameTimeOn(iso: string, day: string): string {
+  return parisToIso(`${day}T${isoToParisInput(iso).slice(11, 16)}`);
+}
+
+/**
+ * Mini-fenetre « Reprogrammer » sur une carte de l'agenda.
+ *
+ * Avant, changer l'heure obligeait a ouvrir la fiche ou, pire, a passer par
+ * iClosed. Ici : des raccourcis (+1 h, +1 jour, +1 semaine) et un champ
+ * date-heure (heure de Paris), puis « Déplacer ». Rien n'est envoye a
+ * iClosed : l'agenda du CRM fait foi, a toi de prevenir le lead.
+ */
+function ReschedulePopover({ row, onDone, onClose }: { row: AppointmentRow; onDone: (iso: string) => Promise<void>; onClose: () => void }) {
+  const [value, setValue] = useState(() => isoToParisInput(row.scheduledAt));
+  const [busy, setBusy] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const away = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [onClose]);
+  const shift = (ms: number) => setValue(isoToParisInput(new Date(Date.parse(parisToIso(value) || row.scheduledAt) + ms)));
+  const submit = async () => {
+    const iso = parisToIso(value);
+    if (!iso) return;
+    setBusy(true);
+    try {
+      await onDone(iso);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+  const quick: { label: string; ms: number }[] = [
+    { label: "+1 h", ms: 3_600_000 },
+    { label: "+1 jour", ms: 86_400_000 },
+    { label: "+2 jours", ms: 2 * 86_400_000 },
+    { label: "+1 semaine", ms: 7 * 86_400_000 },
+  ];
+  return (
+    <div
+      ref={ref}
+      onClick={(e) => e.stopPropagation()}
+      className="absolute z-30 left-0 top-full mt-1 p-2.5 rounded-[9px] shadow-lg flex flex-col gap-2"
+      style={{ background: "var(--surface)", border: "1px solid var(--border)", minWidth: 236, cursor: "default" }}
+    >
+      <div className="text-[11.5px] font-semibold truncate">Reprogrammer {row.leadName}</div>
+      <div className="dim text-[10.5px] -mt-1.5">Actuellement {fmtDateTime(row.scheduledAt)} FR</div>
+      <div className="flex flex-wrap gap-1">
+        {quick.map((q) => (
+          <button key={q.label} type="button" className="btn btn-sm !h-[24px] !px-2 !text-[11px]" onClick={() => shift(q.ms)}>
+            {q.label}
+          </button>
+        ))}
+      </div>
+      <input
+        type="datetime-local"
+        className="input !h-[32px] !text-[12.5px]"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && void submit()}
+        data-nodraft
+      />
+      <div className="dim text-[10.5px]">Heure de Paris{value && parisToIso(value) ? ` · ${fmtTime(parisToIso(value), SECOND_TZ)} DXB` : ""}</div>
+      <div className="flex gap-1 justify-end">
+        <button type="button" className="btn btn-sm" onClick={onClose} disabled={busy}>
+          Annuler
+        </button>
+        <button type="button" className="btn btn-sm btn-primary" onClick={() => void submit()} disabled={busy || !value || parisToIso(value) === row.scheduledAt}>
+          {busy ? <span className="spinner" /> : "Déplacer"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Semaine de calls, sept colonnes, heure de Paris.
  *
@@ -90,6 +181,7 @@ export function CallsCalendar({
   closers,
   onAssign,
   onAdd,
+  onReschedule,
   title,
 }: {
   rows: AppointmentRow[];
@@ -100,10 +192,20 @@ export function CallsCalendar({
   onAssign?: (id: string, closerId: string) => void;
   /** Un « + » sur chaque jour : creer un rendez-vous a cette date. */
   onAdd?: (day: string) => void;
+  /**
+   * Reprogrammer sans ouvrir la fiche : bouton horloge sur chaque carte a
+   * venir, et glisser-deposer d'une carte vers un autre jour (meme heure).
+   */
+  onReschedule?: (id: string, iso: string) => Promise<void>;
   title?: string;
 }) {
   const [week, setWeek] = useState(0);
   const [busy, setBusy] = useState("");
+  /** Carte dont la mini-fenetre « Reprogrammer » est ouverte. */
+  const [moving, setMoving] = useState("");
+  /** Carte en cours de glisser-deposer, et jour survole. */
+  const [dragId, setDragId] = useState("");
+  const [overDay, setOverDay] = useState("");
   const days = Array.from({ length: 7 }, (_, i) => parisDay(week * 7 + i));
   // L'heure avance toute seule : la ligne « maintenant » suit sans recharger.
   const [now, setNow] = useState(() => Date.now());
@@ -129,6 +231,36 @@ export function CallsCalendar({
     const d = new Date(`${key}T12:00:00Z`);
     return `${DAY_NAMES[d.getUTCDay()]} ${d.getUTCDate()}`;
   };
+  const dropOn = async (day: string) => {
+    const r = rows.find((x) => x.id === dragId);
+    setDragId("");
+    setOverDay("");
+    if (!r || !onReschedule) return;
+    const iso = sameTimeOn(r.scheduledAt, day);
+    if (!iso || iso === r.scheduledAt) return;
+    setBusy(r.id);
+    try {
+      await onReschedule(r.id, iso);
+    } finally {
+      setBusy("");
+    }
+  };
+  const moveButton = (r: AppointmentRow, small: boolean) =>
+    onReschedule && canMove(r, now) ? (
+      <button
+        type="button"
+        className={small ? "btn btn-ghost btn-sm !h-[20px] !px-1.5 !text-[11px]" : "btn btn-sm !h-[32px] !px-2 shrink-0"}
+        onClick={(e) => {
+          e.stopPropagation();
+          setMoving((m) => (m === r.id ? "" : r.id));
+        }}
+        disabled={busy === r.id}
+        title="Reprogrammer ce call (sans passer par iClosed)"
+        aria-label="Reprogrammer"
+      >
+        {busy === r.id ? <span className="spinner" /> : "🕐"}
+      </button>
+    ) : null;
 
   return (
     <Card
@@ -180,8 +312,8 @@ export function CallsCalendar({
                   <Fragment key={r.id}>
                   <div
                     onClick={() => onOpen(r.id)}
-                    className="px-3.5 py-2.5 flex items-center gap-3 cursor-pointer"
-                    style={{ borderLeft: `4px solid ${tone}`, borderTop: "1px solid var(--border)", opacity: past ? 0.7 : 1 }}
+                    className="px-3.5 py-2.5 flex items-center gap-3 cursor-pointer relative"
+                    style={{ borderLeft: `4px solid ${tone}`, borderTop: "1px solid var(--border)", opacity: past ? 0.7 : 1, zIndex: moving === r.id ? 20 : undefined }}
                   >
                     <div className="num text-[14px] font-semibold shrink-0 w-[52px]">{fmtTime(r.scheduledAt)}</div>
                     <div className="min-w-0 flex-1">
@@ -206,6 +338,8 @@ export function CallsCalendar({
                         Rejoindre
                       </a>
                     )}
+                    {moveButton(r, false)}
+                    {moving === r.id && onReschedule && <ReschedulePopover row={r} onDone={(iso) => onReschedule(r.id, iso)} onClose={() => setMoving("")} />}
                   </div>
                   {isToday && nowAt === idx + 1 && <NowLine now={now} next={next} compact />}
                   </Fragment>
@@ -226,10 +360,24 @@ export function CallsCalendar({
             <div
               key={d}
               className="px-2 py-2 min-w-0"
+              onDragOver={(e) => {
+                if (!dragId || !onReschedule) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (overDay !== d) setOverDay(d);
+              }}
+              onDragLeave={() => overDay === d && setOverDay("")}
+              onDrop={(e) => {
+                e.preventDefault();
+                void dropOn(d);
+              }}
               style={{
                 borderRight: i < 6 ? "1px solid var(--border)" : "none",
                 borderBottom: "1px solid var(--border)",
-                background: isToday ? "color-mix(in srgb, var(--accent) 6%, transparent)" : undefined,
+                background: dragId && overDay === d ? "color-mix(in srgb, var(--accent) 16%, transparent)" : isToday ? "color-mix(in srgb, var(--accent) 6%, transparent)" : undefined,
+                outline: dragId && overDay === d ? "2px dashed var(--accent)" : undefined,
+                outlineOffset: -2,
+                transition: "background 120ms",
               }}
             >
               <div className="label-xs mb-1.5 flex items-center justify-between">
@@ -260,14 +408,33 @@ export function CallsCalendar({
                       <Fragment key={r.id}>
                       <li
                         onClick={() => onOpen(r.id)}
-                        className="rounded-[7px] px-2 py-1.5 cursor-pointer"
-                        style={{ background: `color-mix(in srgb, ${tone} 14%, var(--surface))`, borderLeft: `3px solid ${tone}`, opacity: past ? 0.72 : 1 }}
-                        title={`${r.leadName} · ${fmtDateTime(r.scheduledAt)}${past ? ` · ${statusLabel(r.status)}` : ""}`}
+                        className="rounded-[7px] px-2 py-1.5 cursor-pointer relative"
+                        draggable={Boolean(onReschedule) && canMove(r, now) && moving !== r.id}
+                        onDragStart={(e) => {
+                          e.dataTransfer.effectAllowed = "move";
+                          e.dataTransfer.setData("text/plain", r.id);
+                          setDragId(r.id);
+                        }}
+                        onDragEnd={() => {
+                          setDragId("");
+                          setOverDay("");
+                        }}
+                        style={{
+                          background: `color-mix(in srgb, ${tone} 14%, var(--surface))`,
+                          borderLeft: `3px solid ${tone}`,
+                          opacity: dragId === r.id ? 0.4 : past ? 0.72 : 1,
+                          zIndex: moving === r.id ? 20 : undefined,
+                        }}
+                        title={`${r.leadName} · ${fmtDateTime(r.scheduledAt)}${past ? ` · ${statusLabel(r.status)}` : ""}${onReschedule && canMove(r, now) ? " · glisser vers un autre jour pour déplacer" : ""}`}
                       >
-                        <div className="num text-[12px] font-semibold">
-                          {fmtTime(r.scheduledAt)} <span className="dim font-normal text-[10.5px]">FR</span>
-                          <span className="dim font-normal text-[10.5px]"> · {fmtTime(r.scheduledAt, SECOND_TZ)} DXB</span>
+                        <div className="num text-[12px] font-semibold flex items-center justify-between gap-1">
+                          <span>
+                            {fmtTime(r.scheduledAt)} <span className="dim font-normal text-[10.5px]">FR</span>
+                            <span className="dim font-normal text-[10.5px]"> · {fmtTime(r.scheduledAt, SECOND_TZ)} DXB</span>
+                          </span>
+                          {moveButton(r, true)}
                         </div>
+                        {moving === r.id && onReschedule && <ReschedulePopover row={r} onDone={(iso) => onReschedule(r.id, iso)} onClose={() => setMoving("")} />}
                         <div className="text-[12px] truncate">{r.leadName}</div>
                         {past && <div className="text-[10.5px] font-medium truncate" style={{ color: tone }}>{statusLabel(r.status)}</div>}
                         {!past && canConfirm(r.status) && (

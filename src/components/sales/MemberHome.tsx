@@ -405,6 +405,17 @@ export function MemberHome() {
           rows={agenda?.rows ?? []}
           role={isSetter ? "setter" : "closer"}
           onOpen={(id) => setOpenId(id)}
+          onReschedule={async (id, iso) => {
+            try {
+              await api(`/api/sales/appointments/${id}`, { method: "PATCH", body: JSON.stringify({ scheduledAt: iso }) });
+              toast(`Rendez-vous déplacé au ${fmtDateTime(iso)} (FR). Préviens le lead.`);
+              void reloadAgenda();
+              bump();
+            } catch (e) {
+              toast((e as Error).message, "err");
+              throw e;
+            }
+          }}
         />
 
         {/* ------------------- Prochains rendez-vous, replies ------------------- */}
