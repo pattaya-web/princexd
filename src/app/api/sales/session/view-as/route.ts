@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readDB } from "@/lib/db";
-import { issueStudentToken, issueToken, readSession, requireAdmin } from "@/lib/sales/access";
+import { issueStudentToken, issueStudioToken, issueToken, readSession, requireAdmin } from "@/lib/sales/access";
 import { SESSION_COOKIE, SESSION_MAX_AGE_S } from "@/lib/sales/session";
 import { memberRoles, primaryRole } from "@/lib/sales/roles";
 import type { SessionRole } from "@/lib/types";
@@ -33,11 +33,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Action réservée à l'administrateur." }, { status: 403 });
   }
 
-  const { memberId, studentId, role: wanted } = (await req.json().catch(() => ({}))) as {
+  const { memberId, studentId, studioMemberId, role: wanted } = (await req.json().catch(() => ({}))) as {
     memberId?: string;
     studentId?: string;
-    role?: "setter" | "closer" | "va" | "student";
+    studioMemberId?: string;
+    role?: "setter" | "closer" | "va" | "student" | "studio";
   };
+
+  /* Apercu du Studio IA d'un membre Studio : ses generations, sa cle, ses credits. */
+  if (wanted === "studio") {
+    const member = readDB().studioMembers.find((m) => m.id === studioMemberId);
+    if (!member) return NextResponse.json({ error: "Membre Studio introuvable." }, { status: 404 });
+    const res = NextResponse.json({ ok: true, role: "studio", memberId: member.id, memberName: member.name, redirect: "/studio" });
+    res.cookies.set(SESSION_COOKIE, issueStudioToken(member, true), {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: Math.min(SESSION_MAX_AGE_S, 60 * 60 * 8),
+      secure: process.env.NODE_ENV === "production",
+    });
+    return res;
+  }
 
   /*
    * Apercu de la plateforme de formation dans la peau d'un eleve precis :

@@ -801,6 +801,26 @@ export interface StudentOnboardingSettings {
   message: string;
 }
 
+/**
+ * Membre Studio IA (2026-11-01) : quelqu'un à qui Mady ouvre le Studio IA et
+ * rien d'autre. Ni élève (absent des listes, des stats et de Scale X), ni
+ * équipe. Il se connecte par identifiant + mot de passe, travaille sur sa
+ * propre clé KIE (ses crédits) et ne voit que ses générations, comme un élève.
+ */
+export interface StudioMember {
+  id: ID;
+  name: string;
+  username: string;
+  passwordHash: string;
+  /** Coupe l'accès sans effacer la fiche ni ses créations. */
+  active: boolean;
+  /** Clé API KIE du membre. Jamais renvoyée en clair au navigateur. */
+  kieApiKey?: string;
+  notes?: string;
+  createdAt: string;
+  lastSeenAt?: string;
+}
+
 export interface Student {
   id: ID;
   name: string;
@@ -1705,6 +1725,8 @@ export interface DB {
   /* --- Studio : swap video --- */
   studioJobs: StudioJob[];
   studioCharacters: StudioCharacter[];
+  /** Accès au Studio IA seul (ni élève, ni équipe), voir StudioMember. */
+  studioMembers: StudioMember[];
   /* --- Module commercial Setter / Closer --- */
   appointments: Appointment[];
   sales: Sale[];
@@ -2212,7 +2234,7 @@ export type SalesRole = "admin" | "setter" | "closer";
  * tool, qu'il ne faut surtout pas casser. `admin` = un membre a qui j'ai donne
  * les pleins pouvoirs. Les deux ont exactement les memes droits.
  */
-export type SessionRole = "owner" | "admin" | "setter" | "closer" | "editor" | "va" | "student" | "anonyme";
+export type SessionRole = "owner" | "admin" | "setter" | "closer" | "editor" | "va" | "student" | "studio" | "anonyme";
 
 export interface Session {
   /** Role principal : sert au routage. Les droits fins passent par `roles`. */

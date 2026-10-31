@@ -10,7 +10,9 @@ import type { CollectionName, Generation } from "@/lib/types";
  */
 function generationScope(req: NextRequest): { ownerId: string; student: boolean } {
   const session = readSession(req);
-  return { ownerId: session.role === "student" ? session.memberId : "", student: session.role === "student" };
+  // Membre Studio IA : même cloisonnement que l'élève.
+  const tenant = session.role === "student" || session.role === "studio";
+  return { ownerId: tenant ? session.memberId : "", student: tenant };
 }
 
 export const dynamic = "force-dynamic";

@@ -19,7 +19,7 @@ const MAX_BYTES = 100 * 1024 * 1024;
  */
 export async function POST(req: NextRequest) {
   // Hors middleware (voir lib/sales/access) : memes roles qu'avant.
-  const refused = refuseUnless(req, ["editor", "student"]);
+  const refused = refuseUnless(req, ["editor", "student", "studio"]);
   if (refused) return refused;
   // Eleve : le fichier part sur le stockage KIE avec SA cle, rien ne reste ici.
   let scope;
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const url = await withScope(scope, () => uploadToKie(file, scope.ownerId ? `eleve-${scope.ownerId}` : "princexd"));
+    const url = await withScope(scope, () => uploadToKie(file, scope.ownerId ? `${scope.member ? "studio" : "eleve"}-${scope.ownerId}` : "princexd"));
     return NextResponse.json({ url, name: file.name, size: file.size });
   } catch (e) {
     const err = e as KieError;

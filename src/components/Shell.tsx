@@ -159,6 +159,9 @@ interface CreditsPayload {
 }
 
 export function CreditsWidget() {
+  const { session } = useSession();
+  // Élève et membre Studio posent leur propre clé : pas chez Réglages (fermés pour eux).
+  const keyHref = session?.role === "student" ? "/formation/studio" : session?.role === "studio" ? "" : "/reglages";
   const [data, setData] = useState<CreditsPayload | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -179,7 +182,13 @@ export function CreditsWidget() {
     void load();
     // Un rafraîchissement toutes les 2 min suffit : le solde bouge peu.
     const id = setInterval(() => void load(), 120_000);
-    return () => clearInterval(id);
+    // Membre Studio qui vient de poser ou changer sa clé KIE.
+    const onKey = () => void load();
+    window.addEventListener("kie:credits", onKey);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("kie:credits", onKey);
+    };
   }, []);
 
   const low = data?.credits !== null && data?.credits !== undefined && data.credits < 400;
@@ -207,12 +216,16 @@ export function CreditsWidget() {
       {data?.error ? (
         <p className="text-[12px] mt-1.5 leading-snug" style={{ color: "var(--warning)" }}>
           {data.error.includes("clé") || data.error.includes("cle") ? (
-            <>
-              Clé API manquante —{" "}
-              <Link href="/reglages" className="link">
-                configurer
-              </Link>
-            </>
+            keyHref ? (
+              <>
+                Clé API manquante —{" "}
+                <Link href={keyHref} className="link">
+                  configurer
+                </Link>
+              </>
+            ) : (
+              "Clé KIE à poser en haut du Studio."
+            )
           ) : (
             data.error
           )}
@@ -520,6 +533,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     section: "Création",
     items: [
       { href: "/studio", label: "Studio IA", icon: "✦" },
+      { href: "/acces-studio", label: "Accès Studio", icon: "⚿" },
       { href: "/montage", label: "Espace monteur", icon: "✂" },
       { href: "/temoignages", label: "Témoignages", icon: "★" },
       { href: "/tournage", label: "Kit tournage", icon: "▶" },
@@ -657,6 +671,7 @@ const ROLE_LABEL: Record<string, string> = {
   editor: "monteur",
   va: "VA outreach",
   student: "élève",
+  studio: "Studio IA",
 };
 
 /**
@@ -775,6 +790,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const isVa = session?.role === "va";
   // Un eleve ne voit que sa formation.
   const isStudent = session?.role === "student";
+  // Membre Studio IA : le Studio seul, rien d'autre.
+  const isMember = session?.role === "studio";
   /* Verrou du parcours élève : rechargé à chaque étape validée (événement formation:gate). */
   const [gateTabs, setGateTabs] = useState<GateTabState[]>([]);
   useEffect(() => {
@@ -814,6 +831,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
               ],
             },
           ]
+      : isMember
+      ? [
+          {
+            section: "Studio IA",
+            items: [
+              { href: "/studio?kind=image", label: "Image", icon: "✦" },
+              { href: "/studio?kind=video", label: "Vidéo", icon: "▶" },
+              { href: "/studio?kind=swap", label: "Swap vidéo", icon: "⇄" },
+              { href: "/studio?kind=create", label: "Création", icon: "◐" },
+            ],
+          },
+        ]
       : isEditor
       ? [
           {
@@ -955,7 +984,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-3 shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
-          {!isSalesOnly && !isEditor && !isVa && !isStudent && (
+          {!isSalesOnly && !isEditor && !isVa && !isStudent && !isMember && (
             <button type="button" className="btn btn-sm btn-ghost w-full justify-start mb-1 !text-[12px]" onClick={toggleNav}>
               {fullNav ? "◂ Menu simple" : "Tout le menu ▸"}
             </button>
@@ -965,7 +994,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <SessionBadge />
           {/* Le solde de credits IA ne concerne pas l'equipe commerciale. */}
           {!isSalesOnly && !isVa && <CreditsWidget />}
-          {!isSalesOnly && !isVa && !isStudent && <HiggsfieldWidget />}
+          {!isSalesOnly && !isVa && !isStudent && !isMember && <HiggsfieldWidget />}
         </div>
       </aside>
 
@@ -984,12 +1013,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
           {/* Sur téléphone, les objectifs du jour défilent horizontalement au lieu de déborder. */}
           <div className="min-w-0 flex-1 overflow-x-auto scroll-x">
             {/* Attendre la session : monté trop tôt, le monteur déclenchait un appel refusé à /api/today. */}
-            {session && !isSalesOnly && !isEditor && !isVa && !isStudent && <DailyBar />}
+            {session && !isSalesOnly && !isEditor && !isVa && !isStudent && !isMember && <DailyBar />}
           </div>
           <div className="hidden md:block shrink-0">
             <Clocks />
           </div>
-          {session && !isEditor && !isVa && !isStudent && (
+          {session && !isEditor && !isVa && !isStudent && !isMember && (
             <div className="shrink-0">
               <AlertsBell />
             </div>

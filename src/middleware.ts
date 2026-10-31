@@ -89,6 +89,16 @@ const STUDENT_APIS = [
   "/api/studio/frame",
 ];
 
+/*
+ * --- Membre Studio IA ---
+ *
+ * Le Studio seul (2026-11-01) : les memes routes de generation que l'eleve,
+ * sur sa cle KIE, plus sa fiche (cle, solde). Rien de Scale X, du CRM ni des
+ * reglages.
+ */
+const STUDIO_MEMBER_PAGES = ["/studio"];
+const STUDIO_MEMBER_APIS = [...STUDENT_APIS.filter((p) => p !== "/api/formation/"), "/api/studio-members/me"];
+
 /* --- Equipe commerciale --- */
 const SALES_PAGES = ["/sales"];
 
@@ -162,6 +172,11 @@ export function middleware(req: NextRequest) {
     if (matches(pathname, STUDENT_ADMIN_PAGES)) return deny(req, "/formation");
     if (matches(pathname, STUDENT_PAGES) || matches(pathname, STUDENT_APIS)) return NextResponse.next();
     return deny(req, "/formation");
+  }
+
+  if (role === "studio") {
+    if (matches(pathname, STUDIO_MEMBER_PAGES) || matches(pathname, STUDIO_MEMBER_APIS)) return NextResponse.next();
+    return deny(req, "/studio");
   }
 
   if (role === "setter" || role === "closer") {

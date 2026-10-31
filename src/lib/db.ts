@@ -97,6 +97,7 @@ const EMPTY_DB: DB = {
   adFolders: [],
   studioJobs: [],
   studioCharacters: [],
+  studioMembers: [],
   appointments: [],
   sales: [],
   followUps: [],

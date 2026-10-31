@@ -149,15 +149,17 @@ export function ViewSwitcher() {
     }
   };
 
-  const current: "admin" | "setter" | "closer" | "va" | "student" = session.isAdmin
+  const current: "admin" | "setter" | "closer" | "va" | "student" | "studio" = session.isAdmin
     ? "admin"
     : session.role === "va"
       ? "va"
       : session.role === "student"
         ? "student"
-        : session.role === "closer"
-          ? "closer"
-          : "setter";
+        : session.role === "studio"
+          ? "studio"
+          : session.role === "closer"
+            ? "closer"
+            : "setter";
 
   const options: { key: "admin" | "setter" | "closer" | "va" | "student"; label: string; name?: string }[] = [
     { key: "admin", label: "Admin", name: "Moi" },
@@ -257,6 +259,8 @@ export function ViewSwitcher() {
             ? "Dans la peau de la VA (outreach)"
             : current === "student"
               ? `Dans la peau de ${session.memberName} (élève)`
+              : current === "studio"
+                ? `Dans la peau de ${session.memberName} (Studio IA)`
               : `Dans la peau de ${session.memberName} (${session.role})`}
       </div>
     </div>

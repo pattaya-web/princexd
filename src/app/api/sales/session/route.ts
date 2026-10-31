@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSettings, readDB, writeDB } from "@/lib/db";
 import {
   findStudentByLogin,
+  findStudioMemberByLogin,
   issueOwnerToken,
+  issueStudioToken,
   issueStudentToken,
   issueToken,
   normalizeUsername,
@@ -80,6 +82,37 @@ export async function POST(req: NextRequest) {
         res.cookies.delete(LEGACY_ROLE_COOKIE);
         return res;
       }
+    }
+  }
+
+  /*
+   * Membre Studio IA : identifiant + mot de passe, un seul espace, /studio.
+   * L'acces coupe est dit clairement, comme pour l'eleve.
+   */
+  if (username && password) {
+    const member = findStudioMemberByLogin(username, password);
+    if (member) {
+      if (!member.active) {
+        return NextResponse.json({ error: "Ton accès au Studio IA est désactivé. Contacte Mady." }, { status: 403 });
+      }
+      const db = readDB();
+      const row = db.studioMembers.find((m) => m.id === member.id);
+      if (row) {
+        row.lastSeenAt = new Date().toISOString();
+        writeDB(db);
+      }
+      const res = NextResponse.json({
+        ok: true,
+        role: "studio",
+        roles: [],
+        memberId: member.id,
+        memberName: member.name,
+        isAdmin: false,
+        redirect: "/studio",
+      });
+      res.cookies.set(SESSION_COOKIE, issueStudioToken(member), cookieOptions(SESSION_MAX_AGE_S));
+      res.cookies.delete(LEGACY_ROLE_COOKIE);
+      return res;
     }
   }
 

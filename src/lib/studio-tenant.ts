@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { readDB, withKieKey } from "@/lib/db";
 import { KieError } from "@/lib/kie";
 import { Forbidden, readSession } from "@/lib/sales/access";
-import type { DB, Generation, Session, Student } from "@/lib/types";
+import type { DB, Generation, Session, Student, StudioMember } from "@/lib/types";
 
 /**
  * Studio IA par élève.
@@ -16,7 +16,9 @@ import type { DB, Generation, Session, Student } from "@/lib/types";
 export interface StudioScope {
   session: Session;
   student: Student | null;
-  /** Vide pour l'admin et le monteur, l'id de l'élève sinon. */
+  /** Membre Studio IA (accès Studio seul), null sinon. */
+  member: StudioMember | null;
+  /** Vide pour l'admin et le monteur, l'id de l'élève ou du membre Studio sinon. */
   ownerId: string;
   /** Clé KIE à utiliser pour cette requête (vide = clé du compte). */
   key: string | null;
@@ -30,9 +32,17 @@ export function studioScope(req: NextRequest): StudioScope {
     // Le Studio est ouvert à tout élève (choix de Mady, 2026-10-27) : seule sa clé KIE conditionne l'usage.
     const key = (student.kieApiKey ?? "").trim();
     if (!key) throw new KieError("Ajoute d'abord ta clé API KIE dans Scale X → Studio IA → Ma clé.", 401);
-    return { session, student, ownerId: student.id, key };
+    return { session, student, member: null, ownerId: student.id, key };
   }
-  if (session.isAdmin || session.role === "editor") return { session, student: null, ownerId: "", key: null };
+  // Membre Studio IA : même cloisonnement que l'élève, sur sa clé KIE.
+  if (session.role === "studio") {
+    const member = readDB().studioMembers.find((m) => m.id === session.memberId);
+    if (!member) throw new Forbidden("Accès refusé.");
+    const key = (member.kieApiKey ?? "").trim();
+    if (!key) throw new KieError("Ajoute d'abord ta clé API KIE (bandeau « Ma clé KIE » en haut du Studio).", 401);
+    return { session, student: null, member, ownerId: member.id, key };
+  }
+  if (session.isAdmin || session.role === "editor") return { session, student: null, member: null, ownerId: "", key: null };
   throw new Forbidden("Accès refusé.");
 }
 
@@ -46,10 +56,11 @@ export function ownGenerations(db: Pick<DB, "generations">, ownerId: string): Ge
   return db.generations.filter((g) => (g.ownerId ?? "") === ownerId);
 }
 
-/** Clé de l'élève propriétaire d'une génération, pour la sonder chez KIE à sa place. */
-export function keyForOwner(db: Pick<DB, "students">, ownerId: string | undefined): string | null {
+/** Clé de l'élève (ou du membre Studio) propriétaire d'une génération, pour la sonder chez KIE à sa place. */
+export function keyForOwner(db: Pick<DB, "students" | "studioMembers">, ownerId: string | undefined): string | null {
   if (!ownerId) return null;
-  return (db.students.find((s) => s.id === ownerId)?.kieApiKey ?? "").trim() || null;
+  const owner = db.students.find((s) => s.id === ownerId) ?? (db.studioMembers ?? []).find((m) => m.id === ownerId);
+  return (owner?.kieApiKey ?? "").trim() || null;
 }
 
 /** Réponse HTTP d'une erreur de périmètre ou de clé, à utiliser dans les routes hors `handle()`. */

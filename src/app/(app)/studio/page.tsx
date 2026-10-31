@@ -31,6 +31,7 @@ import { ACTIVE_STATUSES, type StudioJob } from "@/lib/studio/types";
 import { MediaField } from "@/components/MediaField";
 import { ElementField, ELEMENT_NAME, EMPTY_ELEMENT, type ElementValue } from "@/components/ElementField";
 import { SkPage } from "@/components/Skeleton";
+import { StudioMemberKey } from "@/components/StudioMemberKey";
 import { fetchStudioJobs, GENERATIONS_EVENT, readStudioJobsCache, STUDIO_JOBS_EVENT } from "@/components/JobsDock";
 import { duration, estimateSec, fmtInt, fmtUsdInEur, label, relative } from "@/lib/format";
 import type { Generation } from "@/lib/types";
@@ -88,8 +89,13 @@ function StudioInner() {
   /* Monteur : un rappel des trois gestes du swap, qu'il peut fermer. */
   const { session } = useSession();
   const isEditor = session?.role === "editor";
-  /* Eleve (Studio IA par eleve) : image et video seulement, avec sa cle KIE ; pas de swap, de voix ni de dictee (cles du compte). */
-  const isStudent = session?.role === "student";
+  /*
+   * Eleve (Studio IA par eleve) ou membre Studio IA (acces Studio seul) : sur sa
+   * cle KIE ; pas de swap de visage, de voix, de photo qui parle ni de dictee
+   * (cles du compte : ElevenLabs, OpenAI).
+   */
+  const isMember = session?.role === "studio";
+  const isStudent = session?.role === "student" || isMember;
   // Élève : les fichiers du Swap et de la Création partent sur le stockage KIE avec sa clé.
   useEffect(() => {
     setUploadViaKie(isStudent);
@@ -444,12 +450,18 @@ function StudioInner() {
                 <span className="spinner" /> {pending.length} en cours
               </span>
             )}
+            {session?.isAdmin && (
+              <a href="/acces-studio" className="btn" title="Donner un accès au Studio seul (identifiant + mot de passe, sa propre clé KIE)">
+                Accès Studio
+              </a>
+            )}
             <button className="btn" onClick={() => void reload()}>↻ Actualiser</button>
           </>
         }
       />
 
       <div className="flex flex-col gap-4">
+        {isMember && <StudioMemberKey />}
         <Card
           title="Résultats"
           subtitle={
@@ -588,7 +600,7 @@ function StudioInner() {
               {kind === "image" && !talkTab && !createTab && !isStudent && (
                 <Toggle checked={swap} onChange={setSwap} label="Swap de visage" />
               )}
-              {isStudent && (
+              {isStudent && !isMember && (
                 <div className="rounded-[10px] px-3.5 py-2.5 text-[12.5px] leading-relaxed" style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--accent) 25%, transparent)" }}>
                   <strong>Ton Studio.</strong> Image, Vidéo, Swap vidéo et Création tournent sur ta clé KIE (tes crédits) et toi seul vois tes résultats. Les prompts sont sur la page{" "}
                   <a href="/formation/creatives" className="underline">Créatives</a> : Claude t&apos;écrit le prompt, tu le colles ici avec ton image de référence. Clé et solde :{" "}

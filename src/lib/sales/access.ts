@@ -3,7 +3,7 @@ import path from "path";
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
 import { readDB } from "../db";
-import type { Session, SessionRole, Student, TeamMember } from "../types";
+import type { Session, SessionRole, Student, StudioMember, TeamMember } from "../types";
 import { memberRoles, primaryRole, sessionHas, type CommercialRole } from "./roles";
 import { LEGACY_ROLE_COOKIE, SESSION_COOKIE, SESSION_MAX_AGE_S, type SessionClaims } from "./session";
 
@@ -200,6 +200,7 @@ export function loginNeedsPassword(username: string): "account" | "legacy" | fal
   const db = readDB();
   if (db.settings.vaUsername && normalizeUsername(db.settings.vaUsername) === u) return "account";
   if (db.team.some((m) => normalizeUsername(m.username ?? "") === u && Boolean(m.passwordHash))) return "account";
+  if (db.studioMembers.some((m) => normalizeUsername(m.username) === u)) return "account";
   // Mode historique : mot de passe seul de l'environnement, identifiant ignore.
   // N'importe quel identifiant peut donc etre celui de l'admin : on laisse le
   // champ, mais en disant que ce n'est pas un identifiant eleve.
@@ -254,6 +255,26 @@ function studentSession(student: Student, impersonated: boolean): Session {
  */
 export function issueStudentEditorToken(student: Student): string {
   return issueToken({ role: "editor", memberId: "", memberName: student.name, studentId: student.id });
+}
+
+/* ---------------------------- Membre Studio IA ---------------------------- */
+
+/**
+ * Connexion d'un membre Studio IA : identifiant + mot de passe, toujours.
+ * Tous les membres sont parcourus avant de repondre, comme pour l'equipe.
+ */
+export function findStudioMemberByLogin(username: string, password: string): StudioMember | null {
+  const u = normalizeUsername(username);
+  if (!u || !password) return null;
+  let hit: StudioMember | null = null;
+  for (const m of readDB().studioMembers) {
+    if (normalizeUsername(m.username) === u && verifyPassword(password, m.passwordHash)) hit = hit ?? m;
+  }
+  return hit;
+}
+
+export function issueStudioToken(member: StudioMember, impersonated = false): string {
+  return issueToken({ role: "studio", memberId: member.id, memberName: member.name, impersonated });
 }
 
 /** La plateforme de formation : les eleves et l'admin, personne d'autre. */
@@ -332,6 +353,17 @@ export function readSession(req: NextRequest): Session {
     if (!student) return ANON;
     if (!student.portalAccess && !claims.impersonated) return ANON;
     return studentSession(student, Boolean(claims.impersonated));
+  }
+
+  /*
+   * Membre Studio IA : la fiche fait foi, comme pour l'eleve. Un acces coupe
+   * (ou une fiche supprimee) ferme la porte meme avec un cookie valide.
+   */
+  if (claims?.role === "studio" && claims.memberId) {
+    const member = readDB().studioMembers.find((m) => m.id === claims.memberId);
+    if (!member) return ANON;
+    if (!member.active && !claims.impersonated) return ANON;
+    return { role: "studio", roles: [], memberId: member.id, memberName: member.name, isAdmin: false, canLogout: true, impersonated: Boolean(claims.impersonated) };
   }
 
   if (claims?.memberId) {
