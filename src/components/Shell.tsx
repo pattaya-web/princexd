@@ -729,6 +729,25 @@ function EditorSwitch() {
   );
 }
 
+/**
+ * Membre Studio en anglais : l'interface est traduite à l'affichage
+ * (lib/dom-translate, chargé seulement pour lui).
+ */
+function DomTranslate() {
+  useEffect(() => {
+    let stop: (() => void) | null = null;
+    let alive = true;
+    void import("@/lib/dom-translate").then((m) => {
+      if (alive) stop = m.startDomTranslation();
+    });
+    return () => {
+      alive = false;
+      stop?.();
+    };
+  }, []);
+  return null;
+}
+
 function SessionBadge() {
   const { session } = useSession();
   if (!session || session.role === "anonyme") return null;
@@ -1050,6 +1069,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       {/* Chat « Nouvel élève » (admin seulement) : bulle en bas à droite, sauf sur la page du chat. */}
       {session?.isAdmin && !pathname.startsWith("/eleves/nouveau") && <NewStudentChat variant="widget" />}
       <NewVersionBanner />
+      {session?.lang === "en" && <DomTranslate />}
     </div>
   );
 }

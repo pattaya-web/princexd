@@ -86,14 +86,15 @@ export async function POST(req: NextRequest) {
   }
 
   /*
-   * Membre Studio IA : identifiant + mot de passe, un seul espace, /studio.
-   * L'acces coupe est dit clairement, comme pour l'eleve.
+   * Membre Studio IA : son identifiant suffit, un seul espace, /studio.
+   * L'acces coupe est dit clairement (dans sa langue), comme pour l'eleve.
    */
-  if (username && password) {
-    const member = findStudioMemberByLogin(username, password);
+  if (username) {
+    const member = findStudioMemberByLogin(username);
     if (member) {
       if (!member.active) {
-        return NextResponse.json({ error: "Ton accès au Studio IA est désactivé. Contacte Mady." }, { status: 403 });
+        const error = member.lang === "en" ? "Your Studio access is disabled. Please contact Mady." : "Ton accès au Studio IA est désactivé. Contacte Mady.";
+        return NextResponse.json({ error }, { status: 403 });
       }
       const db = readDB();
       const row = db.studioMembers.find((m) => m.id === member.id);

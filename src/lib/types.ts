@@ -804,14 +804,17 @@ export interface StudentOnboardingSettings {
 /**
  * Membre Studio IA (2026-11-01) : quelqu'un à qui Mady ouvre le Studio IA et
  * rien d'autre. Ni élève (absent des listes, des stats et de Scale X), ni
- * équipe. Il se connecte par identifiant + mot de passe, travaille sur sa
- * propre clé KIE (ses crédits) et ne voit que ses générations, comme un élève.
+ * équipe. Il se connecte par son identifiant seul (comme un élève), travaille
+ * sur sa propre clé KIE (ses crédits) et ne voit que ses générations.
  */
 export interface StudioMember {
   id: ID;
   name: string;
   username: string;
-  passwordHash: string;
+  /** Plus utilisé : l'identifiant suffit depuis le 2026-11-01. */
+  passwordHash?: string;
+  /** Langue de son Studio : « en » = interface traduite en anglais (lib/dom-translate). */
+  lang?: "fr" | "en";
   /** Coupe l'accès sans effacer la fiche ni ses créations. */
   active: boolean;
   /** Clé API KIE du membre. Jamais renvoyée en clair au navigateur. */
@@ -1727,6 +1730,8 @@ export interface DB {
   studioCharacters: StudioCharacter[];
   /** Accès au Studio IA seul (ni élève, ni équipe), voir StudioMember. */
   studioMembers: StudioMember[];
+  /** Cache des traductions d'interface (membre Studio en anglais). */
+  uiTranslations: UiTranslation[];
   /* --- Module commercial Setter / Closer --- */
   appointments: Appointment[];
   sales: Sale[];
@@ -2253,6 +2258,16 @@ export interface Session {
   editorAccess?: boolean;
   /** Session monteur ouverte depuis un compte eleve : « Retour à Scale X » le ramene a sa formation. */
   studentId?: string;
+  /** Membre Studio en anglais : l'interface est traduite a l'affichage. */
+  lang?: "en";
+}
+
+/** Traduction d'un texte d'interface, mise en cache (voir /api/i18n). `{0}`, `{1}`… remplacent les nombres. */
+export interface UiTranslation {
+  id: ID;
+  lang: "en";
+  source: string;
+  text: string;
 }
 
 /** D'ou vient le rendez-vous. L'acquisition se fait surtout par Instagram. */

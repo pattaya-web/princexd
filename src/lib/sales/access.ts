@@ -200,7 +200,6 @@ export function loginNeedsPassword(username: string): "account" | "legacy" | fal
   const db = readDB();
   if (db.settings.vaUsername && normalizeUsername(db.settings.vaUsername) === u) return "account";
   if (db.team.some((m) => normalizeUsername(m.username ?? "") === u && Boolean(m.passwordHash))) return "account";
-  if (db.studioMembers.some((m) => normalizeUsername(m.username) === u)) return "account";
   // Mode historique : mot de passe seul de l'environnement, identifiant ignore.
   // N'importe quel identifiant peut donc etre celui de l'admin : on laisse le
   // champ, mais en disant que ce n'est pas un identifiant eleve.
@@ -260,15 +259,16 @@ export function issueStudentEditorToken(student: Student): string {
 /* ---------------------------- Membre Studio IA ---------------------------- */
 
 /**
- * Connexion d'un membre Studio IA : identifiant + mot de passe, toujours.
- * Tous les membres sont parcourus avant de repondre, comme pour l'equipe.
+ * Connexion d'un membre Studio IA : son identifiant suffit, comme un eleve
+ * (choix de Mady, 2026-11-01). Tous les membres sont parcourus avant de
+ * repondre, comme pour l'equipe.
  */
-export function findStudioMemberByLogin(username: string, password: string): StudioMember | null {
+export function findStudioMemberByLogin(username: string): StudioMember | null {
   const u = normalizeUsername(username);
-  if (!u || !password) return null;
+  if (!u) return null;
   let hit: StudioMember | null = null;
   for (const m of readDB().studioMembers) {
-    if (normalizeUsername(m.username) === u && verifyPassword(password, m.passwordHash)) hit = hit ?? m;
+    if (normalizeUsername(m.username) === u) hit = hit ?? m;
   }
   return hit;
 }
@@ -363,7 +363,16 @@ export function readSession(req: NextRequest): Session {
     const member = readDB().studioMembers.find((m) => m.id === claims.memberId);
     if (!member) return ANON;
     if (!member.active && !claims.impersonated) return ANON;
-    return { role: "studio", roles: [], memberId: member.id, memberName: member.name, isAdmin: false, canLogout: true, impersonated: Boolean(claims.impersonated) };
+    return {
+      role: "studio",
+      roles: [],
+      memberId: member.id,
+      memberName: member.name,
+      isAdmin: false,
+      canLogout: true,
+      impersonated: Boolean(claims.impersonated),
+      ...(member.lang === "en" ? { lang: "en" as const } : {}),
+    };
   }
 
   if (claims?.memberId) {

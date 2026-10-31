@@ -97,7 +97,7 @@ const STUDENT_APIS = [
  * reglages.
  */
 const STUDIO_MEMBER_PAGES = ["/studio"];
-const STUDIO_MEMBER_APIS = [...STUDENT_APIS.filter((p) => p !== "/api/formation/"), "/api/studio-members/me"];
+const STUDIO_MEMBER_APIS = [...STUDENT_APIS.filter((p) => p !== "/api/formation/"), "/api/studio-members/me", "/api/i18n"];
 
 /* --- Equipe commerciale --- */
 const SALES_PAGES = ["/sales"];

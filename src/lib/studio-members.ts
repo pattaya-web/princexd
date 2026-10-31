@@ -1,4 +1,3 @@
-import { randomInt } from "crypto";
 import { readDB, withKieKey } from "@/lib/db";
 import { getCredits } from "@/lib/kie";
 import { normalizeUsername } from "@/lib/sales/access";
@@ -13,6 +12,7 @@ export interface StudioMemberView {
   name: string;
   username: string;
   active: boolean;
+  lang: "fr" | "en";
   notes: string;
   createdAt: string;
   lastSeenAt: string;
@@ -34,6 +34,7 @@ export function memberView(m: StudioMember): StudioMemberView {
     name: m.name,
     username: m.username,
     active: m.active,
+    lang: m.lang === "en" ? "en" : "fr",
     notes: m.notes ?? "",
     createdAt: m.createdAt,
     lastSeenAt: m.lastSeenAt ?? "",
@@ -41,14 +42,6 @@ export function memberView(m: StudioMember): StudioMemberView {
     keyMask: maskKey(key),
     creations,
   };
-}
-
-/** Mot de passe lisible à dicter ou copier : sans 0/O ni 1/l, 10 caractères. */
-export function generatePassword(): string {
-  const alphabet = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  for (let i = 0; i < 10; i++) out += alphabet[randomInt(alphabet.length)];
-  return out;
 }
 
 /** Identifiant libre ? Il ne doit ouvrir qu'un seul compte (élève, équipe, admin, VA, Studio). */

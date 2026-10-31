@@ -9,9 +9,9 @@ import type { StudioMemberView } from "@/lib/studio-members";
 
 /**
  * Accès Studio IA : donner le Studio seul à quelqu'un qui n'est ni élève ni
- * équipe. Identifiant + mot de passe, sa propre clé KIE (il recharge ses
- * crédits lui-même), ses créations sauvegardées et visibles par lui seul.
- * Le mot de passe n'est montré qu'une fois, dans le message à envoyer.
+ * équipe. Identifiant seul (pas de mot de passe), sa propre clé KIE (il
+ * recharge ses crédits lui-même), ses créations sauvegardées et visibles par
+ * lui seul. Son Studio peut être en anglais.
  */
 
 const slug = (name: string) =>
@@ -23,15 +23,29 @@ const slug = (name: string) =>
     .replace(/[^a-z0-9]+/g, ".")
     .replace(/^\.+|\.+$/g, "");
 
-function accessMessage(m: Pick<StudioMemberView, "name" | "username">, password: string) {
+function accessMessage(m: Pick<StudioMemberView, "name" | "username" | "lang">) {
   const first = m.name.trim().split(/\s+/)[0] ?? m.name;
   const origin = typeof window !== "undefined" ? window.location.origin : "https://mvdyprince.fr";
+  if (m.lang === "en") {
+    return [
+      `Hi ${first}, here is your access to the AI Studio:`,
+      ``,
+      `Link: ${origin}/login?lang=en`,
+      `Username: ${m.username} (no password needed)`,
+      ``,
+      `The first time you log in:`,
+      `1. Create your account on https://kie.ai`,
+      `2. Top up credits on https://kie.ai/billing (€20 to €30 is enough to start)`,
+      `3. Copy your key from "API Key" on KIE and paste it at the top of the Studio`,
+      ``,
+      `Images, videos, video swap, creation: everything runs on your own KIE credits, and your creations are saved in your Studio, only you can see them.`,
+    ].join("\n");
+  }
   return [
     `Salut ${first}, voici ton accès au Studio IA :`,
     ``,
     `Lien : ${origin}/login`,
-    `Identifiant : ${m.username}`,
-    `Mot de passe : ${password}`,
+    `Identifiant : ${m.username} (pas de mot de passe)`,
     ``,
     `À ta première connexion :`,
     `1. Crée ton compte sur https://kie.ai`,
@@ -48,9 +62,9 @@ export default function StudioAccessPage() {
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [lang, setLang] = useState<"en" | "fr">("en");
   const [busy, setBusy] = useState("");
-  /** Message prêt à envoyer, juste après une création ou un nouveau mot de passe. */
+  /** Message prêt à envoyer, juste après une création (ou redemandé sur la ligne du membre). */
   const [sent, setSent] = useState<{ id: string; text: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -69,14 +83,13 @@ export default function StudioAccessPage() {
   const create = async () => {
     setBusy("create");
     try {
-      const r = await api<{ member: StudioMemberView; password: string }>("/api/studio-members", {
+      const r = await api<{ member: StudioMemberView }>("/api/studio-members", {
         method: "POST",
-        body: JSON.stringify({ name, username: username || slug(name), password }),
+        body: JSON.stringify({ name, username: username || slug(name), lang }),
       });
-      setSent({ id: r.member.id, text: accessMessage(r.member, r.password) });
+      setSent({ id: r.member.id, text: accessMessage(r.member) });
       setName("");
       setUsername("");
-      setPassword("");
       toast(`Accès créé pour ${r.member.name}. Copie le message et envoie-le.`);
       await load();
     } catch (e) {
@@ -89,11 +102,11 @@ export default function StudioAccessPage() {
   const patch = async (m: StudioMemberView, body: Record<string, unknown>, ok: string) => {
     setBusy(m.id);
     try {
-      const r = await api<{ member: StudioMemberView; password?: string }>("/api/studio-members", {
+      const r = await api<{ member: StudioMemberView }>("/api/studio-members", {
         method: "PATCH",
         body: JSON.stringify({ id: m.id, ...body }),
       });
-      if (r.password) setSent({ id: m.id, text: accessMessage(r.member, r.password) });
+      if (sent?.id === m.id) setSent({ id: m.id, text: accessMessage(r.member) });
       toast(ok);
       await load();
     } catch (e) {
@@ -134,7 +147,7 @@ export default function StudioAccessPage() {
     <>
       <PageHeader
         title="Accès Studio IA"
-        subtitle="Le Studio seul, pour quelqu'un qui n'est ni élève ni équipe : identifiant + mot de passe, sa propre clé KIE (il recharge ses crédits lui-même), ses créations sauvegardées et visibles par lui seul. Il ne voit rien d'autre du tool."
+        subtitle="Le Studio seul, pour quelqu'un qui n'est ni élève ni équipe : son identifiant suffit (pas de mot de passe), sa propre clé KIE (il recharge ses crédits lui-même), ses créations sauvegardées et visibles par lui seul. Il ne voit rien d'autre du tool, en français ou en anglais."
         actions={
           <a href="/studio" className="btn">
             ← Studio IA
@@ -157,8 +170,11 @@ export default function StudioAccessPage() {
             <Field label="Identifiant">
               <input className="input" data-nodraft value={username} onChange={(e) => setUsername(e.target.value)} placeholder={slug(name) || "alexander"} autoComplete="off" />
             </Field>
-            <Field label="Mot de passe">
-              <input className="input" data-nodraft value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Vide = généré" autoComplete="new-password" />
+            <Field label="Langue de son Studio">
+              <select className="select" value={lang} onChange={(e) => setLang(e.target.value === "fr" ? "fr" : "en")}>
+                <option value="en">English</option>
+                <option value="fr">Français</option>
+              </select>
             </Field>
             <button type="submit" className="btn btn-primary" disabled={busy === "create" || !name.trim()}>
               {busy === "create" ? "Création…" : "Créer l'accès"}
@@ -169,7 +185,7 @@ export default function StudioAccessPage() {
         {sent && (
           <Card
             title="Message à envoyer"
-            subtitle="Le mot de passe n'est affiché qu'ici, une seule fois. Copie-le maintenant."
+            subtitle="Copie-le et envoie-le : lien de connexion, identifiant et les 3 étapes KIE."
             actions={
               <>
                 <CopyButton text={sent.text} label="Copier le message" />
@@ -204,6 +220,7 @@ export default function StudioAccessPage() {
                     <div className="font-medium text-[14px] flex items-center gap-2">
                       {m.name}
                       <span className={`badge !text-[10px] ${m.active ? "badge-good" : "badge-warn"}`}>{m.active ? "Actif" : "Coupé"}</span>
+                      <span className="badge !text-[10px]">{m.lang === "en" ? "English" : "Français"}</span>
                     </div>
                     <div className="dim text-[12px] mt-0.5">
                       <span className="mono">{m.username}</span>
@@ -225,8 +242,17 @@ export default function StudioAccessPage() {
                     <button type="button" className="btn btn-sm" disabled={busy === m.id} onClick={() => void viewAs(m)} title="Ouvrir son Studio tel qu'il le voit (ses créations, son solde)">
                       Voir son Studio
                     </button>
-                    <button type="button" className="btn btn-sm btn-ghost" disabled={busy === m.id} onClick={() => void patch(m, { password: "RESET" }, "Nouveau mot de passe généré.")}>
-                      Nouveau mot de passe
+                    <button type="button" className="btn btn-sm btn-ghost" disabled={busy === m.id} onClick={() => setSent({ id: m.id, text: accessMessage(m) })}>
+                      Message d&apos;accès
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      disabled={busy === m.id}
+                      title="Langue de son Studio"
+                      onClick={() => void patch(m, { lang: m.lang === "en" ? "fr" : "en" }, m.lang === "en" ? "Son Studio passe en français." : "Son Studio passe en anglais.")}
+                    >
+                      {m.lang === "en" ? "→ Français" : "→ English"}
                     </button>
                     <button
                       type="button"

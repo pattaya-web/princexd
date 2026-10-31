@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { forgetSession } from "@/lib/sales/client";
 import { Brand } from "@/components/Shell";
@@ -17,8 +17,28 @@ import { Brand } from "@/components/Shell";
  * reclame (`needPassword`) : admin, equipe commerciale, monteur avec compte,
  * ancienne fiche eleve qui en a un.
  */
+/** Lien envoyé à un membre Studio anglophone : /login?lang=en. */
+const EN = {
+  network: "Can't reach the server. Check your connection and try again.",
+  refused: "Login refused.",
+  label: "Log in",
+  welcome: "Welcome.",
+  intro: "Enter the username you were given. No password needed.",
+  username: "Username",
+  placeholder: "your.name",
+  password: "Password",
+  needPassword: "This account has a password: enter it to continue.",
+  submit: "Log in",
+  next: "Continue",
+  footer: "MPGate · private access",
+};
+
 export default function LoginPage() {
   const router = useRouter();
+  const [en, setEn] = useState(false);
+  useEffect(() => {
+    setEn(new URLSearchParams(window.location.search).get("lang") === "en");
+  }, []);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [needPassword, setNeedPassword] = useState(false);
@@ -41,7 +61,7 @@ export default function LoginPage() {
           body: JSON.stringify({ username: username.trim(), password: needPassword ? password : "" }),
         });
       } catch {
-        throw new Error("Connexion au serveur impossible. Vérifie ta connexion et réessaie.");
+        throw new Error(en ? EN.network : "Connexion au serveur impossible. Vérifie ta connexion et réessaie.");
       }
       const data = (await res.json().catch(() => ({}))) as { redirect?: string; error?: string; needPassword?: boolean; unknown?: boolean };
       if (!res.ok) {
@@ -52,7 +72,8 @@ export default function LoginPage() {
           setLoading(false);
           return;
         }
-        throw new Error(data.error || "Connexion refusée.");
+        // Identifiant inconnu : le message élève n'a pas de sens pour un anglophone.
+        throw new Error(en ? (res.status === 401 ? "Unknown username. Check the one you were sent." : data.error || EN.refused) : data.error || "Connexion refusée.");
       }
       // Le cache de session porte l'ancien role : le vider evite d'atterrir
       // sur un ecran calcule pour la personne precedente.
@@ -76,12 +97,16 @@ export default function LoginPage() {
       <div className="flex-1 grid place-items-center pb-16">
         <div className="w-full max-w-[380px] rise">
           <form className="card p-7" style={{ borderRadius: "var(--radius-lg)" }} onSubmit={submit}>
-            <span className="label-xs block mb-3">Connexion</span>
+            <span className="label-xs block mb-3">{en ? EN.label : "Connexion"}</span>
             <h1 className="text-[26px] font-medium leading-[1.1]" style={{ letterSpacing: "-0.03em" }}>
-              Bienvenue.
+              {en ? EN.welcome : "Bienvenue."}
             </h1>
             <p className="muted text-[14px] mt-2 mb-6 leading-relaxed">
-              {needPassword && unknown
+              {en
+                ? needPassword
+                  ? EN.needPassword
+                  : EN.intro
+                : needPassword && unknown
                 ? "Cet identifiant n'est pas un identifiant élève. Si tu es élève, vérifie celui que ton coach t'a envoyé (prenom.nom) : il suffit, il n'y a pas de mot de passe. Sinon, saisis ton mot de passe."
                 : needPassword
                   ? "Ce compte a un mot de passe : saisis-le pour continuer."
@@ -89,11 +114,11 @@ export default function LoginPage() {
             </p>
 
             <label className="block">
-              <span className="label-xs block mb-2">Identifiant</span>
+              <span className="label-xs block mb-2">{en ? EN.username : "Identifiant"}</span>
               <input
                 className="input !h-[42px] !text-[14px]"
                 value={username}
-                placeholder="prenom.nom"
+                placeholder={en ? EN.placeholder : "prenom.nom"}
                 onChange={(e) => {
                   setUsername(e.target.value);
                   if (needPassword) {
@@ -110,7 +135,7 @@ export default function LoginPage() {
 
             {needPassword && (
               <label className="block mt-3.5">
-                <span className="label-xs block mb-2">Mot de passe</span>
+                <span className="label-xs block mb-2">{en ? EN.password : "Mot de passe"}</span>
                 <input
                   className="input !h-[42px] !text-[14px]"
                   type="password"
@@ -130,11 +155,11 @@ export default function LoginPage() {
             )}
 
             <button className="btn btn-primary w-full mt-5 !h-[42px] !text-[14px]" type="submit" disabled={disabled}>
-              {loading ? <span className="spinner" /> : needPassword ? "Se connecter" : "Continuer"}
+              {loading ? <span className="spinner" /> : needPassword ? (en ? EN.submit : "Se connecter") : en ? EN.next : "Continuer"}
             </button>
           </form>
 
-          <p className="label-xs text-center mt-6">MPGate · accès réservé</p>
+          <p className="label-xs text-center mt-6">{en ? EN.footer : "MPGate · accès réservé"}</p>
         </div>
       </div>
     </main>
