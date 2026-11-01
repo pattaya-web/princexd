@@ -435,16 +435,19 @@ export function VideoSwap({
     const batch = files.filter((f) => isImageName(f.name) || f.type.startsWith("image/")).slice(0, Math.max(0, 2 - extraViews.length));
     if (!batch.length) return;
     setViewBusy((n) => n + batch.length);
-    for (const f of batch) {
-      try {
-        const up = await uploadFile(await toSupportedImage(f));
-        setExtraViews((v) => (v.length < 2 ? [...v, { url: up.url, name: f.name }] : v));
-      } catch (e) {
-        toast((e as Error).message, "err");
-      } finally {
-        setViewBusy((n) => n - 1);
-      }
-    }
+    // En parallele : chaque photo arrive des que son envoi est fini.
+    await Promise.all(
+      batch.map(async (f) => {
+        try {
+          const up = await uploadFile(await toSupportedImage(f));
+          setExtraViews((v) => (v.length < 2 ? [...v, { url: up.url, name: f.name }] : v));
+        } catch (e) {
+          toast((e as Error).message, "err");
+        } finally {
+          setViewBusy((n) => n - 1);
+        }
+      }),
+    );
   };
 
   const setSceneFile = async (f: File) => {
@@ -528,17 +531,19 @@ export function VideoSwap({
     const batch = files.filter((f) => isImageName(f.name) || f.type.startsWith("image/")).slice(0, Math.max(0, 4 - product.length));
     if (!batch.length) return;
     setProductBusy((n) => n + batch.length);
-    for (const f of batch) {
-      try {
-        const norm = await toSupportedImage(f);
-        const up = await uploadFile(norm);
-        setProduct((p) => (p.length < 4 ? [...p, { url: up.url, name: f.name }] : p));
-      } catch (e) {
-        toast((e as Error).message, "err");
-      } finally {
-        setProductBusy((n) => n - 1);
-      }
-    }
+    await Promise.all(
+      batch.map(async (f) => {
+        try {
+          const norm = await toSupportedImage(f);
+          const up = await uploadFile(norm);
+          setProduct((p) => (p.length < 4 ? [...p, { url: up.url, name: f.name }] : p));
+        } catch (e) {
+          toast((e as Error).message, "err");
+        } finally {
+          setProductBusy((n) => n - 1);
+        }
+      }),
+    );
   };
 
   /** Dépôt n'importe où dans le bloc : l'extension décide de la case. */

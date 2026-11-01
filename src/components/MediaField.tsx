@@ -92,9 +92,17 @@ export async function toSupportedImage(file: File): Promise<File> {
 }
 
 interface Item {
+  /** Identifiant local : stable pendant l'envoi, avant que l'URL existe. */
+  id: string;
   url: string;
   name: string;
+  /** Apercu local (blob:) affiche tout de suite, le temps que l'envoi se termine. */
+  preview?: string;
+  pending?: boolean;
 }
+
+let seq = 0;
+const newId = () => `m${Date.now().toString(36)}${(seq++).toString(36)}`;
 
 function Thumb({ item, kind, onRemove }: { item: Item; kind: string; onRemove: () => void }) {
   return (
@@ -103,7 +111,14 @@ function Thumb({ item, kind, onRemove }: { item: Item; kind: string; onRemove: (
       style={{ width: 68, height: 84, background: "var(--surface-3)", border: "1px solid var(--border)" }}
       title={item.name}
     >
-      {kind === "video" ? (
+      {item.pending ? (
+        <>
+          {item.preview && <img src={item.preview} alt="" className="w-full h-full object-cover" style={{ opacity: 0.6 }} />}
+          <span className="absolute inset-0 grid place-items-center">
+            <span className="spinner" />
+          </span>
+        </>
+      ) : kind === "video" ? (
         <VideoThumb src={item.url} />
       ) : kind === "audio" ? (
         <span className="w-full h-full grid place-items-center text-[18px] dim">♪</span>
@@ -141,39 +156,70 @@ export function MediaField({
 
   const [items, setItems] = useState<Item[]>(() => {
     const urls = multiple ? (Array.isArray(value) ? value : []) : value ? [String(value)] : [];
-    return urls.map((u) => ({ url: u, name: u.split("/").pop() ?? "média" }));
+    return urls.map((u) => ({ id: newId(), url: u, name: u.split("/").pop() ?? "média" }));
   });
-  const [busy, setBusy] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const push = (next: Item[]) => {
+  /*
+   * La liste vit aussi dans une ref : plusieurs envois se chevauchent (deux
+   * selections rapprochees, un Ctrl+V pendant un envoi) et chacun doit
+   * repartir de la liste a jour. Avec la valeur capturee au rendu, le
+   * deuxieme envoi ecrasait le premier : « j'en mets deux, il n'en reste
+   * qu'une ».
+   */
+  const itemsRef = useRef(items);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  const commit = (next: Item[]) => {
+    itemsRef.current = next;
     setItems(next);
-    onChange(multiple ? next.map((i) => i.url) : (next[0]?.url ?? ""));
+    const ready = next.filter((i) => !i.pending).map((i) => i.url);
+    onChangeRef.current(multiple ? ready : (ready[0] ?? ""));
+  };
+
+  const remove = (id: string) => {
+    const it = itemsRef.current.find((x) => x.id === id);
+    if (it?.preview) URL.revokeObjectURL(it.preview);
+    commit(itemsRef.current.filter((x) => x.id !== id));
   };
 
   const upload = async (files: File[]) => {
-    const batch = files.slice(0, Math.max(max - items.length, 0));
+    const room = Math.max(max - itemsRef.current.length, 0);
+    const batch = files.slice(0, room);
+    setError(files.length > room ? `${max} ${kind === "video" ? "vidéos" : kind === "audio" ? "fichiers" : "photos"} maximum pour ce champ : ${files.length - room} non ajoutée${files.length - room > 1 ? "s" : ""}.` : null);
     if (!batch.length) return;
 
-    setError(null);
-    setBusy((n) => n + batch.length);
-    const added: Item[] = [];
-    for (const raw of batch) {
-      try {
-        const f = kind === "image" ? await toSupportedImage(raw) : raw;
-        const form = new FormData();
-        form.append("file", f, f.name);
-        const res = await fetch("/api/kie/upload", { method: "POST", body: form });
-        const body = (await res.json()) as { url?: string; error?: string };
-        if (!res.ok || body.error || !body.url) throw new Error(body.error ?? `Erreur ${res.status}`);
-        added.push({ url: body.url, name: raw.name });
-      } catch (e) {
-        setError((e as Error).message);
-      } finally {
-        setBusy((n) => n - 1);
-      }
-    }
-    if (added.length) push([...items, ...added]);
+    // Les vignettes apparaissent tout de suite, dans l'ordre choisi ; les envois partent en parallele.
+    const slots: Item[] = batch.map((f) => ({
+      id: newId(),
+      url: "",
+      name: f.name,
+      preview: kind === "image" ? URL.createObjectURL(f) : undefined,
+      pending: true,
+    }));
+    commit([...itemsRef.current, ...slots]);
+
+    await Promise.all(
+      batch.map(async (raw, i) => {
+        const slot = slots[i];
+        try {
+          const f = kind === "image" ? await toSupportedImage(raw) : raw;
+          const form = new FormData();
+          form.append("file", f, f.name);
+          const res = await fetch("/api/kie/upload", { method: "POST", body: form });
+          const body = (await res.json()) as { url?: string; error?: string };
+          if (!res.ok || body.error || !body.url) throw new Error(body.error ?? `Erreur ${res.status}`);
+          // Retiree entre-temps : on ne la remet pas.
+          if (!itemsRef.current.some((x) => x.id === slot.id)) return;
+          commit(itemsRef.current.map((x) => (x.id === slot.id ? { ...x, url: body.url!, pending: false } : x)));
+          if (slot.preview) URL.revokeObjectURL(slot.preview);
+        } catch (e) {
+          setError(`${raw.name} : ${(e as Error).message}`);
+          remove(slot.id);
+        }
+      }),
+    );
   };
 
   const full = items.length >= max;
@@ -212,20 +258,9 @@ export function MediaField({
   return (
     <Field label={field.label}>
       <div className="flex gap-2 items-center flex-wrap">
-        {items.map((it, i) => (
-          <Thumb key={it.url + i} item={it} kind={kind} onRemove={() => push(items.filter((_, j) => j !== i))} />
+        {items.map((it) => (
+          <Thumb key={it.id} item={it} kind={kind} onRemove={() => remove(it.id)} />
         ))}
-
-        {busy > 0 &&
-          Array.from({ length: busy }).map((_, i) => (
-            <span
-              key={`up-${i}`}
-              className="rounded-[8px] grid place-items-center shrink-0"
-              style={{ width: 68, height: 84, background: "var(--surface-3)" }}
-            >
-              <span className="spinner" />
-            </span>
-          ))}
 
         {!full && (
           <label

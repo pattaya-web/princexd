@@ -124,11 +124,10 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
     if (!imgs.length) return;
     setProductBusy(true);
     try {
-      const added: Media[] = [];
-      for (const f of imgs) {
-        const up = await uploadFile(await toSupportedImage(f));
-        added.push({ url: up.url, name: f.name });
-      }
+      // En parallele, dans l'ordre choisi.
+      const added: Media[] = await Promise.all(
+        imgs.map(async (f) => ({ url: (await uploadFile(await toSupportedImage(f))).url, name: f.name })),
+      );
       setProducts((p) => [...p, ...added].slice(0, 4));
     } catch (e) {
       toast((e as Error).message, "err");
