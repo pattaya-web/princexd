@@ -19,6 +19,7 @@ import { periodQuery, useSalesData } from "@/lib/sales/client";
 import { Card, Empty, ErrorNote, Field, Modal, Spinner, useToast } from "@/components/ui";
 import { ConfirmationSelect, IgHandle, PeriodPicker, StatusBadge } from "./bits";
 import { canConfirm } from "@/lib/sales/constants";
+import { youtubeEmbedUrl } from "@/lib/formation";
 import { AppointmentDetail } from "./AppointmentDetail";
 import { AppointmentModal } from "./AppointmentModal";
 import { useSales } from "./context";
@@ -278,6 +279,7 @@ export function MemberHome() {
             </div>
           )}
           <MyBookingLink version={version} />
+          {isSetter && <ResourceLink />}
 
           {/* Les trois choses a faire, tout en haut, sans case a cocher. */}
           {isSetter && (
@@ -305,6 +307,9 @@ export function MemberHome() {
             </div>
           )}
         </div>
+
+        {/* ------------------------- Masterclass a envoyer ------------------------- */}
+        {isSetter && <MasterclassCard />}
 
         {/* ---------------------------- Performances -------------------------- */}
         {/* Tout en haut : c'est ce qui motive. Chaque tuile s'ouvre sur les noms derriere le chiffre. */}
@@ -727,6 +732,84 @@ function MyBookingLink({ version }: { version: number }) {
         Ouvrir ↗
       </a>
     </div>
+  );
+}
+
+/* --------------------------- Masterclass a envoyer --------------------------- */
+
+const MASTERCLASS_URL = "https://www.youtube.com/watch?v=VMHGSk_Yd_k";
+const MASTERCLASS_ID = "VMHGSk_Yd_k";
+
+/** Le lien ressource (masterclass), juste sous le lien de calendrier. */
+function ResourceLink() {
+  const toast = useToast();
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(MASTERCLASS_URL);
+      toast("Lien ressource copié. Envoie-le au prospect.");
+    } catch {
+      window.prompt("Copie ce lien :", MASTERCLASS_URL);
+    }
+  };
+  return (
+    <div className="flex items-center gap-2 flex-wrap mt-2">
+      <span className="label-xs">Lien ressource (masterclass)</span>
+      <code className="mono dim text-[11px] truncate max-w-full sm:max-w-[360px]" title={MASTERCLASS_URL}>
+        {MASTERCLASS_URL}
+      </code>
+      <button className="btn btn-sm btn-primary" onClick={() => void copy()} title="Copier le lien de la masterclass">
+        Copier le lien ressource
+      </button>
+      <a className="btn btn-sm btn-ghost" href={MASTERCLASS_URL} target="_blank" rel="noreferrer">
+        Ouvrir ↗
+      </a>
+    </div>
+  );
+}
+
+/**
+ * La video masterclass que le setter envoie lui-meme au prospect pendant le
+ * setting (rien n'est envoye automatiquement). Visible en haut de sa vue,
+ * avec le lien a copier en un clic.
+ */
+function MasterclassCard() {
+  const toast = useToast();
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(MASTERCLASS_URL);
+      toast("Lien de la masterclass copié. Envoie-le au prospect.");
+    } catch {
+      window.prompt("Copie ce lien :", MASTERCLASS_URL);
+    }
+  };
+  return (
+    <Card
+      title="Masterclass à envoyer"
+      subtitle="La vidéo ressource à envoyer toi-même aux prospects pendant le setting."
+      actions={
+        <div className="flex items-center gap-1.5">
+          <button className="btn btn-sm btn-primary" onClick={() => void copy()}>
+            Copier le lien
+          </button>
+          <a className="btn btn-sm btn-ghost" href={MASTERCLASS_URL} target="_blank" rel="noreferrer">
+            Ouvrir ↗
+          </a>
+        </div>
+      }
+    >
+      <div className="rounded-[12px] overflow-hidden w-full max-w-[720px]" style={{ aspectRatio: "16 / 9", background: "#000" }}>
+        <iframe
+          src={youtubeEmbedUrl(MASTERCLASS_ID)}
+          title="Masterclass"
+          className="w-full h-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+        />
+      </div>
+      <code className="mono dim text-[11px] block mt-2 truncate" title={MASTERCLASS_URL}>
+        {MASTERCLASS_URL}
+      </code>
+    </Card>
   );
 }
 
