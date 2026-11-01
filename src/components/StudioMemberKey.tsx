@@ -44,6 +44,10 @@ const TEXT = {
     change: "Changer de clé",
     private: "Tes créations sont sauvegardées ici, toi seul les vois.",
     previewShort: (n: string) => `Aperçu : ${n}`,
+    flaggedTitle: "Ton compte KIE est bloqué par KIE",
+    flagged:
+      "KIE a signalé ton compte pour « activité inhabituelle » et refuse toutes les générations. Ça vient de KIE, pas du Studio : écris au support KIE (chat ou e-mail sur kie.ai) pour faire lever le blocage. Une fois débloqué, tout remarche avec la même clé, tes créations restent ici.",
+    contact: "Ouvrir kie.ai ↗",
   },
   en: {
     previewToast: "Preview: the member's key is not changed.",
@@ -71,6 +75,10 @@ const TEXT = {
     change: "Change key",
     private: "Your creations are saved here, only you can see them.",
     previewShort: (n: string) => `Preview: ${n}`,
+    flaggedTitle: "Your KIE account is blocked by KIE",
+    flagged:
+      "KIE flagged your account for \"unusual activity\" and is refusing every generation. This comes from KIE, not from the Studio: contact KIE support (chat or email on kie.ai) to get it lifted. Once it's unblocked, everything works again with the same key, and your creations stay here.",
+    contact: "Open kie.ai ↗",
   },
 };
 
@@ -192,7 +200,20 @@ export function StudioMemberKey() {
         <span className="dim text-[12px] ml-auto">{t.private}</span>
         {me.preview && <span className="badge badge-warn !text-[11px]">{t.previewShort(me.name)}</span>}
       </div>
-      {me.creditsError && <div className="dim text-[12px] mt-1.5">{me.creditsError}</div>}
+      {me.creditsError && /unusual account activity/i.test(me.creditsError) ? (
+        // Compte KIE du membre signale par KIE : rien a corriger cote Studio, il doit passer par leur support.
+        <div className="mt-2.5 rounded-[10px] px-3.5 py-3" style={{ background: "color-mix(in srgb, var(--critical) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--critical) 35%, transparent)" }}>
+          <div className="text-[13px] font-semibold" style={{ color: "var(--critical)" }}>
+            {t.flaggedTitle}
+          </div>
+          <p className="text-[12.5px] mt-1 leading-relaxed max-w-[80ch]">{t.flagged}</p>
+          <a href="https://kie.ai" target="_blank" rel="noreferrer" className="btn btn-sm mt-2">
+            {t.contact}
+          </a>
+        </div>
+      ) : (
+        me.creditsError && <div className="dim text-[12px] mt-1.5">{me.creditsError}</div>
+      )}
       {editing && <div className="mt-3 max-w-[620px]">{form}</div>}
     </section>
   );
