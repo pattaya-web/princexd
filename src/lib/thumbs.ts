@@ -35,7 +35,12 @@ const FAIL_TTL = 60 * 60_000;
 const VIDEO = new Set([".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv"]);
 const IMAGE = new Set([".png", ".jpg", ".jpeg", ".jfif", ".jpe", ".webp", ".gif"]);
 
-const MAX_PARALLEL = 2;
+/*
+ * 4 a la fois (2 jusqu'au 2026-11-03) : une vignette distante attend surtout
+ * le telechargement de l'original chez le fournisseur, pas le processeur ;
+ * a 2, une galerie entiere sur une page faisait la queue plusieurs minutes.
+ */
+const MAX_PARALLEL = 4;
 let running = 0;
 const waiting: (() => void)[] = [];
 const inflight = new Map<string, Promise<string | null>>();
@@ -201,11 +206,14 @@ async function stillThere(url: string): Promise<boolean> {
 export function warmThumb(url: string | undefined | null) {
   if (!url) return;
   try {
+    // Les deux tailles que demandent les galeries (360 courant, 480 grandes cartes / retina).
     if (url.startsWith("/api/media/")) {
       const file = url.slice("/api/media/".length).split("?")[0];
-      if (/^[A-Za-z0-9]+\.[A-Za-z0-9]+$/.test(file)) void ensureThumb(file).catch(() => null);
+      if (/^[A-Za-z0-9]+\.[A-Za-z0-9]+$/.test(file)) {
+        void ensureThumb(file).then(() => ensureThumb(file, 480)).catch(() => null);
+      }
     } else if (/^https:\/\//.test(url)) {
-      void ensureRemoteThumb(url).catch(() => null);
+      void ensureRemoteThumb(url).then(() => ensureRemoteThumb(url, 480)).catch(() => null);
     }
   } catch {
     // jamais bloquant

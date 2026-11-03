@@ -29,15 +29,19 @@ export function thumbUrl(url: string, width?: 240 | 360 | 480): string {
 }
 
 /**
- * Deux tailles pour les tuiles : 240 px suffit a une colonne de telephone,
- * 360 px aux tuiles de bureau. Le navigateur choisit selon `sizes`.
+ * Deux tailles pour les tuiles, celles que le serveur prepare des la fin d'un
+ * rendu (warmThumb) : 360 px pour les tuiles courantes, 480 px pour les
+ * grandes cartes et les ecrans retina. Depuis le 2026-11-03 plus de 240 px :
+ * jamais preparee a l'avance, elle obligeait le serveur a retelecharger
+ * l'original (3 Mo chez KIE) a l'ouverture de la galerie, d'ou des photos
+ * qui mettaient des minutes a s'afficher. `sizes` : largeur reelle de la
+ * tuile quand on la connait (mosaique du Studio).
  */
-function srcSetFor(url: string): { srcSet?: string; sizes?: string } {
+function srcSetFor(url: string, sizes?: string): { srcSet?: string; sizes?: string } {
   if (thumbUrl(url) === url) return {};
   return {
-    srcSet: `${thumbUrl(url, 240)} 240w, ${thumbUrl(url, 360)} 360w`,
-    // 30vw sur telephone : trois tuiles par ligne, 240 px suffisent meme en ecran retina.
-    sizes: "(max-width: 640px) 30vw, 200px",
+    srcSet: `${thumbUrl(url)} 360w, ${thumbUrl(url, 480)} 480w`,
+    sizes: sizes ?? "(max-width: 640px) 30vw, 200px",
   };
 }
 
@@ -50,12 +54,14 @@ export function ThumbImg({
   className = "w-full h-full object-cover",
   style,
   alt = "",
+  sizes,
   onRatio,
 }: {
   src: string;
   className?: string;
   style?: React.CSSProperties;
   alt?: string;
+  sizes?: string;
   /** Largeur / hauteur reelles, une fois l'image chargee (mosaique du Studio). */
   onRatio?: (ratio: number) => void;
 }) {
@@ -64,7 +70,7 @@ export function ThumbImg({
   return (
     <img
       src={url}
-      {...(failed ? {} : srcSetFor(src))}
+      {...(failed ? {} : srcSetFor(src, sizes))}
       alt={alt}
       className={className}
       style={style}
@@ -85,11 +91,13 @@ export function VideoThumb({
   src,
   className = "w-full h-full object-cover",
   style,
+  sizes,
   onRatio,
 }: {
   src: string;
   className?: string;
   style?: React.CSSProperties;
+  sizes?: string;
   onRatio?: (ratio: number) => void;
 }) {
   const [failed, setFailed] = useState(false);
@@ -110,7 +118,7 @@ export function VideoThumb({
   return (
     <img
       src={thumbUrl(src)}
-      {...srcSetFor(src)}
+      {...srcSetFor(src, sizes)}
       alt=""
       className={className}
       style={style}

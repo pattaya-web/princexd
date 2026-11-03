@@ -144,12 +144,14 @@ export function StudioJobCard({
   job,
   actions,
   aspect = "4 / 5",
+  sizes,
   onRatio,
 }: {
   job: StudioJob;
   actions: JobActions;
   /** Format de la tuile (mosaique : celui du rendu). */
   aspect?: string;
+  sizes?: string;
   onRatio?: (ratio: number) => void;
 }) {
   const done = job.status === "completed";
@@ -178,7 +180,7 @@ export function StudioJobCard({
       {done && output ? (
         <>
           <button type="button" onClick={() => actions.onOpen(job)} className="block w-full h-full" title="Voir" style={{ cursor: "zoom-in" }}>
-            <VideoThumb src={output} onRatio={onRatio} />
+            <VideoThumb src={output} sizes={sizes} onRatio={onRatio} />
           </button>
           <span
             className="absolute top-1.5 left-1.5 rounded-full grid place-items-center text-[11px] pointer-events-none"

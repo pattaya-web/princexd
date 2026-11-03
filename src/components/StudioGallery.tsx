@@ -38,6 +38,8 @@ export interface GalleryItem {
 
 export interface TileProps {
   aspect: string;
+  /** Largeur affichee de la tuile, pour choisir la bonne vignette. */
+  sizes: string;
   onRatio: (ratio: number) => void;
 }
 
@@ -173,7 +175,9 @@ export function StudioGallery<T extends GalleryItem>({
     return out;
   }, [items, shown, view.byDay]);
 
-  const tile = (it: T, aspect: string) => render(it, { aspect, onRatio: (r) => onRatio(it.key, r) });
+  const colW = cols ? (width - GAP * (cols - 1)) / cols : 0;
+  const sizes = `${Math.max(1, Math.round(colW))}px`;
+  const tile = (it: T, aspect: string) => render(it, { aspect, sizes, onRatio: (r) => onRatio(it.key, r) });
 
   const block = (list: T[]) => {
     if (!cols) return null;
@@ -190,7 +194,6 @@ export function StudioGallery<T extends GalleryItem>({
      * Mosaïque : chaque création va dans la colonne la moins haute, dans
      * l'ordre (les plus récentes restent en haut, de gauche à droite).
      */
-    const colW = (width - GAP * (cols - 1)) / cols;
     const heights = new Array<number>(cols).fill(0);
     const columns: { it: T; r: number }[][] = Array.from({ length: cols }, () => []);
     for (const it of list) {

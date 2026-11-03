@@ -543,12 +543,13 @@ function StudioInner() {
                 resetKey={filter}
                 render={(it, tile) =>
                   it.job ? (
-                    <StudioJobCard job={it.job} actions={jobActions} aspect={tile.aspect} onRatio={tile.onRatio} />
+                    <StudioJobCard job={it.job} actions={jobActions} aspect={tile.aspect} sizes={tile.sizes} onRatio={tile.onRatio} />
                   ) : it.gen ? (
                     <GenerationCard
                       gen={it.gen}
                       eta={etaByModel.get(it.gen.model) ?? null}
                       aspect={tile.aspect}
+                      sizes={tile.sizes}
                       onRatio={tile.onRatio}
                       picking={picking}
                       picked={picked.has(it.gen.id)}
@@ -831,6 +832,7 @@ function GenerationCard({
   gen,
   eta,
   aspect = "4 / 5",
+  sizes,
   onRatio,
   onOpen,
   picking,
@@ -841,6 +843,7 @@ function GenerationCard({
   eta: number | null;
   /** Format de la tuile (mosaique : celui du rendu). */
   aspect?: string;
+  sizes?: string;
   onRatio?: (ratio: number) => void;
   onOpen: () => void;
   picking: boolean;
@@ -888,10 +891,10 @@ function GenerationCard({
             style={{ cursor: picking ? "pointer" : "zoom-in" }}
           >
             {isVideo ? (
-              <VideoThumb src={url} onRatio={onRatio} />
+              <VideoThumb src={url} sizes={sizes} onRatio={onRatio} />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <ThumbImg src={url} onRatio={onRatio} />
+              <ThumbImg src={url} sizes={sizes} onRatio={onRatio} />
             )}
           </button>
           <a
