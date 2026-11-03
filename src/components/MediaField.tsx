@@ -104,11 +104,11 @@ interface Item {
 let seq = 0;
 const newId = () => `m${Date.now().toString(36)}${(seq++).toString(36)}`;
 
-function Thumb({ item, kind, onRemove }: { item: Item; kind: string; onRemove: () => void }) {
+function Thumb({ item, kind, onRemove, small }: { item: Item; kind: string; onRemove: () => void; small?: boolean }) {
   return (
     <span
       className="relative rounded-[8px] overflow-hidden shrink-0"
-      style={{ width: 68, height: 84, background: "var(--surface-3)", border: "1px solid var(--border)" }}
+      style={{ width: small ? 52 : 68, height: small ? 52 : 84, background: "var(--surface-3)", border: "1px solid var(--border)" }}
       title={item.name}
     >
       {item.pending ? (
@@ -143,12 +143,15 @@ export function MediaField({
   value,
   onChange,
   disabled,
+  compact,
 }: {
   field: ModelField;
   /** Chaine unique pour `file`, tableau d'URL pour `files`. */
   value: string | string[];
   onChange: (v: string | string[]) => void;
   disabled?: boolean;
+  /** Panneau flottant du Studio : vignettes 52 px, sans titre (le nom passe en infobulle). */
+  compact?: boolean;
 }) {
   const multiple = field.type === "files";
   const kind = field.accept ?? "image";
@@ -255,24 +258,23 @@ export function MediaField({
   };
   const word = kind === "video" ? "vidéo" : kind === "audio" ? "audio" : "photo";
 
-  return (
-    <Field label={field.label}>
+  const tiles = (
       <div className="flex gap-2 items-center flex-wrap">
         {items.map((it) => (
-          <Thumb key={it.id} item={it} kind={kind} onRemove={() => remove(it.id)} />
+          <Thumb key={it.id} item={it} kind={kind} small={compact} onRemove={() => remove(it.id)} />
         ))}
 
         {!full && (
           <label
             className="rounded-[8px] flex flex-col items-center justify-center gap-0.5 shrink-0"
             style={{
-              width: 68,
-              height: 84,
+              width: compact ? 52 : 68,
+              height: compact ? 52 : 84,
               border: `1px dashed ${over ? "var(--accent)" : "var(--border-strong)"}`,
               background: over ? "color-mix(in srgb, var(--accent) 8%, transparent)" : undefined,
               cursor: disabled ? "not-allowed" : "pointer",
             }}
-            title="Clique, dépose une image ici, ou colle une capture (Ctrl+V)"
+            title={`${compact ? `${field.label} : c` : "C"}lique, dépose ${kind === "image" ? "une image" : "un fichier"} ici${kind === "image" ? ", ou colle une capture (Ctrl+V)" : ""}`}
             {...dropProps}
           >
             <span className="text-[17px] dim leading-none">+</span>
@@ -291,12 +293,25 @@ export function MediaField({
           </label>
         )}
       </div>
+  );
+  const err = error && (
+    <span className="text-[11.5px] block mt-1.5" style={{ color: "var(--critical)" }}>
+      {error}
+    </span>
+  );
 
-      {error && (
-        <span className="text-[11.5px] block mt-1.5" style={{ color: "var(--critical)" }}>
-          {error}
-        </span>
-      )}
+  if (compact) {
+    return (
+      <div className="max-w-[236px]">
+        {tiles}
+        {err}
+      </div>
+    );
+  }
+  return (
+    <Field label={field.label}>
+      {tiles}
+      {err}
     </Field>
   );
 }

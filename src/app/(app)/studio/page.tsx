@@ -580,8 +580,8 @@ function StudioInner() {
           className="swap-dock sticky z-20 w-full max-w-[920px] mx-auto"
           style={{ bottom: 12, maxHeight: "78vh", overflowY: "auto", borderRadius: 14, boxShadow: "0 18px 50px -12px rgb(0 0 0 / 0.35), var(--shadow-lg)" }}
         >
-          <Card>
-            <div className="flex flex-col gap-3">
+          <Card padded={false}>
+            <div className="flex flex-col gap-2.5 p-3 sm:p-3.5">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <Tabs<StudioTab>
                 value={talkTab ? "talk" : createTab ? "create" : kind}
@@ -661,9 +661,14 @@ function StudioInner() {
                 />
               ) : (
                 <>
-                  {/* Sources d'abord : on choisit ses images avant d'ecrire. */}
+                  {/*
+                    Facon Higgsfield : petites vignettes de reference a gauche,
+                    prompt a droite sans cadre, qui grandit avec le texte.
+                    Rien ne prend de place pour rien au-dessus de la galerie.
+                  */}
+                  <div className="flex items-start gap-3 rounded-[12px] p-2" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
                   {media.length > 0 && (
-                    <div className="flex flex-wrap gap-x-6 gap-y-3 items-start">
+                    <div className="flex flex-wrap gap-2 items-start shrink-0">
                       {media.map((f) =>
                         f.type === "element" ? (
                           <ElementField
@@ -680,25 +685,25 @@ function StudioInner() {
                             value={(input[f.key] as string | string[]) ?? (f.type === "files" ? [] : "")}
                             onChange={(v) => setInput((prev) => ({ ...prev, [f.key]: v }))}
                             disabled={busy}
+                            compact
                           />
                         ),
                       )}
                     </div>
                   )}
+                  {texts.filter((f) => f.key === "prompt").map((f) => (
+                    <PromptBox
+                      key={f.key}
+                      label={f.label}
+                      placeholder={f.placeholder || "Décris ce que tu veux créer…"}
+                      value={String(input[f.key] ?? "")}
+                      onChange={(t) => setInput((v) => ({ ...v, [f.key]: t }))}
+                    />
+                  ))}
+                  </div>
 
-                  {/* Consignes : pleine largeur, c'est le coeur du travail. */}
                   {texts.map((f) =>
-                    f.key === "prompt" ? (
-                      <textarea
-                        key={f.key}
-                        className="textarea"
-                        style={{ minHeight: 84 }}
-                        aria-label={f.label}
-                        placeholder={f.placeholder || "Décris ce que tu veux créer…"}
-                        value={String(input[f.key] ?? "")}
-                        onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
-                      />
-                    ) : (
+                    f.key === "prompt" ? null : (
                       <Field key={f.key} label={f.label}>
                         <textarea
                           className="textarea"
@@ -718,9 +723,11 @@ function StudioInner() {
                     reglages courts, dictee, cout, Generer. Le panneau flotte
                     au-dessus de la galerie, chaque ligne gagnee s'y voit.
                   */}
-                  <div className="flex flex-wrap items-center gap-2 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                  <div className="flex items-end gap-3">
+                  <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
                     <select
-                      className="select !w-auto !min-w-[190px] !h-[34px] !text-[12.5px] !py-0 font-medium"
+                      className="select !w-auto !h-[34px] !text-[12.5px] !py-0 font-medium"
+                      style={{ maxWidth: 190 }}
                       value={modelId}
                       onChange={(e) => switchModel(e.target.value)}
                       title="Modèle"
@@ -739,6 +746,7 @@ function StudioInner() {
                         {f.type === "select" ? (
                           <select
                             className="select !w-auto !h-[34px] !text-[12px] !py-0"
+                            style={{ maxWidth: 108 }}
                             value={String(input[f.key] ?? "")}
                             onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
                           >
@@ -767,27 +775,26 @@ function StudioInner() {
                     {!isStudent && texts[0] && (
                       <DictateButton onText={(t) => setInput((v) => ({ ...v, [texts[0].key]: String(v[texts[0].key] ?? "") ? `${String(v[texts[0].key])} ${t}` : t }))} />
                     )}
+                  </div>
 
-                    <span className="dim text-[11.5px] leading-snug ml-auto text-right">
-                      {eta && (
-                        <>
-                          ≈ {duration(eta.sec)} d&apos;attente
-                          <br />
-                        </>
-                      )}
+                  {/* Cout + Generer : toujours colles a droite, jamais renvoyes a la ligne. */}
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className="dim text-[11px] leading-none whitespace-nowrap">
+                      {eta && <>≈ {duration(eta.sec)} · </>}
                       {model.creditsPerSec ? (
                         <>
                           {fmtInt(model.creditsPerSec)} crédits/s · ≈ {fmtUsdInEur(model.approxCredits * CREDIT_USD)} pour 10 s
                         </>
                       ) : (
                         <>
-                          ≈ {fmtInt(model.approxCredits)} crédits · {fmtUsdInEur(model.approxCredits * CREDIT_USD)}
+                          {fmtInt(model.approxCredits)} crédits · {fmtUsdInEur(model.approxCredits * CREDIT_USD)}
                         </>
                       )}
                     </span>
                     <button className="btn btn-primary" onClick={() => void launch()} disabled={busy}>
                       {busy ? <span className="spinner" /> : "✦"} {kind === "swap" ? "Swap" : "Générer"}
                     </button>
+                  </div>
                   </div>
                 </>
               )}
@@ -826,6 +833,43 @@ function fileName(gen: Generation) {
 
 function downloadHref(gen: Generation, url: string) {
   return `/api/kie/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(fileName(gen))}`;
+}
+
+/*
+ * Prompt du panneau flottant : sans cadre, deux lignes au repos, il grandit
+ * avec le texte jusqu'a ~7 lignes puis defile. Un long prompt colle ne
+ * pousse plus le panneau sur la moitie de l'ecran.
+ */
+function PromptBox({
+  label,
+  placeholder,
+  value,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 168)}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      rows={2}
+      className="flex-1 min-w-0 bg-transparent outline-none resize-none text-[13px] px-1.5 py-1"
+      style={{ lineHeight: 1.5, minHeight: 52, maxHeight: 168, overflowY: "auto", color: "var(--text)" }}
+      aria-label={label}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
 }
 
 function GenerationCard({
