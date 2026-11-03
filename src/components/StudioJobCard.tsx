@@ -140,7 +140,18 @@ function Steps({ job }: { job: StudioJob }) {
   );
 }
 
-export function StudioJobCard({ job, actions }: { job: StudioJob; actions: JobActions }) {
+export function StudioJobCard({
+  job,
+  actions,
+  aspect = "4 / 5",
+  onRatio,
+}: {
+  job: StudioJob;
+  actions: JobActions;
+  /** Format de la tuile (mosaique : celui du rendu). */
+  aspect?: string;
+  onRatio?: (ratio: number) => void;
+}) {
   const done = job.status === "completed";
   const failed = job.status === "failed";
   const running = !done && !failed;
@@ -161,13 +172,13 @@ export function StudioJobCard({ job, actions }: { job: StudioJob; actions: JobAc
   return (
     <article
       className="tile card-flat relative overflow-hidden"
-      style={{ aspectRatio: "4 / 5", background: "var(--surface-3)" }}
+      style={{ aspectRatio: aspect, background: "var(--surface-3)" }}
       title={jobTitle(job)}
     >
       {done && output ? (
         <>
           <button type="button" onClick={() => actions.onOpen(job)} className="block w-full h-full" title="Voir" style={{ cursor: "zoom-in" }}>
-            <VideoThumb src={output} />
+            <VideoThumb src={output} onRatio={onRatio} />
           </button>
           <span
             className="absolute top-1.5 left-1.5 rounded-full grid place-items-center text-[11px] pointer-events-none"

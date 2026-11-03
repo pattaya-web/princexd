@@ -36,6 +36,7 @@ import { fetchStudioJobs, GENERATIONS_EVENT, readStudioJobsCache, STUDIO_JOBS_EV
 import { duration, estimateSec, fmtInt, fmtUsdInEur, label, relative } from "@/lib/format";
 import type { Generation } from "@/lib/types";
 import { ThumbImg, VideoThumb } from "@/components/MediaThumb";
+import { DEFAULT_GALLERY_VIEW, GalleryViewMenu, parseRatio, StudioGallery, type GalleryItem, type GalleryView } from "@/components/StudioGallery";
 
 const CREDIT_USD = 0.005;
 
@@ -102,6 +103,8 @@ function StudioInner() {
     return () => setUploadViaKie(false);
   }, [isStudent]);
   const [guideClosed, setGuideClosed] = useLocalState("studio-editor-guide-closed", false);
+  /* Panneau flottant replie sur sa ligne d'onglets : la galerie en entier. */
+  const [dockMin, setDockMin] = useLocalState("studio-dock-min", false);
   const [modelId, setModelId] = useState(() => firstOfKind("image").id);
   const [input, setInput] = useState<Record<string, unknown>>(() => defaultsFor(firstOfKind("image")));
   const [swap, setSwap] = useState(false);
@@ -363,18 +366,28 @@ function StudioInner() {
     return c;
   }, [jobs]);
 
-  /* Galerie unifiee : jobs de swap et generations classiques, du plus recent au plus ancien. */
-  /* 24 tuiles d'abord : une galerie de 200 rendus ne charge pas 200 vignettes d'un coup. */
-  const PAGE = 24;
-  const [shown, setShown] = useState(PAGE);
-  useEffect(() => setShown(PAGE), [filter]);
+  /*
+   * Galerie unifiee : jobs de swap et generations classiques, du plus recent au
+   * plus ancien, toutes sur la page (chargees au fil du defilement, voir
+   * StudioGallery). Le format annonce par les reglages dessine la tuile avant
+   * meme que l'image arrive.
+   */
+  const [view, setView] = useLocalState<GalleryView>("studio-gallery-view", DEFAULT_GALLERY_VIEW);
   const gallery = useMemo(() => {
-    type Item = { at: string; job?: StudioJob; gen?: Generation };
+    type Item = GalleryItem & { job?: StudioJob; gen?: Generation };
     const genState = (g: Generation) => (g.state === "success" ? "done" : g.state === "fail" ? "failed" : "running");
     const jobState = (j: StudioJob) => (j.status === "completed" ? "done" : j.status === "failed" ? "failed" : "running");
+    const genRatio = (g: Generation) => {
+      const i = (g.input ?? {}) as Record<string, unknown>;
+      return parseRatio(i.aspect_ratio) ?? parseRatio(i.image_size) ?? parseRatio(i.aspectRatio) ?? parseRatio(i.size);
+    };
     const items: Item[] = [
-      ...jobs.filter((j) => filter === "all" || jobState(j) === filter).map((j) => ({ at: j.createdAt, job: j })),
-      ...rows.filter((g) => filter === "all" || genState(g) === filter).map((g) => ({ at: g.createdAt, gen: g })),
+      ...jobs
+        .filter((j) => filter === "all" || jobState(j) === filter)
+        .map((j) => ({ key: `job:${j.id}`, at: j.createdAt, ratio: parseRatio(j.aspectRatio), settled: j.status === "completed" && !!(j.finalOutput || j.videoOutput), job: j })),
+      ...rows
+        .filter((g) => filter === "all" || genState(g) === filter)
+        .map((g) => ({ key: `gen:${g.id}`, at: g.createdAt, ratio: genRatio(g), settled: g.state === "success" && !!g.resultUrls[0], gen: g })),
     ];
     return items.sort((a, b) => b.at.localeCompare(a.at));
   }, [jobs, rows, filter]);
@@ -462,6 +475,13 @@ function StudioInner() {
 
       <div className="flex flex-col gap-4">
         {isMember && <StudioMemberKey />}
+        {isStudent && !isMember && (
+          <div className="rounded-[10px] px-3.5 py-2.5 text-[12.5px] leading-relaxed" style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--accent) 25%, transparent)" }}>
+            <strong>Ton Studio.</strong> Image, Vidéo, Swap vidéo et Création tournent sur ta clé KIE (tes crédits) et toi seul vois tes résultats. Les prompts sont sur la page{" "}
+            <a href="/formation/creatives" className="underline">Créatives</a> : Claude t&apos;écrit le prompt, tu le colles ici avec ton image de référence. Clé et solde :{" "}
+            <a href="/formation/studio" className="underline">Studio IA</a>.
+          </div>
+        )}
         <Card
           title="Résultats"
           subtitle={
@@ -497,70 +517,75 @@ function StudioInner() {
                 </button>
               </>
             ) : (
-              <Tabs
-                value={filter}
-                onChange={setFilter}
-                options={[
-                  { value: "all", label: "Toutes" },
-                  { value: "running", label: "En cours" },
-                  { value: "done", label: "Terminées" },
-                  { value: "failed", label: "Échec" },
-                ]}
-              />
+              <>
+                <Tabs
+                  value={filter}
+                  onChange={setFilter}
+                  options={[
+                    { value: "all", label: "Toutes" },
+                    { value: "running", label: "En cours" },
+                    { value: "done", label: "Terminées" },
+                    { value: "failed", label: "Échec" },
+                  ]}
+                />
+                <GalleryViewMenu view={view} onChange={setView} />
+              </>
             )
           }
         >
           {!gallery.length ? (
             <Empty>{filter === "all" ? "Rien de généré pour l'instant. Lance ta première génération ci-dessous." : "Rien dans ce filtre."}</Empty>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 p-3">
-              {gallery.slice(0, shown).map((it) =>
-                it.job ? (
-                  <StudioJobCard key={it.job.id} job={it.job} actions={jobActions} />
-                ) : it.gen ? (
-                <GenerationCard
-                  key={it.gen.id}
-                  gen={it.gen}
-                  eta={etaByModel.get(it.gen.model) ?? null}
-                  picking={picking}
-                  picked={picked.has(it.gen.id)}
-                  onPick={() =>
-                    setPicked((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(it.gen!.id)) next.delete(it.gen!.id);
-                      else next.add(it.gen!.id);
-                      return next;
-                    })
-                  }
-                  onOpen={() => setPreview(it.gen!.id)}
-                />
-                ) : null,
-              )}
-            </div>
-          )}
-          {gallery.length > shown && (
-            <div className="px-3 pb-3 flex justify-center">
-              <button type="button" className="btn btn-sm" onClick={() => setShown((n) => n + PAGE)}>
-                Afficher plus ({gallery.length - shown} restants)
-              </button>
+            <div className="p-3">
+              <StudioGallery
+                items={gallery}
+                view={view}
+                resetKey={filter}
+                render={(it, tile) =>
+                  it.job ? (
+                    <StudioJobCard job={it.job} actions={jobActions} aspect={tile.aspect} onRatio={tile.onRatio} />
+                  ) : it.gen ? (
+                    <GenerationCard
+                      gen={it.gen}
+                      eta={etaByModel.get(it.gen.model) ?? null}
+                      aspect={tile.aspect}
+                      onRatio={tile.onRatio}
+                      picking={picking}
+                      picked={picked.has(it.gen.id)}
+                      onPick={() =>
+                        setPicked((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(it.gen!.id)) next.delete(it.gen!.id);
+                          else next.add(it.gen!.id);
+                          return next;
+                        })
+                      }
+                      onOpen={() => setPreview(it.gen!.id)}
+                    />
+                  ) : null
+                }
+              />
             </div>
           )}
         </Card>
 
         {/*
-          Le panneau de swap reste collé en bas de l'écran : on parcourt les
-          résultats au-dessus sans redescendre pour relancer. Borné en hauteur,
-          il défile à l'intérieur si le mode détaillé est déplié.
+          Le formulaire (Image, Vidéo, Swap, Création…) flotte en bas de
+          l'écran au-dessus de la galerie : on écrit son prompt en parcourant
+          les créations, sans redescendre pour relancer. Borné en hauteur, il
+          défile à l'intérieur quand il est long.
         */}
         <div
-          className={kind === "swap" && !advancedSwap && !talkTab && !createTab ? "swap-dock sticky z-20" : undefined}
-          style={kind === "swap" && !advancedSwap && !talkTab && !createTab ? { bottom: 12, maxHeight: "78vh", overflowY: "auto", borderRadius: 14, boxShadow: "var(--shadow-lg)" } : undefined}
+          className="swap-dock sticky z-20 w-full max-w-[920px] mx-auto"
+          style={{ bottom: 12, maxHeight: "78vh", overflowY: "auto", borderRadius: 14, boxShadow: "0 18px 50px -12px rgb(0 0 0 / 0.35), var(--shadow-lg)" }}
         >
           <Card>
-            <div className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <Tabs<StudioTab>
                 value={talkTab ? "talk" : createTab ? "create" : kind}
                 onChange={(t) => {
+                  setDockMin(false);
                   if (t === "talk") { setTalkTab(true); setCreateTab(false); return; }
                   if (t === "create") { setCreateTab(true); setTalkTab(false); return; }
                   setTalkTab(false);
@@ -580,6 +605,21 @@ function StudioInner() {
                       ]
                 }
               />
+              {kind === "image" && !talkTab && !createTab && !isStudent && !dockMin && (
+                <Toggle checked={swap} onChange={setSwap} label="Swap de visage" />
+              )}
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm ml-auto"
+                onClick={() => setDockMin((v) => !v)}
+                title={dockMin ? "Ouvrir le formulaire" : "Réduire le formulaire pour voir la galerie"}
+              >
+                {dockMin ? "▴ Ouvrir" : "▾ Réduire"}
+              </button>
+              </div>
+
+              {!dockMin && (
+              <>
 
               {isEditor && !guideClosed && kind === "swap" && !talkTab && !createTab && (
                 <div
@@ -595,16 +635,6 @@ function StudioInner() {
                   <button type="button" className="btn btn-ghost btn-sm shrink-0" onClick={() => setGuideClosed(true)} aria-label="Fermer le guide">
                     ✕
                   </button>
-                </div>
-              )}
-              {kind === "image" && !talkTab && !createTab && !isStudent && (
-                <Toggle checked={swap} onChange={setSwap} label="Swap de visage" />
-              )}
-              {isStudent && !isMember && (
-                <div className="rounded-[10px] px-3.5 py-2.5 text-[12.5px] leading-relaxed" style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--accent) 25%, transparent)" }}>
-                  <strong>Ton Studio.</strong> Image, Vidéo, Swap vidéo et Création tournent sur ta clé KIE (tes crédits) et toi seul vois tes résultats. Les prompts sont sur la page{" "}
-                  <a href="/formation/creatives" className="underline">Créatives</a> : Claude t&apos;écrit le prompt, tu le colles ici avec ton image de référence. Clé et solde :{" "}
-                  <a href="/formation/studio" className="underline">Studio IA</a>.
                 </div>
               )}
               {kind === "swap" && advancedSwap && (
@@ -630,53 +660,6 @@ function StudioInner() {
                 />
               ) : (
                 <>
-                  <div className="flex items-end gap-2.5 flex-wrap">
-                    <select
-                      className="select !w-auto !min-w-[220px] font-medium"
-                      value={modelId}
-                      onChange={(e) => switchModel(e.target.value)}
-                    >
-                      {visible.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.best ? "★ " : ""}
-                          {m.name} — {m.vendor}
-                        </option>
-                      ))}
-                    </select>
-
-                    {media.length === 0 &&
-                      compact.map((f) => (
-                      <label key={f.key} className="flex flex-col gap-1" title={f.help}>
-                        <span className="label-xs">{f.label}</span>
-                        {f.type === "text" ? (
-                          <input
-                            className="input !w-[210px] !h-[34px] !text-[12px] !py-0"
-                            placeholder={f.placeholder}
-                            value={String(input[f.key] ?? "")}
-                            onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
-                          />
-                        ) : f.type === "select" ? (
-                          <select
-                            className="select !w-auto !h-[34px] !text-[12px] !py-0"
-                            value={String(input[f.key] ?? "")}
-                            onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
-                          >
-                            {f.options?.filter((o) => !isStudent || o !== "32:9").map((o) => (
-                              <option key={o} value={o}>{f.optionLabels?.[o] ?? (o === "32:9" ? "32:9 · ultra-large" : o || "Auto")}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <input
-                            className="input !w-[84px] !h-[34px] !text-[12px] !py-0"
-                            type="number"
-                            value={String(input[f.key] ?? "")}
-                            onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
-                          />
-                        )}
-                        </label>
-                      ))}
-                  </div>
-
                   {/* Sources d'abord : on choisit ses images avant d'ecrire. */}
                   {media.length > 0 && (
                     <div className="flex flex-wrap gap-x-6 gap-y-3 items-start">
@@ -703,94 +686,97 @@ function StudioInner() {
                   )}
 
                   {/* Consignes : pleine largeur, c'est le coeur du travail. */}
-                  {texts.map((f) => (
-                    <Field key={f.key} label={f.label}>
+                  {texts.map((f) =>
+                    f.key === "prompt" ? (
                       <textarea
+                        key={f.key}
                         className="textarea"
-                        style={{ minHeight: f.key === "prompt" ? 104 : 76 }}
-                        placeholder={f.placeholder}
+                        style={{ minHeight: 84 }}
+                        aria-label={f.label}
+                        placeholder={f.placeholder || "Décris ce que tu veux créer…"}
                         value={String(input[f.key] ?? "")}
                         onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
                       />
-                      <div className="flex justify-end -mt-1">
-                        {!isStudent && <DictateButton onText={(t) => setInput((v) => ({ ...v, [f.key]: String(v[f.key] ?? "") ? `${String(v[f.key])} ${t}` : t }))} />}
-                      </div>
-                    </Field>
-                  ))}
-
-                  {/* Reglages en pied, quand les sources occupent le haut. */}
-                  {media.length > 0 && (compact.length > 0 || others.length > 0) && (
-                    <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
-                      {[...compact, ...others].map((f) => (
-                        <label key={f.key} className="flex flex-col gap-1" title={f.help}>
-                          <span className="label-xs">{f.label}</span>
-                          {f.type === "select" ? (
-                            <select
-                              className="select !w-auto !h-[34px] !text-[12px] !py-0"
-                              value={String(input[f.key] ?? "")}
-                              onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
-                            >
-                              {f.options?.filter((o) => !isStudent || o !== "32:9").map((o) => (
-                                <option key={o} value={o}>{f.optionLabels?.[o] ?? (o === "32:9" ? "32:9 · ultra-large" : o || "Auto")}</option>
-                              ))}
-                            </select>
-                          ) : f.type === "number" ? (
-                            <input
-                              className="input !w-[84px] !h-[34px] !text-[12px] !py-0"
-                              type="number"
-                              value={String(input[f.key] ?? "")}
-                              onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
-                            />
-                          ) : (
-                            <input
-                              className="input !w-[210px] !h-[34px] !text-[12px] !py-0"
-                              placeholder={f.placeholder}
-                              value={String(input[f.key] ?? "")}
-                              onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
-                            />
-                          )}
-                        </label>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Sans source, le reste tient sur la ligne du modele. */}
-                  {media.length === 0 && others.length > 0 && (
-                    <div className="grid sm:grid-cols-2 gap-x-4 gap-y-3">
-                      {others.map((f) => (
-                        <Field key={f.key} label={f.label}>
-                          <input
-                            className="input"
-                            placeholder={f.placeholder}
-                            value={String(input[f.key] ?? "")}
-                            onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
-                          />
-                        </Field>
-                      ))}
-                    </div>
+                    ) : (
+                      <Field key={f.key} label={f.label}>
+                        <textarea
+                          className="textarea"
+                          style={{ minHeight: 60 }}
+                          placeholder={f.placeholder}
+                          value={String(input[f.key] ?? "")}
+                          onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
+                        />
+                      </Field>
+                    ),
                   )}
 
                   {error && <ErrorNote>{error}</ErrorNote>}
 
-                  <div
-                    className="flex items-center justify-between gap-3 pt-3"
-                    style={{ borderTop: "1px solid var(--border)" }}
-                  >
-                    <span className="dim text-[12px] leading-snug">
+                  {/*
+                    Une seule barre en pied, comme une barre d'outils : modele,
+                    reglages courts, dictee, cout, Generer. Le panneau flotte
+                    au-dessus de la galerie, chaque ligne gagnee s'y voit.
+                  */}
+                  <div className="flex flex-wrap items-center gap-2 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                    <select
+                      className="select !w-auto !min-w-[190px] !h-[34px] !text-[12.5px] !py-0 font-medium"
+                      value={modelId}
+                      onChange={(e) => switchModel(e.target.value)}
+                      title="Modèle"
+                    >
+                      {visible.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.best ? "★ " : ""}
+                          {m.name} — {m.vendor}
+                        </option>
+                      ))}
+                    </select>
+
+                    {[...compact, ...others].map((f) => (
+                      <label key={f.key} className="inline-flex items-center gap-1.5" title={f.help}>
+                        <span className="dim text-[11.5px]">{f.label}</span>
+                        {f.type === "select" ? (
+                          <select
+                            className="select !w-auto !h-[34px] !text-[12px] !py-0"
+                            value={String(input[f.key] ?? "")}
+                            onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
+                          >
+                            {f.options?.filter((o) => !isStudent || o !== "32:9").map((o) => (
+                              <option key={o} value={o}>{f.optionLabels?.[o] ?? (o === "32:9" ? "32:9 · ultra-large" : o || "Auto")}</option>
+                            ))}
+                          </select>
+                        ) : f.type === "number" ? (
+                          <input
+                            className="input !w-[76px] !h-[34px] !text-[12px] !py-0"
+                            type="number"
+                            value={String(input[f.key] ?? "")}
+                            onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
+                          />
+                        ) : (
+                          <input
+                            className="input !w-[170px] !h-[34px] !text-[12px] !py-0"
+                            placeholder={f.placeholder}
+                            value={String(input[f.key] ?? "")}
+                            onChange={(e) => setInput((v) => ({ ...v, [f.key]: e.target.value }))}
+                          />
+                        )}
+                      </label>
+                    ))}
+
+                    {!isStudent && texts[0] && (
+                      <DictateButton onText={(t) => setInput((v) => ({ ...v, [texts[0].key]: String(v[texts[0].key] ?? "") ? `${String(v[texts[0].key])} ${t}` : t }))} />
+                    )}
+
+                    <span className="dim text-[11.5px] leading-snug ml-auto text-right">
                       {eta && (
                         <>
                           ≈ {duration(eta.sec)} d&apos;attente
-                          <span className="opacity-70">
-                            {" "}
-                            (médiane sur {eta.sample} génération{eta.sample > 1 ? "s" : ""})
-                          </span>
                           <br />
                         </>
                       )}
                       {model.creditsPerSec ? (
                         <>
-                          {fmtInt(model.creditsPerSec)} crédits/s — soit ≈{" "}
-                          {fmtInt(model.approxCredits)} · {fmtUsdInEur(model.approxCredits * CREDIT_USD)} pour 10 s
+                          {fmtInt(model.creditsPerSec)} crédits/s · ≈ {fmtUsdInEur(model.approxCredits * CREDIT_USD)} pour 10 s
                         </>
                       ) : (
                         <>
@@ -803,6 +789,8 @@ function StudioInner() {
                     </button>
                   </div>
                 </>
+              )}
+              </>
               )}
             </div>
           </Card>
@@ -842,6 +830,8 @@ function downloadHref(gen: Generation, url: string) {
 function GenerationCard({
   gen,
   eta,
+  aspect = "4 / 5",
+  onRatio,
   onOpen,
   picking,
   picked,
@@ -849,6 +839,9 @@ function GenerationCard({
 }: {
   gen: Generation;
   eta: number | null;
+  /** Format de la tuile (mosaique : celui du rendu). */
+  aspect?: string;
+  onRatio?: (ratio: number) => void;
   onOpen: () => void;
   picking: boolean;
   picked: boolean;
@@ -863,7 +856,7 @@ function GenerationCard({
     <article
       className="tile card-flat relative overflow-hidden"
       style={{
-        aspectRatio: "4 / 5",
+        aspectRatio: aspect,
         background: "var(--surface-3)",
         outline: picked ? "2px solid var(--accent)" : undefined,
         outlineOffset: -2,
@@ -895,10 +888,10 @@ function GenerationCard({
             style={{ cursor: picking ? "pointer" : "zoom-in" }}
           >
             {isVideo ? (
-              <VideoThumb src={url} />
+              <VideoThumb src={url} onRatio={onRatio} />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <ThumbImg src={url} />
+              <ThumbImg src={url} onRatio={onRatio} />
             )}
           </button>
           <a

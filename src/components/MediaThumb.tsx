@@ -50,11 +50,14 @@ export function ThumbImg({
   className = "w-full h-full object-cover",
   style,
   alt = "",
+  onRatio,
 }: {
   src: string;
   className?: string;
   style?: React.CSSProperties;
   alt?: string;
+  /** Largeur / hauteur reelles, une fois l'image chargee (mosaique du Studio). */
+  onRatio?: (ratio: number) => void;
 }) {
   const [failed, setFailed] = useState(false);
   const url = failed ? src : thumbUrl(src);
@@ -68,6 +71,7 @@ export function ThumbImg({
       loading="lazy"
       decoding="async"
       draggable={false}
+      onLoad={onRatio ? (e) => { const i = e.currentTarget; if (i.naturalWidth && i.naturalHeight) onRatio(i.naturalWidth / i.naturalHeight); } : undefined}
       onError={() => { if (!failed && url !== src) setFailed(true); }}
     />
   );
@@ -81,15 +85,27 @@ export function VideoThumb({
   src,
   className = "w-full h-full object-cover",
   style,
+  onRatio,
 }: {
   src: string;
   className?: string;
   style?: React.CSSProperties;
+  onRatio?: (ratio: number) => void;
 }) {
   const [failed, setFailed] = useState(false);
   // Pas de vignette possible (fichier en cours d'envoi, hote inconnu) : la video elle-meme.
   if (failed || thumbUrl(src) === src) {
-    return <video src={src} muted playsInline preload="metadata" className={className} style={style} />;
+    return (
+      <video
+        src={src}
+        muted
+        playsInline
+        preload="metadata"
+        className={className}
+        style={style}
+        onLoadedMetadata={onRatio ? (e) => { const v = e.currentTarget; if (v.videoWidth && v.videoHeight) onRatio(v.videoWidth / v.videoHeight); } : undefined}
+      />
+    );
   }
   return (
     <img
@@ -101,6 +117,7 @@ export function VideoThumb({
       loading="lazy"
       decoding="async"
       draggable={false}
+      onLoad={onRatio ? (e) => { const i = e.currentTarget; if (i.naturalWidth && i.naturalHeight) onRatio(i.naturalWidth / i.naturalHeight); } : undefined}
       onError={() => setFailed(true)}
     />
   );
