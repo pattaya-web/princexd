@@ -777,6 +777,8 @@ function SessionBadge() {
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  /* Ordinateur : barre de gauche repliable en un clic, ouverte par defaut, choix garde sur l'appareil. */
+  const [sideHidden, setSideHidden] = useLocalState("mvp-sidebar-hidden", false);
   // Menu simple par défaut ; « Tout le menu » se souvient du choix sur cet appareil.
   const [fullNav, setFullNav] = useState(false);
   useEffect(() => {
@@ -898,9 +900,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         les sections de Qoves.
       */}
       <aside
-        className={`fixed md:sticky top-0 z-40 h-screen w-[236px] shrink-0 flex flex-col transition-transform md:translate-x-0 ${
+        className={`fixed md:sticky top-0 z-40 h-screen w-[236px] shrink-0 flex flex-col transition-[transform,margin] duration-200 ${
           open ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } ${sideHidden ? "md:-translate-x-full md:-ml-[236px]" : "md:translate-x-0"}`}
         style={
           isStudent
             ? { background: "rgba(7, 11, 20, 0.55)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderRight: "1px solid var(--border)" }
@@ -909,8 +911,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
               : { background: "var(--bg)", borderRight: "1px solid var(--border)" }
         }
       >
-        <div className="px-5 h-[60px] flex items-center shrink-0">
+        <div className="pl-5 pr-2 h-[60px] flex items-center justify-between gap-2 shrink-0">
           {isStudent ? <ScaleXLogo height={22} /> : <Brand />}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm hidden md:inline-flex shrink-0 !px-2"
+            onClick={() => setSideHidden(true)}
+            title="Fermer la barre de gauche"
+            aria-label="Fermer la barre de gauche"
+          >
+            «
+          </button>
         </div>
         {/* Élève : sa progression, 100 % quand ses campagnes sont lancées. */}
         {isStudent && gateTabs.length > 0 && (
@@ -1026,7 +1037,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
             borderBottom: "1px solid var(--border)",
           }}
         >
-          <button className="btn btn-ghost btn-sm md:hidden shrink-0" onClick={() => setOpen(true)} aria-label="Menu">
+          {/* Téléphone : ouvre le menu par-dessus. Ordinateur : ferme / rouvre la barre de gauche. */}
+          <button
+            className="btn btn-ghost btn-sm shrink-0"
+            onClick={() => (window.matchMedia("(min-width: 768px)").matches ? setSideHidden((v) => !v) : setOpen(true))}
+            aria-label="Menu"
+            title={sideHidden ? "Ouvrir la barre de gauche" : "Fermer la barre de gauche"}
+          >
             ☰
           </button>
           {/* Sur téléphone, les objectifs du jour défilent horizontalement au lieu de déborder. */}
