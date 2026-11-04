@@ -36,6 +36,7 @@ import { fetchStudioJobs, GENERATIONS_EVENT, readStudioJobsCache, STUDIO_JOBS_EV
 import { duration, estimateSec, fmtInt, fmtUsdInEur, label, relative } from "@/lib/format";
 import type { Generation } from "@/lib/types";
 import { ThumbImg, VideoThumb } from "@/components/MediaThumb";
+import { ZipDownloadButton } from "@/components/ZipDownload";
 import { DEFAULT_GALLERY_VIEW, GalleryViewMenu, parseRatio, StudioGallery, type GalleryItem, type GalleryView } from "@/components/StudioGallery";
 
 const CREDIT_USD = 0.005;
@@ -504,6 +505,12 @@ function StudioInner() {
                 >
                   Tout
                 </button>
+                <ZipDownloadButton
+                  className="btn btn-sm btn-primary"
+                  files={rows
+                    .filter((g) => picked.has(g.id) && g.state === "success")
+                    .flatMap((g) => g.resultUrls.map((url) => ({ url, name: fileName(g) })))}
+                />
                 <button
                   className="btn btn-sm btn-danger"
                   onClick={() => {
