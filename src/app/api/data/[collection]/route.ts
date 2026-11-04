@@ -98,9 +98,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ collectio
   const { collection } = await ctx.params;
   const key = resolve(collection);
   if (!key) return NextResponse.json({ error: "Collection inconnue" }, { status: 404 });
-  if (key === "generations" && generationScope(req).student) return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   const { id, ...patch } = (await req.json()) as { id?: string } & Record<string, unknown>;
   if (!id) return NextResponse.json({ error: "id manquant" }, { status: 400 });
+  if (key === "generations") {
+    // Eleve / membre Studio : il renomme ses propres creations, rien d'autre.
+    const scope = generationScope(req);
+    if (scope.student) {
+      const keys = Object.keys(patch);
+      const mine = readDB().generations.some((g) => g.id === id && (g.ownerId ?? "") === scope.ownerId);
+      if (!mine || keys.some((k) => k !== "title")) return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
+    }
+    if ("title" in patch) patch.title = String(patch.title ?? "").replace(/[\r\n]+/g, " ").trim().slice(0, 80);
+  }
   const row = update(key, id, patch);
   if (!row) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
   return NextResponse.json(row);

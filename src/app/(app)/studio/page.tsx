@@ -189,6 +189,18 @@ function StudioInner() {
     setInput((prev) => ({ ...defaultsFor(first), prompt: carryPrompt(prev.prompt, model, first) }));
   };
 
+  /* Renommer une créa : affiché tout de suite, enregistré en fond, remis si le serveur refuse. */
+  const rename = async (id: string, title: string) => {
+    const before = rows.find((g) => g.id === id)?.title;
+    setRows((prev) => prev.map((g) => (g.id === id ? { ...g, title } : g)));
+    try {
+      await api("/api/data/generations", { method: "PATCH", body: JSON.stringify({ id, title }) });
+    } catch (e) {
+      setRows((prev) => prev.map((g) => (g.id === id ? { ...g, title: before } : g)));
+      toast((e as Error).message, "err");
+    }
+  };
+
   /**
    * Chaînage : on envoie un résultat de la galerie dans le premier champ média
    * du bon type. C'est le geste central du workflow — on génère le personnage
@@ -569,6 +581,7 @@ function StudioInner() {
                         })
                       }
                       onOpen={() => setPreview(it.gen!.id)}
+                      onRename={(title) => void rename(it.gen!.id, title)}
                     />
                   ) : null
                 }
@@ -813,7 +826,7 @@ function StudioInner() {
         </div>
       </div>
 
-      {previewed && <Preview gen={previewed} onClose={() => setPreview(null)} onReuse={reuse} onRestore={restore} />}
+      {previewed && <Preview gen={previewed} onClose={() => setPreview(null)} onReuse={reuse} onRestore={restore} onRename={(title) => void rename(previewed.id, title)} />}
       {previewedJob && <StudioJobPreview job={previewedJob} actions={jobActions} onClose={() => setJobPreview(null)} />}
       {voicePickedJob && (
         <VoicePicker
@@ -826,8 +839,10 @@ function StudioInner() {
   );
 }
 
-/** Nom de fichier lisible, construit a partir du prompt. */
+/** Nom de fichier lisible : le nom donne a la creation, sinon construit a partir du prompt. */
 function fileName(gen: Generation) {
+  const named = (gen.title ?? "").replace(/[/\\?%*:|"<>]/g, "").trim();
+  if (named) return named.slice(0, 80);
   const slug = gen.prompt
     .toLowerCase()
     .normalize("NFD")
@@ -889,9 +904,11 @@ function GenerationCard({
   picking,
   picked,
   onPick,
+  onRename,
 }: {
   gen: Generation;
   eta: number | null;
+  onRename: (title: string) => void;
   /** Format de la tuile (mosaique : celui du rendu). */
   aspect?: string;
   sizes?: string;
@@ -905,6 +922,7 @@ function GenerationCard({
   const failed = gen.state === "fail";
   const url = gen.resultUrls[0];
   const isVideo = gen.kind === "video";
+  const [renaming, setRenaming] = useState(false);
 
   return (
     <article
@@ -958,6 +976,56 @@ function GenerationCard({
           >
             ↓
           </a>
+          {/* Nom de la creation : pastille en bas a gauche, ✎ pour renommer. */}
+          {renaming ? (
+            <input
+              autoFocus
+              className="input absolute bottom-1.5 left-1.5 z-10 !h-[30px] !text-[12px] !py-0"
+              style={{ width: "calc(100% - 52px)" }}
+              defaultValue={gen.title ?? ""}
+              placeholder="Nom de la créa"
+              maxLength={80}
+              data-nodraft
+              onClick={(e) => e.stopPropagation()}
+              onFocus={(e) => e.currentTarget.select()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+                if (e.key === "Escape") setRenaming(false);
+              }}
+              onBlur={(e) => {
+                setRenaming(false);
+                const v = e.currentTarget.value.trim();
+                if (v !== (gen.title ?? "")) onRename(v);
+              }}
+            />
+          ) : gen.title ? (
+            <button
+              type="button"
+              hidden={picking}
+              onClick={(e) => {
+                e.stopPropagation();
+                setRenaming(true);
+              }}
+              className="absolute bottom-1.5 left-1.5 max-w-[calc(100%-52px)] truncate rounded-full px-2 h-[24px] text-[11.5px] font-medium"
+              style={{ background: "rgb(0 0 0 / 0.58)", color: "#fff" }}
+              title="Renommer"
+            >
+              {gen.title}
+            </button>
+          ) : (
+            <button
+              type="button"
+              hidden={picking}
+              onClick={(e) => {
+                e.stopPropagation();
+                setRenaming(true);
+              }}
+              className="tile-actions absolute bottom-1.5 left-1.5 btn btn-sm"
+              title="Renommer la créa"
+            >
+              ✎
+            </button>
+          )}
           {isVideo && (
             <span
               className="absolute top-1.5 left-1.5 rounded-full grid place-items-center text-[11px] pointer-events-none"
@@ -1138,11 +1206,13 @@ function Preview({
   onClose,
   onReuse,
   onRestore,
+  onRename,
 }: {
   gen: Generation;
   onClose: () => void;
   onReuse: (url: string, from: "image" | "video") => void;
   onRestore: (gen: Generation) => void;
+  onRename: (title: string) => void;
 }) {
   const url = gen.resultUrls[0];
   const def = getModel(gen.model);
@@ -1202,6 +1272,22 @@ function Preview({
         </div>
 
         <div className="flex flex-col gap-3.5 min-w-0">
+          <label className="block">
+            <span className="label-xs block mb-1.5">Nom de la créa</span>
+            <input
+              key={gen.id}
+              className="input"
+              defaultValue={gen.title ?? ""}
+              placeholder="Ex. Collier python — hook 1"
+              maxLength={80}
+              data-nodraft
+              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+              onBlur={(e) => {
+                const v = e.currentTarget.value.trim();
+                if (v !== (gen.title ?? "")) onRename(v);
+              }}
+            />
+          </label>
           <div>
             <span className="label-xs block mb-1.5">Technologie</span>
             <p className="text-[13px] font-medium">{def?.name ?? gen.model}</p>
