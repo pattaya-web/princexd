@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { zipSync } from "fflate";
 import { Field, Modal } from "@/components/ui";
+import { dedupeNames } from "@/lib/creative-naming";
 
 /**
  * Telechargement groupe du Studio (2026-11-05) : les creations selectionnees
@@ -62,7 +63,8 @@ export function ZipDownloadButton({ files, className = "btn btn-sm" }: { files: 
     setError(null);
     try {
       const entries: Record<string, [Uint8Array, { level: 0 }]> = {};
-      const used = new Map<string, number>();
+      // Doublons : _2, _3, comme à l'upload chez Meta.
+      const names = dedupeNames(files.map((f, i) => clean(f.name).slice(0, 80) || `creation-${i + 1}`));
       const failed: string[] = [];
       // 4 a la fois : assez pour aller vite, sans saturer une connexion lente.
       let next = 0;
@@ -72,10 +74,8 @@ export function ZipDownloadButton({ files, className = "btn btn-sm" }: { files: 
           const f = files[i];
           try {
             const { bytes, ext } = await fetchOne(f);
-            const base = clean(f.name).slice(0, 60) || `creation-${i + 1}`;
-            const n = (used.get(base) ?? 0) + 1;
-            used.set(base, n);
-            entries[`${folder}/${String(i + 1).padStart(2, "0")}-${base}${n > 1 ? `-${n}` : ""}.${ext}`] = [bytes, { level: 0 }];
+            // Le nom exact de la créa (S45_MIX1_HEMIOS_NAVY.png) : l'Ads uploader en fait le nom de la pub.
+            entries[`${folder}/${names[i]}.${ext}`] = [bytes, { level: 0 }];
           } catch {
             failed.push(f.name || `création ${i + 1}`);
           }

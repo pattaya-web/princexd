@@ -37,6 +37,8 @@ import { duration, estimateSec, fmtInt, fmtUsdInEur, label, relative } from "@/l
 import type { Generation } from "@/lib/types";
 import { ThumbImg, VideoThumb } from "@/components/MediaThumb";
 import { ZipDownloadButton } from "@/components/ZipDownload";
+import { DEFAULT_NAMING, NamingBar, resolveCreativeName, type NamingState } from "@/components/NamingBar";
+import { isoWeek } from "@/lib/creative-naming";
 import { DEFAULT_GALLERY_VIEW, GalleryViewMenu, parseRatio, StudioGallery, type GalleryItem, type GalleryView } from "@/components/StudioGallery";
 
 const CREDIT_USD = 0.005;
@@ -83,6 +85,17 @@ function StudioInner() {
   const params = useSearchParams();
   const toast = useToast();
   const { rows, setRows, reload, destroyMany } = useCollection<Generation>("generations");
+  /* Nom des créas (S45_MIX1_CONCEPT_VARIANTE) : MIX / CONCEPT / VARIANTE gardés d'une génération à l'autre. */
+  const [naming, setNaming] = useLocalState<NamingState>("studio-naming", DEFAULT_NAMING);
+  const [weekOverride, setWeekOverride] = useState("");
+  const [iterOf, setIterOf] = useState("");
+  const takenNames = useMemo(() => rows.map((g) => g.title ?? "").filter(Boolean), [rows]);
+  const creativeName = resolveCreativeName({
+    naming,
+    week: weekOverride ? Number(weekOverride) : isoWeek(),
+    iterOf,
+    taken: takenNames,
+  });
 
   const [kind, setKind] = useState<ModelKind>("image");
   const [talkTab, setTalkTab] = useState(false);
@@ -454,9 +467,11 @@ function StudioInner() {
       }
       const gen = await api<Generation>("/api/kie/generate", {
         method: "POST",
-        body: JSON.stringify({ model: model.id, input: payload }),
+        body: JSON.stringify({ model: model.id, input: payload, ...(creativeName ? { title: creativeName } : {}) }),
       });
       setRows((prev) => [gen, ...prev]);
+      // Une itération vaut pour un lancement : le suivant repart sur MIX / CONCEPT / VARIANTE.
+      setIterOf("");
       toast("Génération lancée. Le résultat arrive dans la galerie.");
     } catch (e) {
       setError((e as Error).message);
@@ -686,6 +701,17 @@ function StudioInner() {
                     prompt a droite sans cadre, qui grandit avec le texte.
                     Rien ne prend de place pour rien au-dessus de la galerie.
                   */}
+                  <NamingBar
+                    naming={naming}
+                    onNaming={setNaming}
+                    week={weekOverride ? Number(weekOverride) : isoWeek()}
+                    weekOverride={weekOverride}
+                    onWeekOverride={setWeekOverride}
+                    iterOf={iterOf}
+                    onIterOf={setIterOf}
+                    taken={takenNames}
+                    preview={creativeName}
+                  />
                   <div className="flex items-start gap-3 rounded-[12px] p-2" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
                   {media.length > 0 && (
                     <div className="flex flex-wrap gap-2 items-start shrink-0">

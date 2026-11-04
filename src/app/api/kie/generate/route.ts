@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     const { error, status } = scopeError(e);
     return NextResponse.json({ error }, { status });
   }
-  const { model, input, swipeId, swipeSlot } = (await req.json()) as { model: string; input: Record<string, unknown>; swipeId?: string; swipeSlot?: string };
+  const { model, input, swipeId, swipeSlot, title } = (await req.json()) as { model: string; input: Record<string, unknown>; swipeId?: string; swipeSlot?: string; title?: string };
   const def = getModel(model);
   if (!def) return NextResponse.json({ error: `Modèle inconnu : ${model}` }, { status: 400 });
 
@@ -123,6 +123,8 @@ export async function POST(req: NextRequest) {
       // Prompts IA d'un swipe : le resultat reste rattache a sa fiche.
       ...(swipeId && !scope.ownerId ? { swipeId: String(swipeId), swipeSlot: String(swipeSlot ?? "") } : {}),
       ...(scope.ownerId ? { ownerId: scope.ownerId } : {}),
+      // Nom de la créa (convention S45_MIX1_CONCEPT_VARIANTE), posé par le Studio au lancement.
+      ...(typeof title === "string" && title.trim() ? { title: title.replace(/\s+/g, " ").trim().slice(0, 80) } : {}),
       ...(crop ? { crop } : {}),
       updatedAt: new Date().toISOString(),
     }) as unknown as Generation;
