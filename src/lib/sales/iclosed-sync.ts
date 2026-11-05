@@ -379,17 +379,28 @@ export function applySetterByLinkOnly(db: DB): number {
 function attachWorkedCalls(db: DB, owner: string, manual: Set<string>, signedOf: (a: Appointment) => string): number {
   const now = new Date().toISOString();
   const floor = new Date(Date.now() - 14 * 24 * 3600_000).toISOString();
+  const signedFloor = new Date(Date.now() - 60 * 24 * 3600_000).toISOString();
   let n = 0;
   for (const a of db.appointments) {
-    if (!a.iclosedEventId || a.scheduledAt < floor) continue;
-    if (a.setterId && a.setterId !== owner) continue;
-    if (manual.has(a.id)) continue;
-    // Lien signe de Mady : le call est a elle. Lien signe d'un setter : a lui.
+    if (!a.iclosedEventId) continue;
     const signed = signedOf(a);
-    if (signed && signed === owner) continue;
-    if ((a.history ?? []).some((h) => h.note?.startsWith("Setter retiré ("))) continue;
     const lead = db.leads.find((l) => l.id === a.leadId);
     if (!lead) continue;
+    if (signed && signed !== owner) {
+      /*
+       * Lien signe d'un setter (2026-11-05, « tous les rendez-vous qu'il
+       * envoie avec son lien dans son agenda ») : le call est a lui, sans
+       * exception, a venir et sur 60 jours, quel que soit le setter pose.
+       */
+      if (a.scheduledAt < signedFloor || a.setterId === signed) continue;
+    } else {
+      if (a.scheduledAt < floor) continue;
+      if (a.setterId && a.setterId !== owner) continue;
+      if (manual.has(a.id)) continue;
+      // Lien signe de Mady : le call est a elle.
+      if (signed) continue;
+      if ((a.history ?? []).some((h) => h.note?.startsWith("Setter retiré ("))) continue;
+    }
     const probe = {
       inviteeName: lead.name,
       inviteeEmail: lead.email ?? "",
