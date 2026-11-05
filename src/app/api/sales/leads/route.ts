@@ -477,7 +477,14 @@ export async function POST(req: NextRequest) {
     let lead: Lead;
     if (existing) {
       lead = existing;
-      if (!lead.setterId) lead.setterId = setterId;
+      // Le setter qui envoie son lien prend le lead, sauf s'il est deja a un autre setter actif
+      // (Mady « setter » par defaut, un ancien setter inactif ou personne : il le prend).
+      const current = db.team.find((m) => m.id === lead.setterId);
+      if (!current || current.status === "inactif" || current.id === db.settings.salesOwnerMemberId) {
+        lead.setterId = setterId;
+        lead.ownerName = db.team.find((m) => m.id === setterId)?.name ?? lead.ownerName;
+        lead.ownerRole = "setter";
+      }
       if (name && (!lead.name || lead.name === "Sans nom" || lead.name.startsWith("@"))) lead.name = name;
       if (email && !lead.email) lead.email = email;
       if (phone && !lead.phone) lead.phone = phone;
@@ -516,6 +523,7 @@ export async function POST(req: NextRequest) {
     applyTouch(lead, { hint: "instagram-dm" }, now);
     // Comment et pourquoi : ce que le setter retrouve dans sa liste « Liens envoyés ».
     lead.declaredAt = now;
+    lead.declaredBy = setterId;
     const via = LINK_CHANNELS.includes(body.via as LinkChannel) ? (body.via as LinkChannel) : "instagram";
     lead.declaredVia = via;
     const why = String(body.why ?? body.note ?? "").trim().slice(0, 1000);

@@ -92,6 +92,7 @@ export async function PATCH(req: NextRequest) {
       lead.ownerRole = "setter";
       lead.claimedAt = lead.claimedAt || now;
       lead.declaredAt = now;
+      lead.declaredBy = session.memberId;
       lead.declaredVia = lead.declaredVia || "whatsapp";
       lead.declaredWhy = lead.declaredWhy || "Relance après no-show";
     }

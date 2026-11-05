@@ -102,7 +102,59 @@ function matchLead(db: DB, call: IclosedCall): DB["leads"][number] | undefined {
     const same = db.leads.filter((l) => norm(l.name) === name);
     if (same.length === 1) return same[0];
   }
+  return matchDeclaredLead(db, call);
+}
+
+/**
+ * Prospect a qui un setter a envoye son lien ces 30 derniers jours
+ * (2026-11-05). Le setter le declare souvent par son seul pseudo ou son
+ * prenom, alors que la reservation porte un email, un nom complet, ou que
+ * le prospect existe deja ailleurs dans le CRM (opt-in Systeme.io) : on le
+ * cherche parmi les seuls leads declares, par pseudo (questionnaire ou debut
+ * de l'email), telephone, email, puis prenom. Seulement s'il est seul dans
+ * ce cas, sinon on ne devine pas.
+ */
+function matchDeclaredLead(db: DB, call: IclosedCall): DB["leads"][number] | undefined {
+  const plain = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const since = Date.now() - 30 * 24 * 3600_000;
+  const declared = db.leads.filter((l) => l.declaredAt && Date.parse(l.declaredAt) >= since);
+  if (!declared.length) return undefined;
+  const unique = (hit: DB["leads"]) => (hit.length === 1 ? hit[0] : undefined);
+  const igAnswer = (call.questions ?? []).find((q) => /instagram|pseudo|@/i.test(q.statement))?.answer?.match(/@?([A-Za-z0-9._]{2,30})/)?.[1] ?? "";
+  const email = (call.inviteeEmail ?? "").trim().toLowerCase();
+  const phone = digits(call.phoneNumber ?? "");
+  const pseudo = (l: DB["leads"][number]) => plain(l.igUsername ?? l.handle ?? "");
+  for (const p of [plain(igAnswer), plain(email.split("@")[0] ?? "")]) {
+    if (p.length < 4) continue;
+    const hit = unique(declared.filter((l) => pseudo(l) === p));
+    if (hit) return hit;
+  }
+  if (email) {
+    const hit = unique(declared.filter((l) => (l.email ?? "").toLowerCase() === email));
+    if (hit) return hit;
+  }
+  if (phone.length >= 8) {
+    const hit = unique(declared.filter((l) => l.phone && digits(l.phone).endsWith(phone.slice(-9))));
+    if (hit) return hit;
+  }
+  const first = plain((call.inviteeName ?? "").trim().split(/\s+/)[0] ?? "");
+  if (first.length >= 3) {
+    const hit = unique(declared.filter((l) => !l.name.startsWith("@") && plain(l.name.trim().split(/\s+/)[0] ?? "") === first));
+    if (hit) return hit;
+  }
   return undefined;
+}
+
+/**
+ * Setter d'une reservation sans signature : celui qui a travaille le
+ * prospect retrouve (declaration, appel), sinon celui d'un prospect
+ * declare qui lui ressemble (le meme, arrive dans le CRM sous un autre nom).
+ */
+function workedSetter(db: DB, call: IclosedCall, known: DB["leads"][number] | undefined): string {
+  const owner = ownerSetter(db);
+  const fromKnown = declaredSetter(known, db);
+  if (fromKnown && fromKnown !== owner) return fromKnown;
+  return declaredSetter(matchDeclaredLead(db, call), db) || fromKnown;
 }
 
 /**
@@ -120,9 +172,28 @@ function ownerSetter(db: DB): string {
   return me && active(me) && memberRoles(me).includes("setter") ? me.id : "";
 }
 
-/** Setter d'un lead qui a declare « j'ai envoye mon lien » a ce prospect ; vide sinon. */
-function declaredSetter(lead: DB["leads"][number] | undefined): string {
-  return lead?.setterId && lead.declaredAt ? lead.setterId : "";
+/** Un lead « travaille » par un setter garde ce lien 60 jours. */
+const WORKED_WINDOW_MS = 60 * 24 * 3600_000;
+
+/**
+ * Setter qui a travaille ce prospect, vide sinon : celui qui a declare
+ * « j'ai envoye mon lien » (`declaredBy`, sinon le setter du lead declare),
+ * ou le setter qui l'a pris en agissant dessus (appel, message, reprise :
+ * `claimedAt`) dans les 60 derniers jours. Seulement un setter actif.
+ */
+function declaredSetter(lead: DB["leads"][number] | undefined, db: DB): string {
+  if (!lead) return "";
+  const recent = (at?: string) => Boolean(at) && Date.now() - Date.parse(at!) < WORKED_WINDOW_MS;
+  const candidates = [
+    lead.declaredAt ? lead.declaredBy : "",
+    lead.declaredAt ? lead.setterId : "",
+    recent(lead.claimedAt) ? lead.setterId : "",
+  ].filter(Boolean) as string[];
+  for (const id of candidates) {
+    const m = db.team.find((t) => t.id === id);
+    if (m && active(m) && memberRoles(m).includes("setter")) return m.id;
+  }
+  return "";
 }
 
 /**
@@ -202,7 +273,7 @@ export function applySetterByLinkOnly(db: DB): number {
       if (!a.iclosedEventId || manual.has(a.id)) continue;
       if (!a.setterId || a.setterId === owner) continue;
       const lead = db.leads.find((l) => l.id === a.leadId);
-      if (signedOf(a) === a.setterId || declaredSetter(lead) === a.setterId) continue;
+      if (signedOf(a) === a.setterId || declaredSetter(lead, db) === a.setterId) continue;
       const fromName = db.team.find((m) => m.id === a.setterId)?.name ?? a.setterId;
       a.setterId = owner;
       a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Système", from: a.status, to: a.status, note: `Setter retiré (${fromName}) : réservation sans son lien signé` }];
@@ -270,6 +341,56 @@ export function applySetterByLinkOnly(db: DB): number {
     db.settings.salesSoloSetterAt = now;
     writeDB(db);
   }
+  n += attachWorkedCalls(db, owner, manual, signedOf);
+  return n;
+}
+
+/**
+ * A chaque synchro (2026-11-05) : un call iClosed des 14 derniers jours ou
+ * a venir, parti chez Mady (ou sans setter) faute de signature dans le lien,
+ * revient au setter qui a travaille le prospect (lien envoye declare, appel
+ * ou message). Le lien signe de quelqu'un, une attribution posee a la main
+ * et un setter retire par une passe precedente font toujours foi.
+ */
+function attachWorkedCalls(db: DB, owner: string, manual: Set<string>, signedOf: (a: Appointment) => string): number {
+  const now = new Date().toISOString();
+  const floor = new Date(Date.now() - 14 * 24 * 3600_000).toISOString();
+  let n = 0;
+  for (const a of db.appointments) {
+    if (!a.iclosedEventId || a.scheduledAt < floor) continue;
+    if (a.setterId && a.setterId !== owner) continue;
+    if (manual.has(a.id) || signedOf(a)) continue;
+    if ((a.history ?? []).some((h) => h.note?.startsWith("Setter retiré ("))) continue;
+    const lead = db.leads.find((l) => l.id === a.leadId);
+    if (!lead) continue;
+    const probe = {
+      inviteeName: lead.name,
+      inviteeEmail: lead.email ?? "",
+      phoneNumber: lead.phone ?? "",
+      questions: lead.igUsername ? [{ statement: "instagram", answer: lead.igUsername }] : [],
+    } as unknown as IclosedCall;
+    const setter = workedSetter(db, probe, lead);
+    if (!setter || setter === a.setterId || setter === owner) continue;
+    const name = db.team.find((m) => m.id === setter)?.name ?? "le setter";
+    a.setterId = setter;
+    a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Système", from: a.status, to: a.status, note: `Rattaché à ${name} : prospect à qui ${name} a envoyé son lien` }];
+    a.updatedAt = now;
+    if (!lead.setterId || lead.setterId === owner) {
+      lead.setterId = setter;
+      lead.ownerName = name;
+      lead.ownerRole = "setter";
+    }
+    for (const s of db.sales) {
+      if (s.appointmentId !== a.id || s.setterId === setter) continue;
+      s.setterId = setter;
+      // Comme pour tout closing avec setter : Mady l'envoie depuis le Sales Dashboard.
+      if (!s.setterSentAt) s.setterHold = true;
+      s.updatedAt = now;
+    }
+    db.activityLogs.unshift({ id: newId(), at: now, actorId: "", actorName: "Système", action: "appointment.updated", entity: "appointment", entityId: a.id, summary: `Call de ${lead.name} rattaché à ${name} (lien envoyé par ${name})` });
+    n++;
+  }
+  if (n) writeDB(db);
   return n;
 }
 
@@ -363,7 +484,7 @@ function createUnassigned(db: DB, input: AppointmentInput, closerId: string) {
  */
 function createFromCall(db: DB, call: IclosedCall, report: { created: number; unassignedSetter: number; unassignedCloser: number }): string {
   const known = matchLead(db, call);
-  const setterId = setterFromUtm(db, call) || declaredSetter(known) || ownerSetter(db);
+  const setterId = setterFromUtm(db, call) || workedSetter(db, call, known) || ownerSetter(db);
   const closerId = pickCloser(db, call);
   const input = fromIclosedCall(call, { setterId, closerId });
   if (!input) return "";
@@ -458,7 +579,7 @@ export async function syncIclosedUpcoming(opts: { force?: boolean } = {}): Promi
           }
           if (promoteSignedSetter(db, existing, call)) touched = true;
           if (!existing.setterId) {
-            const setterId = declaredSetter(db.leads.find((l) => l.id === existing.leadId)) || ownerSetter(db);
+            const setterId = declaredSetter(db.leads.find((l) => l.id === existing.leadId), db) || ownerSetter(db);
             if (setterId) {
               existing.setterId = setterId;
               touched = true;

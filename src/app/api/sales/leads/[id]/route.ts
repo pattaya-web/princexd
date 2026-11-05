@@ -467,6 +467,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         const via = LINK_CHANNELS.includes(body.via as LinkChannel) ? (body.via as LinkChannel) : "whatsapp";
         const why = (body.why ?? "").trim().slice(0, 1000);
         lead.declaredAt = now.toISOString();
+        if (!session.isAdmin && session.memberId) lead.declaredBy = session.memberId;
         lead.declaredVia = via;
         if (why) {
           lead.declaredWhy = why;

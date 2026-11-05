@@ -573,6 +573,12 @@ export interface Lead {
   declaredVia?: LinkChannel;
   /** Pourquoi : ce que le prospect cherche, le contexte de l'envoi. */
   declaredWhy?: string;
+  /**
+   * Setter qui a envoye son lien (2026-11-05). Distinct de `setterId` : un
+   * lead deja au nom de Mady (Systeme.io, ancien call) gardait Mady comme
+   * setter et la reservation partait chez lui. Le call va a ce setter.
+   */
+  declaredBy?: ID;
   /* --- Regle de reprise (2026-10-14) : une conversation sans action d'un setter
    *     pendant `salesTakeoverMin` minutes peut etre reprise par un autre. --- */
   /** Moment ou le setter actuel a pris le lead (premier appel, ou reprise). */
