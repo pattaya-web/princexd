@@ -75,6 +75,16 @@ export function setterFromUtmValues(db: DB, raw: string[]): string {
     const same = db.team.filter((m) => active(m) && memberRoles(m).includes("setter") && firstName(m.name) === v.replace(/[^a-z0-9]/g, ""));
     if (same.length === 1) return same[0].id;
   }
+  /*
+   * Lien signe d'un ancien setter, desactive (Kenzy reserve encore avec le
+   * lien de Noa, 2026-11-05) : le prospect revient au seul setter actif
+   * (hors Mady), comme Mady l'a tranche pour Kenzy et Ricardo.
+   */
+  const retired = db.team.some((m) => !active(m) && memberRoles(m).includes("setter") && [m.username, m.id, m.name].filter(Boolean).some((k) => values.includes(norm(String(k))) || values.includes(firstName(String(k)))));
+  if (retired) {
+    const solo = db.team.filter((m) => active(m) && memberRoles(m).includes("setter") && m.id !== db.settings.salesOwnerMemberId);
+    if (solo.length === 1) return solo[0].id;
+  }
   return "";
 }
 
@@ -170,6 +180,18 @@ function workedSetter(db: DB, call: IclosedCall, known: DB["leads"][number] | un
 function ownerSetter(db: DB): string {
   const me = db.team.find((m) => m.id === db.settings.salesOwnerMemberId);
   return me && active(me) && memberRoles(me).includes("setter") ? me.id : "";
+}
+
+/**
+ * Reservation venue d'Instagram sans aucun parametre (2026-11-05, choix de
+ * Mady) : c'est le lien brut du calendrier envoye en DM par le setter. Elle
+ * va au seul setter actif (hors Mady). Les liens de Mady (bio, stories)
+ * portent sa signature ou un utm_source : ils ne sont pas concernes.
+ */
+function instagramSetter(db: DB, utm: Record<string, string> | undefined): string {
+  if (!utm || utm.source || !/instagram\.com/i.test(utm.referrer ?? "")) return "";
+  const solo = db.team.filter((m) => active(m) && memberRoles(m).includes("setter") && m.id !== db.settings.salesOwnerMemberId);
+  return solo.length === 1 ? solo[0].id : "";
 }
 
 /** Un lead « travaille » par un setter garde ce lien 60 jours. */
@@ -349,8 +371,10 @@ export function applySetterByLinkOnly(db: DB): number {
  * A chaque synchro (2026-11-05) : un call iClosed des 14 derniers jours ou
  * a venir, parti chez Mady (ou sans setter) faute de signature dans le lien,
  * revient au setter qui a travaille le prospect (lien envoye declare, appel
- * ou message). Le lien signe de quelqu'un, une attribution posee a la main
- * et un setter retire par une passe precedente font toujours foi.
+ * ou message), a celui dont le lien est signe (ancien setter desactive
+ * compris), ou au setter si la reservation vient d'Instagram sans parametre.
+ * Le lien signe de Mady, une attribution posee a la main et un setter retire
+ * par une passe precedente font toujours foi.
  */
 function attachWorkedCalls(db: DB, owner: string, manual: Set<string>, signedOf: (a: Appointment) => string): number {
   const now = new Date().toISOString();
@@ -359,7 +383,10 @@ function attachWorkedCalls(db: DB, owner: string, manual: Set<string>, signedOf:
   for (const a of db.appointments) {
     if (!a.iclosedEventId || a.scheduledAt < floor) continue;
     if (a.setterId && a.setterId !== owner) continue;
-    if (manual.has(a.id) || signedOf(a)) continue;
+    if (manual.has(a.id)) continue;
+    // Lien signe de Mady : le call est a elle. Lien signe d'un setter : a lui.
+    const signed = signedOf(a);
+    if (signed && signed === owner) continue;
     if ((a.history ?? []).some((h) => h.note?.startsWith("Setter retiré ("))) continue;
     const lead = db.leads.find((l) => l.id === a.leadId);
     if (!lead) continue;
@@ -369,11 +396,11 @@ function attachWorkedCalls(db: DB, owner: string, manual: Set<string>, signedOf:
       phoneNumber: lead.phone ?? "",
       questions: lead.igUsername ? [{ statement: "instagram", answer: lead.igUsername }] : [],
     } as unknown as IclosedCall;
-    const setter = workedSetter(db, probe, lead);
+    const setter = signed || workedSetter(db, probe, lead) || instagramSetter(db, a.utm);
     if (!setter || setter === a.setterId || setter === owner) continue;
     const name = db.team.find((m) => m.id === setter)?.name ?? "le setter";
     a.setterId = setter;
-    a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Système", from: a.status, to: a.status, note: `Rattaché à ${name} : prospect à qui ${name} a envoyé son lien` }];
+    a.history = [...(a.history ?? []), { at: now, actorId: "", actorName: "Système", from: a.status, to: a.status, note: signed ? `Rattaché à ${name} : réservation faite par un lien de setter` : setter === instagramSetter(db, a.utm) && !workedSetter(db, probe, lead) ? `Rattaché à ${name} : réservé depuis un lien envoyé sur Instagram` : `Rattaché à ${name} : prospect à qui ${name} a envoyé son lien` }];
     a.updatedAt = now;
     if (!lead.setterId || lead.setterId === owner) {
       lead.setterId = setter;
@@ -484,7 +511,7 @@ function createUnassigned(db: DB, input: AppointmentInput, closerId: string) {
  */
 function createFromCall(db: DB, call: IclosedCall, report: { created: number; unassignedSetter: number; unassignedCloser: number }): string {
   const known = matchLead(db, call);
-  const setterId = setterFromUtm(db, call) || workedSetter(db, call, known) || ownerSetter(db);
+  const setterId = setterFromUtm(db, call) || workedSetter(db, call, known) || instagramSetter(db, utmRecord(call)) || ownerSetter(db);
   const closerId = pickCloser(db, call);
   const input = fromIclosedCall(call, { setterId, closerId });
   if (!input) return "";
