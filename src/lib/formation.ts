@@ -113,6 +113,10 @@ export interface StudentAccessRow {
   accessRequestedAt: string;
   accessApprovedAt: string;
   tabsDone: number;
+  /** Adresse de la boutique donnée à l'étape « Ta boutique », et si Mady l'a déjà regardée. */
+  shopUrl: string;
+  shopUrlAt: string;
+  shopReviewedAt: string;
 }
 
 export function toAccessRow(s: Student, published: Set<string>, publishedSteps: Set<string> = new Set()): StudentAccessRow {
@@ -128,6 +132,9 @@ export function toAccessRow(s: Student, published: Set<string>, publishedSteps: 
     accessRequestedAt: s.accessRequestedAt ?? "",
     accessApprovedAt: s.accessApprovedAt ?? "",
     tabsDone: (s.tabsDone ?? []).length,
+    shopUrl: s.shopUrl ?? "",
+    shopUrlAt: s.shopUrlAt ?? "",
+    shopReviewedAt: s.shopReviewedAt ?? "",
     id: s.id,
     name: s.name,
     email: s.email ?? "",

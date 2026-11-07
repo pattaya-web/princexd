@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { api } from "@/lib/client";
+import { waLink } from "@/lib/sales/templates";
 import { Spinner, useToast } from "@/components/ui";
 import type { GateTab } from "@/lib/formation-gate";
 import type { GatePayload } from "@/app/api/formation/gate/route";
@@ -114,7 +115,7 @@ export function StepGate({ tab, children }: { tab: GateTab; children: ReactNode 
       <div className="card p-5 flex flex-col gap-2.5" style={{ borderColor: shopSaved ? "var(--good)" : "var(--accent-ring)" }}>
         <div className="text-[14.5px] font-semibold">L&apos;adresse de ta boutique</div>
         <p className="muted text-[13px] leading-relaxed">
-          Ton nom de domaine (ex. <strong>tamarque.com</strong>) ou ton adresse <strong>xxx.myshopify.com</strong>. Mady la récupère directement dans son suivi pour regarder ton travail, sans te la redemander.
+          Ton nom de domaine (ex. <strong>tamarque.com</strong>) ou ton adresse <strong>xxx.myshopify.com</strong>. Dès que tu l&apos;enregistres, Mady la reçoit sur son tableau de bord pour regarder ton travail, sans te la redemander.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <input className="input flex-1 min-w-[240px]" value={shopUrl} onChange={(e) => setShopUrl(e.target.value)} placeholder="tamarque.com ou xxx.myshopify.com" inputMode="url" autoCapitalize="off" spellCheck={false} />
@@ -129,6 +130,23 @@ export function StepGate({ tab, children }: { tab: GateTab; children: ReactNode 
             </a>
           )}
         </div>
+        {shopSaved && shopUrl.trim() === shopSaved && (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <span className="text-[13px]" style={{ color: "var(--good)" }}>
+              ✓ Mady l&apos;a reçue sur son tableau de bord.
+            </span>
+            {gate.whatsapp && (
+              <a
+                href={waLink(gate.whatsapp, `Salut Mady, c'est ${gate.firstName || "moi"} 👋 Ma boutique est prête, tu peux la checker : ${shopSaved}`)}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-sm btn-primary"
+              >
+                Envoyer aussi à Mady sur WhatsApp
+              </a>
+            )}
+          </div>
+        )}
       </div>
     ) : null;
 

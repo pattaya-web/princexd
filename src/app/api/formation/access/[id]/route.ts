@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   return handle(async () => {
     requireAdmin(readSession(req));
     const { id } = await ctx.params;
-    const raw = (await req.json().catch(() => ({}))) as { username?: unknown; portalAccess?: unknown; studioAccess?: unknown; kieApiKey?: unknown; accessApproved?: unknown; editorAccess?: unknown; shopUrl?: unknown };
+    const raw = (await req.json().catch(() => ({}))) as { username?: unknown; portalAccess?: unknown; studioAccess?: unknown; kieApiKey?: unknown; accessApproved?: unknown; editorAccess?: unknown; shopUrl?: unknown; shopReviewed?: unknown };
     const db = readDB();
     const s = db.students.find((x) => x.id === id);
     if (!s) throw new Error("Élève introuvable.");
@@ -68,6 +68,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         s.shopUrl = url;
         s.shopUrlAt = new Date().toISOString();
       }
+    }
+
+    // Mady a regardé la boutique : l'encart « Boutiques à checker » la retire (jusqu'à une nouvelle adresse).
+    if (typeof raw.shopReviewed === "boolean") {
+      if (raw.shopReviewed) s.shopReviewedAt = new Date().toISOString();
+      else delete s.shopReviewedAt;
     }
 
     writeDB(db);

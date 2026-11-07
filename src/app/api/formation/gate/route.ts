@@ -4,6 +4,8 @@ import { readSession, requireFormation } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { GATE_TABS, gateState, isGateTab, normalizeShopUrl, type GateState } from "@/lib/formation-gate";
 import { escTelegram, notifyOwner } from "@/lib/telegram";
+import { portalSettings } from "@/lib/formation-steps";
+import type { DB, Student } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,22 @@ export interface GatePayload extends GateState {
   hasStudent: boolean;
   /** Adresse de la boutique de l'élève (étape « Ta boutique »), vide tant qu'il ne l'a pas donnée. */
   shopUrl: string;
+  /** WhatsApp de Mady (réglages du portail) et prénom de l'élève : bouton « Envoyer à Mady sur WhatsApp » une fois l'adresse donnée. */
+  whatsapp: string;
+  firstName: string;
+}
+
+function payload(db: DB, session: { isAdmin: boolean; impersonated?: unknown }, student: Student | undefined): GatePayload {
+  const preview = Boolean(session.impersonated);
+  return {
+    ...gateState(student, { admin: session.isAdmin, preview }),
+    isAdmin: session.isAdmin,
+    preview,
+    hasStudent: Boolean(student),
+    shopUrl: student?.shopUrl ?? "",
+    whatsapp: portalSettings(db.settings).whatsapp,
+    firstName: student ? (student.name.trim().split(/\s+/)[0] ?? student.name) : "",
+  };
 }
 
 function studentOf(req: NextRequest) {
@@ -26,8 +44,8 @@ function studentOf(req: NextRequest) {
 /** L'état du parcours de l'élève connecté : quels onglets sont ouverts, lesquels sont faits. */
 export async function GET(req: NextRequest) {
   return handle((): GatePayload => {
-    const { session, student } = studentOf(req);
-    return { ...gateState(student, { admin: session.isAdmin, preview: Boolean(session.impersonated) }), isAdmin: session.isAdmin, preview: Boolean(session.impersonated), hasStudent: Boolean(student), shopUrl: student?.shopUrl ?? "" };
+    const { session, db, student } = studentOf(req);
+    return payload(db, session, student);
   });
 }
 
@@ -43,7 +61,7 @@ export async function POST(req: NextRequest) {
   return handle(async (): Promise<GatePayload> => {
     const { session, db, student } = studentOf(req);
     const body = (await req.json().catch(() => ({}))) as { action?: string; tab?: string; done?: boolean; shopUrl?: string };
-    const view = (): GatePayload => ({ ...gateState(student, { admin: session.isAdmin, preview: Boolean(session.impersonated) }), isAdmin: session.isAdmin, preview: Boolean(session.impersonated), hasStudent: Boolean(student), shopUrl: student?.shopUrl ?? "" });
+    const view = (): GatePayload => payload(db, session, student);
     if (!student) {
       if (session.isAdmin) return view();
       throw new Error("Élève introuvable.");
@@ -72,7 +90,7 @@ export async function POST(req: NextRequest) {
     if (body.action === "shop") {
       if (saveShopUrl()) {
         writeDB(db);
-        notifyOwner(`🛍 <b>${escTelegram(student.name)}</b> a donné l'adresse de sa boutique : ${escTelegram(student.shopUrl ?? "")}\nSuivi des élèves → sa fiche.`);
+        notifyOwner(`🛍 <b>${escTelegram(student.name)}</b> a donné l'adresse de sa boutique : ${escTelegram(student.shopUrl ?? "")}\nÀ checker sur ton Sales Dashboard (« Boutiques d'élèves à checker »).`);
       }
       return view();
     }

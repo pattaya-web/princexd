@@ -13,6 +13,7 @@ import { SetterSendsCard } from "@/components/sales/SetterSendsCard";
 import type { UtmLinkRow } from "@/lib/sales/utm-links";
 import { Card, Empty, ErrorNote, Modal, PageHeader, Spinner, Tabs } from "@/components/ui";
 import { ShopifyAffiliate } from "@/components/ShopifyAffiliate";
+import { OnboardingInbox, ShopInbox } from "@/components/formation/OnboardingInbox";
 import { api, useLocalState } from "@/lib/client";
 import { fmtDate, fmtDateTime, fmtMoney, label as crmLabel } from "@/lib/format";
 import type { RangePreset } from "@/lib/mediabuying/metrics";
@@ -351,6 +352,12 @@ export default function SalesDashboardPage() {
 
       <div className="mb-4">
         <ShopifyAffiliate compact />
+      </div>
+
+      {/* Élèves : boutiques envoyées à l'étape « Ta boutique » et formulaires d'onboarding (rien si personne, admin seulement). */}
+      <div className="grid lg:grid-cols-2 gap-4 mb-4 empty:hidden">
+        <ShopInbox />
+        <OnboardingInbox />
       </div>
 
       {filtersOpen && (

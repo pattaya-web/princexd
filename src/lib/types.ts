@@ -909,6 +909,8 @@ export interface Student {
   /** Adresse de sa boutique (nom de domaine, .myshopify.com ou admin), donnée à l'étape « Ta boutique ». */
   shopUrl?: string;
   shopUrlAt?: string;
+  /** Mady a regardé la boutique (bouton « Vu » de l'encart « Boutiques à checker ») ; une adresse plus récente la fait revenir. */
+  shopReviewedAt?: string;
 }
 
 /** « Demande ta boutique à Mady » : l'eleve donne son adresse Shopify, Mady genere avec le generateur. */
