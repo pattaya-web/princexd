@@ -69,6 +69,27 @@ function verify(token: string): SessionClaims | null {
   }
 }
 
+/** Au-dela de cet age, un jeton encore valide est re-emis (session glissante). */
+const RENEW_AFTER_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Prolonge une session en cours d'utilisation.
+ *
+ * Le jeton perime 30 jours apres sa creation : sans renouvellement, une page
+ * restee ouverte se mettait a recevoir « Accès refusé. » sur chaque action le
+ * jour J, sans explication. On re-emet donc le meme jeton (memes droits,
+ * meme apercu eventuel) avec une date fraiche des qu'il a plus de 12 h.
+ * Renvoie null si le jeton est invalide, perime ou encore recent.
+ */
+export function renewToken(token: string | undefined): string | null {
+  if (!token) return null;
+  const claims = verify(token);
+  if (!claims) return null;
+  if (Date.now() - (claims.iat ?? 0) < RENEW_AFTER_MS) return null;
+  const { iat: _iat, ...rest } = claims;
+  return issueToken(rest);
+}
+
 /* ---------------------------- Mots de passe ----------------------------- */
 
 const SCRYPT_KEYLEN = 64;

@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { Suspense } from "react";
 import { ToastHost } from "@/components/ui";
 import { DraftAutosave } from "@/components/DraftAutosave";
+import SessionKeepAlive from "@/components/SessionKeepAlive";
 import "./globals.css";
 
 /*
@@ -73,6 +74,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Suspense fallback={null}>
             <DraftAutosave />
           </Suspense>
+          {/* Session prolongee tant que l'app est utilisee. */}
+          <SessionKeepAlive />
           {children}
         </ToastHost>
       </body>

@@ -194,6 +194,15 @@ export function middleware(req: NextRequest) {
     return deny(req, "/sales");
   }
 
+  // Plus de jeton valide (session perimee, cookie efface) : on le dit clairement
+  // au lieu d'un « Accès refusé. » sans explication sur chaque action.
+  if (!claims && !legacyEditor && pathname.startsWith("/api/")) {
+    return NextResponse.json(
+      { error: "Ta session a expiré : reconnecte-toi (copie d'abord ce que tu as tapé).", relogin: true },
+      { status: 401 },
+    );
+  }
+
   // Role inconnu ou compte desactive : retour a la connexion.
   return deny(req, "/login");
 }
