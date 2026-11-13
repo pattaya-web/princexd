@@ -137,6 +137,8 @@ const EMPTY_DB: DB = {
   meetLinks: [],
   drafts: [],
   studentWorkspaces: [],
+  salesTasks: [],
+  salesReports: [],
 };
 
 function ensureFile() {

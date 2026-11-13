@@ -108,6 +108,9 @@ export function OutcomePanel({
   const [followUpAt, setFollowUpAt] = useState(isoToParisInput(new Date(Date.now() + 2 * 86_400_000)));
   /* Chaleur du prospect en sortant du call : affichee dans la cloche au moment de le relancer. */
   const [heat, setHeat] = useState<FollowUpHeat>("hot");
+  /* Objection principale (bibliotheque du Sales OS) : elle propose la date et part avec la relance. */
+  const [objections, setObjections] = useState<{ key: string; label: string; followUpDays: number; askDate?: boolean; advice: string }[]>([]);
+  const [objection, setObjection] = useState("");
   const [rescheduledAt, setRescheduledAt] = useState(isoToParisInput(new Date(Date.now() + 86_400_000)));
   const [callbackAt, setCallbackAt] = useState(isoToParisInput(new Date(Date.now() + 86_400_000)));
   /* Encaissement libre */
@@ -132,6 +135,21 @@ export function OutcomePanel({
   useEffect(() => {
     setCloserId(lead.closerId ?? "");
   }, [lead.id, lead.closerId]);
+
+  useEffect(() => {
+    if (mode !== "follow-up" || objections.length) return;
+    api<{ objections: typeof objections }>("/api/sales/ops/objections")
+      .then((r) => setObjections(r.objections))
+      .catch(() => {});
+  }, [mode, objections.length]);
+
+  const pickObjection = (key: string) => {
+    const o = objections.find((x) => x.key === key);
+    setObjection(key === objection ? "" : key);
+    if (!o || key === objection) return;
+    if (o.followUpDays > 0) setFollowUpAt(isoToParisInput(new Date(Date.now() + o.followUpDays * 86_400_000)).slice(0, 10) + "T10:00");
+    if (o.askDate) toast(`${o.label} : indique la date (salaire, début du mois) dans « Le rappeler le ».`);
+  };
 
   /** Ouvre le formulaire de vente, avec le catalogue si on l'a. */
   const openSale = async (pendingPayment: boolean) => {
@@ -470,11 +488,22 @@ export function OutcomePanel({
               ))}
             </div>
           </div>
+          {objections.length > 0 && (
+            <Field label="Objection principale" hint="La relance part au Head of Setting avec cette objection et son conseil.">
+              <div className="flex gap-1 flex-wrap">
+                {objections.map((o) => (
+                  <button key={o.key} type="button" className={`btn btn-sm !h-[30px] ${objection === o.key ? "btn-primary" : ""}`} onClick={() => pickObjection(o.key)} title={o.advice}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </Field>
+          )}
           <div className="flex items-end gap-2 flex-wrap">
             <Field label="Ce qu'il a dit" hint="Repris tel quel dans la cloche le jour de la relance." className="flex-1 min-w-[220px]">
               <input className="input !h-[34px]" value={note} onChange={(e) => setNote(e.target.value)} placeholder="« Je réfléchis, je te réponds dans une semaine », « doit en parler à sa femme »…" />
             </Field>
-            <button className="btn btn-primary !h-[34px]" disabled={busy || !followUpAt} onClick={() => void send("follow-up", { followUpAt: parisToIso(followUpAt), heat })}>
+            <button className="btn btn-primary !h-[34px]" disabled={busy || !followUpAt} onClick={() => void send("follow-up", { followUpAt: parisToIso(followUpAt), heat, objection })}>
               Programmer la relance
             </button>
           </div>

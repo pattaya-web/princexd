@@ -26,6 +26,12 @@ interface Tab {
   role?: "setter" | "closer";
   /** Range dans le menu « Plus » : utile, mais pas tous les jours. */
   more?: boolean;
+  /** Head of Setting seulement. */
+  head?: boolean;
+  /** Masque pour le Head of Setting (il a son cockpit a la place). */
+  notHead?: boolean;
+  /** Libelle cote admin, quand il differe. */
+  adminLabel?: string;
 }
 
 /**
@@ -37,7 +43,11 @@ interface Tab {
  * d'equipe restent accessibles, mais ne prennent plus la place.
  */
 const TABS: Tab[] = [
-  { href: "/sales", label: "Mon espace", member: true },
+  // Sales OS (2026-11-13) : le cockpit du Head of Setting, ouvert a toute l'equipe (chacun sa file).
+  { href: "/sales/workspace", label: "Mon espace de travail", adminLabel: "Cockpit équipe" },
+  { href: "/sales", label: "Mon espace", member: true, notHead: true },
+  { href: "/sales/accueil", label: "Mon lien & stats", head: true },
+  { href: "/sales/operations", label: "Opérations", admin: true },
   { href: "/sales/dashboard", label: "Pilotage", admin: true },
   { href: "/sales/calls", label: "Calls", admin: true },
   { href: "/sales/analyse", label: "Analyse", admin: true },
@@ -54,6 +64,7 @@ const TABS: Tab[] = [
   { href: "/sales/messages", label: "Messages types", more: true },
   { href: "/sales/sources", label: "Sources", more: true },
   { href: "/sales/guide", label: "Guide", more: true },
+  { href: "/sales/automatisations", label: "Automatisations", admin: true, more: true },
 ];
 
 /** Anciennes adresses, toujours tapables : elles menent au CRM. */
@@ -61,8 +72,10 @@ const FOLDED = ["/sales/relances", "/sales/suivi"];
 
 /** L'onglet est-il ouvert a cette session ? */
 function allowed(t: Tab, session: Session): boolean {
-  if (session.isAdmin) return !t.member;
+  if (session.isAdmin) return !t.member && !t.head;
   if (t.admin) return false;
+  if (t.head && !session.salesHead) return false;
+  if (t.notHead && session.salesHead) return false;
   if (t.role) return sessionHas(session, t.role);
   return true;
 }
@@ -110,7 +123,7 @@ function SubNav({ session }: { session: Session }) {
         const active = pathname === t.href || (t.href !== "/sales" && pathname.startsWith(`${t.href}/`) && !TABS.some((o) => o.href !== t.href && o.href.startsWith(`${t.href}/`) && pathname.startsWith(o.href))) || (t.href === "/sales/rendez-vous" && FOLDED.some((f) => pathname.startsWith(f)));
         return (
           <Link key={t.href} href={t.href} className="px-3 h-[28px] rounded-[7px] text-[12.5px] font-medium whitespace-nowrap flex items-center transition-colors" style={tabStyle(active)}>
-            {t.label}
+            {session.isAdmin && t.adminLabel ? t.adminLabel : t.label}
           </Link>
         );
       })}

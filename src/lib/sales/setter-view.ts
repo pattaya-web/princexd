@@ -17,7 +17,9 @@ import { sessionHas } from "./roles";
  */
 
 /** Vrai si la session est celle d'un setter (pas admin, pas closer). */
-export function isSetterSession(session: Pick<Session, "isAdmin" | "role" | "roles">): boolean {
+export function isSetterSession(session: Pick<Session, "isAdmin" | "role" | "roles" | "salesHead" | "maskedAmounts">): boolean {
+  // Le Head of Setting suit les paiements : il voit les vrais montants, sauf si l'admin l'a coupe.
+  if (session.salesHead && !session.maskedAmounts) return false;
   return !session.isAdmin && sessionHas(session, "setter") && !sessionHas(session, "closer");
 }
 
@@ -82,7 +84,7 @@ export function leadForSetter(l: Lead, sales: Sale[]): Lead {
  * consequence. Pour un admin ou un closer, la base telle quelle. A n'utiliser
  * QUE pour lire : la copie n'est pas ecrite.
  */
-export function setterSafeDB(db: DB, session: Pick<Session, "isAdmin" | "role" | "roles">): DB {
+export function setterSafeDB(db: DB, session: Pick<Session, "isAdmin" | "role" | "roles" | "salesHead" | "maskedAmounts">): DB {
   if (!isSetterSession(session)) return db;
   const raw = db.sales;
   return {

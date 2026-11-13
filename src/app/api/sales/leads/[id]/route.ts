@@ -95,6 +95,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     return {
       lead,
       setterName: lead.setterId ? (names.get(lead.setterId) ?? "—") : "",
+      ownerName: lead.ownerId ? (names.get(lead.ownerId) ?? "—") : "",
+      followUps: db.followUps.filter((f) => f.leadId === lead.id).sort((a, b) => b.dueAt.localeCompare(a.dueAt)).slice(0, 10).map((f) => ({ id: f.id, dueAt: f.dueAt, status: f.status, notes: f.notes, objection: f.objection ?? "", heat: f.heat ?? "" })),
       sale: sale ? { ...sale, closerName: names.get(sale.closerId) ?? "", payment: paymentView(sale) } : null,
       cancelledSale: cancelledSale ? { id: cancelledSale.id, contractValue: cancelledSale.contractValue, currency: cancelledSale.currency, updatedAt: cancelledSale.updatedAt, notes: cancelledSale.notes } : null,
       canOutcome: session.isAdmin || sessionHas(session, "closer"),
@@ -108,6 +110,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
           scheduledAt: a.scheduledAt,
           status: a.status,
           closerName: a.closerId ? (names.get(a.closerId) ?? "—") : "",
+          // Sales OS : le setter a l'origine du rendez-vous, distinct du responsable du lead.
+          setterName: a.setterId ? (names.get(a.setterId) ?? "—") : "",
+          noShow: a.noShow ?? null,
           iclosedUrl: a.iclosedUrl,
           fathomUrl: a.fathomUrl ?? "",
           closerNotes: a.closerNotes ?? "",

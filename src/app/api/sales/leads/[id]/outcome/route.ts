@@ -41,6 +41,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       // Chaleur du prospect : ce qu'on note en sortant du call, affichee dans la cloche.
       const heat = body.heat as FollowUpHeat;
       if (FOLLOWUP_HEATS.includes(heat)) input.heat = heat;
+      // Objection principale (bibliotheque du Sales OS) : elle donne le contexte et le conseil de la relance.
+      if (typeof body.objection === "string" && body.objection.trim()) input.objection = body.objection.trim().slice(0, 60);
     }
 
     if (status === "rescheduled") {

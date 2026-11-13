@@ -337,6 +337,11 @@ export function sessionFor(member: TeamMember, impersonated = false, only?: Comm
     role = only;
     roles = [only];
   }
+  /*
+   * Head of Setting : un setter (ou closer) qui voit tout le pipeline. Son
+   * apercu « voir comme closer » reste un apercu de closer, sans ce droit.
+   */
+  const head = Boolean(member.salesHead) && member.status !== "inactif" && (role === "setter" || role === "closer") && !(only && memberRoles(member).length > 1);
   return {
     role,
     roles,
@@ -344,6 +349,7 @@ export function sessionFor(member: TeamMember, impersonated = false, only?: Comm
     memberName: member.name,
     isAdmin: role === "admin",
     impersonated,
+    ...(head ? { salesHead: true, ...(readDB().settings.salesOps?.headSeesRealAmounts !== true ? { maskedAmounts: true } : {}) } : {}),
   };
 }
 
@@ -437,6 +443,16 @@ export function requireSales(session: Session): Session {
   throw new Forbidden("Cet espace est réservé à l'équipe commerciale.");
 }
 
+/**
+ * Pilotage de l'equipe commerciale : l'admin et le Head of Setting (voir la
+ * charge des autres, transferer un lead, valider le compte rendu). Jamais
+ * l'argent, les commissions ni les reglages : ceux-la restent requireAdmin.
+ */
+export function requireSalesManager(session: Session): Session {
+  if (session.isAdmin || session.salesHead) return session;
+  throw new Forbidden("Action réservée au Head of Setting et à l'administrateur.");
+}
+
 export function requireAdmin(session: Session): Session {
   if (session.isAdmin) return session;
   throw new Forbidden("Action réservée à l'administrateur.");
@@ -455,6 +471,8 @@ export const actsAs = (session: Session, role: CommercialRole) => sessionHas(ses
  */
 export function canSee(session: Session, row: { setterId?: string; closerId?: string }): boolean {
   if (session.isAdmin) return true;
+  // Le Head of Setting suit tout le pipeline coaching, quel que soit le setter.
+  if (session.salesHead) return true;
   if (actsAs(session, "setter") && row.setterId === session.memberId) return true;
   if (actsAs(session, "closer") && row.closerId === session.memberId) return true;
   return false;
@@ -470,7 +488,7 @@ export function canWriteOutcome(session: Session, row: { closerId?: string }): b
 }
 
 export function canWriteSetterFields(session: Session, row: { setterId?: string }): boolean {
-  if (session.isAdmin) return true;
+  if (session.isAdmin || session.salesHead) return true;
   return actsAs(session, "setter") && row.setterId === session.memberId;
 }
 

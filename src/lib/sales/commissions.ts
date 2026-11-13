@@ -30,9 +30,12 @@ import { memberRoles, type CommercialRole } from "./roles";
 import { isHeldFromSetter, saleForSetter } from "./setter-view";
 
 /** Une ligne du grand livre : un evenement, un montant, et son explication. */
+/** Metier commissionne : setter, closer, ou management (Head of Setting, sur tout le cash coaching). */
+export type CommissionRole = CommercialRole | "manager";
+
 export interface CommissionEntry {
   memberId: string;
-  role: "setter" | "closer";
+  role: CommissionRole;
   kind: "appointment" | "show" | "sale" | "fixed" | "adjustment";
   /** Rendez-vous ou vente a l'origine de la ligne ; `fixed-<role>-<AAAA-MM>` pour un fixe mensuel ; l'ajustement pour un bonus / malus. */
   sourceId: string;
@@ -79,19 +82,23 @@ export function effectiveRule(
   rules: CommissionRule[],
   memberId: string,
   at: string,
-  role?: CommercialRole,
+  role?: CommissionRole,
 ): CommissionRule | null {
   // Un membre setter ET closer a une regle par metier : sans le filtre, la
   // regle closer s'appliquerait a ses rendez-vous poses, et inversement.
-  const mine = rules.filter((r) => r.memberId === memberId && r.active && (!role || r.role === role));
+  const day = (at || "").slice(0, 10);
+  // Une regle dont le contrat est termine (effectiveTo) ne vaut plus rien apres sa fin.
+  const mine = rules.filter((r) => r.memberId === memberId && r.active && (role ? r.role === role : r.role !== "manager") && !(r.effectiveTo && day > r.effectiveTo));
   if (!mine.length) return null;
 
-  const day = (at || "").slice(0, 10);
   const applicable = mine.filter((r) => !r.effectiveFrom || r.effectiveFrom <= day);
 
   if (!applicable.length) {
     // Aucune regle n'avait encore pris effet : on prend la plus ancienne, pour
     // ne pas perdre silencieusement la commission d'un evenement anterieur.
+    // Sauf en management : la commission de Head of Setting demarre a la date
+    // de son contrat, pas avant.
+    if (role === "manager") return null;
     return [...mine].sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))[0];
   }
   return applicable.sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
@@ -119,10 +126,76 @@ export function entriesFor(
   adjustments: CommissionAdjustment[] = [],
 ): CommissionEntry[] {
   // Un membre qui cumule setter et closer gagne sur les deux tableaux : ses
-  // rendez-vous poses d'un cote, ses calls closes de l'autre.
-  return memberRoles(member)
-    .flatMap((role) => entriesForRole(member, role, rules, appointments, sales, adjustments))
+  // rendez-vous poses d'un cote, ses calls closes de l'autre. Le Head of
+  // Setting ajoute sa commission management sur tout le cash coaching.
+  return commissionRolesOf(member, rules)
+    .flatMap((role) => (role === "manager" ? managerEntries(member, rules, sales, adjustments) : entriesForRole(member, role, rules, appointments, sales, adjustments)))
     .sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/** Metiers commissionnes d'un membre : ses roles commerciaux, plus « manager » s'il a une regle de management. */
+export function commissionRolesOf(member: TeamMember, rules: CommissionRule[]): CommissionRole[] {
+  const roles: CommissionRole[] = [...memberRoles(member)];
+  if (rules.some((r) => r.memberId === member.id && r.role === "manager")) roles.push("manager");
+  return roles;
+}
+
+/**
+ * Les mouvements de cash d'une vente, dates : l'encaissement a la vente, puis
+ * chaque echeance encaissee, puis le remboursement en negatif a sa date.
+ * Chaque mouvement a un identifiant stable : une commission par mouvement,
+ * jamais deux sur le meme (un encaissement re-saisi ne double pas).
+ */
+export function cashMovements(sale: Sale): { id: string; at: string; amount: number; label: string }[] {
+  if (sale.status === "cancelled") return [];
+  const cols = (sale.collections ?? []).filter((c) => c.amount > 0);
+  const later = cols.reduce((a, c) => a + c.amount, 0);
+  const first = Math.max(0, (sale.cashCollected || 0) - later);
+  const out = [
+    ...(first > 0 ? [{ id: sale.id, at: sale.soldAt, amount: first, label: "encaissés à la vente" }] : []),
+    ...cols.map((c) => ({ id: `${sale.id}:${c.id}`, at: c.at, amount: c.amount, label: "encaissés (échéance)" })),
+  ];
+  const refund = Math.min(sale.refundAmount || 0, out.reduce((a, m) => a + m.amount, 0));
+  if (refund > 0) out.push({ id: `${sale.id}:refund`, at: sale.refundedAt || sale.updatedAt, amount: -refund, label: "remboursés" });
+  return out;
+}
+
+/**
+ * Commission management (Head of Setting, 2026-11-13) : un pourcentage de
+ * chaque encaissement coaching, sur toutes les ventes, quel que soit le
+ * setter, le closer ou la source (Meta Ads, VSL, reservation directe…).
+ * Calculee sur le vrai cash, mouvement par mouvement, a la regle en vigueur
+ * a la date de l'encaissement : un remboursement retire sa part, date du
+ * jour du remboursement, sans toucher aux lignes deja acquises.
+ */
+export function managerEntries(member: TeamMember, rules: CommissionRule[], sales: Sale[], adjustments: CommissionAdjustment[] = []): CommissionEntry[] {
+  const out: CommissionEntry[] = [];
+  for (const sale of sales) {
+    for (const m of cashMovements(sale)) {
+      const rule = effectiveRule(rules, member.id, m.at, "manager");
+      if (!rule || !rule.pct) continue;
+      const amount = money(pctOf(m.amount, rule.pct));
+      if (!amount) continue;
+      out.push({
+        memberId: member.id,
+        role: "manager",
+        kind: "sale",
+        sourceId: `mgr:${m.id}`,
+        at: m.at,
+        amount,
+        currency: rule.currency || sale.currency,
+        ruleId: rule.id,
+        detail: `Management ${rule.pct} % de ${Math.round(Math.abs(m.amount))} ${m.label}`,
+      });
+    }
+  }
+  for (const adj of adjustments) {
+    if (adj.memberId !== member.id || (adj.role as string) !== "manager") continue;
+    const sign = adj.kind === "malus" ? -1 : 1;
+    if (!adj.value || adj.mode !== "amount") continue;
+    out.push({ memberId: member.id, role: "manager", kind: "adjustment", sourceId: adj.id, at: adj.at, amount: money(sign * Math.abs(adj.value)), currency: adj.currency, ruleId: "", detail: adj.reason || (sign < 0 ? "Malus" : "Bonus") });
+  }
+  return out.sort((a, b) => b.at.localeCompare(a.at));
 }
 
 /** Lignes d'un membre pour UN de ses metiers. */
@@ -332,7 +405,7 @@ export function monthlyFixedEntries(
 export interface LedgerRow {
   memberId: string;
   name: string;
-  role: "setter" | "closer";
+  role: CommissionRole;
   status: TeamMember["status"];
   /** Regle en vigueur aujourd'hui, pour l'afficher dans le tableau. */
   rule: CommissionRule | null;
@@ -373,22 +446,23 @@ export function buildLedger(
   // des chiffres distincts. Les versements, eux, sont rattaches au membre et
   // non au metier : on les impute integralement a sa premiere ligne pour ne
   // pas compter deux fois le meme virement.
-  const pairs = members.flatMap((member) => memberRoles(member).map((role) => ({ member, role })));
+  const pairs = members.flatMap((member) => commissionRolesOf(member, rules).map((role) => ({ member, role })));
 
   return pairs
     .map(({ member, role }, idx) => {
-      const allEntries = entriesForRole(member, role, rules, appointments, sales, adjustments);
+      const allEntries = role === "manager" ? managerEntries(member, rules, sales, adjustments) : entriesForRole(member, role, rules, appointments, sales, adjustments);
       const periodEntries = allEntries.filter((e) => inRange(e.at, range));
       const firstRowOfMember = pairs.findIndex((p) => p.member.id === member.id) === idx;
 
-      const mineAppointments = appointments.filter(
+      const mineAppointments = role === "manager" ? [] : appointments.filter(
         (a) =>
           !isDead(a.status) &&
           (role === "setter" ? a.setterId === member.id : a.closerId === member.id) &&
           inRange(a.scheduledAt, range),
       );
+      // Management : toutes les ventes coaching de la periode, au vrai montant.
       const mineSales = sales
-        .filter((s) => (role === "setter" ? s.setterId === member.id && !isHeldFromSetter(s) : s.closerId === member.id) && inRange(s.soldAt, range))
+        .filter((s) => (role === "manager" ? s.status !== "cancelled" : role === "setter" ? s.setterId === member.id && !isHeldFromSetter(s) : s.closerId === member.id) && inRange(s.soldAt, range))
         .map((s) => (role === "setter" ? saleForSetter(s) : s));
 
       // Les primes (onboarding, geste) sont tracees mais ne soldent pas de commission.
@@ -436,7 +510,7 @@ export function describeRule(rule: CommissionRule | null, currency: string): str
     case "pct-revenue":
       return withMonthly(`${rule.pct} % de la valeur de contrat`);
     case "pct-cash":
-      return withMonthly(`${rule.pct} % du cash encaissé`);
+      return withMonthly(rule.role === "manager" ? `${rule.pct} % de tout le cash coaching encaissé (management)` : `${rule.pct} % du cash encaissé`);
     case "fixed-plus-pct":
     case "custom":
       return withMonthly(`${rule.fixed} ${c} + ${rule.pct} % ${rule.basis === "contract" ? "du contrat" : "du cash"}`);

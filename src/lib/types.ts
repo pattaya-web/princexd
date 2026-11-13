@@ -234,6 +234,8 @@ export interface Settings {
   todoNotesAt?: string;
   /** Objectif de cash encaisse par mois civil, dans la devise des ventes. 0 ou absent = pas d'objectif. */
   salesMonthlyGoal?: number;
+  /** Sales OS (2026-11-13) : responsable par defaut, regles du moteur de taches, objections. Voir lib/sales/ops/config.ts. */
+  salesOps?: Partial<SalesOpsSettings>;
   /** Derniere synchro reussie, pour ne pas retaper l'API a chaque navigation. */
   salesLastSyncAt: string;
   /** Attribution des leads existants derivee une fois (lib/sales/attribution). */
@@ -638,7 +640,47 @@ export interface Lead {
   attributionOverriddenAt?: string;
   /** Fixture de demonstration generee en memoire : jamais ecrit en base. */
   mock?: boolean;
+  /* --- Sales OS (2026-11-13). Quatre notions distinctes : la source
+   *     d'acquisition (sourceChannel…), le setter a l'origine du rendez-vous
+   *     (Appointment.setterId), le closer (closerId) et le RESPONSABLE
+   *     operationnel ci-dessous, celui qui suit le lead au quotidien. --- */
+  /** Responsable operationnel actuel (Head of Setting par defaut). */
+  ownerId?: ID;
+  ownerAssignedAt?: string;
+  /** Statut de setting / conversation (pole B). Vide = a contacter. */
+  settingStatus?: SettingStatus;
+  /** Dernier contact effectif avec le prospect (message, appel), confirme par le membre. */
+  lastContactAt?: string;
+  /** Premier contact effectif : sert au delai de premiere reponse. */
+  firstContactAt?: string;
+  /** Le prospect ne veut plus etre contacte : plus aucune tache, plus aucune sollicitation. */
+  doNotContact?: boolean;
+  doNotContactAt?: string;
+  /** Nurturing : date de reprise (AAAA-MM-JJ) et pourquoi. */
+  nurtureUntil?: string;
+  nurtureReason?: string;
+  tags?: string[];
+  /** Temperature du lead. */
+  heat?: FollowUpHeat;
+  /** Perdu avec raison (pole setting), hors call. */
+  lostReason?: string;
 }
+
+/**
+ * Statut de setting d'un lead (pole Conversations). « Rendez-vous reserve »
+ * n'est pas stocke : il se lit sur les rendez-vous.
+ */
+export type SettingStatus =
+  | "to-contact"
+  | "contacted"
+  | "conversation"
+  | "awaiting-reply"
+  | "qualified"
+  | "not-qualified"
+  | "proposed"
+  | "nurturing"
+  | "lost"
+  | "dnc";
 
 /* ----------------------------- Liens UTM ------------------------------ */
 
@@ -1234,6 +1276,15 @@ export interface TeamMember {
   /** Code a envoyer au bot (/start CODE) pour relier le compte. */
   telegramLinkCode?: string;
   telegramLinkedAt?: string;
+  /**
+   * Head of Setting & Sales Operations (2026-11-13) : responsable de tout le
+   * pipeline. Voit tous les leads coaching, recoit les nouveaux leads par
+   * defaut, gere les autres setters. Ne touche ni a l'argent (encaissements,
+   * remboursements), ni aux commissions, ni aux reglages.
+   */
+  salesHead?: boolean;
+  /** Recoit des leads dans la repartition automatique (mode « tour de role »). */
+  receivesLeads?: boolean;
 }
 
 /** Un fichier attaché à un job de montage (rush ou livrable). */
@@ -1813,6 +1864,10 @@ export interface DB {
   drafts: Draft[];
   /** Espace de travail des élèves (Scale X → Mon espace) : tableaux, drive, notes. */
   studentWorkspaces: StudentWorkspace[];
+  /** Sales OS : file de taches de l'equipe commerciale, tenue par lib/sales/ops/engine.ts. */
+  salesTasks: SalesTask[];
+  /** Sales OS : comptes rendus quotidiens valides par le Head of Setting. */
+  salesReports: SalesReport[];
 }
 
 /**
@@ -2270,6 +2325,10 @@ export interface Session {
   studentId?: string;
   /** Membre Studio en anglais : l'interface est traduite a l'affichage. */
   lang?: "en";
+  /** Head of Setting : voit tout le pipeline coaching (lib/sales/access canSee). */
+  salesHead?: boolean;
+  /** Head of Setting a qui l'admin montre les montants annonces, comme a un setter (Settings.salesOps.headSeesRealAmounts). */
+  maskedAmounts?: boolean;
 }
 
 /** Traduction d'un texte d'interface, mise en cache (voir /api/i18n). `{0}`, `{1}`… remplacent les nombres. */
@@ -2451,6 +2510,8 @@ export interface Appointment {
   calendar?: string;
   /** Rendez-vous d'origine, si celui-ci est une reprogrammation. */
   rescheduledFromId: ID | "";
+  /** Recuperation du no-show (pole No-shows), absent tant que le call n'est pas no-show. */
+  noShow?: NoShowRecovery;
   completedAt: string;
   history: AppointmentEvent[];
   createdBy: ID;
@@ -2571,6 +2632,36 @@ export interface Sale {
    * closer precise. Repasse a faux des que le paiement est renseigne.
    */
   paymentUnspecified?: boolean;
+  /**
+   * Suivi du paiement par l'equipe (pole Paiements). Ne vaut JAMAIS
+   * encaissement : seul un encaissement enregistre par l'admin ou le closer
+   * (cashCollected / collections) compte dans le chiffre d'affaires.
+   */
+  paymentFollow?: PaymentFollow;
+}
+
+export type PaymentFollowState = "promised" | "link-sent" | "awaiting-verification" | "failed" | "abandoned";
+
+export interface PaymentFollow {
+  state: PaymentFollowState;
+  note: string;
+  at: string;
+  by: ID;
+  /** Derniere relance de paiement faite par l'equipe. */
+  lastReminderAt?: string;
+  /** Date (AAAA-MM-JJ) a laquelle le prospect a promis de payer : la prochaine relance tombe ce jour-la. */
+  promisedFor?: string;
+}
+
+export type NoShowState = "to-recover" | "contacted" | "awaiting" | "rescheduled" | "lost" | "dnc";
+
+export interface NoShowRecovery {
+  state: NoShowState;
+  /** Tentatives de reprise de contact faites (confirmees par le membre). */
+  attempts: number;
+  lastAttemptAt: string;
+  /** Moment ou le no-show a ete constate. */
+  at: string;
 }
 
 /** Une echeance de paiement. `paidAt` vide tant qu'elle n'est pas encaissee. */
@@ -2615,6 +2706,10 @@ export interface FollowUp {
   step?: 1 | 2;
   /** Temperature du prospect a la sortie du call : chaud, tiede, froid. */
   heat?: FollowUpHeat;
+  /** Objection principale (cle de la bibliotheque, Settings.salesOps.objections). */
+  objection?: string;
+  /** Responsable de la relance (Head of Setting par defaut). `closerId` reste le closer du call. */
+  ownerId?: ID;
 }
 
 /** Canal par lequel un setter a envoye le lien du calendrier. */
@@ -2669,7 +2764,12 @@ export type CommissionType =
 export interface CommissionRule {
   id: ID;
   memberId: ID;
-  role: "setter" | "closer";
+  /**
+   * « manager » (2026-11-13) : commission management du Head of Setting, un
+   * pourcentage du cash coaching encaisse sur TOUTES les ventes, quel que
+   * soit le setter, le closer ou la source.
+   */
+  role: "setter" | "closer" | "manager";
   type: CommissionType;
   /** Pourcentage (0-100), utilise par les types en pourcentage. */
   pct: number;
@@ -2688,6 +2788,8 @@ export interface CommissionRule {
   currency: string;
   /** Date d'entree en vigueur (YYYY-MM-DD). */
   effectiveFrom: string;
+  /** Fin du contrat (YYYY-MM-DD, inclus) : plus rien n'est gagne apres. Vide = sans fin. */
+  effectiveTo?: string;
   active: boolean;
   notes: string;
   createdAt: string;
@@ -2769,7 +2871,7 @@ export interface ActivityLog {
   actorName: string;
   /** Verbe machine : "appointment.created", "sale.created", "commission.paid"… */
   action: string;
-  entity: "appointment" | "sale" | "follow-up" | "lead" | "member" | "commission" | "outreach";
+  entity: "appointment" | "sale" | "follow-up" | "lead" | "member" | "commission" | "outreach" | "task" | "report";
   entityId: ID;
   /** Phrase lisible affichee telle quelle dans le journal. */
   summary: string;
@@ -2827,4 +2929,116 @@ export interface StudentWorkspace {
   files: WorkspaceFile[];
   createdAt: string;
   updatedAt: string;
+}
+
+/* ------------------------------ Sales OS ------------------------------- */
+
+/** P0 urgence operationnelle, P1 du aujourd'hui, P2 prochainement, P3 nurturing. */
+export type TaskPriority = 0 | 1 | 2 | 3;
+
+export type SalesTaskKind =
+  | "first-contact"
+  | "setting-nudge"
+  | "planned"
+  | "callback"
+  | "confirm-booking"
+  | "confirm-j1"
+  | "confirm-h3"
+  | "outcome-missing"
+  | "no-show"
+  | "followup"
+  | "payment"
+  | "payment-verify"
+  | "nurture"
+  | "admin-task";
+
+/**
+ * Une tache de la file d'un membre.
+ *
+ * Creee et tenue par le moteur (lib/sales/ops/engine.ts) a partir de l'etat
+ * du CRM : `key` est unique et stable (« confirm-j1:<rdv>:<date> »), si bien
+ * qu'une synchro rejouee, un webhook recu deux fois ou une page rechargee ne
+ * creent jamais de doublon. Une tache dont la raison d'etre disparait
+ * (rendez-vous annule, paiement recu) est close automatiquement, avec la
+ * raison ; une tache terminee n'est jamais rouverte.
+ */
+export interface SalesTask {
+  id: ID;
+  key: string;
+  kind: SalesTaskKind;
+  leadId: ID;
+  appointmentId?: ID;
+  saleId?: ID;
+  followUpId?: ID;
+  setterTaskId?: ID;
+  /** Membre a qui revient la tache. */
+  ownerId: ID;
+  /** Priorite de base de la regle ; la priorite affichee monte quand la tache est en retard. */
+  priority: TaskPriority;
+  dueAt: string;
+  title: string;
+  /** Contexte utile, une ou deux phrases : jamais de tache sans contexte. */
+  context: string;
+  status: "open" | "done" | "obsolete";
+  /** Reportee a la main : le moteur ne recale plus l'echeance. */
+  snoozed?: boolean;
+  /** Pourquoi la tache est close (« Rendez-vous annulé », « Fait par Jorah »). */
+  closedReason?: string;
+  doneAt?: string;
+  doneBy?: ID;
+  notes?: { at: string; by: string; text: string }[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Une objection de la bibliotheque, et la relance qu'elle appelle. */
+export interface ObjectionDef {
+  key: string;
+  label: string;
+  /** Relance proposee N jours apres le call. */
+  followUpDays: number;
+  /** Demande une date precise (date du salaire, debut du mois). */
+  askDate?: boolean;
+  /** Conseil affiche au Head of Setting sur la tache de relance. */
+  advice: string;
+}
+
+/** Une regle du moteur : activee, priorite de base. */
+export interface OpsRule {
+  enabled: boolean;
+  priority: TaskPriority;
+}
+
+export interface SalesOpsSettings {
+  /** Responsable par defaut des leads (le Head of Setting). Vide = premier membre « Head of Setting » actif. */
+  defaultOwnerId: string;
+  /** « single » : tout au responsable par defaut ; « round-robin » : tour de role entre les membres qui recoivent des leads. */
+  assignment: "single" | "round-robin";
+  /** Les leads crees avant cette date (AAAA-MM-JJ) ne generent pas de tache de premier contact : ils vont en reactivation. */
+  startedOn: string;
+  rules: Record<SalesTaskKind, OpsRule>;
+  /** Relance de setting : apres N heures sans reponse. */
+  nudgeAfterHours: number;
+  /** Cadence de reprise d'un no-show, en minutes : apres le no-show, puis apres chaque tentative. */
+  noShowCadenceMin: number[];
+  /** Lead actif sans activite depuis N jours : anomalie. */
+  staleDays: number;
+  /** Fenetre d'analyse des anomalies : leads crees ou touches dans les N derniers jours. */
+  anomalyWindowDays: number;
+  objections: ObjectionDef[];
+  /** Le Head of Setting voit les vrais montants des ventes (sinon le montant annonce, comme un setter). */
+  headSeesRealAmounts: boolean;
+}
+
+/** Compte rendu quotidien, calcule puis valide (et complete) par le Head of Setting. */
+export interface SalesReport {
+  id: ID;
+  /** AAAA-MM-JJ, heure de Paris. */
+  day: string;
+  /** Chiffres figes a la validation. */
+  numbers: Record<string, number>;
+  comment: string;
+  validatedBy: ID;
+  validatedByName: string;
+  validatedAt: string;
 }

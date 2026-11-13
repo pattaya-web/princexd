@@ -113,7 +113,7 @@ const SALES_PAGES = ["/sales"];
  * y retrouve ses propres chiffres (la page se restreint a lui-meme et l'API
  * ne lui rend que ses lignes).
  */
-const SALES_ADMIN_PAGES = ["/sales/equipe", "/sales/membre", "/sales/agenda", "/sales/pointage", "/sales/dashboard"];
+const SALES_ADMIN_PAGES = ["/sales/equipe", "/sales/membre", "/sales/agenda", "/sales/pointage", "/sales/dashboard", "/sales/operations", "/sales/automatisations"];
 
 /**
  * Exception : sa propre fiche.

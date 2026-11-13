@@ -18,6 +18,7 @@ import { getFathomKey, syncFathom } from "./fathom";
 import { runFathomAutopilot } from "./fathom-review";
 import { syncStaleCreators } from "./creators-sync";
 import { getIgToken } from "./instagram";
+import { runOps } from "./sales/ops/run";
 
 const SIO_EVERY_MS = 2 * 60_000;
 const ICLOSED_EVERY_MS = 5 * 60_000;
@@ -137,6 +138,8 @@ export function startScheduler() {
       await tickTelegram();
       await tickFathom();
       await tickCreators();
+      // Sales OS : file de taches de l'equipe, apres les synchros (nouveaux leads, calls, issues).
+      runOps();
     } finally {
       state.running = false;
       n++;

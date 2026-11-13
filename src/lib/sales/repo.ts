@@ -40,6 +40,7 @@ import { isDead } from "./constants";
 import { isCommercial, memberRoles, sessionHas, type CommercialRole } from "./roles";
 import { defaultCloserId } from "./closers";
 import { applyTouch, touchFromUtm, type TouchHint } from "./attribution";
+import { defaultOwnerId } from "./ops/config";
 
 /* -------------------------------- Audit --------------------------------- */
 
@@ -310,7 +311,7 @@ export interface OutcomeInput {
     setterAmount?: number;
   };
   /** Renseigne pour un follow-up ou une reprogrammation. */
-  followUp?: { dueAt: string; notes: string; closerId?: string; heat?: FollowUpHeat };
+  followUp?: { dueAt: string; notes: string; closerId?: string; heat?: FollowUpHeat; objection?: string };
   /** Nouvelle date, pour une reprogrammation. */
   rescheduledAt?: string;
   /** Recap post-call (closé, pitché, infos, budget, action a venir). */
@@ -434,6 +435,9 @@ export function recordOutcome(session: Session, id: string, input: OutcomeInput)
       createdAt: now,
       completedAt: "",
       ...(input.followUp.heat ? { heat: input.followUp.heat } : {}),
+      ...(input.followUp.objection ? { objection: input.followUp.objection } : {}),
+      // La suite du call part au responsable du lead (le Head of Setting), pas au closer.
+      ...((lead?.ownerId || defaultOwnerId(db)) ? { ownerId: lead?.ownerId || defaultOwnerId(db) } : {}),
     };
     db.followUps.unshift(followUp);
     log(db, session, {
@@ -452,6 +456,8 @@ export function recordOutcome(session: Session, id: string, input: OutcomeInput)
 
   if (lead && input.status === "closed-lost") lead.stage = "closed-lost";
   if (lead && (input.status === "completed" || input.status === "no-show")) lead.stage = "call-fait";
+  // No-show : le pole de recuperation demarre (cadence dans les reglages du Sales OS).
+  if (input.status === "no-show" && !appt.noShow) appt.noShow = { state: "to-recover", attempts: 0, lastAttemptAt: "", at: now };
 
   log(db, session, {
     action: "appointment.status",
@@ -722,7 +728,7 @@ export function completeFollowUp(session: Session, id: string, status: FollowUp[
   const db = readDB();
   const fu = db.followUps.find((f) => f.id === id);
   if (!fu) throw new Forbidden("Relance introuvable.");
-  if (!session.isAdmin && fu.closerId !== session.memberId) throw new Forbidden();
+  if (!session.isAdmin && !session.salesHead && fu.closerId !== session.memberId && fu.ownerId !== session.memberId) throw new Forbidden();
 
   fu.status = status;
   fu.completedAt = new Date().toISOString();
@@ -751,8 +757,8 @@ export function updateFollowUp(
   const fu = db.followUps.find((f) => f.id === id);
   if (!fu) throw new Forbidden("Relance introuvable.");
   const appt = db.appointments.find((a) => a.id === fu.appointmentId);
-  const own = fu.closerId === session.memberId || appt?.setterId === session.memberId || appt?.closerId === session.memberId;
-  if (!session.isAdmin && !own) throw new Forbidden("Cette relance ne vous est pas attribuée.");
+  const own = fu.closerId === session.memberId || fu.ownerId === session.memberId || appt?.setterId === session.memberId || appt?.closerId === session.memberId;
+  if (!session.isAdmin && !session.salesHead && !own) throw new Forbidden("Cette relance ne vous est pas attribuée.");
 
   const now = new Date().toISOString();
   const actor = session.memberName || "Moi";
@@ -824,7 +830,7 @@ export function startFollowUpSequence(session: Session, appointmentId: string, n
   const db = readDB();
   const appt = db.appointments.find((a) => a.id === appointmentId);
   if (!appt) throw new Forbidden("Rendez-vous introuvable.");
-  if (!session.isAdmin && appt.closerId !== session.memberId && appt.setterId !== session.memberId) throw new Forbidden("Ce rendez-vous ne vous est pas attribué.");
+  if (!session.isAdmin && !session.salesHead && appt.closerId !== session.memberId && appt.setterId !== session.memberId) throw new Forbidden("Ce rendez-vous ne vous est pas attribué.");
   const now = new Date().toISOString();
   const fu: FollowUp = {
     id: newId(),
@@ -860,8 +866,8 @@ export function followUpNoReply(session: Session, id: string): { next: FollowUp 
   const fu = db.followUps.find((f) => f.id === id);
   if (!fu) throw new Forbidden("Relance introuvable.");
   const appt = db.appointments.find((a) => a.id === fu.appointmentId);
-  const own = fu.closerId === session.memberId || appt?.setterId === session.memberId || appt?.closerId === session.memberId;
-  if (!session.isAdmin && !own) throw new Forbidden("Cette relance ne vous est pas attribuée.");
+  const own = fu.closerId === session.memberId || fu.ownerId === session.memberId || appt?.setterId === session.memberId || appt?.closerId === session.memberId;
+  if (!session.isAdmin && !session.salesHead && !own) throw new Forbidden("Cette relance ne vous est pas attribuée.");
   const now = new Date().toISOString();
   const actor = session.memberName || "Moi";
   const lead = db.leads.find((l) => l.id === fu.leadId);
@@ -924,14 +930,32 @@ export function followUpNoReply(session: Session, id: string): { next: FollowUp 
 export function setCommissionRule(
   session: Session,
   input: Omit<CommissionRule, "id" | "createdAt">,
+  /**
+   * Historique garde (Sales OS, 2026-11-13) : l'ancienne regle n'est pas
+   * eteinte, elle s'arrete la veille de la nouvelle date d'effet. Les
+   * commissions deja acquises gardent leur taux. Sans cette option,
+   * comportement historique : l'ancienne regle est desactivee.
+   */
+  opts: { keepHistory?: boolean } = {},
 ): CommissionRule {
   const db = readDB();
   const rule: CommissionRule = { ...input, id: newId(), createdAt: new Date().toISOString() };
 
   // Seules les regles du MEME metier sont remplacees : enregistrer le tarif
   // closer d'un setter-closer ne doit pas eteindre son tarif setter.
+  const dayBefore = (d: string) => {
+    const x = new Date(`${d}T12:00:00Z`);
+    x.setUTCDate(x.getUTCDate() - 1);
+    return x.toISOString().slice(0, 10);
+  };
   for (const old of db.commissionRules) {
-    if (old.memberId === rule.memberId && old.role === rule.role && old.active) old.active = false;
+    if (old.memberId !== rule.memberId || old.role !== rule.role || !old.active) continue;
+    if (opts.keepHistory && rule.effectiveFrom && old.effectiveFrom && old.effectiveFrom < rule.effectiveFrom) {
+      const end = dayBefore(rule.effectiveFrom);
+      if (!old.effectiveTo || old.effectiveTo > end) old.effectiveTo = end;
+    } else {
+      old.active = false;
+    }
   }
   db.commissionRules.unshift(rule);
 
@@ -1115,6 +1139,8 @@ export interface QuickOutcomeInput {
   heat?: FollowUpHeat;
   /** Reprogrammation : nouvelle date ISO du call. */
   rescheduledAt?: string;
+  /** Relance : objection principale (cle de la bibliotheque du Sales OS). */
+  objection?: string;
   /** Closer a qui rattacher le call (admin) ; un closer est rattache a lui-meme. */
   closerId?: string;
   note?: string;
@@ -1192,7 +1218,7 @@ export function quickOutcome(session: Session, leadId: string, input: QuickOutco
     closerNotes: input.note?.trim() ? input.note.trim() : undefined,
     lostReason: input.status === "closed-lost" ? input.lostReason || "other" : "",
     sale: input.status === "closed-won" ? input.sale : undefined,
-    followUp: input.status === "follow-up" ? { dueAt: input.followUpAt || new Date(Date.now() + 2 * 86_400_000).toISOString(), notes: input.note?.trim() ?? "", closerId, heat: input.heat } : undefined,
+    followUp: input.status === "follow-up" ? { dueAt: input.followUpAt || new Date(Date.now() + 2 * 86_400_000).toISOString(), notes: input.note?.trim() ?? "", closerId, heat: input.heat, objection: input.objection } : undefined,
     rescheduledAt: input.status === "rescheduled" ? input.rescheduledAt : undefined,
   };
   // Le recap garde ce qui a deja ete note ; « pitche » est acquis des qu'on a parle au lead.

@@ -72,6 +72,8 @@ export default function SalesDashboardPage() {
     void reload();
   };
 
+  // Le Head of Setting arrive chaque matin sur son cockpit ; son ancien accueil reste dans « Mon lien & stats ».
+  if (session.salesHead) return <Redirect to="/sales/workspace" label="Ouverture de ton espace de travail…" />;
   if (isMember) return <MemberHome />;
   if (session.isAdmin) return <AdminRedirect />;
 
@@ -464,6 +466,14 @@ function Hints({ children }: { children: ReactNode }) {
 }
 
 /** Un seul dashboard pour l'admin : le Sales Dashboard. */
+function Redirect({ to, label }: { to: string; label: string }) {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace(to);
+  }, [router, to]);
+  return <Spinner label={label} />;
+}
+
 function AdminRedirect() {
   const router = useRouter();
   useEffect(() => {
