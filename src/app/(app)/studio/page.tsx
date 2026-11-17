@@ -34,7 +34,7 @@ import { SkPage } from "@/components/Skeleton";
 import { StudioMemberKey } from "@/components/StudioMemberKey";
 import { fetchStudioJobs, GENERATIONS_EVENT, readStudioJobsCache, STUDIO_JOBS_EVENT } from "@/components/JobsDock";
 import { duration, estimateSec, fmtInt, fmtUsdInEur, label, relative } from "@/lib/format";
-import type { Generation } from "@/lib/types";
+import type { Generation, StudioMarker } from "@/lib/types";
 import { ThumbImg, VideoThumb } from "@/components/MediaThumb";
 import { ZipDownloadButton } from "@/components/ZipDownload";
 import { DEFAULT_NAMING, NamingBar, resolveCreativeName, type NamingState } from "@/components/NamingBar";
@@ -111,6 +111,22 @@ function StudioInner() {
    */
   const isMember = session?.role === "studio";
   const isStudent = session?.role === "student" || isMember;
+  /*
+   * Marqueurs de la galerie (admin) : une bande « ça commence là / ça
+   * termine là » posée entre deux créations pour se repérer dans la
+   * production, puis enlevée. Rangés avec les générations par date.
+   */
+  const markers = useCollection<StudioMarker>("studioMarkers", { skip: isStudent || !session });
+  const addMarker = async (at: string, label?: string) => {
+    const when = new Date(at);
+    const stamp = when.toLocaleString("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    try {
+      await markers.create({ label: label ?? `Marqueur · ${stamp}`, at });
+      toast("Marqueur posé. Clique sur son nom pour le renommer.");
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
   // Élève : les fichiers du Swap et de la Création partent sur le stockage KIE avec sa clé.
   useEffect(() => {
     setUploadViaKie(isStudent);
@@ -439,9 +455,29 @@ function StudioInner() {
       ...rows
         .filter((g) => filter === "all" || genState(g) === filter)
         .map((g) => ({ key: `gen:${g.id}`, at: g.createdAt, ratio: genRatio(g), settled: g.state === "success" && !!g.resultUrls[0], gen: g })),
+      // Marqueurs : une bande entre deux créations, classée à sa date.
+      ...markers.rows.map((m) => ({
+        key: `marker:${m.id}`,
+        at: m.at,
+        ratio: null,
+        settled: true,
+        divider: {
+          label: m.label,
+          count: 0,
+          onRename: (label: string) => void markers.patch(m.id, { label }).catch((e: Error) => toast(e.message, "err")),
+          onRemove: () => void markers.destroy(m.id).catch((e: Error) => toast(e.message, "err")),
+        },
+      })),
     ];
-    return items.sort((a, b) => b.at.localeCompare(a.at));
-  }, [jobs, rows, filter]);
+    items.sort((a, b) => b.at.localeCompare(a.at));
+    // Chaque marqueur compte les créations en dessous de lui, jusqu'au suivant.
+    let current: Item["divider"] | undefined;
+    for (const it of items) {
+      if (it.divider) current = it.divider;
+      else if (current) current.count++;
+    }
+    return items;
+  }, [jobs, rows, filter, markers, toast]);
   const previewedJob = jobs.find((j) => j.id === jobPreview) ?? null;
   const voicePickedJob = jobs.find((j) => j.id === voiceJob) ?? null;
 
@@ -577,6 +613,15 @@ function StudioInner() {
               </>
             ) : (
               <>
+                {!isStudent && (
+                  <button
+                    className="btn btn-sm"
+                    title="Poser un marqueur en haut de la galerie (début ou fin d'un batch). Le drapeau d'une tuile le pose juste au-dessus d'elle."
+                    onClick={() => void addMarker(new Date().toISOString())}
+                  >
+                    ⚑ Marqueur
+                  </button>
+                )}
                 <Tabs
                   value={filter}
                   onChange={setFilter}
@@ -623,6 +668,8 @@ function StudioInner() {
                       onOpen={() => setPreview(it.gen!.id)}
                       onRename={(title) => void rename(it.gen!.id, title)}
                       onRelaunch={() => void relaunch(it.gen!.id)}
+                      // Marqueur juste au-dessus de cette création (1 ms après elle dans l'ordre décroissant).
+                      onMark={isStudent ? undefined : () => void addMarker(new Date(new Date(it.gen!.createdAt).getTime() + 1).toISOString())}
                     />
                   ) : null
                 }
@@ -958,12 +1005,15 @@ function GenerationCard({
   onPick,
   onRename,
   onRelaunch,
+  onMark,
 }: {
   gen: Generation;
   eta: number | null;
   onRename: (title: string) => void;
   /** Relancer une génération en échec (même demande, nouvelle tâche KIE). */
   onRelaunch?: () => void;
+  /** Poser un marqueur juste au-dessus de cette création. */
+  onMark?: () => void;
   /** Format de la tuile (mosaique : celui du rendu). */
   aspect?: string;
   sizes?: string;
@@ -1005,6 +1055,20 @@ function GenerationCard({
       >
         {picked ? "✓" : ""}
       </button>
+      {onMark && (
+        <button
+          type="button"
+          hidden={picking}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMark();
+          }}
+          className="tile-actions absolute top-1.5 right-1.5 z-10 btn btn-sm"
+          title="Poser un marqueur juste au-dessus de cette créa"
+        >
+          ⚑
+        </button>
+      )}
       {done && url ? (
         <>
           <button

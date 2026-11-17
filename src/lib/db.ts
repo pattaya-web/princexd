@@ -89,6 +89,7 @@ const EMPTY_DB: DB = {
   team: [],
   swipes: [],
   generations: [],
+  studioMarkers: [],
   edits: [],
   creators: [],
   creatorPosts: [],

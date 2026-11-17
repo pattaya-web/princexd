@@ -30,6 +30,7 @@ const ALLOWED: CollectionName[] = [
   "team",
   "swipes",
   "generations",
+  "studioMarkers",
   "edits",
   "creators",
   "creatorPosts",

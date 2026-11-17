@@ -1684,6 +1684,19 @@ export interface Generation {
   updatedAt: string;
 }
 
+/**
+ * Marqueur de la galerie du Studio (2026-11-17) : une bande posée entre deux
+ * créations pour se repérer dans la production (« début du batch S47 »,
+ * « fin »). Classé avec les générations par `at`, enlevé quand il ne sert plus.
+ */
+export interface StudioMarker {
+  id: ID;
+  label: string;
+  /** Date ISO qui place le marqueur dans la galerie (juste au-dessus de la création visée, ou maintenant). */
+  at: string;
+  createdAt: string;
+}
+
 /** Createur suivi en veille. Alimente par l'API Business Discovery de Meta. */
 export interface Creator {
   id: ID;
@@ -1784,6 +1797,8 @@ export interface DB {
   team: TeamMember[];
   swipes: Swipe[];
   generations: Generation[];
+  /** Marqueurs de la galerie du Studio (admin). */
+  studioMarkers: StudioMarker[];
   edits: EditJob[];
   creators: Creator[];
   creatorPosts: CreatorPost[];

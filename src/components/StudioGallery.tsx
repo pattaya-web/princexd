@@ -34,6 +34,18 @@ export interface GalleryItem {
   ratio: number | null;
   /** Rendu affiché (sinon : en cours ou en échec, la tuile garde de quoi lire son texte). */
   settled: boolean;
+  /**
+   * Marqueur (2026-11-17) : pas une tuile mais une bande pleine largeur posée
+   * entre deux créations, pour se repérer dans la production (« début du
+   * batch S47 », « fin »). Tout ce qui suit jusqu'au marqueur suivant est
+   * compté dedans.
+   */
+  divider?: {
+    label: string;
+    count: number;
+    onRename: (label: string) => void;
+    onRemove: () => void;
+  };
 }
 
 export interface TileProps {
@@ -164,13 +176,18 @@ export function StudioGallery<T extends GalleryItem>({
 
   const groups = useMemo(() => {
     const list = items.slice(0, shown);
-    if (!view.byDay) return [{ day: "", items: list }];
-    const out: { day: string; items: T[] }[] = [];
+    // Un marqueur ouvre toujours une nouvelle section ; le jour aussi, si demandé.
+    const out: { day: string; marker: T | null; items: T[] }[] = [];
     for (const it of list) {
-      const d = parisDay(it.at);
+      const d = view.byDay ? parisDay(it.at) : "";
       const last = out[out.length - 1];
-      if (last && last.day === d) last.items.push(it);
-      else out.push({ day: d, items: [it] });
+      if (it.divider) {
+        out.push({ day: d, marker: it, items: [] });
+      } else if (last && last.day === d) {
+        last.items.push(it);
+      } else {
+        out.push({ day: d, marker: null, items: [it] });
+      }
     }
     return out;
   }, [items, shown, view.byDay]);
@@ -218,14 +235,15 @@ export function StudioGallery<T extends GalleryItem>({
 
   return (
     <div ref={wrapRef} className="flex flex-col gap-4">
-      {groups.map((g) => (
-        <section key={g.day || "all"} className="flex flex-col gap-2">
-          {g.day && (
+      {groups.map((g, i) => (
+        <section key={g.marker ? g.marker.key : g.day || `all-${i}`} className="flex flex-col gap-2">
+          {g.marker?.divider && <MarkerBand divider={g.marker.divider} />}
+          {g.day && g.day !== groups[i - 1]?.day && (
             <h3 className="text-[13px] font-semibold first-letter:uppercase" style={{ letterSpacing: "-0.01em" }}>
               {dayLabel(g.day)} <span className="dim font-normal">· {g.items.length}</span>
             </h3>
           )}
-          {block(g.items)}
+          {g.items.length > 0 && block(g.items)}
         </section>
       ))}
       {more && (
@@ -235,6 +253,61 @@ export function StudioGallery<T extends GalleryItem>({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Bande d'un marqueur : drapeau, libellé (clic pour le changer), nombre de
+ * créations en dessous jusqu'au marqueur suivant, croix pour l'enlever.
+ */
+function MarkerBand({ divider }: { divider: NonNullable<GalleryItem["divider"]> }) {
+  const [editing, setEditing] = useState(false);
+  return (
+    <div
+      className="flex items-center gap-2.5 rounded-[10px] px-3 py-2"
+      style={{
+        background: "color-mix(in srgb, var(--accent) 10%, transparent)",
+        border: "1px dashed color-mix(in srgb, var(--accent) 55%, transparent)",
+      }}
+    >
+      <span aria-hidden style={{ color: "var(--accent)", fontSize: 15, lineHeight: 1 }}>⚑</span>
+      {editing ? (
+        <input
+          autoFocus
+          className="input !h-[30px] !text-[13px] !py-0 flex-1 min-w-0"
+          defaultValue={divider.label}
+          placeholder="Nom du marqueur"
+          maxLength={80}
+          data-nodraft
+          onFocus={(e) => e.currentTarget.select()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+            if (e.key === "Escape") setEditing(false);
+          }}
+          onBlur={(e) => {
+            setEditing(false);
+            const v = e.currentTarget.value.trim();
+            if (v && v !== divider.label) divider.onRename(v);
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          className="flex-1 min-w-0 text-left text-[13px] font-semibold truncate"
+          style={{ letterSpacing: "-0.01em" }}
+          title="Renommer le marqueur"
+          onClick={() => setEditing(true)}
+        >
+          {divider.label}
+        </button>
+      )}
+      <span className="dim text-[12px] whitespace-nowrap">
+        {divider.count} créa{divider.count > 1 ? "s" : ""} en dessous
+      </span>
+      <button type="button" className="btn btn-sm" title="Enlever ce marqueur" onClick={divider.onRemove}>
+        ✕
+      </button>
     </div>
   );
 }
