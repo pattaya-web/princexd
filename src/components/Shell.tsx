@@ -534,6 +534,7 @@ const NAV: { section: string; items: { href: string; label: string; icon: string
     items: [
       { href: "/studio", label: "Studio IA", icon: "✦" },
       { href: "/acces-studio", label: "Accès Studio", icon: "⚿" },
+      { href: "/montage-rapide", label: "Montage rapide", icon: "⏵" },
       { href: "/montage", label: "Espace monteur", icon: "✂" },
       { href: "/temoignages", label: "Témoignages", icon: "★" },
       { href: "/tournage", label: "Kit tournage", icon: "▶" },
