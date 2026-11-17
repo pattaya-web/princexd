@@ -52,6 +52,8 @@ const TAB_OF: Record<EditStatus, Tab> = {
 
 const isVideo = (url: string) => /\.(mp4|mov|webm|m4v|mkv|avi)(\?|$)/i.test(url);
 const isImage = (url: string) => /\.(png|jpe?g|webp|gif)(\?|$)/i.test(url);
+const isAudio = (url: string) => /\.(mp3|wav|m4a|aac)(\?|$)/i.test(url);
+const ACCEPT_AUDIO = "audio/*,.mp3,.wav,.m4a,.aac";
 const isLocal = (url: string) => url.startsWith("/api/media/");
 
 /** Envoie plusieurs fichiers l'un apres l'autre en les typant pour le dossier. */
@@ -69,6 +71,29 @@ async function uploadAll(
 
 function MediaTile({ m, onRemove }: { m: MediaRef; onRemove?: () => void }) {
   const local = isLocal(m.url);
+  if (isAudio(m.url)) {
+    // Musique / son : pas d'image, un lecteur et le nom suffisent.
+    return (
+      <div className="card-flat overflow-hidden flex flex-col col-span-2">
+        <div className="flex items-center gap-2 px-2 pt-2">
+          <span aria-hidden className="text-[18px]">🎵</span>
+          <audio src={m.url} controls preload="none" className="w-full min-w-0" style={{ height: 34 }} />
+        </div>
+        <div className="px-2 py-1.5 flex items-center gap-1.5">
+          <span className="text-[11.5px] flex-1 min-w-0 truncate" title={m.name}>{m.name}</span>
+          {m.size > 0 && <span className="dim text-[10.5px] shrink-0">{formatBytes(m.size)}</span>}
+          {local ? (
+            <a href={`${m.url}?download=1&name=${encodeURIComponent(m.name)}`} download={m.name} className="btn btn-sm shrink-0" title="Télécharger">↓</a>
+          ) : (
+            <a href={m.url} target="_blank" rel="noreferrer" className="btn btn-sm shrink-0" title="Ouvrir">↗</a>
+          )}
+          {onRemove && (
+            <button className="btn btn-sm btn-danger shrink-0" onClick={onRemove} aria-label="Retirer">✕</button>
+          )}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="card-flat overflow-hidden flex flex-col">
       <div className="relative" style={{ background: "#000", aspectRatio: "9 / 12" }}>
@@ -141,6 +166,7 @@ function FolderCard({ job, onOpen }: { job: EditJob; onOpen: () => void }) {
   const photos = job.media.filter((m) => m.kind === "photo");
   const refs = job.media.filter((m) => m.kind === "reference");
   const livrables = job.media.filter((m) => m.kind === "livrable");
+  const audios = job.media.filter((m) => m.kind === "audio");
   const cover = (livrables[0] ?? rushes[0] ?? photos[0]) ?? null;
   return (
     <button
@@ -169,6 +195,7 @@ function FolderCard({ job, onOpen }: { job: EditJob; onOpen: () => void }) {
           <span>{relative(job.createdAt)}</span>
           <span>🎞 {rushes.length} rush{rushes.length > 1 ? "s" : ""}</span>
           {photos.length > 0 && <span>📷 {photos.length} photo{photos.length > 1 ? "s" : ""}</span>}
+          {audios.length > 0 && <span>🎵 {audios.length} audio{audios.length > 1 ? "s" : ""}</span>}
           {refs.length > 0 && <span>✨ inspiration</span>}
           {livrables.length > 0 && <span style={{ color: "var(--good)" }}>✓ {livrables.length} livrée{livrables.length > 1 ? "s" : ""}</span>}
           {job.comments.length > 0 && <span>💬 {job.comments.length}</span>}
@@ -229,6 +256,7 @@ function FolderDetail({
   const photos = job.media.filter((m) => m.kind === "photo");
   const refs = job.media.filter((m) => m.kind === "reference");
   const livrables = job.media.filter((m) => m.kind === "livrable");
+  const audios = job.media.filter((m) => m.kind === "audio");
 
   const addFiles = async (files: File[], kind: MediaRef["kind"]) => {
     try {
@@ -400,6 +428,23 @@ function FolderDetail({
           </Section>
         )}
 
+        {(role === "owner" || audios.length > 0) && (
+          <Section title="Musique / audio" hint={audios.length ? `${audios.length} fichier${audios.length > 1 ? "s" : ""}` : "à poser sur la vidéo"}>
+            <div className="flex flex-col gap-2">
+              <MediaGrid items={audios} onRemove={role === "owner" ? removeMedia : undefined} />
+              {role === "owner" && (
+                <DropZone
+                  label="Ajouter une musique ou un son"
+                  hint="MP3, WAV, M4A ou AAC. Le monteur le récupère avec le dossier."
+                  accept={ACCEPT_AUDIO}
+                  disabled={progress !== null}
+                  onFiles={(f) => void addFiles(f, "audio")}
+                />
+              )}
+            </div>
+          </Section>
+        )}
+
         <Section title="Inspiration" hint="ce que le montage doit reproduire">
           <div className="flex flex-col gap-2">
             {refs.length > 0 ? (
@@ -504,6 +549,7 @@ function NewFolder({
   const [refLink, setRefLink] = useState("");
   const [rushes, setRushes] = useState<File[]>([]);
   const [photos, setPhotos] = useState<File[]>([]);
+  const [audios, setAudios] = useState<File[]>([]);
   const [refFile, setRefFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [busy, setBusy] = useState(false);
@@ -519,6 +565,7 @@ function NewFolder({
       }
       const uploadedRushes = await uploadAll(rushes, "rush", "moi", setProgress);
       const uploadedPhotos = await uploadAll(photos, "photo", "moi", setProgress);
+      const uploadedAudios = await uploadAll(audios, "audio", "moi", setProgress);
       const uploadedRef = refFile ? await uploadAll([refFile], "reference", "moi", setProgress) : [];
       await onCreate({
         title: t,
@@ -533,7 +580,7 @@ function NewFolder({
         dueAt: "",
         assignee: "",
         postId: "",
-        media: [...uploadedRushes, ...uploadedPhotos, ...uploadedRef, ...media],
+        media: [...uploadedRushes, ...uploadedPhotos, ...uploadedAudios, ...uploadedRef, ...media],
         deliveryUrl: "",
         comments: [],
         deliveredAt: "",
@@ -612,6 +659,30 @@ function NewFolder({
               accept="image/*"
               disabled={busy}
               onFiles={(f) => setPhotos((r) => [...r, ...f])}
+            />
+          </div>
+        </Field>
+
+        <Field label="Musique / audio" hint="Optionnel. La musique ou le son à poser sur la vidéo : MP3, WAV, M4A ou AAC.">
+          <div className="flex flex-col gap-2">
+            {audios.length > 0 && (
+              <ul className="flex flex-col gap-1">
+                {audios.map((f, i) => (
+                  <li key={`${f.name}-${i}`} className="flex items-center gap-2 text-[12px] rounded-[7px] px-2.5 py-1.5" style={{ background: "var(--surface-2)" }}>
+                    <span aria-hidden>🎵</span>
+                    <span className="flex-1 min-w-0 truncate">{f.name}</span>
+                    <span className="dim shrink-0">{formatBytes(f.size)}</span>
+                    <button className="btn btn-sm btn-ghost shrink-0" onClick={() => setAudios((r) => r.filter((_, j) => j !== i))} disabled={busy}>✕</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <DropZone
+              label={audios.length ? "Ajouter un autre son" : "Glisse ta musique ici"}
+              hint="Le monteur la récupère avec le dossier."
+              accept={ACCEPT_AUDIO}
+              disabled={busy}
+              onFiles={(f) => setAudios((r) => [...r, ...f])}
             />
           </div>
         </Field>
