@@ -315,8 +315,22 @@ function StudioInner() {
    */
   useEffect(() => {
     const onJobs = (e: Event) => {
-      const rows = (e as CustomEvent<Generation[]>).detail;
-      if (Array.isArray(rows)) setRows(rows);
+      const fresh = (e as CustomEvent<Generation[]>).detail;
+      if (!Array.isArray(fresh)) return;
+      /*
+       * Le dock ne diffuse que les 60 dernières générations : on les fusionne
+       * dans la liste complète au lieu de la remplacer. Avant, dès qu'un rendu
+       * tournait, la galerie se réduisait à ces 60 tuiles et toutes les créas
+       * plus anciennes « disparaissaient » jusqu'au prochain rechargement
+       * (vu le 2026-11-17 : seules les S47 du jour restaient).
+       */
+      setRows((prev) => {
+        const byId = new Map(fresh.map((g) => [g.id, g]));
+        const merged = prev.map((g) => byId.get(g.id) ?? g);
+        const known = new Set(prev.map((g) => g.id));
+        const added = fresh.filter((g) => !known.has(g.id));
+        return added.length ? [...added, ...merged].sort((a, b) => b.createdAt.localeCompare(a.createdAt)) : merged;
+      });
     };
     window.addEventListener(GENERATIONS_EVENT, onJobs);
     return () => window.removeEventListener(GENERATIONS_EVENT, onJobs);
