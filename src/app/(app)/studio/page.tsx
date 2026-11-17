@@ -214,6 +214,17 @@ function StudioInner() {
     }
   };
 
+  /* Relancer une créa en échec : même modèle, mêmes entrées, nouvelle tâche KIE. */
+  const relaunch = async (id: string) => {
+    try {
+      const gen = await api<Generation>("/api/kie/task", { method: "POST", body: JSON.stringify({ id }) });
+      setRows((prev) => prev.map((g) => (g.id === id ? gen : g)));
+      toast("Génération relancée. Le résultat arrive dans la galerie.");
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
   /**
    * Chaînage : on envoie un résultat de la galerie dans le premier champ média
    * du bon type. C'est le geste central du workflow — on génère le personnage
@@ -597,6 +608,7 @@ function StudioInner() {
                       }
                       onOpen={() => setPreview(it.gen!.id)}
                       onRename={(title) => void rename(it.gen!.id, title)}
+                      onRelaunch={() => void relaunch(it.gen!.id)}
                     />
                   ) : null
                 }
@@ -931,10 +943,13 @@ function GenerationCard({
   picked,
   onPick,
   onRename,
+  onRelaunch,
 }: {
   gen: Generation;
   eta: number | null;
   onRename: (title: string) => void;
+  /** Relancer une génération en échec (même demande, nouvelle tâche KIE). */
+  onRelaunch?: () => void;
   /** Format de la tuile (mosaique : celui du rendu). */
   aspect?: string;
   sizes?: string;
@@ -1062,10 +1077,24 @@ function GenerationCard({
           )}
         </>
       ) : failed ? (
-        <div className="w-full h-full grid place-items-center text-center px-3">
+        <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-center px-3">
           <p className="text-[11.5px] leading-snug" style={{ color: "var(--critical)" }}>
             {gen.failMsg || "Génération échouée"}
           </p>
+          {onRelaunch && (
+            <button
+              type="button"
+              className="btn btn-sm"
+              hidden={picking}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRelaunch();
+              }}
+              title="Relancer la même demande (nouvelle tâche KIE)"
+            >
+              ↻ Relancer
+            </button>
+          )}
         </div>
       ) : (
         <Working gen={gen} eta={eta} />
@@ -1126,7 +1155,11 @@ function Working({ gen, eta }: { gen: Generation; eta: number | null }) {
     <div className="w-full h-full flex flex-col items-center justify-center gap-2.5 px-4">
       <span className="num text-[19px] font-semibold tabular-nums">{mmss(elapsed)}</span>
       <span className="dim text-[11px]">
-        {opaque ? `En cours chez ${vendor ?? "le fournisseur"}` : label(gen.state)}
+        {gen.relaunchAt
+          ? `Cadence KIE dépassée : relance automatique (${gen.relaunches ?? 1}/3)`
+          : opaque
+            ? `En cours chez ${vendor ?? "le fournisseur"}`
+            : label(gen.state)}
       </span>
 
       <div className="w-full rounded-full overflow-hidden" style={{ height: 5, background: "var(--border)" }}>

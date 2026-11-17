@@ -1676,6 +1676,10 @@ export interface Generation {
   title?: string;
   /** « 32:9 » : format demandé par l'admin, obtenu en recadrant le résultat du modèle après coup (lib/studio/wide). */
   crop?: string;
+  /** Relances automatiques déjà faites après un refus de cadence KIE (lib/studio/relaunch, 2026-11-17). */
+  relaunches?: number;
+  /** Date ISO de la prochaine relance automatique ; vide quand la tâche KIE est bien en cours. */
+  relaunchAt?: string;
   createdAt: string;
   updatedAt: string;
 }

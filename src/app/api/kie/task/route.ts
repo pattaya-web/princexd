@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTask, KieError } from "@/lib/kie";
+import { getTask, isRateLimited, KieError } from "@/lib/kie";
 import { readDB, withKieKey, writeDB } from "@/lib/db";
 import { keyForOwner, ownGenerations, scopeError, studioScope } from "@/lib/studio-tenant";
+import { relaunchAllDue, relaunchNow, relaunchPending, scheduleRelaunch } from "@/lib/studio/relaunch";
 import { applyWideCrop } from "@/lib/studio/wide";
 import { warmThumb } from "@/lib/thumbs";
 
@@ -32,19 +33,29 @@ export async function GET(req: NextRequest) {
   }
   const db = readDB();
   const mine = ownGenerations(db, scope.ownerId);
-  const pending = mine.filter(
-    (g) => (one ? g.taskId === one : g.state !== "success" && g.state !== "fail"),
-  );
-  if (!pending.length) {
-    return NextResponse.json(
-      wantList
-        ? { updated: [], remaining: 0, generations: mine.slice(0, 60) }
-        : { updated: [], remaining: 0 },
-    );
-  }
-
   const updated: string[] = [];
   let changed = false;
+
+  // Refus de cadence KIE : les relances programmées dont l'heure est venue repartent ici.
+  const relaunched = await relaunchAllDue(db, mine);
+  if (relaunched.length) {
+    changed = true;
+    for (const g of relaunched) updated.push(g.taskId);
+  }
+
+  // Une génération en attente de relance n'a pas encore de tâche à sonder.
+  const pending = mine.filter(
+    (g) => (one ? g.taskId === one : g.state !== "success" && g.state !== "fail" && !relaunchPending(g)),
+  );
+  if (!pending.length) {
+    if (changed) writeDB(db);
+    const remaining = mine.filter((g) => g.state !== "success" && g.state !== "fail").length;
+    return NextResponse.json(
+      wantList || changed
+        ? { updated, remaining, generations: mine.slice(0, 60) }
+        : { updated, remaining },
+    );
+  }
   // Les taches sont interrogees en parallele : en serie, douze appels de
   // 300 ms depassaient l'intervalle de sondage et empilaient les requetes.
   const batch = pending.slice(0, 12);
@@ -59,6 +70,8 @@ export async function GET(req: NextRequest) {
     if (r.status === "rejected") {
       // Une tâche qui échoue à répondre ne doit pas bloquer les autres.
       const msg = (r.reason as KieError)?.message ?? String(r.reason);
+      // Cadence de sondage refusée : rien à noter, le tour suivant repassera.
+      if (isRateLimited(msg, (r.reason as KieError)?.code)) continue;
       if (gen.failMsg !== msg) {
         gen.failMsg = msg;
         changed = true;
@@ -98,10 +111,37 @@ export async function GET(req: NextRequest) {
       );
     }
     gen.updatedAt = new Date().toISOString();
+    // Échec passager (cadence) : la même tâche sera reposée un peu plus tard.
+    if (rec.state === "fail") scheduleRelaunch(gen, rec.failMsg);
     updated.push(gen.taskId);
   }
   if (changed) writeDB(db);
 
   const remaining = mine.filter((g) => g.state !== "success" && g.state !== "fail").length;
   return NextResponse.json({ updated, remaining, generations: mine.slice(0, 60) });
+}
+
+/**
+ * Relance à la main une génération en échec (bouton « Relancer » de la
+ * tuile) : même modèle, mêmes entrées, nouvelle tâche KIE tout de suite.
+ */
+export async function POST(req: NextRequest) {
+  let scope;
+  try {
+    scope = studioScope(req);
+  } catch (e) {
+    const { error, status } = scopeError(e);
+    return NextResponse.json({ error }, { status });
+  }
+  const { id } = (await req.json().catch(() => ({}))) as { id?: string };
+  const db = readDB();
+  const gen = ownGenerations(db, scope.ownerId).find((g) => g.id === id);
+  if (!gen) return NextResponse.json({ error: "Génération introuvable." }, { status: 404 });
+  if (gen.state !== "fail") return NextResponse.json({ error: "Cette génération n'est pas en échec." }, { status: 409 });
+  gen.relaunches = 0;
+  await relaunchNow(db, gen);
+  writeDB(db);
+  // 422 et non 502 : derrière Cloudflare, un 502 est remplacé par sa page HTML et le message se perd.
+  if (gen.state === "fail") return NextResponse.json({ error: gen.failMsg || "KIE a refusé la relance." }, { status: 422 });
+  return NextResponse.json(gen);
 }

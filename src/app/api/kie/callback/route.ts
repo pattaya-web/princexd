@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readDB, writeDB } from "@/lib/db";
 import { onProviderCallback } from "@/lib/studio/jobs";
+import { scheduleRelaunch } from "@/lib/studio/relaunch";
 import { applyWideCrop } from "@/lib/studio/wide";
 import { warmThumb } from "@/lib/thumbs";
 
@@ -42,6 +43,8 @@ export async function POST(req: NextRequest) {
   gen.failMsg = data.failMsg ?? "";
   gen.creditsConsumed = Number(data.creditsConsumed ?? gen.creditsConsumed);
   gen.updatedAt = new Date().toISOString();
+  // Refus de cadence KIE : la même tâche sera reposée par le sondage un peu plus tard.
+  if (gen.state === "fail") scheduleRelaunch(gen, gen.failMsg);
   writeDB(db);
 
   return NextResponse.json({ ok: true });

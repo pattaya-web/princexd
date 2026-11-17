@@ -46,6 +46,22 @@ export async function getCredits(): Promise<number> {
   return typeof data === "number" ? data : Number((data as { credits?: number })?.credits ?? 0);
 }
 
+/**
+ * Refus de cadence de KIE (« Your call frequency is too high. Please try
+ * again later. », HTTP 429, « too many requests »…). Vu le 2026-11-17 sur
+ * GPT Image 2 : plusieurs lancements rapprochés, deux cartes rouges avec ce
+ * message alors que la demande était bonne. C'est passager : on retente.
+ */
+export function isRateLimited(msg: string, code?: number): boolean {
+  if (code === 429) return true;
+  return /call frequency|frequency is too high|too many requests|rate limit|try again later/i.test(msg || "");
+}
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** Attentes avant de renvoyer la même demande quand KIE refuse la cadence. */
+const CREATE_TASK_BACKOFF_MS = [2_000, 5_000, 10_000];
+
 /** POST /api/v1/jobs/createTask -> taskId */
 export async function createTask(
   model: string,
@@ -54,13 +70,25 @@ export async function createTask(
 ) {
   const body: Record<string, unknown> = { model, input };
   if (callBackUrl) body.callBackUrl = callBackUrl;
-  const data = (await kieFetch("/api/v1/jobs/createTask", {
-    method: "POST",
-    body: JSON.stringify(body),
-  })) as { taskId?: string; task_id?: string };
-  const taskId = data?.taskId || data?.task_id;
-  if (!taskId) throw new KieError("KIE n'a pas renvoye de taskId.");
-  return taskId;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const data = (await kieFetch("/api/v1/jobs/createTask", {
+        method: "POST",
+        body: JSON.stringify(body),
+      })) as { taskId?: string; task_id?: string };
+      const taskId = data?.taskId || data?.task_id;
+      if (!taskId) throw new KieError("KIE n'a pas renvoye de taskId.");
+      return taskId;
+    } catch (e) {
+      const err = e as KieError;
+      // Cadence refusée : quelques secondes de pause, puis la même demande repart.
+      if (attempt < CREATE_TASK_BACKOFF_MS.length && isRateLimited(err.message, err.code)) {
+        await sleep(CREATE_TASK_BACKOFF_MS[attempt]);
+        continue;
+      }
+      throw e;
+    }
+  }
 }
 
 export interface TaskRecord {
