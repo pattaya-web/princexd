@@ -1299,10 +1299,8 @@ export interface MediaRef {
    * "reference" : la vidéo dont le monteur doit reproduire le montage.
    * C'est la consigne la plus utile qu'on puisse lui donner — bien plus
    * précise qu'un brief écrit.
-   * "audio" (2026-11-18) : musique ou son importé (MP3, WAV, M4A, AAC) que
-   * le monteur doit poser sur la vidéo.
    */
-  kind: "rush" | "photo" | "reference" | "livrable" | "audio";
+  kind: "rush" | "photo" | "reference" | "livrable";
   addedBy: "moi" | "monteur";
   addedAt: string;
 }
