@@ -41,7 +41,7 @@ export default function MetaPage() {
         <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.03em" }}>
           Lance tes campagnes publicitaires sur Meta.
         </h1>
-        <p className="muted text-[14px] mt-1 max-w-[64ch]">Ta boutique est en ligne, tes créatives sont prêtes. Mady te montre comment lancer ta première campagne, puis tu suis les étapes une par une.</p>
+        <p className="muted text-[14px] mt-1 max-w-[64ch]">Ta boutique est en ligne, tes créatives sont prêtes. Mady te montre comment lancer ta première campagne, puis tu reproduis exactement la structure ci-dessous, avec ton enveloppe budgétaire.</p>
         {data.preview && <div className="badge badge-warn w-fit !text-[11.5px] mt-3">Aperçu : tu vois Scale X comme {data.student?.name}.</div>}
       </header>
 
@@ -103,7 +103,7 @@ export default function MetaPage() {
             <strong>Omega Facebook Pixel est installé</strong> (bloc ci-dessus) et l&apos;API Conversions est active : sinon Meta ne voit qu&apos;une partie de tes ventes.
           </li>
           <li>
-            <strong>Tes créatives sont prêtes</strong> : 5 à 8 créatives (images 3:4, 1:1 ou 9:16, vidéos 9:16), générées dans le Studio IA.
+            <strong>Tes créatives sont prêtes</strong> : 6 créatives, 6 statiques (3:4, 1:1 ou 9:16) ou 6 vidéos (9:16) selon ton produit, générées dans le Studio IA.
           </li>
         </ul>
         <div className="flex flex-wrap items-center gap-3 mt-4">
@@ -116,25 +116,96 @@ export default function MetaPage() {
         </div>
       </section>
 
-      <section className="card p-5">
+      <section className="card p-5" style={{ borderColor: "var(--accent-ring)" }}>
         <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
-          03 / LA TRAME STANDARD
+          03 / LA STRUCTURE DE TA PREMIÈRE CAMPAGNE
         </div>
-        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">Trame standard en attendant la vidéo de Mady. Prérequis : le Pixel posé et vérifié (Démarrage, section 10).</p>
-        <ul className="list-disc pl-5 mt-3 flex flex-col gap-1.5 text-[13.5px] leading-relaxed">
-          <li>
-            <strong>Objectif Ventes</strong> (conversion Achat sur ton Pixel). Pas Trafic, pas Engagement.
-          </li>
-          <li>
-            <strong>1 campagne CBO à 30 à 50 €/jour</strong>, 1 ad set large (pays cible, pas d&apos;intérêts), <strong>5 à 8 créatives</strong>.
-          </li>
-          <li>
-            <strong>Lancement le soir</strong>, puis <strong>3 jours sans toucher</strong> : Meta apprend.
-          </li>
-          <li>
-            <strong>Décision à J+3</strong> : couper, garder ou scaler. Si ça tient, <strong>+20 % tous les 2 jours</strong>.
-          </li>
-        </ul>
+        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">
+          Exactement cette structure, celle de la vidéo. Objectif Ventes (conversion Achat sur ton Pixel), budget posé sur l&apos;ad set (ABO), ciblage large (pays cible, pas d&apos;intérêts).
+        </p>
+        <div className="grid gap-3 mt-4 sm:grid-cols-2">
+          <div className="rounded-md p-3.5" style={{ background: "var(--surface-2)" }}>
+            <div className="label-xs">Budget 50 € / jour · la base</div>
+            <ul className="list-disc pl-5 mt-2 flex flex-col gap-1.5 text-[13.5px] leading-relaxed">
+              <li>
+                <strong>1 campagne ABO</strong>
+              </li>
+              <li>
+                <strong>1 ad set</strong> à 50 €/jour
+              </li>
+              <li>
+                <strong>6 créatives</strong> dedans : 6 statiques <em>ou</em> 6 vidéos, selon ton produit (ci-dessous)
+              </li>
+              <li>
+                <strong>3 jours sans toucher.</strong> Jour 2 : tu ne touches que si les stats sont vraiment éclatées.
+              </li>
+            </ul>
+          </div>
+          <div className="rounded-md p-3.5" style={{ background: "var(--surface-2)" }}>
+            <div className="label-xs">Budget 100 € / jour · si tu as le budget</div>
+            <ul className="list-disc pl-5 mt-2 flex flex-col gap-1.5 text-[13.5px] leading-relaxed">
+              <li>
+                <strong>1 campagne ABO</strong>
+              </li>
+              <li>
+                <strong>2 ad sets</strong> à 50 €/jour chacun
+              </li>
+              <li>
+                <strong>Ad set 1 : statiques</strong>, 6 créatives dedans
+              </li>
+              <li>
+                <strong>Ad set 2 : vidéos</strong>, 6 créatives dedans
+              </li>
+              <li>Même règle : 3 jours sans toucher.</li>
+            </ul>
+          </div>
+        </div>
+        <div className="mt-4 rounded-md p-3.5" style={{ border: "1px solid var(--border)" }}>
+          <div className="text-[14px] font-semibold">Statiques ou vidéos ? Ça dépend du produit.</div>
+          <ul className="list-disc pl-5 mt-2 flex flex-col gap-1.5 text-[13.5px] leading-relaxed">
+            <li>
+              <strong>Produit démontrable</strong> (il faut le voir fonctionner, une démo) : vidéo. Une vidéo vend mieux qu&apos;une photo, on part sur le format vidéo.
+            </li>
+            <li>
+              <strong>Produit classique</strong>, qui se comprend sans vidéo : 6 statiques.
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section className="card p-5" id="budget">
+        <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
+          04 / TON ENVELOPPE BUDGÉTAIRE ADS
+        </div>
+        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">
+          Avant de lancer, tu sais combien tu mets en tout sur la partie ads. C&apos;est une enveloppe, pas une dépense au jour le jour.
+        </p>
+        <div className="grid gap-3 mt-4 sm:grid-cols-3">
+          <div className="rounded-md p-3.5" style={{ background: "var(--surface-2)", border: "1px solid var(--accent-ring)" }}>
+            <div className="label-xs">Idéal</div>
+            <div className="num text-[22px] font-semibold mt-1" style={{ letterSpacing: "-0.02em" }}>
+              1 000 € et +
+            </div>
+            <p className="muted text-[13px] mt-1 leading-relaxed">De quoi tester, lire, remplacer les créatives et scaler ce qui marche.</p>
+          </div>
+          <div className="rounded-md p-3.5" style={{ background: "var(--surface-2)" }}>
+            <div className="label-xs">Acceptable</div>
+            <div className="num text-[22px] font-semibold mt-1" style={{ letterSpacing: "-0.02em" }}>
+              400 à 500 €
+            </div>
+            <p className="muted text-[13px] mt-1 leading-relaxed">Tu lances à 50 €/jour : un vrai test, à lire sérieusement à J+3.</p>
+          </div>
+          <div className="rounded-md p-3.5" style={{ background: "var(--surface-2)" }}>
+            <div className="label-xs">En dessous</div>
+            <div className="num text-[22px] font-semibold mt-1" style={{ letterSpacing: "-0.02em" }}>
+              Pas nécessaire
+            </div>
+            <p className="muted text-[13px] mt-1 leading-relaxed">Ce n&apos;est pas la peine de lancer : attends d&apos;avoir l&apos;enveloppe.</p>
+          </div>
+        </div>
+        <p className="text-[13.5px] mt-4 leading-relaxed max-w-[64ch]">
+          <strong>C&apos;est un investissement, pas une perte.</strong> Cette enveloppe achète de la donnée : tu sais si ton produit, tes créatives et ta page convertissent. Tu ne la considères pas comme de l&apos;argent perdu, c&apos;est comme ça que ça marche.
+        </p>
       </section>
 
       <PortalFooter quote="La pub ne répare pas un produit moyen. Elle accélère un bon produit." author="Mady" />

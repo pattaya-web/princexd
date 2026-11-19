@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api, useLocalState } from "@/lib/client";
 import { ErrorNote, Spinner, useToast } from "@/components/ui";
@@ -109,13 +110,20 @@ export default function ProduitPage() {
     <div className="flex flex-col gap-5">
       <header>
         <div className="label-xs" style={{ letterSpacing: "0.12em" }}>
-          Scale X / Recherche produit
+          Scale X / Recherche produit · BrandSearch
         </div>
         <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight mt-2" style={{ letterSpacing: "-0.03em" }}>
           Trouve ton produit.
         </h1>
         <p className="muted text-[14px] mt-1 max-w-[64ch]">
           Une vidéo, les bons filtres sur BrandSearch, {count} produits dans le tableau, tu envoies à Mady. Il valide avec toi, et tu passes aux créatives.
+        </p>
+        <p className="dim text-[12.5px] mt-1 max-w-[64ch]">
+          C&apos;est la première méthode. La deuxième, celle que Mady utilise au quotidien sur Instagram, vient après ta boutique :{" "}
+          <Link href="/formation/produit-instagram" className="underline">
+            Recherche produit · Instagram
+          </Link>
+          .
         </p>
         {data.brandsearchUrl && (
           <a href={data.brandsearchUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm mt-3 w-fit">

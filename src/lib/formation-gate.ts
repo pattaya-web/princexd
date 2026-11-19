@@ -5,8 +5,8 @@ import type { Student } from "./types";
  *
  * Les onglets s'ouvrent en chaîne : Démarrage est ouvert d'emblée, puis
  * chaque onglet s'ouvre quand l'élève a validé le précédent (bouton en bas
- * de page) : Démarrage → Recherche produit → Créatives → Ta boutique →
- * Campagnes Meta. Le formulaire d'onboarding (accueil) ne
+ * de page) : Démarrage → Recherche produit (BrandSearch) → Créatives → Ta boutique →
+ * Recherche produit (Instagram, la méthode de Mady) → Campagnes Meta. Le formulaire d'onboarding (accueil) ne
  * verrouille rien : quand l'élève dit l'avoir rempli, Mady reçoit une
  * notification et la marque « vu ». Studio IA, Mes étapes et Ressources
  * restent ouverts. Module pur : serveur et navigateur.
@@ -19,13 +19,14 @@ import type { Student } from "./types";
  */
 export const LOCK_CHAIN = false;
 
-export type GateTab = "demarrage" | "produit" | "boutique" | "creatives" | "meta";
+export type GateTab = "demarrage" | "produit" | "boutique" | "creatives" | "instagram" | "meta";
 
 export const GATE_TABS: { key: GateTab; href: string; label: string; doneLabel: string }[] = [
   { key: "demarrage", href: "/formation/demarrage", label: "Démarrage", doneLabel: "J'ai tout installé (VS Code, Claude Code, Shopify)" },
-  { key: "produit", href: "/formation/produit", label: "Recherche produit", doneLabel: "Mon produit est validé par Mady" },
+  { key: "produit", href: "/formation/produit", label: "Recherche produit · BrandSearch", doneLabel: "Mon produit est validé par Mady" },
   { key: "creatives", href: "/formation/creatives", label: "Créatives", doneLabel: "Mes créatives sont prêtes" },
   { key: "boutique", href: "/formation/boutique", label: "Ta boutique", doneLabel: "Ma boutique est en ligne" },
+  { key: "instagram", href: "/formation/produit-instagram", label: "Recherche produit · Instagram", doneLabel: "J'ai vu la méthode Instagram de Mady" },
   { key: "meta", href: "/formation/meta", label: "Campagnes Meta", doneLabel: "Mes campagnes sont lancées 🚀" },
 ];
 

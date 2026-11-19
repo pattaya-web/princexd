@@ -16,13 +16,15 @@ export interface VideoLessonValue {
   steps: string;
 }
 
-/** Les trois leçons vidéo portées par les réglages « méthode » : boutique, créatives, Meta. */
-export type VideoLessonKey = "shop" | "creatives" | "meta";
+/** Les leçons vidéo portées par les réglages « méthode » : boutique, créatives, Meta, « respecte la méthode », recherche produit Instagram. */
+export type VideoLessonKey = "shop" | "creatives" | "meta" | "method" | "instagram";
 
 const FIELDS: Record<VideoLessonKey, { url: keyof StudentMethodSettings; summary: keyof StudentMethodSettings; steps: keyof StudentMethodSettings }> = {
   shop: { url: "shopVideoUrl", summary: "shopVideoSummary", steps: "shopVideoSteps" },
   creatives: { url: "creativesVideoUrl", summary: "creativesVideoSummary", steps: "creativesVideoSteps" },
   meta: { url: "metaVideoUrl", summary: "metaVideoSummary", steps: "metaVideoSteps" },
+  method: { url: "methodVideoUrl", summary: "methodVideoSummary", steps: "methodVideoSteps" },
+  instagram: { url: "instagramVideoUrl", summary: "instagramVideoSummary", steps: "instagramVideoSteps" },
 };
 
 export function lessonOf(m: StudentMethodSettings, key: VideoLessonKey): VideoLessonValue {

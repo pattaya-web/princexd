@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { ErrorNote, Spinner, useToast } from "@/components/ui";
@@ -292,6 +293,25 @@ export default function BoutiquePage() {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* 05 / Boutique montée : la vidéo « respecte la méthode, ne saute aucune étape », puis la recherche produit Instagram. */}
+      <MethodVideoLesson
+        lesson="method"
+        n="05"
+        title="Avant de commencer : respecte la méthode, ne saute aucune étape"
+        intro="Ta boutique est montée. Avant d'aller plus loin, écoute ça une fois en entier : la méthode marche si tu la suis dans l'ordre, sans sauter d'étape."
+        placeholder="La vidéo arrive bientôt."
+      />
+
+      <section className="card p-5">
+        <SectionLabel n="06" title="Étape suivante : la recherche produit Instagram" />
+        <p className="muted text-[13.5px] mt-3 leading-relaxed max-w-[64ch]">
+          La deuxième stratégie de recherche produit de Mady, celle qu&apos;il utilise au quotidien (la première, c&apos;est BrandSearch). Puis tu passes aux campagnes Meta.
+        </p>
+        <Link href="/formation/produit-instagram" className="btn btn-primary btn-sm mt-3">
+          Recherche produit · Instagram →
+        </Link>
       </section>
 
       <PortalFooter quote="La page est faite. Ton seul travail : ton produit, tes textes, tes images." author="Mady" />

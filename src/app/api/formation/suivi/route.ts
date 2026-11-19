@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     requireAdmin(readSession(req));
     const db = readDB();
     const students = db.students.filter((s) => s.username || s.portalAccess);
-    const counts = { demarrage: 0, produit: 0, boutique: 0, creatives: 0, meta: 0, done: 0 } as Record<GateTab | "done", number>;
+    const counts = { demarrage: 0, produit: 0, boutique: 0, creatives: 0, instagram: 0, meta: 0, done: 0 } as Record<GateTab | "done", number>;
     const events: SuiviEvent[] = [];
 
     const rows = students

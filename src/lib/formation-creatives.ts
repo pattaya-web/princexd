@@ -513,11 +513,11 @@ Ajoute pour chaque visuel la légende courte (5 mots) à mettre sous chaque imag
     kind: "strategie",
     title: "7. Ton plan de créatives pour la première campagne",
     target: "Claude ou GPT",
-    text: `Tu es média buyer Meta Ads. Je lance ma première campagne de test (objectif Ventes, 1 CBO, 1 ad set large) avec un budget de [ex. 30 à 50 €/jour] pour mon produit : [description], cible : [cible], boutique : [URL].
+    text: `Tu es média buyer Meta Ads. Je lance ma première campagne de test (objectif Ventes, 1 campagne ABO, 1 ad set large à 50 €/jour, 6 créatives) pour mon produit : [description], cible : [cible], boutique : [URL].
 
 J'ai ces angles : [colle tes 3 meilleurs angles de l'étape 1]. ${RATIO_RULE}
 
-Dis-moi exactement quelles créatives produire pour la campagne de test : combien de vidéos UGC (9:16), combien d'images statiques (3:4, 1:1 ou 9:16), quel angle pour chacune, quel hook. Objectif : 5 à 8 créatives (par exemple 2 vidéos + 3 à 6 images), pas plus, qui testent des angles différents et pas des variantes du même.
+Dis-moi exactement quelles créatives produire pour la campagne de test : combien de vidéos UGC (9:16), combien d'images statiques (3:4, 1:1 ou 9:16), quel angle pour chacune, quel hook. Objectif : 6 créatives, pas plus : 6 statiques si mon produit se comprend sans vidéo, 6 vidéos s'il se démontre (dis-moi lequel des deux pour mon produit), qui testent des angles différents et pas des variantes du même.
 
 Pour chaque créative : nom de fichier à lui donner (ex. UGC-angle1-hookA-9x16), texte principal de la pub (3 lignes), titre (5 mots), description (1 ligne), appel à l'action. Puis donne-moi la grille de lecture pour J+3 : les 4 chiffres à regarder (dépense, CPM, CTR, coût par achat), les seuils pour couper, garder ou scaler chaque créative.`,
   },

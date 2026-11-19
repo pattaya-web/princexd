@@ -82,9 +82,15 @@ Crée la vidéo (onglet Création) : image de départ en 9:16, deux à quatre ph
 Adapte les prompts de Mady : copie la structure d'un prompt exemple (sous la vidéo) et dis à Claude « mon coach m'a envoyé cette structure pour des vidéos Seedance 2.5, adapte-la à mon produit avec la même structure, voici ma page produit ». Ajoute « la personne dit le prix du produit » si tu veux.
 Ta livraison : un drive avec 5 à 8 créatives (par exemple 2 vidéos + 3 à 6 images), plus les médias de la boutique (images produit et visuels de la page d'accueil, faux packaging si tu veux) pour une boutique premium, pas bâclée.
 Prends de l'avance : demande à Claude pour Chrome de créer ton compte Ads Manager et ton Pixel et de les connecter à ta boutique. Prochaine vidéo : les campagnes Meta. Claude et GPT sont tes meilleurs amis : micro, captures d'écran, corrections, tout le temps.`,
-  metaVideoUrl: "",
+  metaVideoUrl: "https://youtu.be/UeC3tMAf1yU",
   metaVideoSummary: "",
   metaVideoSteps: "",
+  methodVideoUrl: "https://youtu.be/IfjgpEpnyi4",
+  methodVideoSummary: "",
+  methodVideoSteps: "",
+  instagramVideoUrl: "https://youtu.be/OPheKq0FyAc",
+  instagramVideoSummary: "",
+  instagramVideoSteps: "",
 };
 
 export function methodSettings(settings: Pick<Settings, "studentMethod">): StudentMethodSettings {
@@ -103,9 +109,15 @@ export function methodSettings(settings: Pick<Settings, "studentMethod">): Stude
     creativesVideoUrl: (s.creativesVideoUrl ?? "").trim() || DEFAULT_METHOD.creativesVideoUrl,
     creativesVideoSummary: (s.creativesVideoSummary ?? "").trim() || DEFAULT_METHOD.creativesVideoSummary,
     creativesVideoSteps: (s.creativesVideoSteps ?? "").trim() || DEFAULT_METHOD.creativesVideoSteps,
-    metaVideoUrl: (s.metaVideoUrl ?? "").trim(),
+    metaVideoUrl: (s.metaVideoUrl ?? "").trim() || DEFAULT_METHOD.metaVideoUrl,
     metaVideoSummary: (s.metaVideoSummary ?? "").trim(),
     metaVideoSteps: (s.metaVideoSteps ?? "").trim(),
+    methodVideoUrl: (s.methodVideoUrl ?? "").trim() || DEFAULT_METHOD.methodVideoUrl,
+    methodVideoSummary: (s.methodVideoSummary ?? "").trim(),
+    methodVideoSteps: (s.methodVideoSteps ?? "").trim(),
+    instagramVideoUrl: (s.instagramVideoUrl ?? "").trim() || DEFAULT_METHOD.instagramVideoUrl,
+    instagramVideoSummary: (s.instagramVideoSummary ?? "").trim(),
+    instagramVideoSteps: (s.instagramVideoSteps ?? "").trim(),
   };
 }
 
@@ -140,6 +152,12 @@ export function readMethodSettings(raw: Partial<StudentMethodSettings>): Student
     metaVideoUrl: str(raw.metaVideoUrl, 500),
     metaVideoSummary: str(raw.metaVideoSummary, 6000),
     metaVideoSteps: str(raw.metaVideoSteps, 8000),
+    methodVideoUrl: str(raw.methodVideoUrl, 500),
+    methodVideoSummary: str(raw.methodVideoSummary, 6000),
+    methodVideoSteps: str(raw.methodVideoSteps, 8000),
+    instagramVideoUrl: str(raw.instagramVideoUrl, 500),
+    instagramVideoSummary: str(raw.instagramVideoSummary, 6000),
+    instagramVideoSteps: str(raw.instagramVideoSteps, 8000),
   };
 }
 

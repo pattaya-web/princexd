@@ -1130,6 +1130,14 @@ export interface StudentMethodSettings {
   metaVideoUrl: string;
   metaVideoSummary: string;
   metaVideoSteps: string;
+  /** Video « Avant de commencer : respecte la methode » (en bas de Ta boutique), son resume, ses etapes. */
+  methodVideoUrl: string;
+  methodVideoSummary: string;
+  methodVideoSteps: string;
+  /** Video « Strategie de recherche produit sur Instagram » (onglet Recherche produit · Instagram), son resume, ses etapes. */
+  instagramVideoUrl: string;
+  instagramVideoSummary: string;
+  instagramVideoSteps: string;
 }
 
 /** Le theme Shopify de Mady, depose par l'admin et telechargeable par les eleves. */

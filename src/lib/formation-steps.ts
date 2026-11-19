@@ -105,7 +105,7 @@ const SEED: SeedV2[] = [
     was: /boutique est générée|boutique est generee|demande ta boutique|construis ta boutique|thème de mady/i,
     title: "Mets le thème de Mady sur ta boutique avec Claude Code",
     detail:
-      "Page Ta boutique : télécharge le thème, mets-le dans ton dossier « Prénom boutique » avec tes créatives, colle le message à Claude Code dans VS Code. Il remplace textes, images et vidéos par les tiens, section par section ; tu ne touches pas au design. Puis « mets en ligne », commande test (Démarrage, section 09).\n\n✅ Fait quand : tu peux acheter sur ta boutique depuis ton téléphone.",
+      "Page Ta boutique : télécharge le thème, mets-le dans ton dossier « Prénom boutique » avec tes créatives, colle le message à Claude Code dans VS Code. Il remplace textes, images et vidéos par les tiens, section par section ; tu ne touches pas au design. Puis « mets en ligne », commande test (Démarrage, section 09). Boutique en ligne : regarde la vidéo « Avant de commencer : respecte la méthode » en bas de la page, puis l'onglet Recherche produit · Instagram (la méthode de Mady).\n\n✅ Fait quand : tu peux acheter sur ta boutique depuis ton téléphone.",
     link: "/formation/boutique",
   },
   {
@@ -119,7 +119,7 @@ const SEED: SeedV2[] = [
     was: /premi[èe]re campagne/i,
     title: "Lance ta première campagne Meta Ads",
     detail:
-      "Page Campagnes Meta, la trame standard : objectif Ventes, CBO 30 à 50 €/jour, 1 ad set large, 5 à 8 créatives. Lancement le soir, 3 jours sans toucher, décision à J+3, puis +20 % tous les 2 jours si ça tient.\n\n✅ Fait quand : la campagne est active et dépense.",
+      "Page Campagnes Meta : regarde la vidéo de Mady, puis reproduis sa structure : objectif Ventes, 1 campagne ABO, 1 ad set à 50 €/jour, 6 créatives dedans (6 statiques ou 6 vidéos selon ton produit). 3 jours sans toucher (jour 2 seulement si les stats sont vraiment éclatées). Enveloppe ads : 1 000 € idéal, 400 à 500 € acceptable, en dessous tu attends.\n\n✅ Fait quand : la campagne est active et dépense.",
     link: "/formation/meta",
   },
   {
@@ -145,7 +145,7 @@ export function ensureCourseSteps(db: DB): boolean {
 }
 
 /** Version du texte des étapes par défaut. Monter ce numéro réécrit les étapes déjà en base (ids conservés). */
-const SEED_VERSION = 6;
+const SEED_VERSION = 7;
 
 /**
  * Met à jour les étapes déjà en base vers la dernière version du texte par
