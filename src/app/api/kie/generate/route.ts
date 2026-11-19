@@ -4,6 +4,7 @@ import { insert } from "@/lib/db";
 import { getModel } from "@/lib/models";
 import { scopeError, studioScope, withScope } from "@/lib/studio-tenant";
 import { WIDE_RATIO, wideSubstitute } from "@/lib/studio/wide";
+import { missingReferenceMessage, promptWithReferences } from "@/lib/studio/ref-numbering";
 import type { Generation } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -69,6 +70,23 @@ export async function POST(req: NextRequest) {
   const target = def.withImages && hasRefs ? def.withImages : model;
 
   /*
+   * « Photo 1 », « photo 2 » dans le prompt : les modèles lisent les
+   * références dans l'ordre d'envoi (celui des vignettes, réglable à la
+   * souris). Les mentions deviennent « [Image N] » avec une légende en tête,
+   * pour le modèle seulement : la galerie et les relances gardent le texte
+   * tapé. Une photo citée qui n'est pas là arrête tout avant de payer.
+   */
+  const refCount = Math.max(
+    0,
+    ...["image_input", "image_urls", "input_urls", "reference_image_urls"].map((k) => (Array.isArray(payload[k]) ? (payload[k] as unknown[]).length : 0)),
+  );
+  const numbered = typeof payload.prompt === "string" ? promptWithReferences(payload.prompt, refCount) : null;
+  if (numbered?.missing.length && refCount > 0) {
+    return NextResponse.json({ error: missingReferenceMessage(numbered.missing, refCount) }, { status: 400 });
+  }
+  const sentPrompt = numbered?.cited.length ? numbered.prompt : null;
+
+  /*
    * « Fond : Auto » n'est pas une valeur, c'est l'absence de consigne. KIE le
    * refuse pourtant sur GPT Image 2 en 2K (« generation with background is
    * temporarily unavailable at the current resolution ») : on ne l'envoie pas.
@@ -96,13 +114,13 @@ export async function POST(req: NextRequest) {
   try {
     const taskId = await withScope(scope, async () => {
       try {
-        return await createTask(target, payload, callback);
+        return await createTask(target, sentPrompt ? { ...payload, prompt: sentPrompt } : payload, callback);
       } catch (e) {
         // Fond explicite refuse a cette definition : on retente sans, plutot que d'echouer.
         const msg = (e as KieError).message ?? "";
         if (payload.background && /generation with background/i.test(msg)) {
           delete payload.background;
-          return await createTask(target, payload, callback);
+          return await createTask(target, sentPrompt ? { ...payload, prompt: sentPrompt } : payload, callback);
         }
         throw e;
       }

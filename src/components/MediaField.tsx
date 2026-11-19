@@ -104,13 +104,44 @@ interface Item {
 let seq = 0;
 const newId = () => `m${Date.now().toString(36)}${(seq++).toString(36)}`;
 
-function Thumb({ item, kind, onRemove, small }: { item: Item; kind: string; onRemove: () => void; small?: boolean }) {
+/** Type interne d'un glisser de vignette : le distingue d'un fichier déposé depuis le bureau. */
+const REORDER_TYPE = "application/x-studio-ref";
+
+interface ThumbDrag {
+  /** Numéro affiché sur la vignette : c'est « photo N » dans le prompt. */
+  n: number;
+  /** Vignette en cours de déplacement (estompée). */
+  dragging: boolean;
+  /** Vignette survolée par une autre : la place où l'autre va s'insérer. */
+  target: boolean;
+  props: React.HTMLAttributes<HTMLSpanElement> & { draggable: boolean };
+}
+
+function Thumb({ item, kind, onRemove, small, drag }: { item: Item; kind: string; onRemove: () => void; small?: boolean; drag?: ThumbDrag }) {
   return (
     <span
       className="relative rounded-[8px] overflow-hidden shrink-0"
-      style={{ width: small ? 52 : 68, height: small ? 52 : 84, background: "var(--surface-3)", border: "1px solid var(--border)" }}
-      title={item.name}
+      style={{
+        width: small ? 52 : 68,
+        height: small ? 52 : 84,
+        background: "var(--surface-3)",
+        border: `1px solid ${drag?.target ? "var(--accent)" : "var(--border)"}`,
+        boxShadow: drag?.target ? "0 0 0 2px var(--accent)" : undefined,
+        opacity: drag?.dragging ? 0.35 : 1,
+        cursor: drag?.props.draggable ? "grab" : undefined,
+        transition: "box-shadow 120ms, opacity 120ms",
+      }}
+      title={drag ? `Photo ${drag.n} : « photo ${drag.n} » dans ton prompt. Glisse pour changer l'ordre.` : item.name}
+      {...drag?.props}
     >
+      {drag && (
+        <span
+          className="absolute top-1 left-1 z-[1] grid place-items-center rounded-full text-[10.5px] font-bold leading-none pointer-events-none"
+          style={{ minWidth: 18, height: 18, padding: "0 4px", background: "var(--accent)", color: "var(--accent-on)" }}
+        >
+          {drag.n}
+        </span>
+      )}
       {item.pending ? (
         <>
           {item.preview && <img src={item.preview} alt="" className="w-full h-full object-cover" style={{ opacity: 0.6 }} />}
@@ -227,6 +258,65 @@ export function MediaField({
 
   const full = items.length >= max;
 
+  /*
+   * Réordonner à la souris. L'ordre des vignettes est l'ordre d'envoi au
+   * modèle, donc « photo 1 », « photo 2 » dans le prompt (voir
+   * lib/studio/ref-numbering). Glisser natif HTML5 avec un type interne : un
+   * fichier déposé depuis le bureau garde son chemin habituel (ajout).
+   */
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const isReorder = (e: React.DragEvent) => Array.from(e.dataTransfer.types).includes(REORDER_TYPE);
+  const move = (fromId: string, toId: string) => {
+    const list = itemsRef.current.slice();
+    const from = list.findIndex((x) => x.id === fromId);
+    const to = list.findIndex((x) => x.id === toId);
+    if (from < 0 || to < 0 || from === to) return;
+    const [it] = list.splice(from, 1);
+    list.splice(to, 0, it);
+    commit(list);
+  };
+  const reorderable = multiple && items.length > 1 && !disabled;
+  const dragFor = (it: Item, i: number): ThumbDrag | undefined => {
+    if (!multiple || items.length < 2) return undefined;
+    const can = reorderable && !it.pending;
+    return {
+      n: i + 1,
+      dragging: dragId === it.id,
+      target: overId === it.id && dragId !== null && dragId !== it.id,
+      props: {
+        draggable: can,
+        onDragStart: (e) => {
+          if (!can) return;
+          e.dataTransfer.setData(REORDER_TYPE, it.id);
+          e.dataTransfer.effectAllowed = "move";
+          setDragId(it.id);
+        },
+        onDragEnd: () => {
+          setDragId(null);
+          setOverId(null);
+        },
+        onDragOver: (e) => {
+          if (!isReorder(e)) return;
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = "move";
+          if (overId !== it.id) setOverId(it.id);
+        },
+        onDragLeave: () => setOverId((cur) => (cur === it.id ? null : cur)),
+        onDrop: (e) => {
+          if (!isReorder(e)) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const from = e.dataTransfer.getData(REORDER_TYPE) || dragId;
+          if (from) move(from, it.id);
+          setDragId(null);
+          setOverId(null);
+        },
+      },
+    };
+  };
+
   /* Ctrl+V : une capture d'ecran devient une image de reference. Le premier champ libre la prend. */
   const stateRef = useRef({ full, disabled });
   stateRef.current = { full, disabled };
@@ -245,7 +335,13 @@ export function MediaField({
   }, [kind]);
   const [over, setOver] = useState(false);
   const dropProps = {
-    onDragOver: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); if (!over) setOver(true); },
+    onDragOver: (e: React.DragEvent) => {
+      // Une vignette qu'on réordonne ne s'ajoute pas : la case « + » l'ignore.
+      if (isReorder(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (!over) setOver(true);
+    },
     onDragLeave: () => setOver(false),
     onDrop: (e: React.DragEvent) => {
       e.preventDefault();
@@ -260,8 +356,8 @@ export function MediaField({
 
   const tiles = (
       <div className="flex gap-2 items-center flex-wrap">
-        {items.map((it) => (
-          <Thumb key={it.id} item={it} kind={kind} small={compact} onRemove={() => remove(it.id)} />
+        {items.map((it, i) => (
+          <Thumb key={it.id} item={it} kind={kind} small={compact} onRemove={() => remove(it.id)} drag={dragFor(it, i)} />
         ))}
 
         {!full && (
@@ -294,6 +390,11 @@ export function MediaField({
         )}
       </div>
   );
+  const hint = multiple && kind === "image" && items.length > 1 && (
+    <span className="dim text-[11px] block mt-1.5 leading-snug">
+      Glisse les photos pour changer l&apos;ordre. Dans ton prompt, « photo 1 », « photo 2 »… suivent ces numéros.
+    </span>
+  );
   const err = error && (
     <span className="text-[11.5px] block mt-1.5" style={{ color: "var(--critical)" }}>
       {error}
@@ -304,6 +405,7 @@ export function MediaField({
     return (
       <div className="max-w-[236px]">
         {tiles}
+        {hint}
         {err}
       </div>
     );
@@ -311,6 +413,7 @@ export function MediaField({
   return (
     <Field label={field.label}>
       {tiles}
+      {hint}
       {err}
     </Field>
   );

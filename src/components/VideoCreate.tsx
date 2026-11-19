@@ -58,6 +58,18 @@ const DURATIONS: { value: number; label: string }[] = [
   { value: 30, label: "30 s" },
 ];
 
+/** Numéro d'une photo envoyée en référence : c'est « photo N » dans le prompt. */
+function RefBadge({ n }: { n: number }) {
+  return (
+    <span
+      className="absolute top-1 left-1 z-[1] grid place-items-center rounded-full text-[10.5px] font-bold leading-none pointer-events-none"
+      style={{ minWidth: 18, height: 18, padding: "0 4px", background: "var(--accent)", color: "var(--accent-on)" }}
+    >
+      {n}
+    </span>
+  );
+}
+
 /** `student` : Studio d'un élève, sans la dictée (transcription sur la clé OpenAI du compte). */
 export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJob[]; onQueued: (jobs: StudioJob[]) => void; student?: boolean }) {
   const toast = useToast();
@@ -68,6 +80,17 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
   const [products, setProducts] = useState<Media[]>([]);
   const [productBusy, setProductBusy] = useState(false);
   const [productDescription, setProductDescription] = useState("");
+  /* Réordonner les photos produit à la souris : leur ordre est celui de « photo 2 », « photo 3 »… dans le prompt. */
+  const [dragProduct, setDragProduct] = useState<number | null>(null);
+  const [overProduct, setOverProduct] = useState<number | null>(null);
+  const moveProduct = (from: number, to: number) =>
+    setProducts((arr) => {
+      if (from === to || from < 0 || to < 0 || from >= arr.length || to >= arr.length) return arr;
+      const next = arr.slice();
+      const [it] = next.splice(from, 1);
+      next.splice(to, 0, it);
+      return next;
+    });
   const [script, setScript] = useState("");
   const [language, setLanguage] = useLocalState<string>("create-language", "fr");
   const [scene, setScene] = useState("");
@@ -215,6 +238,7 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
             onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (busy) return; const f = droppedFiles(e).find((x) => x.type.startsWith("image/") || isImageName(x.name)); if (f) void setStartFile(f); }}
           >
             {startBusy ? <span className="spinner" /> : start ? <ThumbImg src={start.url} className="w-full h-full object-cover" /> : <span className="dim text-[12px] text-center px-2">+ Image</span>}
+            {start && products.length > 0 && <RefBadge n={1} />}
             <input type="file" hidden accept="image/*,.jfif,.jpe,.heic,.heif,.avif" disabled={busy} onChange={async (e) => { const f = (await takeFiles(e.currentTarget))[0]; if (f) void setStartFile(f); }} />
           </label>
           {(characters.rows.length > 0 || recentImages.length > 0) && (
@@ -242,8 +266,46 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
       <Field label="Produit (optionnel)" hint="2 à 4 photos du produit seul, sous plusieurs angles : il reste identique quand la main bouge. Avec des photos, l'image de départ passe en référence (fidélité au cadrage un peu moindre).">
         <div className="flex gap-2 items-center flex-wrap">
           {products.map((p, i) => (
-            <div key={p.url} className="relative rounded-[8px] overflow-hidden" style={{ width: 56, height: 56, border: "1px solid var(--border)" }}>
+            <div
+              key={p.url}
+              className="relative rounded-[8px] overflow-hidden"
+              style={{
+                width: 56,
+                height: 56,
+                border: `1px solid ${overProduct === i && dragProduct !== null && dragProduct !== i ? "var(--accent)" : "var(--border)"}`,
+                boxShadow: overProduct === i && dragProduct !== null && dragProduct !== i ? "0 0 0 2px var(--accent)" : undefined,
+                opacity: dragProduct === i ? 0.35 : 1,
+                cursor: products.length > 1 && !busy ? "grab" : undefined,
+              }}
+              title={`Photo ${i + 2} : « photo ${i + 2} » dans ton prompt.${products.length > 1 ? " Glisse pour changer l'ordre." : ""}`}
+              draggable={products.length > 1 && !busy}
+              onDragStart={(e) => {
+                e.dataTransfer.setData("application/x-studio-product", String(i));
+                e.dataTransfer.effectAllowed = "move";
+                setDragProduct(i);
+              }}
+              onDragEnd={() => {
+                setDragProduct(null);
+                setOverProduct(null);
+              }}
+              onDragOver={(e) => {
+                if (!Array.from(e.dataTransfer.types).includes("application/x-studio-product")) return;
+                e.preventDefault();
+                e.stopPropagation();
+                if (overProduct !== i) setOverProduct(i);
+              }}
+              onDrop={(e) => {
+                if (!Array.from(e.dataTransfer.types).includes("application/x-studio-product")) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const from = Number(e.dataTransfer.getData("application/x-studio-product"));
+                if (Number.isFinite(from)) moveProduct(from, i);
+                setDragProduct(null);
+                setOverProduct(null);
+              }}
+            >
               <ThumbImg src={p.url} className="w-full h-full object-cover" />
+              <RefBadge n={i + 2} />
               <button type="button" className="absolute top-0 right-0 text-[11px] px-1" style={{ background: "var(--surface)", borderRadius: "0 0 0 6px" }} title="Retirer" onClick={() => setProducts((arr) => arr.filter((_, k) => k !== i))} disabled={busy}>✕</button>
             </div>
           ))}
@@ -258,6 +320,11 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
               {productBusy ? <span className="spinner" /> : <span className="dim text-[11px]">+</span>}
               <input type="file" hidden multiple accept="image/*,.jfif,.jpe,.heic,.heif,.avif" disabled={busy} onChange={async (e) => void addProductFiles(await takeFiles(e.currentTarget))} />
             </label>
+          )}
+          {products.length > 0 && start && (
+            <span className="dim text-[11px] basis-full leading-snug">
+              Dans ton prompt : « photo 1 » = l&apos;image de départ, « photo 2 », « photo 3 »… = les photos produit dans cet ordre{products.length > 1 ? " (glisse pour le changer)" : ""}.
+            </span>
           )}
           {products.length > 0 && (
             <input className="input !w-auto !min-w-[220px]" placeholder="Ce que c'est : ex. bracelet en acier noir" value={productDescription} onChange={(e) => setProductDescription(e.target.value)} disabled={busy} />

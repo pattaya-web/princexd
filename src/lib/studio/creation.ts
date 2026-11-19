@@ -3,6 +3,7 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { CREATION } from "./config";
 import { ensureLocal, isAllowedRemote, localMediaPath, publishToKie } from "./media";
 import { toEnglish } from "./prompt-enhancer";
+import { numberReferences } from "./ref-numbering";
 import { parseCreationScript } from "./script-parse";
 import type { CreateRequest, StudioJob } from "./types";
 
@@ -182,10 +183,31 @@ export function buildCreationPrompt(opts: {
       `The next ${opts.productCount} reference image${opts.productCount > 1 ? "s show" : " shows"} the product (${opts.productDescription || "the product"}): reproduce it exactly, same shape, colors, materials and text, whenever it is visible.`,
     );
   }
-  if (opts.sceneEn) parts.push(opts.directed ? `Direction, follow it closely (camera, movement, gestures, sound): ${opts.sceneEn}` : opts.sceneEn);
+  /*
+   * « Photo 1 », « photo 2 » dans la consigne : l'image de départ est la 1,
+   * les photos produit suivent dans l'ordre réglé à la souris (voir
+   * lib/studio/ref-numbering). En « first frame », seule la 1 existe.
+   */
+  const refCount = opts.mode === "references" ? 1 + opts.productCount : 1;
+  const refs = numberReferences(opts.sceneEn, refCount);
+  const sceneEn = refs.prompt;
+  if (refs.cited.length) {
+    const products =
+      opts.productCount > 1
+        ? `, [Image 2] to [Image ${refCount}] are the product reference images, in the order attached`
+        : opts.productCount === 1
+          ? ", [Image 2] is the product reference image"
+          : "";
+    parts.push(
+      opts.mode === "references"
+        ? `Numbered images in the direction below: [Image 1] is the first reference image (the opening shot)${products}.`
+        : "[Image 1] in the direction below is the first frame.",
+    );
+  }
+  if (sceneEn) parts.push(opts.directed ? `Direction, follow it closely (camera, movement, gestures, sound): ${sceneEn}` : sceneEn);
   if (opts.directed) {
     parts.push(`The person speaks in ${lang}, lips perfectly synchronized with the words, natural pauses.`);
-    const soundDirected = /\b(sound|audio|music|ambien|noise)\b/i.test(opts.sceneEn);
+    const soundDirected = /\b(sound|audio|music|ambien|noise)\b/i.test(sceneEn);
     parts.push(
       soundDirected
         ? "Audio: the person's voice, clear and close, plus the sound described in the direction. No subtitles, no captions, no on-screen text, no logo."
