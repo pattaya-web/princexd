@@ -32,6 +32,58 @@ export interface JobActions {
   /** Ouvre le choix de voix pour l'appliquer sur une video deja generee. */
   onChangeVoice: (job: StudioJob) => void;
   onDelete: (job: StudioJob) => void;
+  /** Passe la vidéo livrée en 30 ou 60 i/s (interpolation), 0 = retour à la cadence du modèle. */
+  onFps: (job: StudioJob, fps: 0 | 30 | 60) => void;
+}
+
+/** Ce que dit la carte de la cadence : en cours, obtenue, ou rien. */
+export function fpsBadge(job: StudioJob): string {
+  if (typeof job.fpsPending === "number") return job.fpsPending ? `${job.fpsPending} i/s…` : "retour…";
+  return job.fpsApplied ? `${job.fpsApplied} i/s` : "";
+}
+
+/**
+ * Fluidité d'une vidéo livrée : cadence du modèle, 30 ou 60 i/s. Le calcul
+ * (interpolation de mouvement) tourne sur le serveur, 2 à 4 min pour 10 s.
+ */
+export function FpsControl({ job, actions }: { job: StudioJob; actions: JobActions }) {
+  const pending = typeof job.fpsPending === "number";
+  const current = job.fpsBaseOutput ? job.fpsApplied ?? 0 : 0;
+  const choices: { fps: 0 | 30 | 60; label: string }[] = [
+    { fps: 0, label: "Cadence du modèle" },
+    { fps: 30, label: "30 i/s" },
+    { fps: 60, label: "60 i/s" },
+  ];
+  return (
+    <div>
+      <span className="label-xs block mb-1.5">Fluidité</span>
+      <div className="flex flex-wrap gap-1.5">
+        {choices.map((c) => {
+          const active = pending ? job.fpsPending === c.fps : current === c.fps;
+          return (
+            <button
+              key={c.fps}
+              type="button"
+              className="px-2.5 h-[26px] rounded-full text-[12px]"
+              disabled={pending || active || (c.fps === 0 && !job.fpsBaseOutput)}
+              onClick={() => actions.onFps(job, c.fps)}
+              style={active ? { background: "var(--accent)", color: "var(--accent-on)" } : { border: "1px solid var(--border)" }}
+            >
+              {c.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="dim text-[11px] mt-1.5 leading-snug">
+        {pending
+          ? `Calcul des images intermédiaires en cours (2 à 4 min pour 10 s). La vidéo actuelle reste disponible.`
+          : job.fpsApplied && !job.fpsBaseOutput
+            ? `Vidéo déjà à ${job.fpsApplied} i/s.`
+            : "Les images manquantes sont calculées à partir du mouvement : plus fluide, son inchangé."}
+      </p>
+      {job.fpsError && <p className="text-[11px] mt-1" style={{ color: "var(--critical)" }}>{job.fpsError}</p>}
+    </div>
+  );
 }
 
 export function jobDownloadHref(job: StudioJob) {
@@ -188,11 +240,23 @@ export function StudioJobCard({
           >
             ▶
           </span>
-          {job.voiceError && (
-            <span className="absolute top-1.5 right-1.5 badge badge-warn !text-[10px] !py-0" title={job.voiceError}>
-              voix ✕
-            </span>
-          )}
+          <div className="absolute top-1.5 right-1.5 flex gap-1 pointer-events-none">
+            {fpsBadge(job) && (
+              <span className="badge !text-[10px] !py-0" title={typeof job.fpsPending === "number" ? "Passage à la nouvelle cadence en cours" : "Images par seconde de la vidéo livrée"}>
+                {fpsBadge(job)}
+              </span>
+            )}
+            {job.fpsError && (
+              <span className="badge badge-warn !text-[10px] !py-0" title={job.fpsError}>
+                i/s ✕
+              </span>
+            )}
+            {job.voiceError && (
+              <span className="badge badge-warn !text-[10px] !py-0" title={job.voiceError}>
+                voix ✕
+              </span>
+            )}
+          </div>
           <div className="tile-actions absolute bottom-1.5 left-1.5 right-1.5 flex items-center gap-1">
             <button className="btn btn-sm !px-1.5" onClick={() => actions.onOpen(job)} title="Voir">▶</button>
             <a href={jobDownloadHref(job)} download className="btn btn-sm !px-1.5" title="Télécharger">⬇</a>
@@ -207,6 +271,19 @@ export function StudioJobCard({
                   <button className="px-3 py-2 text-[12px] text-left hover:bg-[var(--surface-2)]" onClick={() => { setMenu(false); actions.onUseAsReference(job); }}>
                     Utiliser comme nouvelle référence
                   </button>
+                  {typeof job.fpsPending !== "number" &&
+                    ([30, 60] as const)
+                      .filter((f) => (job.fpsBaseOutput ? job.fpsApplied : 0) !== f)
+                      .map((f) => (
+                        <button key={f} className="px-3 py-2 text-[12px] text-left hover:bg-[var(--surface-2)]" onClick={() => { setMenu(false); actions.onFps(job, f); }}>
+                          Passer en {f} i/s (plus fluide)
+                        </button>
+                      ))}
+                  {typeof job.fpsPending !== "number" && job.fpsBaseOutput && (
+                    <button className="px-3 py-2 text-[12px] text-left hover:bg-[var(--surface-2)]" onClick={() => { setMenu(false); actions.onFps(job, 0); }}>
+                      Revenir à la cadence du modèle
+                    </button>
+                  )}
                   {job.voiceMode === "transform" && !actions.student && (
                     <button className="px-3 py-2 text-[12px] text-left hover:bg-[var(--surface-2)]" onClick={() => { setMenu(false); actions.onRetry(job, "voice"); }}>
                       Réessayer la voix
@@ -308,6 +385,8 @@ export function StudioJobPreview({ job, actions, onClose }: { job: StudioJob; ac
               {jobSheet(job)}
             </pre>
           </div>
+
+          {output && job.status === "completed" && <FpsControl job={job} actions={actions} />}
 
           <div>
             <span className="label-xs block mb-1.5">Technologie</span>

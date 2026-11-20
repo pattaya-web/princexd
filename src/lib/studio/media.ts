@@ -64,8 +64,10 @@ export function isAllowedRemote(url: string): boolean {
   }
 }
 
-export async function runFf(bin: "ffmpeg" | "ffprobe", args: string[], timeout = 240_000) {
+export async function runFf(bin: "ffmpeg" | "ffprobe", args: string[], timeout = 240_000, opts: { nice?: boolean } = {}) {
   try {
+    // `nice` : un traitement long (interpolation) passe après le site, le serveur n'a que 2 cœurs.
+    if (opts.nice && process.platform === "linux") return await run("nice", ["-n", "15", bin, ...args], { timeout, maxBuffer: 16 * 1024 * 1024 });
     return await run(bin, args, { timeout, maxBuffer: 16 * 1024 * 1024 });
   } catch (e) {
     const err = e as { code?: unknown; stderr?: string; message?: string };
@@ -450,6 +452,67 @@ export async function retimeVideo(videoPath: string, targetSec: number): Promise
   } finally {
     await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+/** Images par seconde de la piste vidéo (0 si illisible). */
+export async function videoFps(file: string): Promise<number> {
+  const { stdout } = await runFf("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=avg_frame_rate,r_frame_rate", "-of", "json", file], 30_000);
+  const s = (JSON.parse(stdout) as { streams?: { avg_frame_rate?: string; r_frame_rate?: string }[] }).streams?.[0] ?? {};
+  const rate = (r?: string) => {
+    const [n, d] = (r ?? "").split("/").map(Number);
+    return n && d ? n / d : 0;
+  };
+  return rate(s.avg_frame_rate) || rate(s.r_frame_rate);
+}
+
+/** Durée de la piste vidéo seule (la durée du fichier compte aussi l'audio). */
+async function videoStreamDuration(file: string): Promise<number> {
+  const { stdout } = await runFf("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=duration:format=duration", "-of", "json", file], 30_000);
+  const j = JSON.parse(stdout) as { streams?: { duration?: string }[]; format?: { duration?: string } };
+  return Number(j.streams?.[0]?.duration) || Number(j.format?.duration) || 0;
+}
+
+/* Une interpolation à la fois : le filtre n'utilise qu'un cœur, mais deux en parallèle saturent le serveur. */
+let fpsChain: Promise<unknown> = Promise.resolve();
+
+/**
+ * Passe une vidéo en 30 ou 60 images par seconde par interpolation de
+ * mouvement (minterpolate) : les images intermédiaires sont calculées, pas
+ * dupliquées, le mouvement devient fluide. L'audio est recopié tel quel, donc
+ * reste synchrone. Compter 2 à 4 min pour 10 s de 720p en 60 i/s.
+ *
+ * `tpad` + `trim` : minterpolate perd la dernière fraction de seconde ; on
+ * prolonge la dernière image puis on recoupe à la durée exacte de la vidéo.
+ */
+export function interpolateFps(videoPath: string, fps: 30 | 60): Promise<{ url: string; path: string }> {
+  const work = async () => {
+    const duration = await videoStreamDuration(videoPath);
+    const info = await probe(videoPath);
+    const dir = await tmpDir();
+    const out = path.join(dir, `fps${fps}.mp4`);
+    try {
+      await runFf(
+        "ffmpeg",
+        [
+          "-hide_banner", "-loglevel", "error", "-y", "-i", videoPath,
+          "-map", "0:v:0", ...(info.hasAudio ? ["-map", "0:a:0", "-c:a", "copy"] : []),
+          "-filter:v",
+          `tpad=stop_mode=clone:stop_duration=0.5,minterpolate=fps=${fps}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1${duration ? `,trim=duration=${duration.toFixed(3)}` : ""},setpts=PTS-STARTPTS`,
+          "-c:v", "libx264", "-preset", "medium", "-crf", "17", "-pix_fmt", "yuv420p",
+          "-movflags", "+faststart",
+          out,
+        ],
+        40 * 60_000,
+        { nice: true },
+      );
+      return await storeFile(out, ".mp4");
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+    }
+  };
+  const next = fpsChain.then(work, work);
+  fpsChain = next.catch(() => {});
+  return next;
 }
 
 /** Vidéo sans piste audio. */

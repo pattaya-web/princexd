@@ -19,6 +19,12 @@ export type VoiceEngine = "elevenlabs-sts" | "kie-tts";
 export type VoiceAmbience = "raw" | "close" | "room" | "far";
 export type Resolution = "720p" | "1080p";
 export type AspectChoice = "original" | "9:16" | "16:9" | "1:1";
+/**
+ * Images par seconde de la vidéo livrée. Les modèles rendent en 24 ou 25 i/s ;
+ * on interpole ensuite (ffmpeg) : « source » = comme la vidéo d'origine (30 ou
+ * 60), vide = la cadence du modèle, sans traitement.
+ */
+export type FpsChoice = "" | "source" | "30" | "60";
 
 export type StudioJobStatus =
   | "queued"
@@ -68,6 +74,7 @@ export interface TransformRequest {
   resolution: Resolution;
   aspectRatio: AspectChoice;
   variants: number;
+  fps?: FpsChoice;
 }
 
 /** Entrée normalisée passée à un provider vidéo. */
@@ -130,6 +137,7 @@ export interface CreateRequest {
   resolution: "480p" | "720p" | "1080p";
   aspectRatio: "9:16" | "16:9" | "1:1" | "adaptive";
   variants: number;
+  fps?: FpsChoice;
 }
 
 export interface StudioJob {
@@ -221,6 +229,17 @@ export interface StudioJob {
   videoOutput: string;
   audioOutput: string;
   finalOutput: string;
+
+  /** Images par seconde demandées pour la vidéo livrée (interpolation après l'assemblage). */
+  fps?: FpsChoice;
+  /** Cadence réelle de la vidéo livrée quand on l'a traitée ou mesurée (30, 60). */
+  fpsApplied?: number;
+  /** Vidéo avant interpolation : on repart d'elle pour changer de cadence ou revenir en arrière. */
+  fpsBaseOutput?: string;
+  /** Conversion demandée après coup, en cours : 30, 60, ou 0 (retour à la cadence du modèle). */
+  fpsPending?: number;
+  /** Une interpolation ratée garde la vidéo : l'erreur vit à part. */
+  fpsError?: string;
 
   error: string;
   /** Une voix ratée ne détruit pas la vidéo : l'erreur vit à part. */

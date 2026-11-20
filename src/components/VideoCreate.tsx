@@ -98,6 +98,8 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
   const [resolution, setResolution] = useLocalState<"480p" | "720p" | "1080p">("create-resolution", "720p");
   const [aspect, setAspect] = useLocalState<"9:16" | "16:9" | "1:1" | "adaptive">("create-aspect", "9:16");
   const [variants, setVariants] = useState(1);
+  // Seedance rend en 24 i/s : 30 ou 60 par interpolation après coup (2 à 4 min de plus pour 10 s).
+  const [fps, setFps] = useLocalState<"" | "30" | "60">("create-fps", "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -189,6 +191,7 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
       resolution,
       aspectRatio: effectiveAspect,
       variants,
+      fps,
     };
     try {
       // Le proxy répond 502 / 503 / 504 sans l'application (redéploiement, connexion coupée) :
@@ -397,6 +400,14 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
             ))}
           </div>
           {firstFrame && <span className="dim text-[11px] leading-snug">Format imposé par l'image : avec des photos produit, le format redevient libre.</span>}
+        </div>
+        <div className="flex flex-col gap-1" title="Images par seconde de la vidéo livrée. Seedance rend en 24 i/s : les images manquantes sont calculées à partir du mouvement (2 à 4 min de plus pour 10 s), la voix ne bouge pas.">
+          <span className="label-xs">Images / seconde</span>
+          <div className="flex gap-1.5">
+            {([["", "Modèle (24)"], ["30", "30"], ["60", "60"]] as const).map(([v, l]) => (
+              <Chip key={v || "model"} active={fps === v} onClick={() => setFps(v)} disabled={busy}>{l}</Chip>
+            ))}
+          </div>
         </div>
         <div className="flex flex-col gap-1">
           <span className="label-xs">Variantes</span>

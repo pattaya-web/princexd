@@ -94,6 +94,7 @@ export function createCreationJobs(req: CreateRequest, ownerId = ""): StudioJob[
       ...(ownerId ? { ownerId } : {}),
       type: "creation",
       batchId,
+      fps: req.fps === "30" || req.fps === "60" ? req.fps : "",
       provider: "seedance25",
       requestedProvider: "seedance25",
       transform: "full",

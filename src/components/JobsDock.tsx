@@ -221,7 +221,7 @@ export function JobsDock({ studioJobs = true }: { studioJobs?: boolean } = {}) {
             window.dispatchEvent(new CustomEvent(STUDIO_JOBS_EVENT, { detail: body.jobs }));
             setStudio(body.jobs.filter((j) => ACTIVE_STATUSES.includes(j.status)));
           }
-          if (body.jobs.some((j) => ACTIVE_STATUSES.includes(j.status))) active = true;
+          if (body.jobs.some((j) => ACTIVE_STATUSES.includes(j.status) || typeof j.fpsPending === "number")) active = true;
         }
       } catch {
         // Idem : on retentera.

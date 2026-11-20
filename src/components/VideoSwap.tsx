@@ -24,6 +24,7 @@ import type {
   VoiceAmbience,
   VoiceInfo,
   VoiceMode,
+  FpsChoice,
 } from "@/lib/studio/types";
 import { toSupportedImage } from "./MediaField";
 import { ErrorNote, Field, useToast } from "./ui";
@@ -69,6 +70,7 @@ export interface SwapPrefill {
   resolution?: Resolution;
   aspectRatio?: AspectChoice;
   variants?: number;
+  fps?: FpsChoice;
 }
 
 /** « Refaire » : tout ce qu'il faut pour relancer un job à l'identique. */
@@ -92,6 +94,7 @@ export function prefillFromJob(job: StudioJob): SwapPrefill {
     resolution: job.resolution,
     aspectRatio: job.aspectRatio,
     variants: 1,
+    fps: job.fps ?? "",
   };
 }
 
@@ -100,6 +103,14 @@ const STYLES = Object.keys(STYLE_PROMPTS) as StyleId[];
 const VOICE_MODES: VoiceMode[] = ["keep", "transform", "none"];
 const AMBIENCES: VoiceAmbience[] = ["room", "close", "far", "raw"];
 const RESOLUTIONS: Resolution[] = ["720p", "1080p"];
+/** Images par seconde livrées : les modèles rendent en 24-25 i/s, le reste est interpolé. */
+const FPS_OPTIONS: { id: FpsChoice; label: string; short: string }[] = [
+  { id: "source", label: "🎞 Comme l'original", short: "Comme l'original" },
+  { id: "30", label: "🎞 30 i/s", short: "30" },
+  { id: "60", label: "🎞 60 i/s", short: "60" },
+  { id: "", label: "🎞 Cadence du modèle", short: "Modèle" },
+];
+const FPS_HINT = "Images par seconde de la vidéo livrée. Les modèles rendent en 24-25 i/s : les images manquantes sont calculées à partir du mouvement (2 à 4 min de plus pour 10 s), le son ne bouge pas.";
 const ASPECTS: { id: AspectChoice; label: string }[] = [
   { id: "original", label: "Original" },
   { id: "9:16", label: "9:16" },
@@ -349,6 +360,8 @@ export function VideoSwap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider]);
   const [aspectRatio, setAspectRatio] = useLocalState<AspectChoice>("swap-aspect", "original");
+  // Élève : cadence du modèle par défaut, l'interpolation occupe le serveur plusieurs minutes.
+  const [fps, setFps] = useLocalState<FpsChoice>(student ? "swap-fps-eleve" : "swap-fps", student ? "" : "source");
   const [variants, setVariants] = useState(1);
 
   const [voices, setVoices] = useState<VoiceInfo[] | null>(null);
@@ -383,6 +396,7 @@ export function VideoSwap({
     if (prefill.resolution) setResolution(prefill.resolution);
     if (prefill.aspectRatio) setAspectRatio(prefill.aspectRatio);
     if (prefill.variants) setVariants(prefill.variants);
+    if (prefill.fps !== undefined) setFps(prefill.fps);
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefillKey]);
@@ -773,6 +787,7 @@ export function VideoSwap({
       resolution,
       aspectRatio,
       variants,
+      fps,
     };
     try {
       const r = await api<{ jobs: StudioJob[] }>("/api/studio/jobs", { method: "POST", body: JSON.stringify(body) });
@@ -963,6 +978,9 @@ export function VideoSwap({
                 Lèvres synchro
               </label>
             )}
+            <select className="select !w-auto !h-[32px] !text-[12px] !py-0" value={fps} disabled={disabledAll} onChange={(e) => setFps(e.target.value as FpsChoice)} title={FPS_HINT}>
+              {FPS_OPTIONS.map((o) => <option key={o.id || "model"} value={o.id}>{o.label}</option>)}
+            </select>
             <div className="inline-flex items-center rounded-full ml-auto" style={{ border: "1px solid var(--border)", background: "var(--surface)" }} title="Variantes">
               <button className="btn btn-sm btn-ghost !h-[26px] !px-2" disabled={disabledAll || variants <= 1} onClick={() => setVariants((v) => Math.max(1, v - 1))}>−</button>
               <span className="num text-[12px] font-medium w-[18px] text-center">{variants}</span>
@@ -1360,6 +1378,12 @@ export function VideoSwap({
           <span className="label-xs">Format</span>
           <div className="flex gap-1.5">
             {ASPECTS.map((a) => <Chip key={a.id} active={aspectRatio === a.id} onClick={() => setAspectRatio(a.id)} disabled={disabledAll}>{a.label}</Chip>)}
+          </div>
+        </div>
+        <div className="flex flex-col gap-1" title={FPS_HINT}>
+          <span className="label-xs">Images / seconde</span>
+          <div className="flex gap-1.5">
+            {FPS_OPTIONS.map((o) => <Chip key={o.id || "model"} active={fps === o.id} onClick={() => setFps(o.id)} disabled={disabledAll}>{o.short}</Chip>)}
           </div>
         </div>
         <div className="flex flex-col gap-1">

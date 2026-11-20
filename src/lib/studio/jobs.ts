@@ -5,11 +5,12 @@ import { providerRejects } from "./select-provider";
 import type { ProviderId } from "./types";
 import { quote } from "./costs";
 import { warmThumb } from "@/lib/thumbs";
-import { downloadToMedia, ensureLocal, extractAudioMp3, isAllowedRemote, localMediaPath, MediaError, muxAudio, probe, retimeVideo, storeBuffer, stripAudio } from "./media";
+import { downloadToMedia, ensureLocal, extractAudioMp3, interpolateFps, isAllowedRemote, localMediaPath, MediaError, muxAudio, probe, retimeVideo, storeBuffer, stripAudio, videoFps } from "./media";
 import { lipSyncVideo, LipSyncError } from "./providers/lipsync";
 import { buildPrompt, DEFAULT_NEGATIVE_PROMPT } from "./prompts";
 import {
   ACTIVE_STATUSES,
+  type FpsChoice,
   type StudioJob,
   type StudioJobStatus,
   type TransformRequest,
@@ -39,6 +40,7 @@ const VOICE_MODES = new Set(["keep", "transform", "none"]);
 const RESOLUTIONS = new Set(["720p", "1080p"]);
 const ASPECTS = new Set(["original", "9:16", "16:9", "1:1"]);
 const AMBIENCES = new Set(["raw", "close", "room", "far"]);
+const FPS_CHOICES = new Set<FpsChoice>(["", "source", "30", "60"]);
 const PROVIDER_IDS_WITH_PRODUCT = new Set(PROVIDER_IDS.filter((id) => PROVIDERS[id].supportsProduct));
 
 export class JobError extends Error {
@@ -143,6 +145,7 @@ export function createJobs(req: TransformRequest, ownerId = ""): StudioJob[] {
       ...(ownerId ? { ownerId } : {}),
       type: "video-transform",
       batchId,
+      fps: FPS_CHOICES.has(req.fps ?? "") ? req.fps ?? "" : "",
       provider: q.provider,
       requestedProvider: req.provider,
       transform: req.transform,
@@ -280,8 +283,9 @@ async function runFinishInner(job: StudioJob) {
 
     // Photo qui parle et Création : la video rendue contient deja la voix, rien a assembler.
     if (current.type === "talking-photo" || current.type === "creation") {
-      await patchJob(job.id, { status: "completed", finalOutput: current.videoOutput, progress: 100, completedAt: now(), error: "" });
-      warmThumb(current.videoOutput);
+      const delivered = await deliverWithFps(current, current.videoOutput);
+      await patchJob(job.id, { status: "completed", progress: 100, completedAt: now(), error: "", ...delivered });
+      warmThumb(delivered.finalOutput);
       return;
     }
     let videoPath = localMediaPath(current.videoOutput);
@@ -364,14 +368,92 @@ async function runFinishInner(job: StudioJob) {
       }
     }
 
-    await patchJob(job.id, { status: "completed", finalOutput, progress: 100, completedAt: now(), error: "" });
-    warmThumb(finalOutput);
+    // En dernier : la synchro labiale rend en 25 i/s, l'interpolation passe après elle.
+    const delivered = await deliverWithFps(current, finalOutput);
+    await patchJob(job.id, { status: "completed", progress: 100, completedAt: now(), error: "", ...delivered });
+    warmThumb(delivered.finalOutput);
   } catch (e) {
     const err = e as Error;
     await fail(job.id, err instanceof MediaError ? err.message : `Assemblage impossible : ${err.message}`);
   } finally {
     locks.delete(job.id);
   }
+}
+
+/* ------------------------- Images par seconde ------------------------- */
+
+/** Cadence voulue : 30 ou 60, ou 0 (cadence du modèle). « source » lit la vidéo d'origine. */
+async function targetFps(job: StudioJob): Promise<number> {
+  if (job.fps === "30") return 30;
+  if (job.fps === "60") return 60;
+  if (job.fps !== "source" || !job.sourceVideo) return 0;
+  const src = await ensureLocal(job.sourceVideo);
+  const f = await videoFps(src.path);
+  // Un reel à 29,97 ou 30 i/s → 30 ; 50 ou 60 → 60 ; 24 / 25 : comme le modèle, rien à faire.
+  return f >= 45 ? 60 : f >= 27 ? 30 : 0;
+}
+
+/**
+ * Passe `baseUrl` à `fps` images par seconde. Rien à faire (0, ou la vidéo y
+ * est déjà) : la vidéo part telle quelle. Une interpolation ratée garde la
+ * vidéo et explique pourquoi dans `fpsError`.
+ */
+async function applyFps(baseUrl: string, fps: number): Promise<Pick<StudioJob, "finalOutput" | "fpsBaseOutput" | "fpsApplied" | "fpsError">> {
+  const untouched = { finalOutput: baseUrl, fpsBaseOutput: "", fpsApplied: 0, fpsError: "" };
+  if (!fps) return untouched;
+  try {
+    const p = localMediaPath(baseUrl);
+    if (!p) throw new MediaError("vidéo introuvable sur le serveur.");
+    const current = await videoFps(p);
+    if (current >= fps - 0.5) return { ...untouched, fpsApplied: Math.round(current) };
+    const out = await interpolateFps(p, fps === 60 ? 60 : 30);
+    return { finalOutput: out.url, fpsBaseOutput: baseUrl, fpsApplied: fps, fpsError: "" };
+  } catch (e) {
+    return { ...untouched, fpsError: `Passage en ${fps} i/s impossible : ${(e as Error).message}` };
+  }
+}
+
+/** La vidéo livrée d'un job qui se termine, à la cadence demandée. */
+async function deliverWithFps(job: StudioJob, baseUrl: string) {
+  let fps = 0;
+  try {
+    fps = await targetFps(job);
+  } catch (e) {
+    return { finalOutput: baseUrl, fpsBaseOutput: "", fpsApplied: 0, fpsError: `Cadence de la vidéo d'origine illisible : ${(e as Error).message}` };
+  }
+  return applyFps(baseUrl, fps);
+}
+
+const gf = globalThis as unknown as { __studioFps?: Set<string> };
+const fpsRunning = (gf.__studioFps ??= new Set<string>());
+
+async function runFps(job: StudioJob) {
+  if (fpsRunning.has(job.id)) return;
+  fpsRunning.add(job.id);
+  try {
+    const base = job.fpsBaseOutput || job.finalOutput;
+    const out = await applyFps(base, job.fpsPending ?? 0);
+    await patchJob(job.id, { ...out, fpsPending: undefined });
+    warmThumb(out.finalOutput);
+  } finally {
+    fpsRunning.delete(job.id);
+  }
+}
+
+/**
+ * Change la cadence d'une vidéo déjà livrée : 30 ou 60 i/s, ou 0 pour revenir
+ * à celle du modèle. On repart toujours de la vidéo d'avant interpolation. La
+ * carte reste « terminée » et lisible pendant le calcul.
+ */
+export async function setJobFps(id: string, fps: number, ownerId?: string): Promise<StudioJob> {
+  const job = getJob(id);
+  if (!job || (ownerId !== undefined && !ownsJob(job, ownerId))) throw new JobError("Job introuvable.", 404);
+  if (![0, 30, 60].includes(fps)) throw new JobError("Cadence inconnue : 30 ou 60 images par seconde.");
+  if (job.status !== "completed" || !job.finalOutput) throw new JobError("La vidéo n'est pas encore prête.");
+  if (fpsRunning.has(id) || locks.has(id)) throw new JobError("Cette vidéo est déjà en cours de traitement.", 409);
+  const updated = await patchJob(id, { fpsPending: fps, fpsError: "", fps: fps ? (String(fps) as FpsChoice) : "" });
+  if (updated) void runFps(updated);
+  return updated as StudioJob;
 }
 
 async function pollOne(job: StudioJob) {
@@ -467,6 +549,11 @@ const isStale = (j: StudioJob) => Date.now() - new Date(j.updatedAt).getTime() >
  */
 export async function tick(): Promise<StudioJob[]> {
   const jobs = listJobs();
+
+  // Conversion de cadence interrompue par un redémarrage : la mémoire est vide, on la relance.
+  for (const j of jobs) {
+    if (j.status === "completed" && typeof j.fpsPending === "number" && !fpsRunning.has(j.id)) void runFps(j);
+  }
 
   // Reprise après redémarrage : une étape sans verrou depuis trop longtemps.
   for (const j of jobs) {
@@ -573,6 +660,9 @@ export async function retryJob(
     videoOutput: "",
     audioOutput: "",
     finalOutput: "",
+    fpsBaseOutput: "",
+    fpsApplied: 0,
+    fpsError: "",
     error: "",
     voiceError: "",
     completedAt: "",
