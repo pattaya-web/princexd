@@ -1,3 +1,4 @@
+import fs from "fs/promises";
 import { newId, readDB, withKieKey, writeDB } from "@/lib/db";
 import { keyForOwner } from "@/lib/studio-tenant";
 import { AUTO_PRIORITY, MAX_CONCURRENT_GENERATIONS, MAX_VARIANTS, PROVIDER_IDS, PROVIDERS, STALE_STEP_MS } from "./config";
@@ -12,6 +13,7 @@ import {
   ACTIVE_STATUSES,
   type FpsChoice,
   type StudioJob,
+  type UpscaleChoice,
   type StudioJobStatus,
   type TransformRequest,
 } from "./types";
@@ -19,6 +21,7 @@ import { pollTransformation, readableProviderError, startTransformation, Transfo
 import { pollTalkingPhoto, startTalkingPhoto, TalkError } from "./talking-photo";
 import { CreationError, pollCreation, startCreation } from "./creation";
 import { transformVoice, VoiceError } from "./voice-transform";
+import { upscaleTo1080p } from "./upscale";
 
 /**
  * File de jobs du Swap vidéo.
@@ -146,6 +149,7 @@ export function createJobs(req: TransformRequest, ownerId = ""): StudioJob[] {
       type: "video-transform",
       batchId,
       fps: FPS_CHOICES.has(req.fps ?? "") ? req.fps ?? "" : "",
+      upscale: req.upscale === "1080p" ? "1080p" : "",
       provider: q.provider,
       requestedProvider: req.provider,
       transform: req.transform,
@@ -283,7 +287,7 @@ async function runFinishInner(job: StudioJob) {
 
     // Photo qui parle et Création : la video rendue contient deja la voix, rien a assembler.
     if (current.type === "talking-photo" || current.type === "creation") {
-      const delivered = await deliverWithFps(current, current.videoOutput);
+      const delivered = await deliverFinished(current, current.videoOutput);
       await patchJob(job.id, { status: "completed", progress: 100, completedAt: now(), error: "", ...delivered });
       warmThumb(delivered.finalOutput);
       return;
@@ -368,8 +372,8 @@ async function runFinishInner(job: StudioJob) {
       }
     }
 
-    // En dernier : la synchro labiale rend en 25 i/s, l'interpolation passe après elle.
-    const delivered = await deliverWithFps(current, finalOutput);
+    // En dernier : la synchro labiale rend en 720p / 25 i/s, la finition (1080p, 60 i/s) passe après elle.
+    const delivered = await deliverFinished(current, finalOutput);
     await patchJob(job.id, { status: "completed", progress: 100, completedAt: now(), error: "", ...delivered });
     warmThumb(delivered.finalOutput);
   } catch (e) {
@@ -380,7 +384,21 @@ async function runFinishInner(job: StudioJob) {
   }
 }
 
-/* ------------------------- Images par seconde ------------------------- */
+/* ------------------------------ Finition ------------------------------ */
+
+/*
+ * Finition de la vidéo livrée, dans cet ordre :
+ *  1. upscale 1080p chez KIE, si demandé et si la vidéo est en dessous ;
+ *  2. interpolation 30 / 60 i/s sur le serveur (ffmpeg, gratuit).
+ * On repart toujours de la vidéo d'avant finition (fpsBaseOutput) et le son
+ * n'est jamais retouché. Une étape ratée n'empêche ni l'autre ni la livraison.
+ */
+
+interface FinishWish {
+  fps: number;
+  upscale: UpscaleChoice;
+}
+type FinishPatch = Pick<StudioJob, "finalOutput" | "fpsBaseOutput" | "fpsApplied" | "upscaleApplied" | "fpsError"> & { credits: number };
 
 /** Cadence voulue : 30 ou 60, ou 0 (cadence du modèle). « source » lit la vidéo d'origine. */
 async function targetFps(job: StudioJob): Promise<number> {
@@ -393,66 +411,179 @@ async function targetFps(job: StudioJob): Promise<number> {
   return f >= 45 ? 60 : f >= 27 ? 30 : 0;
 }
 
-/**
- * Passe `baseUrl` à `fps` images par seconde. Rien à faire (0, ou la vidéo y
- * est déjà) : la vidéo part telle quelle. Une interpolation ratée garde la
- * vidéo et explique pourquoi dans `fpsError`.
+/*
+ * Ordre rapide quand il faut les deux : interpolation en 720p (3 fois moins de
+ * calcul qu'en 1080p sur les 2 cœurs du serveur), puis upscale KIE, qui garde
+ * la cadence et les images. Si KIE refuse l'entrée à 60 i/s, ordre de repli :
+ * upscale de la vidéo du modèle, puis interpolation en 1080p (plus lent).
  */
-async function applyFps(baseUrl: string, fps: number): Promise<Pick<StudioJob, "finalOutput" | "fpsBaseOutput" | "fpsApplied" | "fpsError">> {
-  const untouched = { finalOutput: baseUrl, fpsBaseOutput: "", fpsApplied: 0, fpsError: "" };
-  if (!fps) return untouched;
+async function applyFinish(baseUrl: string, wish: FinishWish): Promise<FinishPatch> {
+  const untouched: FinishPatch = { finalOutput: baseUrl, fpsBaseOutput: "", fpsApplied: 0, upscaleApplied: "", fpsError: "", credits: 0 };
+  if (!wish.fps && !wish.upscale) return untouched;
+  const basePath = localMediaPath(baseUrl);
+  if (!basePath) return { ...untouched, fpsError: "Finition impossible : vidéo introuvable sur le serveur." };
+
+  let credits = 0;
+  const errors: string[] = [];
+  const drop = (p: string | null) => (p && p !== basePath ? fs.rm(p, { force: true }).catch(() => {}) : Promise.resolve());
+  const done = (url: string, fpsApplied: number, upscaleApplied: string): FinishPatch => ({
+    finalOutput: url,
+    fpsBaseOutput: url !== baseUrl ? baseUrl : "",
+    fpsApplied,
+    upscaleApplied,
+    fpsError: errors.join(" · "),
+    credits,
+  });
+
+  // Cadence : déjà atteinte ? (ex. source retimée à 30 i/s)
+  let needFps = 0;
+  let measuredFps = 0;
+  if (wish.fps) {
+    try {
+      measuredFps = await videoFps(basePath);
+      needFps = measuredFps >= wish.fps - 0.5 ? 0 : wish.fps;
+    } catch (e) {
+      errors.push(`cadence illisible : ${(e as Error).message}`);
+    }
+  }
+  const fpsLabel = needFps || (wish.fps ? Math.round(measuredFps) : 0);
+
+  const upscale = async (p: string) => {
+    const up = await upscaleTo1080p(p);
+    if (up) credits += up.credits;
+    return up;
+  };
+  const interpolate = (p: string) => interpolateFps(p, needFps === 60 ? 60 : 30);
+
+  // Une seule étape.
+  if (!needFps) {
+    if (wish.upscale !== "1080p") return done(baseUrl, fpsLabel, "");
+    try {
+      const up = await upscale(basePath);
+      return done(up ? up.url : baseUrl, fpsLabel, "1080p");
+    } catch (e) {
+      errors.push(`1080p impossible : ${(e as Error).message}`);
+      return done(baseUrl, fpsLabel, "");
+    }
+  }
+  if (wish.upscale !== "1080p") {
+    try {
+      const out = await interpolate(basePath);
+      return done(out.url, needFps, "");
+    } catch (e) {
+      errors.push(`${needFps} i/s impossible : ${(e as Error).message}`);
+      return done(baseUrl, 0, "");
+    }
+  }
+
+  // Les deux : 720p interpolé d'abord, puis upscale.
+  let smooth: { url: string; path: string } | null = null;
   try {
-    const p = localMediaPath(baseUrl);
-    if (!p) throw new MediaError("vidéo introuvable sur le serveur.");
-    const current = await videoFps(p);
-    if (current >= fps - 0.5) return { ...untouched, fpsApplied: Math.round(current) };
-    const out = await interpolateFps(p, fps === 60 ? 60 : 30);
-    return { finalOutput: out.url, fpsBaseOutput: baseUrl, fpsApplied: fps, fpsError: "" };
+    smooth = await interpolate(basePath);
   } catch (e) {
-    return { ...untouched, fpsError: `Passage en ${fps} i/s impossible : ${(e as Error).message}` };
+    errors.push(`${needFps} i/s impossible : ${(e as Error).message}`);
+  }
+  if (smooth) {
+    try {
+      const up = await upscale(smooth.path);
+      if (up) await drop(smooth.path);
+      return done(up ? up.url : smooth.url, needFps, "1080p");
+    } catch (fast) {
+      // Repli : upscale de la vidéo du modèle (24-30 i/s), puis interpolation en 1080p.
+      try {
+        const up = await upscale(basePath);
+        if (!up) return done(smooth.url, needFps, "1080p");
+        try {
+          const out = await interpolate(up.path);
+          await drop(up.path);
+          await drop(smooth.path);
+          return done(out.url, needFps, "1080p");
+        } catch (e) {
+          errors.push(`${needFps} i/s en 1080p impossible : ${(e as Error).message}`);
+          await drop(smooth.path);
+          return done(up.url, 0, "1080p");
+        }
+      } catch (e) {
+        errors.push(`1080p impossible : ${(e as Error).message || (fast as Error).message}`);
+        return done(smooth.url, needFps, "");
+      }
+    }
+  }
+  // Interpolation ratée : au moins le 1080p.
+  try {
+    const up = await upscale(basePath);
+    return done(up ? up.url : baseUrl, 0, "1080p");
+  } catch (e) {
+    errors.push(`1080p impossible : ${(e as Error).message}`);
+    return done(baseUrl, 0, "");
   }
 }
 
-/** La vidéo livrée d'un job qui se termine, à la cadence demandée. */
-async function deliverWithFps(job: StudioJob, baseUrl: string) {
+/** La vidéo livrée d'un job qui se termine, finie comme demandé (crédits de l'upscale ajoutés). */
+async function deliverFinished(job: StudioJob, baseUrl: string) {
   let fps = 0;
+  let readError = "";
   try {
     fps = await targetFps(job);
   } catch (e) {
-    return { finalOutput: baseUrl, fpsBaseOutput: "", fpsApplied: 0, fpsError: `Cadence de la vidéo d'origine illisible : ${(e as Error).message}` };
+    readError = `Cadence de la vidéo d'origine illisible : ${(e as Error).message}`;
   }
-  return applyFps(baseUrl, fps);
+  const { credits, ...patch } = await applyFinish(baseUrl, { fps, upscale: job.upscale === "1080p" ? "1080p" : "" });
+  if (readError) patch.fpsError = [readError, patch.fpsError].filter(Boolean).join(" · ");
+  return { ...patch, creditsConsumed: (getJob(job.id)?.creditsConsumed ?? job.creditsConsumed ?? 0) + credits };
 }
 
 const gf = globalThis as unknown as { __studioFps?: Set<string> };
 const fpsRunning = (gf.__studioFps ??= new Set<string>());
 
-async function runFps(job: StudioJob) {
+/** Clé KIE d'un job : celle de l'élève pour un job d'élève, celle du compte sinon (null : introuvable). */
+function ownerKey(job: StudioJob): string | null | undefined {
+  if (!job.ownerId) return undefined;
+  return keyForOwner(readDB(), job.ownerId) || null;
+}
+
+async function runFinishAfter(job: StudioJob) {
   if (fpsRunning.has(job.id)) return;
   fpsRunning.add(job.id);
   try {
+    const wish: FinishWish = { fps: job.fpsPending ?? 0, upscale: job.upscalePending === "1080p" ? "1080p" : "" };
     const base = job.fpsBaseOutput || job.finalOutput;
-    const out = await applyFps(base, job.fpsPending ?? 0);
-    await patchJob(job.id, { ...out, fpsPending: undefined });
-    warmThumb(out.finalOutput);
+    const key = ownerKey(job);
+    const run = () => applyFinish(base, wish);
+    let result: FinishPatch;
+    if (key === null && wish.upscale) {
+      result = { ...(await applyFinish(base, { ...wish, upscale: "" })), fpsError: "1080p impossible : ta clé KIE est introuvable." };
+    } else {
+      result = key ? await withKieKey(key, run) : await run();
+    }
+    const { credits, ...patch } = result;
+    await patchJob(job.id, { ...patch, fpsPending: undefined, upscalePending: undefined, creditsConsumed: (getJob(job.id)?.creditsConsumed ?? 0) + credits });
+    warmThumb(patch.finalOutput);
   } finally {
     fpsRunning.delete(job.id);
   }
 }
 
 /**
- * Change la cadence d'une vidéo déjà livrée : 30 ou 60 i/s, ou 0 pour revenir
- * à celle du modèle. On repart toujours de la vidéo d'avant interpolation. La
- * carte reste « terminée » et lisible pendant le calcul.
+ * Finition d'une vidéo déjà livrée : 1080p et / ou 30 / 60 i/s, ou retour à
+ * la vidéo d'origine (tout à zéro). On repart toujours de la vidéo d'avant
+ * finition. La carte reste « terminée » et lisible pendant le calcul.
  */
-export async function setJobFps(id: string, fps: number, ownerId?: string): Promise<StudioJob> {
+export async function setJobFinish(id: string, wish: FinishWish, ownerId?: string): Promise<StudioJob> {
   const job = getJob(id);
   if (!job || (ownerId !== undefined && !ownsJob(job, ownerId))) throw new JobError("Job introuvable.", 404);
-  if (![0, 30, 60].includes(fps)) throw new JobError("Cadence inconnue : 30 ou 60 images par seconde.");
+  if (![0, 30, 60].includes(wish.fps)) throw new JobError("Cadence inconnue : 30 ou 60 images par seconde.");
   if (job.status !== "completed" || !job.finalOutput) throw new JobError("La vidéo n'est pas encore prête.");
   if (fpsRunning.has(id) || locks.has(id)) throw new JobError("Cette vidéo est déjà en cours de traitement.", 409);
-  const updated = await patchJob(id, { fpsPending: fps, fpsError: "", fps: fps ? (String(fps) as FpsChoice) : "" });
-  if (updated) void runFps(updated);
+  if (wish.upscale && ownerKey(job) === null) throw new JobError("Ta clé KIE est introuvable : ajoute-la avant de passer en 1080p.");
+  const updated = await patchJob(id, {
+    fpsPending: wish.fps,
+    upscalePending: wish.upscale,
+    fpsError: "",
+    fps: wish.fps ? (String(wish.fps) as FpsChoice) : "",
+    upscale: wish.upscale,
+  });
+  if (updated) void runFinishAfter(updated);
   return updated as StudioJob;
 }
 
@@ -552,7 +683,7 @@ export async function tick(): Promise<StudioJob[]> {
 
   // Conversion de cadence interrompue par un redémarrage : la mémoire est vide, on la relance.
   for (const j of jobs) {
-    if (j.status === "completed" && typeof j.fpsPending === "number" && !fpsRunning.has(j.id)) void runFps(j);
+    if (j.status === "completed" && typeof j.fpsPending === "number" && !fpsRunning.has(j.id)) void runFinishAfter(j);
   }
 
   // Reprise après redémarrage : une étape sans verrou depuis trop longtemps.
@@ -662,6 +793,7 @@ export async function retryJob(
     finalOutput: "",
     fpsBaseOutput: "",
     fpsApplied: 0,
+    upscaleApplied: "",
     fpsError: "",
     error: "",
     voiceError: "",

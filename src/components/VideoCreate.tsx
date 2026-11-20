@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type ApiError, useCollection, useLocalState } from "@/lib/client";
 import { uploadFile, takeFiles, clipboardFiles, droppedFiles } from "@/lib/upload-client";
 import { fmtInt, fmtUsdInEur } from "@/lib/format";
-import { CREATION } from "@/lib/studio/config";
+import { CREATION, UPSCALE_CREDITS_PER_SEC } from "@/lib/studio/config";
 import { parseCreationScript, spokenSeconds } from "@/lib/studio/script-parse";
 import type { CreateRequest, StudioCharacter, StudioJob } from "@/lib/studio/types";
 import { toSupportedImage } from "./MediaField";
@@ -98,8 +98,13 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
   const [resolution, setResolution] = useLocalState<"480p" | "720p" | "1080p">("create-resolution", "720p");
   const [aspect, setAspect] = useLocalState<"9:16" | "16:9" | "1:1" | "adaptive">("create-aspect", "9:16");
   const [variants, setVariants] = useState(1);
-  // Seedance rend en 24 i/s : 30 ou 60 par interpolation après coup (2 à 4 min de plus pour 10 s).
-  const [fps, setFps] = useLocalState<"" | "30" | "60">("create-fps", "");
+  /*
+   * Finition reel : Seedance rend en 24 i/s ; 60 i/s par interpolation sur le
+   * serveur, 1080p par l'upscale KIE (1,5 crédit/s, bien moins cher que de
+   * générer en 1080p). Par défaut pour l'admin, rien pour un élève.
+   */
+  const [fps, setFps] = useLocalState<"" | "30" | "60">(student ? "create-fps-eleve" : "create-fps-reel", student ? "" : "60");
+  const [upscale, setUpscale] = useLocalState<"" | "1080p">(student ? "create-upscale-eleve" : "create-upscale", student ? "" : "1080p");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -165,7 +170,9 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
   const parsed = parseCreationScript(script);
   const scriptSeconds = spokenSeconds(parsed.spoken);
   const seconds = duration > 0 ? duration : Math.min(CREATION.maxDurationSec, Math.max(CREATION.minDurationSec, scriptSeconds));
-  const credits = Math.round(CREATION.creditsPerSec[resolution] * seconds * variants);
+  const upscaleOn = upscale === "1080p" && resolution !== "1080p";
+  const upscaleCredits = upscaleOn ? Math.round(UPSCALE_CREDITS_PER_SEC * seconds * variants) : 0;
+  const credits = Math.round(CREATION.creditsPerSec[resolution] * seconds * variants) + upscaleCredits;
   const tooLongForDuration = duration > 0 && scriptSeconds > duration + 2;
 
   const ready = Boolean(start) && !startBusy && !productBusy && Boolean(parsed.spoken);
@@ -192,6 +199,7 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
       aspectRatio: effectiveAspect,
       variants,
       fps,
+      upscale: upscaleOn ? "1080p" : "",
     };
     try {
       // Le proxy répond 502 / 503 / 504 sans l'application (redéploiement, connexion coupée) :
@@ -409,6 +417,13 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
             ))}
           </div>
         </div>
+        <div className="flex flex-col gap-1" title={resolution === "1080p" ? "Déjà généré en 1080p" : "Finition 1080p : la vidéo passe par l'upscale vidéo de KIE, 1,5 crédit par seconde (≈ 0,10 € pour 15 s)."}>
+          <span className="label-xs">Finition HD</span>
+          <div className="flex gap-1.5">
+            <Chip active={!upscaleOn && resolution !== "1080p"} onClick={() => setUpscale("")} disabled={busy || resolution === "1080p"}>Non</Chip>
+            <Chip active={upscaleOn || resolution === "1080p"} onClick={() => setUpscale("1080p")} disabled={busy || resolution === "1080p"}>1080p</Chip>
+          </div>
+        </div>
         <div className="flex flex-col gap-1">
           <span className="label-xs">Variantes</span>
           <div className="inline-flex items-center rounded-full" style={{ border: "1px solid var(--border)", background: "var(--surface)" }}>
@@ -428,7 +443,8 @@ export function VideoCreate({ jobs, onQueued, student = false }: { jobs: StudioJ
         <span className="dim text-[12px] leading-snug">
           <span className="font-medium" style={{ color: "var(--text)" }}>≈ {fmtInt(credits)} crédits</span> · {fmtUsdInEur(credits * 0.005)}
           {variants > 1 && <> · {variants} vidéos</>}
-          <br /><span className="opacity-80">{CREATION.label} · ≈ {seconds} s · {resolution} · voix générée par le modèle · tarif estimé, à confirmer sur la première facture</span>
+          {upscaleCredits > 0 && <> · dont {fmtInt(upscaleCredits)} pour le 1080p</>}
+          <br /><span className="opacity-80">{CREATION.label} · ≈ {seconds} s · {resolution}{upscaleOn ? " → 1080p" : ""}{fps ? ` · ${fps} i/s` : ""} · voix générée par le modèle · tarif estimé, à confirmer sur la première facture</span>
         </span>
         <button className="btn btn-primary" onClick={() => void submit()} disabled={!ready || busy}>
           {busy ? <span className="spinner" /> : "✦"} {variants > 1 ? `Créer ${variants} variantes` : "Créer la vidéo"}

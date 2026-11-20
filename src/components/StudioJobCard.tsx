@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { engineLabel, engineModel, engineVendor } from "@/lib/studio/config";
 import { STATUS_LABEL, stepsOf, VOICE_AMBIENCE_LABEL, VOICE_ENGINE_LABEL, VOICE_MODE_LABEL } from "@/lib/studio/labels";
-import type { VoiceAmbience, VoiceInfo } from "@/lib/studio/types";
+import type { VoiceAmbience, VoiceInfo, UpscaleChoice } from "@/lib/studio/types";
 import { STYLE_PROMPTS, TRANSFORM_LABELS } from "@/lib/studio/prompts";
 import type { StudioJob } from "@/lib/studio/types";
 import { duration, fmtInt, relative } from "@/lib/format";
@@ -32,58 +32,84 @@ export interface JobActions {
   /** Ouvre le choix de voix pour l'appliquer sur une video deja generee. */
   onChangeVoice: (job: StudioJob) => void;
   onDelete: (job: StudioJob) => void;
-  /** Passe la vidéo livrée en 30 ou 60 i/s (interpolation), 0 = retour à la cadence du modèle. */
-  onFps: (job: StudioJob, fps: 0 | 30 | 60) => void;
+  /** Finition de la vidéo livrée : 1080p et / ou 30-60 i/s ; tout à zéro = retour à l'original. */
+  onFinish: (job: StudioJob, wish: FinishWish) => void;
 }
 
-/** Ce que dit la carte de la cadence : en cours, obtenue, ou rien. */
+export interface FinishWish {
+  fps: 0 | 30 | 60;
+  upscale: UpscaleChoice;
+}
+
+/** Ce que dit la carte de la finition : en cours, obtenue, ou rien. */
 export function fpsBadge(job: StudioJob): string {
-  if (typeof job.fpsPending === "number") return job.fpsPending ? `${job.fpsPending} i/s…` : "retour…";
-  return job.fpsApplied ? `${job.fpsApplied} i/s` : "";
+  const label = (fps: number, up: string) => [up === "1080p" ? "1080p" : "", fps ? `${fps} i/s` : ""].filter(Boolean).join(" · ");
+  if (typeof job.fpsPending === "number") return label(job.fpsPending, job.upscalePending ?? "") ? `${label(job.fpsPending, job.upscalePending ?? "")}…` : "retour…";
+  return label(job.fpsApplied ?? 0, job.upscaleApplied ?? "");
+}
+
+/** Finition actuelle d'une vidéo livrée (ce qui a été appliqué, pas la cadence mesurée du modèle). */
+export function currentFinish(job: StudioJob): FinishWish {
+  const fps = job.fpsBaseOutput && (job.fpsApplied === 30 || job.fpsApplied === 60) ? job.fpsApplied : 0;
+  const upscale: UpscaleChoice = job.upscaleApplied === "1080p" ? "1080p" : "";
+  return { fps, upscale };
 }
 
 /**
- * Fluidité d'une vidéo livrée : cadence du modèle, 30 ou 60 i/s. Le calcul
- * (interpolation de mouvement) tourne sur le serveur, 2 à 4 min pour 10 s.
+ * Finition d'une vidéo livrée : définition (modèle ou 1080p par l'upscale KIE)
+ * et cadence (modèle, 30 ou 60 i/s par interpolation). Le son ne bouge pas.
  */
-export function FpsControl({ job, actions }: { job: StudioJob; actions: JobActions }) {
+export function FinishControl({ job, actions }: { job: StudioJob; actions: JobActions }) {
   const pending = typeof job.fpsPending === "number";
-  const current = job.fpsBaseOutput ? job.fpsApplied ?? 0 : 0;
-  const choices: { fps: 0 | 30 | 60; label: string }[] = [
-    { fps: 0, label: "Cadence du modèle" },
-    { fps: 30, label: "30 i/s" },
-    { fps: 60, label: "60 i/s" },
-  ];
+  const cur = currentFinish(job);
+  const shown: FinishWish = pending ? { fps: (job.fpsPending ?? 0) as FinishWish["fps"], upscale: job.upscalePending ?? "" } : cur;
+  const reel = cur.fps === 60 && cur.upscale === "1080p";
+  const chip = (active: boolean) => (active ? { background: "var(--accent)", color: "var(--accent-on)" } : { border: "1px solid var(--border)" });
   return (
     <div>
-      <span className="label-xs block mb-1.5">Fluidité</span>
-      <div className="flex flex-wrap gap-1.5">
-        {choices.map((c) => {
-          const active = pending ? job.fpsPending === c.fps : current === c.fps;
-          return (
-            <button
-              key={c.fps}
-              type="button"
-              className="px-2.5 h-[26px] rounded-full text-[12px]"
-              disabled={pending || active || (c.fps === 0 && !job.fpsBaseOutput)}
-              onClick={() => actions.onFps(job, c.fps)}
-              style={active ? { background: "var(--accent)", color: "var(--accent-on)" } : { border: "1px solid var(--border)" }}
-            >
-              {c.label}
+      <span className="label-xs block mb-1.5">Finition</span>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="dim text-[11.5px] w-[70px]">Définition</span>
+          {(["", "1080p"] as const).map((u) => (
+            <button key={u || "model"} type="button" className="px-2.5 h-[26px] rounded-full text-[12px]" disabled={pending || shown.upscale === u} onClick={() => actions.onFinish(job, { fps: cur.fps, upscale: u })} style={chip(shown.upscale === u)}>
+              {u ? "1080p" : "Modèle"}
             </button>
-          );
-        })}
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="dim text-[11.5px] w-[70px]">Cadence</span>
+          {([0, 30, 60] as const).map((f) => (
+            <button key={f} type="button" className="px-2.5 h-[26px] rounded-full text-[12px]" disabled={pending || shown.fps === f} onClick={() => actions.onFinish(job, { fps: f, upscale: cur.upscale })} style={chip(shown.fps === f)}>
+              {f ? `${f} i/s` : "Modèle"}
+            </button>
+          ))}
+        </div>
       </div>
+      {!reel && !pending && (
+        <button type="button" className="btn btn-sm mt-2" onClick={() => actions.onFinish(job, { fps: 60, upscale: "1080p" })}>
+          ✦ Finition reel : 1080p · 60 i/s
+        </button>
+      )}
       <p className="dim text-[11px] mt-1.5 leading-snug">
         {pending
-          ? `Calcul des images intermédiaires en cours (2 à 4 min pour 10 s). La vidéo actuelle reste disponible.`
-          : job.fpsApplied && !job.fpsBaseOutput
-            ? `Vidéo déjà à ${job.fpsApplied} i/s.`
-            : "Les images manquantes sont calculées à partir du mouvement : plus fluide, son inchangé."}
+          ? "Finition en cours : upscale chez KIE puis calcul des images intermédiaires (3 à 8 min pour 15 s). La vidéo actuelle reste disponible."
+          : "1080p : upscale KIE, 1,5 crédit par seconde (≈ 0,10 € pour 15 s). 30 / 60 i/s : images calculées sur le serveur, gratuit. Le son ne bouge pas."}
       </p>
       {job.fpsError && <p className="text-[11px] mt-1" style={{ color: "var(--critical)" }}>{job.fpsError}</p>}
     </div>
   );
+}
+
+/** Les entrées « finition » du menu ⋯ d'une vidéo terminée. */
+function finishMenu(job: StudioJob): [FinishWish, string][] {
+  const cur = currentFinish(job);
+  const items: [FinishWish, string][] = [];
+  if (!(cur.fps === 60 && cur.upscale === "1080p")) items.push([{ fps: 60, upscale: "1080p" }, "✦ Finition reel : 1080p · 60 i/s"]);
+  if (cur.upscale !== "1080p") items.push([{ fps: cur.fps, upscale: "1080p" }, "Passer en 1080p"]);
+  for (const f of [30, 60] as const) if (cur.fps !== f) items.push([{ fps: f, upscale: cur.upscale }, `Passer en ${f} i/s`]);
+  if (job.fpsBaseOutput) items.push([{ fps: 0, upscale: "" }, "Revenir à la vidéo d'origine"]);
+  return items;
 }
 
 export function jobDownloadHref(job: StudioJob) {
@@ -272,18 +298,11 @@ export function StudioJobCard({
                     Utiliser comme nouvelle référence
                   </button>
                   {typeof job.fpsPending !== "number" &&
-                    ([30, 60] as const)
-                      .filter((f) => (job.fpsBaseOutput ? job.fpsApplied : 0) !== f)
-                      .map((f) => (
-                        <button key={f} className="px-3 py-2 text-[12px] text-left hover:bg-[var(--surface-2)]" onClick={() => { setMenu(false); actions.onFps(job, f); }}>
-                          Passer en {f} i/s (plus fluide)
-                        </button>
-                      ))}
-                  {typeof job.fpsPending !== "number" && job.fpsBaseOutput && (
-                    <button className="px-3 py-2 text-[12px] text-left hover:bg-[var(--surface-2)]" onClick={() => { setMenu(false); actions.onFps(job, 0); }}>
-                      Revenir à la cadence du modèle
-                    </button>
-                  )}
+                    finishMenu(job).map(([wish, label]) => (
+                      <button key={label} className="px-3 py-2 text-[12px] text-left hover:bg-[var(--surface-2)]" onClick={() => { setMenu(false); actions.onFinish(job, wish); }}>
+                        {label}
+                      </button>
+                    ))}
                   {job.voiceMode === "transform" && !actions.student && (
                     <button className="px-3 py-2 text-[12px] text-left hover:bg-[var(--surface-2)]" onClick={() => { setMenu(false); actions.onRetry(job, "voice"); }}>
                       Réessayer la voix
@@ -386,7 +405,7 @@ export function StudioJobPreview({ job, actions, onClose }: { job: StudioJob; ac
             </pre>
           </div>
 
-          {output && job.status === "completed" && <FpsControl job={job} actions={actions} />}
+          {output && job.status === "completed" && <FinishControl job={job} actions={actions} />}
 
           <div>
             <span className="label-xs block mb-1.5">Technologie</span>

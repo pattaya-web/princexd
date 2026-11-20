@@ -256,6 +256,9 @@ export const MAX_VARIANTS = 4;
 /** Prix d'un crédit KIE en USD quand les réglages ne le précisent pas. */
 export const DEFAULT_CREDIT_USD = 0.005;
 
+/** Upscale vidéo KIE (video/upscale) en 1080p : 1,5 crédit par seconde (kie.ai/video-upscaler, 2026-11-20). */
+export const UPSCALE_CREDITS_PER_SEC = 1.5;
+
 /* ------------------------------ Higgsfield ------------------------------ */
 
 export const HIGGSFIELD = {

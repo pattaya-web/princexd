@@ -412,11 +412,12 @@ function StudioInner() {
           toast((e as Error).message, "err");
         }
       },
-      onFps: async (j, fps) => {
+      onFinish: async (j, wish) => {
         try {
-          const r = await api<{ job: StudioJob }>(`/api/studio/jobs/${j.id}/fps`, { method: "POST", body: JSON.stringify({ fps }) });
+          const r = await api<{ job: StudioJob }>(`/api/studio/jobs/${j.id}/fps`, { method: "POST", body: JSON.stringify(wish) });
           setJobs((prev) => prev.map((x) => (x.id === r.job.id ? r.job : x)));
-          toast(fps ? `Passage en ${fps} i/s lancé : 2 à 4 min pour 10 s de vidéo.` : "Retour à la cadence du modèle.");
+          const what = [wish.upscale, wish.fps ? `${wish.fps} i/s` : ""].filter(Boolean).join(" · ");
+          toast(what ? `Finition ${what} lancée : quelques minutes, la vidéo actuelle reste dispo.` : "Retour à la vidéo d'origine.");
         } catch (e) {
           toast((e as Error).message, "err");
         }

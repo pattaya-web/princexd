@@ -25,6 +25,8 @@ export type AspectChoice = "original" | "9:16" | "16:9" | "1:1";
  * 60), vide = la cadence du modèle, sans traitement.
  */
 export type FpsChoice = "" | "source" | "30" | "60";
+/** Finition en définition : « 1080p » = upscale KIE (1,5 crédit/s) quand la vidéo est en dessous. */
+export type UpscaleChoice = "" | "1080p";
 
 export type StudioJobStatus =
   | "queued"
@@ -75,6 +77,7 @@ export interface TransformRequest {
   aspectRatio: AspectChoice;
   variants: number;
   fps?: FpsChoice;
+  upscale?: UpscaleChoice;
 }
 
 /** Entrée normalisée passée à un provider vidéo. */
@@ -138,6 +141,7 @@ export interface CreateRequest {
   aspectRatio: "9:16" | "16:9" | "1:1" | "adaptive";
   variants: number;
   fps?: FpsChoice;
+  upscale?: UpscaleChoice;
 }
 
 export interface StudioJob {
@@ -232,13 +236,19 @@ export interface StudioJob {
 
   /** Images par seconde demandées pour la vidéo livrée (interpolation après l'assemblage). */
   fps?: FpsChoice;
+  /** Définition demandée pour la vidéo livrée (upscale KIE avant l'interpolation). */
+  upscale?: UpscaleChoice;
   /** Cadence réelle de la vidéo livrée quand on l'a traitée ou mesurée (30, 60). */
   fpsApplied?: number;
-  /** Vidéo avant interpolation : on repart d'elle pour changer de cadence ou revenir en arrière. */
+  /** « 1080p » quand la vidéo livrée y est (upscalée ou déjà en HD). */
+  upscaleApplied?: string;
+  /** Vidéo avant finition (upscale, interpolation) : on repart d'elle pour changer ou revenir en arrière. */
   fpsBaseOutput?: string;
-  /** Conversion demandée après coup, en cours : 30, 60, ou 0 (retour à la cadence du modèle). */
+  /** Finition demandée après coup, en cours : cadence 30, 60 ou 0 (celle du modèle)… */
   fpsPending?: number;
-  /** Une interpolation ratée garde la vidéo : l'erreur vit à part. */
+  /** … et définition (« 1080p » ou vide). */
+  upscalePending?: UpscaleChoice;
+  /** Une finition ratée garde la vidéo : l'erreur vit à part. */
   fpsError?: string;
 
   error: string;

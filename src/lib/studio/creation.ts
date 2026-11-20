@@ -95,6 +95,7 @@ export function createCreationJobs(req: CreateRequest, ownerId = ""): StudioJob[
       type: "creation",
       batchId,
       fps: req.fps === "30" || req.fps === "60" ? req.fps : "",
+      upscale: req.upscale === "1080p" ? "1080p" : "",
       provider: "seedance25",
       requestedProvider: "seedance25",
       transform: "full",

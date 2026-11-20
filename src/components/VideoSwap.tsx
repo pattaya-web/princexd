@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { api, useCollection, useLocalState } from "@/lib/client";
 import { uploadFile } from "@/lib/upload-client";
 import { fmtInt, fmtUsdInEur } from "@/lib/format";
-import { PROVIDERS, PROVIDER_IDS, MAX_VARIANTS } from "@/lib/studio/config";
+import { PROVIDERS, PROVIDER_IDS, MAX_VARIANTS, UPSCALE_CREDITS_PER_SEC } from "@/lib/studio/config";
 import { DEFAULT_NEGATIVE_PROMPT, STYLE_PROMPTS, TRANSFORM_LABELS } from "@/lib/studio/prompts";
 import { VOICE_AMBIENCE_LABEL, VOICE_MODE_LABEL } from "@/lib/studio/labels";
 import type {
@@ -25,6 +25,7 @@ import type {
   VoiceInfo,
   VoiceMode,
   FpsChoice,
+  UpscaleChoice,
 } from "@/lib/studio/types";
 import { toSupportedImage } from "./MediaField";
 import { ErrorNote, Field, useToast } from "./ui";
@@ -71,6 +72,7 @@ export interface SwapPrefill {
   aspectRatio?: AspectChoice;
   variants?: number;
   fps?: FpsChoice;
+  upscale?: UpscaleChoice;
 }
 
 /** « Refaire » : tout ce qu'il faut pour relancer un job à l'identique. */
@@ -95,6 +97,7 @@ export function prefillFromJob(job: StudioJob): SwapPrefill {
     aspectRatio: job.aspectRatio,
     variants: 1,
     fps: job.fps ?? "",
+    upscale: job.upscale ?? "",
   };
 }
 
@@ -110,6 +113,7 @@ const FPS_OPTIONS: { id: FpsChoice; label: string; short: string }[] = [
   { id: "60", label: "🎞 60 i/s", short: "60" },
   { id: "", label: "🎞 Cadence du modèle", short: "Modèle" },
 ];
+const UPSCALE_HINT = "Finition 1080p : la vidéo du modèle (720p) passe par l'upscale vidéo de KIE, 1,5 crédit par seconde (≈ 0,10 € pour 15 s), avant le passage en 60 i/s.";
 const FPS_HINT = "Images par seconde de la vidéo livrée. Les modèles rendent en 24-25 i/s : les images manquantes sont calculées à partir du mouvement (2 à 4 min de plus pour 10 s), le son ne bouge pas.";
 const ASPECTS: { id: AspectChoice; label: string }[] = [
   { id: "original", label: "Original" },
@@ -360,8 +364,13 @@ export function VideoSwap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider]);
   const [aspectRatio, setAspectRatio] = useLocalState<AspectChoice>("swap-aspect", "original");
-  // Élève : cadence du modèle par défaut, l'interpolation occupe le serveur plusieurs minutes.
-  const [fps, setFps] = useLocalState<FpsChoice>(student ? "swap-fps-eleve" : "swap-fps", student ? "" : "source");
+  /*
+   * Finition reel par défaut pour l'admin : 1080p (upscale KIE) et 60 i/s. Élève :
+   * rien par défaut, l'interpolation occupe le serveur et l'upscale coûte des crédits.
+   */
+  const [fps, setFps] = useLocalState<FpsChoice>(student ? "swap-fps-eleve" : "swap-fps-reel", student ? "" : "60");
+  const [upscale, setUpscale] = useLocalState<UpscaleChoice>(student ? "swap-upscale-eleve" : "swap-upscale", student ? "" : "1080p");
+  const upscaleOn = upscale === "1080p" && resolution !== "1080p";
   const [variants, setVariants] = useState(1);
 
   const [voices, setVoices] = useState<VoiceInfo[] | null>(null);
@@ -397,6 +406,7 @@ export function VideoSwap({
     if (prefill.aspectRatio) setAspectRatio(prefill.aspectRatio);
     if (prefill.variants) setVariants(prefill.variants);
     if (prefill.fps !== undefined) setFps(prefill.fps);
+    if (prefill.upscale !== undefined) setUpscale(prefill.upscale);
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefillKey]);
@@ -758,6 +768,7 @@ export function VideoSwap({
 
   /* ---- Lancement ---- */
 
+  const upscaleCredits = upscaleOn && video?.durationSec ? Math.round(video.durationSec * UPSCALE_CREDITS_PER_SEC * variants) : 0;
   const ready = Boolean(image && video) && imgProgress === null && vidProgress === null && (voiceMode !== "transform" || Boolean(voiceId));
 
   const submit = async (mode: "now" | "queue") => {
@@ -788,6 +799,7 @@ export function VideoSwap({
       aspectRatio,
       variants,
       fps,
+      upscale: upscaleOn ? "1080p" : "",
     };
     try {
       const r = await api<{ jobs: StudioJob[] }>("/api/studio/jobs", { method: "POST", body: JSON.stringify(body) });
@@ -981,6 +993,10 @@ export function VideoSwap({
             <select className="select !w-auto !h-[32px] !text-[12px] !py-0" value={fps} disabled={disabledAll} onChange={(e) => setFps(e.target.value as FpsChoice)} title={FPS_HINT}>
               {FPS_OPTIONS.map((o) => <option key={o.id || "model"} value={o.id}>{o.label}</option>)}
             </select>
+            <label className="inline-flex items-center gap-1.5 text-[12px] cursor-pointer" title={resolution === "1080p" ? "Déjà généré en 1080p" : UPSCALE_HINT}>
+              <input type="checkbox" checked={upscaleOn || resolution === "1080p"} disabled={disabledAll || resolution === "1080p"} onChange={(e) => setUpscale(e.target.checked ? "1080p" : "")} />
+              HD 1080p
+            </label>
             <div className="inline-flex items-center rounded-full ml-auto" style={{ border: "1px solid var(--border)", background: "var(--surface)" }} title="Variantes">
               <button className="btn btn-sm btn-ghost !h-[26px] !px-2" disabled={disabledAll || variants <= 1} onClick={() => setVariants((v) => Math.max(1, v - 1))}>−</button>
               <span className="num text-[12px] font-medium w-[18px] text-center">{variants}</span>
@@ -1005,8 +1021,8 @@ export function VideoSwap({
             <span className="swap-quote dim text-[12px] leading-snug">
               {quote ? (
                 quote.billedBy
-                  ? <>≈ {fmtUsdInEur(quote.usd)} · {quote.billedBy}{quote.variants > 1 ? ` · ${quote.variants} vidéos` : ""}</>
-                  : <><span className="font-medium" style={{ color: "var(--text)" }}>{quote.verified ? "" : "≈ "}{fmtInt(quote.credits)} crédits</span> · {fmtUsdInEur(quote.usd)}{quote.variants > 1 ? ` · ${quote.variants} vidéos` : ""} · {quote.providerLabel}</>
+                  ? <>≈ {fmtUsdInEur(quote.usd)} · {quote.billedBy}{quote.variants > 1 ? ` · ${quote.variants} vidéos` : ""}{upscaleCredits ? ` · + ${fmtInt(upscaleCredits)} crédits KIE pour le 1080p` : ""}</>
+                  : <><span className="font-medium" style={{ color: "var(--text)" }}>{quote.verified ? "" : "≈ "}{fmtInt(quote.credits)} crédits</span> · {fmtUsdInEur(quote.usd)}{quote.variants > 1 ? ` · ${quote.variants} vidéos` : ""} · {quote.providerLabel}{upscaleCredits ? ` · + ${fmtInt(upscaleCredits)} crédits 1080p` : ""}</>
               ) : "Dépose une vidéo pour voir le coût."}
               {voiceMode === "transform" && selectedVoice && <> · voix {selectedVoice.name}</>}
             </span>
@@ -1386,6 +1402,13 @@ export function VideoSwap({
             {FPS_OPTIONS.map((o) => <Chip key={o.id || "model"} active={fps === o.id} onClick={() => setFps(o.id)} disabled={disabledAll}>{o.short}</Chip>)}
           </div>
         </div>
+        <div className="flex flex-col gap-1" title={resolution === "1080p" ? "Déjà généré en 1080p" : UPSCALE_HINT}>
+          <span className="label-xs">Finition HD</span>
+          <div className="flex gap-1.5">
+            <Chip active={!upscaleOn && resolution !== "1080p"} onClick={() => setUpscale("")} disabled={disabledAll || resolution === "1080p"}>Non</Chip>
+            <Chip active={upscaleOn || resolution === "1080p"} onClick={() => setUpscale("1080p")} disabled={disabledAll || resolution === "1080p"}>1080p</Chip>
+          </div>
+        </div>
         <div className="flex flex-col gap-1">
           <span className="label-xs">Variantes</span>
           <div className="inline-flex items-center rounded-full" style={{ border: "1px solid var(--border)", background: "var(--surface)" }}>
@@ -1436,6 +1459,7 @@ export function VideoSwap({
                 </>
               )}
               {quote.variants > 1 && <> · {quote.variants} vidéos</>}
+              {upscaleCredits > 0 && <> · + {fmtInt(upscaleCredits)} crédits 1080p</>}
               <br />
               <span className="opacity-80">
                 {quote.providerLabel} · {quote.durationSec} s · {resolution}
