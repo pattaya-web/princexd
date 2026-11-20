@@ -4,7 +4,7 @@ import { insert } from "@/lib/db";
 import { getModel } from "@/lib/models";
 import { scopeError, studioScope, withScope } from "@/lib/studio-tenant";
 import { WIDE_RATIO, wideSubstitute } from "@/lib/studio/wide";
-import { missingReferenceMessage, promptWithReferences } from "@/lib/studio/ref-numbering";
+import { promptWithReferences } from "@/lib/studio/ref-numbering";
 import type { Generation } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -74,17 +74,15 @@ export async function POST(req: NextRequest) {
    * références dans l'ordre d'envoi (celui des vignettes, réglable à la
    * souris). Les mentions deviennent « [Image N] » avec une légende en tête,
    * pour le modèle seulement : la galerie et les relances gardent le texte
-   * tapé. Une photo citée qui n'est pas là arrête tout avant de payer.
+   * tapé. Une photo citée qui n'est pas là est facultative : on ne refuse rien,
+   * le modèle reçoit la consigne d'ignorer cette mention.
    */
   const refCount = Math.max(
     0,
     ...["image_input", "image_urls", "input_urls", "reference_image_urls"].map((k) => (Array.isArray(payload[k]) ? (payload[k] as unknown[]).length : 0)),
   );
   const numbered = typeof payload.prompt === "string" ? promptWithReferences(payload.prompt, refCount) : null;
-  if (numbered?.missing.length && refCount > 0) {
-    return NextResponse.json({ error: missingReferenceMessage(numbered.missing, refCount) }, { status: 400 });
-  }
-  const sentPrompt = numbered?.cited.length ? numbered.prompt : null;
+  const sentPrompt = numbered && (numbered.cited.length || numbered.missing.length) ? numbered.prompt : null;
 
   /*
    * « Fond : Auto » n'est pas une valeur, c'est l'absence de consigne. KIE le

@@ -127,17 +127,26 @@ export function referenceLegend(count: number): string {
 }
 
 /**
- * Le prompt prêt à partir : mentions numérotées et légende en tête, seulement
- * si le prompt cite au moins une photo. Sinon, le texte part tel quel.
+ * Une photo citée mais absente (« image 3 » avec 2 photos) est facultative :
+ * Mady garde le même prompt d'une génération à l'autre, avec ou sans cette
+ * photo. On ne refuse rien, on dit au modèle d'ignorer ces mentions.
+ */
+export function missingReferenceNote(missing: number[], count: number): string {
+  const which = missing.map((n) => `image ${n}`).join(", ");
+  return (
+    `Only ${count} reference image${count > 1 ? "s are" : " is"} attached: the prompt's mention${missing.length > 1 ? "s" : ""} of ${which} refer${missing.length > 1 ? "" : "s"} to ${missing.length > 1 ? "optional images that were" : "an optional image that was"} NOT provided this time. ` +
+    `Ignore ${missing.length > 1 ? "those mentions" : "that mention"} and any instruction that depends only on ${missing.length > 1 ? "them" : "it"}; do not invent ${missing.length > 1 ? "those images" : "that image"}.`
+  );
+}
+
+/**
+ * Le prompt prêt à partir : mentions numérotées et légende en tête quand le
+ * prompt cite une photo présente, consigne d'ignorer celles qui manquent.
+ * Sans aucune mention, le texte part tel quel.
  */
 export function promptWithReferences(text: string, count: number): ReferenceNumbering {
   const r = numberReferences(text, count);
-  if (!r.cited.length) return r;
-  return { ...r, prompt: `${referenceLegend(count)}\n\n${r.prompt}` };
-}
-
-/** Le message quand le prompt cite une photo qui n'est pas là. */
-export function missingReferenceMessage(missing: number[], count: number): string {
-  const which = missing.map((n) => `photo ${n}`).join(", ");
-  return `Ton prompt cite ${which}, mais il n'y a que ${count} photo${count > 1 ? "s" : ""} de référence. Ajoute-la ou corrige le numéro.`;
+  if (!r.cited.length && !r.missing.length) return r;
+  const head = [r.cited.length ? referenceLegend(count) : "", r.missing.length ? missingReferenceNote(r.missing, count) : ""].filter(Boolean).join(" ");
+  return { ...r, prompt: `${head}\n\n${r.prompt}` };
 }

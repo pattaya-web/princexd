@@ -3,7 +3,7 @@ import { newId, readDB, writeDB } from "@/lib/db";
 import { CREATION } from "./config";
 import { ensureLocal, isAllowedRemote, localMediaPath, publishToKie } from "./media";
 import { toEnglish } from "./prompt-enhancer";
-import { numberReferences } from "./ref-numbering";
+import { missingReferenceNote, numberReferences } from "./ref-numbering";
 import { parseCreationScript } from "./script-parse";
 import type { CreateRequest, StudioJob } from "./types";
 
@@ -206,6 +206,8 @@ export function buildCreationPrompt(opts: {
         : "[Image 1] in the direction below is the first frame.",
     );
   }
+  // « Image 3 » sans troisième photo : facultatif, le modèle l'ignore.
+  if (refs.missing.length) parts.push(missingReferenceNote(refs.missing, refCount));
   if (sceneEn) parts.push(opts.directed ? `Direction, follow it closely (camera, movement, gestures, sound): ${sceneEn}` : sceneEn);
   if (opts.directed) {
     parts.push(`The person speaks in ${lang}, lips perfectly synchronized with the words, natural pauses.`);
