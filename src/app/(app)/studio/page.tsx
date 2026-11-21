@@ -37,8 +37,6 @@ import { duration, estimateSec, fmtInt, fmtUsdInEur, label, relative } from "@/l
 import type { Generation, StudioMarker } from "@/lib/types";
 import { ThumbImg, VideoThumb } from "@/components/MediaThumb";
 import { ZipDownloadButton } from "@/components/ZipDownload";
-import { DEFAULT_NAMING, NamingBar, resolveCreativeName, type NamingState } from "@/components/NamingBar";
-import { isoWeek } from "@/lib/creative-naming";
 import { DEFAULT_GALLERY_VIEW, GalleryViewMenu, parseRatio, StudioGallery, type GalleryItem, type GalleryView } from "@/components/StudioGallery";
 
 const CREDIT_USD = 0.005;
@@ -85,17 +83,6 @@ function StudioInner() {
   const params = useSearchParams();
   const toast = useToast();
   const { rows, setRows, reload, destroyMany } = useCollection<Generation>("generations");
-  /* Nom des créas (S45_MIX1_CONCEPT_VARIANTE) : MIX / CONCEPT / VARIANTE gardés d'une génération à l'autre. */
-  const [naming, setNaming] = useLocalState<NamingState>("studio-naming", DEFAULT_NAMING);
-  const [weekOverride, setWeekOverride] = useState("");
-  const [iterOf, setIterOf] = useState("");
-  const takenNames = useMemo(() => rows.map((g) => g.title ?? "").filter(Boolean), [rows]);
-  const creativeName = resolveCreativeName({
-    naming,
-    week: weekOverride ? Number(weekOverride) : isoWeek(),
-    iterOf,
-    taken: takenNames,
-  });
 
   const [kind, setKind] = useState<ModelKind>("image");
   const [talkTab, setTalkTab] = useState(false);
@@ -146,6 +133,8 @@ function StudioInner() {
   const [jobPreview, setJobPreview] = useState<string | null>(null);
   const [voiceJob, setVoiceJob] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "running" | "done" | "failed">("all");
+  /* Photos ou vidéos seulement (les jobs Swap / Création sont des vidéos). */
+  const [mediaFilter, setMediaFilter] = useLocalState<"all" | "image" | "video">("studio-gallery-media", "all");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -460,10 +449,10 @@ function StudioInner() {
     };
     const items: Item[] = [
       ...jobs
-        .filter((j) => filter === "all" || jobState(j) === filter)
+        .filter((j) => (filter === "all" || jobState(j) === filter) && mediaFilter !== "image")
         .map((j) => ({ key: `job:${j.id}`, at: j.createdAt, ratio: parseRatio(j.aspectRatio), settled: j.status === "completed" && !!(j.finalOutput || j.videoOutput), job: j })),
       ...rows
-        .filter((g) => filter === "all" || genState(g) === filter)
+        .filter((g) => (filter === "all" || genState(g) === filter) && (mediaFilter === "all" || g.kind === mediaFilter))
         .map((g) => ({ key: `gen:${g.id}`, at: g.createdAt, ratio: genRatio(g), settled: g.state === "success" && !!g.resultUrls[0], gen: g })),
       // Marqueurs : une bande entre deux créations, classée à sa date.
       ...markers.rows.map((m) => ({
@@ -487,7 +476,7 @@ function StudioInner() {
       else if (current) current.count++;
     }
     return items;
-  }, [jobs, rows, filter, markers, toast]);
+  }, [jobs, rows, filter, mediaFilter, markers, toast]);
   const previewedJob = jobs.find((j) => j.id === jobPreview) ?? null;
   const voicePickedJob = jobs.find((j) => j.id === voiceJob) ?? null;
 
@@ -538,11 +527,9 @@ function StudioInner() {
       }
       const gen = await api<Generation>("/api/kie/generate", {
         method: "POST",
-        body: JSON.stringify({ model: model.id, input: payload, ...(creativeName ? { title: creativeName } : {}) }),
+        body: JSON.stringify({ model: model.id, input: payload }),
       });
       setRows((prev) => [gen, ...prev]);
-      // Une itération vaut pour un lancement : le suivant repart sur MIX / CONCEPT / VARIANTE.
-      setIterOf("");
       toast("Génération lancée. Le résultat arrive dans la galerie.");
     } catch (e) {
       setError((e as Error).message);
@@ -633,6 +620,15 @@ function StudioInner() {
                   </button>
                 )}
                 <Tabs
+                  value={mediaFilter}
+                  onChange={setMediaFilter}
+                  options={[
+                    { value: "all", label: "Tout" },
+                    { value: "image", label: "Photos" },
+                    { value: "video", label: "Vidéos" },
+                  ]}
+                />
+                <Tabs
                   value={filter}
                   onChange={setFilter}
                   options={[
@@ -648,13 +644,13 @@ function StudioInner() {
           }
         >
           {!gallery.length ? (
-            <Empty>{filter === "all" ? "Rien de généré pour l'instant. Lance ta première génération ci-dessous." : "Rien dans ce filtre."}</Empty>
+            <Empty>{filter === "all" && mediaFilter === "all" ? "Rien de généré pour l'instant. Lance ta première génération ci-dessous." : "Rien dans ce filtre."}</Empty>
           ) : (
             <div className="p-3">
               <StudioGallery
                 items={gallery}
                 view={view}
-                resetKey={filter}
+                resetKey={`${filter}:${mediaFilter}`}
                 render={(it, tile) =>
                   it.job ? (
                     <StudioJobCard job={it.job} actions={jobActions} aspect={tile.aspect} sizes={tile.sizes} onRatio={tile.onRatio} />
@@ -676,7 +672,6 @@ function StudioInner() {
                         })
                       }
                       onOpen={() => setPreview(it.gen!.id)}
-                      onRename={(title) => void rename(it.gen!.id, title)}
                       onRelaunch={() => void relaunch(it.gen!.id)}
                       // Marqueur juste au-dessus de cette création (1 ms après elle dans l'ordre décroissant).
                       onMark={isStudent ? undefined : () => void addMarker(new Date(new Date(it.gen!.createdAt).getTime() + 1).toISOString())}
@@ -784,17 +779,6 @@ function StudioInner() {
                     prompt a droite sans cadre, qui grandit avec le texte.
                     Rien ne prend de place pour rien au-dessus de la galerie.
                   */}
-                  <NamingBar
-                    naming={naming}
-                    onNaming={setNaming}
-                    week={weekOverride ? Number(weekOverride) : isoWeek()}
-                    weekOverride={weekOverride}
-                    onWeekOverride={setWeekOverride}
-                    iterOf={iterOf}
-                    onIterOf={setIterOf}
-                    taken={takenNames}
-                    preview={creativeName}
-                  />
                   <div className="flex items-start gap-3 rounded-[12px] p-2" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
                   {media.length > 0 && (
                     <div className="flex flex-wrap gap-2 items-start shrink-0">
@@ -1013,13 +997,11 @@ function GenerationCard({
   picking,
   picked,
   onPick,
-  onRename,
   onRelaunch,
   onMark,
 }: {
   gen: Generation;
   eta: number | null;
-  onRename: (title: string) => void;
   /** Relancer une génération en échec (même demande, nouvelle tâche KIE). */
   onRelaunch?: () => void;
   /** Poser un marqueur juste au-dessus de cette création. */
@@ -1037,8 +1019,6 @@ function GenerationCard({
   const failed = gen.state === "fail";
   const url = gen.resultUrls[0];
   const isVideo = gen.kind === "video";
-  const [renaming, setRenaming] = useState(false);
-
   return (
     <article
       className="tile card-flat relative overflow-hidden"
@@ -1105,56 +1085,6 @@ function GenerationCard({
           >
             ↓
           </a>
-          {/* Nom de la creation : pastille en bas a gauche, ✎ pour renommer. */}
-          {renaming ? (
-            <input
-              autoFocus
-              className="input absolute bottom-1.5 left-1.5 z-10 !h-[30px] !text-[12px] !py-0"
-              style={{ width: "calc(100% - 52px)" }}
-              defaultValue={gen.title ?? ""}
-              placeholder="Nom de la créa"
-              maxLength={80}
-              data-nodraft
-              onClick={(e) => e.stopPropagation()}
-              onFocus={(e) => e.currentTarget.select()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.currentTarget.blur();
-                if (e.key === "Escape") setRenaming(false);
-              }}
-              onBlur={(e) => {
-                setRenaming(false);
-                const v = e.currentTarget.value.trim();
-                if (v !== (gen.title ?? "")) onRename(v);
-              }}
-            />
-          ) : gen.title ? (
-            <button
-              type="button"
-              hidden={picking}
-              onClick={(e) => {
-                e.stopPropagation();
-                setRenaming(true);
-              }}
-              className="absolute bottom-1.5 left-1.5 max-w-[calc(100%-52px)] truncate rounded-full px-2 h-[24px] text-[11.5px] font-medium"
-              style={{ background: "rgb(0 0 0 / 0.58)", color: "#fff" }}
-              title="Renommer"
-            >
-              {gen.title}
-            </button>
-          ) : (
-            <button
-              type="button"
-              hidden={picking}
-              onClick={(e) => {
-                e.stopPropagation();
-                setRenaming(true);
-              }}
-              className="tile-actions absolute bottom-1.5 left-1.5 btn btn-sm"
-              title="Renommer la créa"
-            >
-              ✎
-            </button>
-          )}
           {isVideo && (
             <span
               className="absolute top-1.5 left-1.5 rounded-full grid place-items-center text-[11px] pointer-events-none"
