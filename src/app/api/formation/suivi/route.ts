@@ -4,6 +4,8 @@ import { readSession, requireAdmin } from "@/lib/sales/access";
 import { handle } from "@/lib/sales/http";
 import { GATE_TABS, gateState, type GateTab } from "@/lib/formation-gate";
 
+import { checklistProgress, studentChecklist, type ChecklistProgress } from "@/lib/formation-checklist";
+
 export const dynamic = "force-dynamic";
 
 /**
@@ -41,6 +43,8 @@ export interface SuiviRow {
   shopRequest: { storeUrl: string; status: "demandee" | "livree"; requestedAt: string } | null;
   accessRequestedAt: string;
   accessApprovedAt: string;
+  /** Checklist avant de lancer : points obligatoires cochés. */
+  checklist: ChecklistProgress & { readyAt: string };
 }
 
 export interface SuiviEvent {
@@ -76,6 +80,7 @@ export async function GET(req: NextRequest) {
         counts[current ? current.key : "done"]++;
         for (const t of tabs) if (t.done && t.doneAt) events.push({ studentId: s.id, name: s.name, kind: "step", label: `a validé « ${t.label} »`, at: t.doneAt, url: GATE_TABS.find((g) => g.key === t.key)?.href });
         if (s.shopUrl && s.shopUrlAt) events.push({ studentId: s.id, name: s.name, kind: "shop", label: `a donné l'adresse de sa boutique : ${s.shopUrl}`, at: s.shopUrlAt, url: s.shopUrl });
+        if (s.launchReadyAt) events.push({ studentId: s.id, name: s.name, kind: "step", label: "a coché toute sa checklist avant de lancer : feu vert", at: s.launchReadyAt, url: "/formation/checklist" });
         if (s.accessRequestedAt) events.push({ studentId: s.id, name: s.name, kind: "form", label: "a rempli le formulaire d'onboarding", at: s.accessRequestedAt });
         return {
           id: s.id,
@@ -97,6 +102,7 @@ export async function GET(req: NextRequest) {
           shopRequest: s.shopRequest ? { storeUrl: s.shopRequest.storeUrl, status: s.shopRequest.status, requestedAt: s.shopRequest.requestedAt } : null,
           accessRequestedAt: s.accessRequestedAt ?? "",
           accessApprovedAt: s.accessApprovedAt ?? "",
+          checklist: { ...checklistProgress(studentChecklist(s)), readyAt: s.launchReadyAt ?? "" },
         };
       })
       // Les plus actifs en premier, puis les plus avancés.

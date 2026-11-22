@@ -142,6 +142,10 @@ export default function StudentTrackingPage() {
                           </button>
                           <div className="dim text-[11px] num">
                             {r.percent} % · {r.current ? `en cours : ${r.current.label}` : "parcours terminé 🚀"}
+                            {" · "}
+                            <span style={r.checklist.ready ? { color: "var(--good)", fontWeight: 600 } : undefined} title="Checklist avant de lancer (points obligatoires cochés)">
+                              checklist {r.checklist.ready ? "feu vert ✓" : `${r.checklist.done}/${r.checklist.total}`}
+                            </span>
                             {!r.portalAccess && <span className="badge badge-warn !text-[10px] !py-0 ml-1.5">accès coupé</span>}
                           </div>
                         </td>

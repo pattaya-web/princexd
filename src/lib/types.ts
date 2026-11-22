@@ -953,6 +953,10 @@ export interface Student {
   shopUrlAt?: string;
   /** Mady a regardé la boutique (bouton « Vu » de l'encart « Boutiques à checker ») ; une adresse plus récente la fait revenir. */
   shopReviewedAt?: string;
+  /** Checklist avant de lancer : ids cochés (src/lib/formation-checklist.ts). */
+  launchChecklist?: string[];
+  /** Feu vert : la date où tous les points obligatoires ont été cochés (vide s'il en décoche un). */
+  launchReadyAt?: string;
 }
 
 /** « Demande ta boutique à Mady » : l'eleve donne son adresse Shopify, Mady genere avec le generateur. */
