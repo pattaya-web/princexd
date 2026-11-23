@@ -1,114 +1,52 @@
 "use client";
 
 /**
- * Mon espace de travail — le cockpit du Head of Setting (et de tout setter).
+ * Mon espace de travail — le cockpit du setter (Head of Setting).
  *
- * Allégé le 2026-11-23 à la demande de Mady, « on va à l'essentiel » :
- * quatre indicateurs (RDV à confirmer, RDV du jour, no-shows, paiements),
- * l'agenda de tous les calls, puis les relances du setter (la liste de noms
- * qu'il complète au fil de l'eau, prioritaires en tête) et les calls à
- * statuer. Plus de file de tâches automatiques ni de « en retard » en rouge,
- * plus de nouveaux leads ni de conversations.
- *
- * Raccourcis : 1 a 5 (onglets), r (recharger).
+ * Refait le 2026-11-23 à la demande de Mady, le plus simple possible :
+ * l'agenda de tous les calls en haut, quatre chiffres (RDV à confirmer, RDV
+ * du jour, no-shows, paiements), puis la liste des gens à contacter (nom,
+ * téléphone, note) que le setter complète lui-même, et les calls à statuer.
+ * Pas de file de tâches automatiques, pas de priorités, pas de rouge.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { api } from "@/lib/client";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDate, fmtDateTime } from "@/lib/format";
 import { useSalesData } from "@/lib/sales/client";
 import { useSales } from "@/components/sales/context";
-import { Card, ErrorNote, PageHeader, Spinner, useToast } from "@/components/ui";
+import { Card, Empty, PageHeader, useToast } from "@/components/ui";
 import type { WorkspacePayload } from "@/lib/sales/ops/views";
 import type { AppointmentRow } from "@/app/api/sales/appointments/route";
-import { LeadPanel } from "@/components/sales/ops/LeadPanel";
-import { AppointmentsPole, NoShowsPole, PaymentsPole } from "@/components/sales/ops/Poles";
-import { CommissionsBlock, ReportBlock } from "@/components/sales/ops/Performance";
+import type { SetterTaskRow } from "@/app/api/sales/setter-tasks/route";
 import { LeadSheet } from "@/components/sales/LeadSheet";
 import { CallsCalendar } from "@/components/sales/CallsCalendar";
 import { AppointmentDetail } from "@/components/sales/AppointmentDetail";
-import { SetterTasksMemberCard } from "@/components/sales/SetterTasksCard";
+import { SendToSetterModal } from "@/components/sales/SetterTasksCard";
 import { CallsToSettleCard } from "@/components/sales/SetterOutcome";
-
-type Tab = "relances" | "appointments" | "noshows" | "payments" | "performance";
-
-const TABS: { key: Tab; label: string }[] = [
-  { key: "relances", label: "Relances" },
-  { key: "appointments", label: "Rendez-vous" },
-  { key: "noshows", label: "No-shows" },
-  { key: "payments", label: "Paiements" },
-  { key: "performance", label: "Performances" },
-];
 
 export default function WorkspacePage() {
   const { session, members, version, bump } = useSales();
   const toast = useToast();
-  const isManager = session.isAdmin || Boolean(session.salesHead);
-  const [tab, setTab] = useState<Tab>("relances");
-  const [lead, setLead] = useState<string | null>(null);
   const [sheet, setSheet] = useState<string | null>(null);
   const [openAppt, setOpenAppt] = useState<string | null>(null);
 
-  // Onglet garde d'une visite a l'autre.
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("sales-ws") ?? "{}") as { tab?: Tab };
-      if (saved.tab && TABS.some((t) => t.key === saved.tab)) setTab(saved.tab);
-    } catch {
-      /* stockage indisponible : valeurs par defaut */
-    }
-  }, []);
-  useEffect(() => {
-    try {
-      localStorage.setItem("sales-ws", JSON.stringify({ tab }));
-    } catch {
-      /* rien */
-    }
-  }, [tab]);
-
-  const { data, error, loading, reload } = useSalesData<WorkspacePayload>(`/api/sales/ops?v=${version}`, { every: 45_000 });
-  // Agenda : tous les calls a venir visibles par le membre (le Head of Setting voit aussi ceux de Mady).
+  const { data } = useSalesData<WorkspacePayload>(`/api/sales/ops?v=${version}`, { every: 60_000 });
   const { data: agenda, reload: reloadAgenda } = useSalesData<{ rows: AppointmentRow[] }>(`/api/sales/appointments?period=upcoming&limit=300&v=${version}`, { every: 60_000 });
   const refresh = useCallback(() => {
     bump();
-    void reload(true);
     void reloadAgenda();
-  }, [bump, reload, reloadAgenda]);
-
-  // Raccourcis clavier.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement;
-      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) return;
-      if (lead || sheet || openAppt || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === "r") refresh();
-      else if (/^[1-5]$/.test(e.key)) {
-        const t = TABS[Number(e.key) - 1];
-        if (t) setTab(t.key);
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [lead, sheet, openAppt, refresh]);
+  }, [bump, reloadAgenda]);
 
   const k = data?.kpis;
-  const tile = (label: string, value: number | undefined, onClick: () => void, tone?: string, hint?: string) => (
-    <button type="button" onClick={onClick} className="card px-3.5 py-3 text-left transition-shadow hover:shadow-md" title={hint}>
+  const tile = (label: string, value: number | undefined, tone: string) => (
+    <div className="card px-3.5 py-3">
       <div className="label-xs">{label}</div>
       <div className="text-[26px] font-semibold num leading-none mt-2" style={{ letterSpacing: "-0.03em", color: value ? tone : "var(--text-3)" }}>
         {value ?? "—"}
       </div>
-    </button>
+    </div>
   );
-
   const today = data?.today ?? "";
-  const counts: Partial<Record<Tab, number>> = data
-    ? {
-        appointments: data.poles.appointments.length,
-        noshows: data.poles.noShows.filter((n) => !["rescheduled", "lost", "dnc"].includes(n.state)).length,
-        payments: data.poles.payments.length,
-      }
-    : {};
-  const poleProps = data ? { data, filter: "", onOpen: setLead, onSheet: setSheet, onChanged: refresh } : null;
 
   return (
     <>
@@ -116,27 +54,13 @@ export default function WorkspacePage() {
         title="Mon espace de travail"
         subtitle={today ? new Date(`${today}T12:00:00Z`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) : undefined}
         actions={
-          <button type="button" className="btn" onClick={refresh} title="Recharger (touche r)">
+          <button type="button" className="btn" onClick={refresh} title="Recharger">
             ↻
           </button>
         }
       />
 
-      {error && (
-        <div className="mb-3">
-          <ErrorNote>{error}</ErrorNote>
-        </div>
-      )}
-
-      {/* Indicateurs : chacun ouvre sa liste. */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-        {tile("RDV à confirmer", k?.toConfirm, () => setTab("appointments"), "var(--warning)", "Calls des 48 prochaines heures sans confirmation explicite")}
-        {tile("RDV du jour", k?.apptsToday, () => setTab("appointments"), "var(--accent)")}
-        {tile("No-shows", k?.noShows, () => setTab("noshows"), "var(--critical)", "Absents à récupérer")}
-        {tile("Paiements", k?.payments, () => setTab("payments"), "var(--accent)", "Paiements en attente de suivi")}
-      </div>
-
-      {/* Agenda : tous les calls, les siens et ceux de Mady (il confirme les présences). */}
+      {/* Agenda en haut : tous les calls, les siens et ceux de Mady (il confirme les présences). */}
       <div className="mb-4">
         <CallsCalendar
           rows={agenda?.rows ?? []}
@@ -155,62 +79,112 @@ export default function WorkspacePage() {
         />
       </div>
 
-      <div className="flex gap-1 p-1 rounded-[10px] mb-4 overflow-x-auto" style={{ background: "var(--surface-3)" }} role="tablist">
-        {TABS.map((t, i) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
-            className="px-3 h-[28px] rounded-[7px] text-[12.5px] font-medium whitespace-nowrap"
-            style={{ background: tab === t.key ? "var(--surface)" : "transparent", color: tab === t.key ? "var(--text)" : "var(--text-2)", boxShadow: tab === t.key ? "var(--shadow)" : "none" }}
-            title={`Touche ${i + 1}`}
-          >
-            {t.label}
-            {counts[t.key] ? <span className="dim num ml-1.5">{counts[t.key]}</span> : null}
-          </button>
-        ))}
+      {/* Quatre chiffres, rien d'autre. */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+        {tile("RDV à confirmer", k?.toConfirm, "var(--warning)")}
+        {tile("RDV du jour", k?.apptsToday, "var(--accent)")}
+        {tile("No-shows", k?.noShows, "var(--critical)")}
+        {tile("Paiements", k?.payments, "var(--accent)")}
       </div>
 
-      {tab === "relances" ? (
-        <div className="space-y-4">
-          <SetterTasksMemberCard />
-          <CallsToSettleCard onOpen={(id) => setOpenAppt(id)} />
-        </div>
-      ) : loading && !data ? (
-        <Card>
-          <Spinner label="Chargement…" />
-        </Card>
-      ) : !data || !poleProps ? null : tab === "appointments" ? (
-        <AppointmentsPole {...poleProps} />
-      ) : tab === "noshows" ? (
-        <NoShowsPole {...poleProps} />
-      ) : tab === "payments" ? (
-        <PaymentsPole {...poleProps} />
-      ) : (
-        <div className="space-y-4">
-          {isManager && <ReportBlock version={version} />}
-          {session.memberId && <CommissionsBlock version={version} today={today} />}
-          {!session.memberId && <p className="muted text-[13px]">Les commissions de l&apos;équipe sont dans Sales → Commissions.</p>}
-        </div>
-      )}
+      <div className="space-y-4">
+        <ContactList onOpenLead={setSheet} />
+        <CallsToSettleCard onOpen={(id) => setOpenAppt(id)} />
+      </div>
 
-      <LeadPanel
-        leadId={lead}
-        today={today}
-        members={data?.members ?? []}
-        canManage={isManager}
-        objections={data?.objections ?? []}
-        onClose={() => setLead(null)}
-        onChanged={refresh}
-        onOpenSheet={(id) => {
-          setLead(null);
-          setSheet(id);
-        }}
-      />
       <LeadSheet id={sheet} onClose={() => setSheet(null)} onChanged={refresh} />
       <AppointmentDetail id={openAppt} open={openAppt !== null} onClose={() => setOpenAppt(null)} onChanged={refresh} session={session} members={members} />
+    </>
+  );
+}
+
+/**
+ * La liste des gens à contacter : nom, téléphone, note. Le setter l'allonge
+ * lui-même (« + Ajouter ») et coche « Fait » quand c'est fait.
+ */
+function ContactList({ onOpenLead }: { onOpenLead: (leadId: string) => void }) {
+  const { session, version, bump } = useSales();
+  const toast = useToast();
+  const { data, reload } = useSalesData<{ rows: SetterTaskRow[] }>(`/api/sales/setter-tasks?v=${version}`, { every: 60_000 });
+  const rows = (data?.rows ?? []).filter((r) => r.status === "open");
+  const [adding, setAdding] = useState(false);
+
+  const copy = async (v: string) => {
+    try {
+      await navigator.clipboard.writeText(v);
+      toast("Numéro copié.");
+    } catch {
+      toast("Copie impossible ici.", "err");
+    }
+  };
+  const done = async (t: SetterTaskRow) => {
+    try {
+      await api("/api/sales/setter-tasks", { method: "PATCH", body: JSON.stringify({ id: t.id, done: true }) });
+      toast(`${t.name} : fait.`);
+      void reload();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
+
+  return (
+    <>
+      <Card
+        title={`À contacter${rows.length ? ` · ${rows.length}` : ""}`}
+        padded={false}
+        actions={
+          <button className="btn btn-sm btn-primary" onClick={() => setAdding(true)}>
+            + Ajouter
+          </button>
+        }
+      >
+        {!rows.length ? (
+          <Empty>Personne à contacter pour l&apos;instant.</Empty>
+        ) : (
+          <ul>
+            {rows.map((t, i) => (
+              <li key={t.id} className="px-4 py-3 flex items-center gap-3 flex-wrap" style={{ borderBottom: i < rows.length - 1 ? "1px solid var(--border)" : "none" }}>
+                <div className="min-w-0 flex-1">
+                  {t.leadId ? (
+                    <button type="button" className="text-[14px] font-semibold link text-left" onClick={() => onOpenLead(t.leadId)} title="Ouvrir la fiche">
+                      {t.name}
+                    </button>
+                  ) : (
+                    <span className="text-[14px] font-semibold">{t.name}</span>
+                  )}
+                  {t.igUsername && <span className="dim text-[12px] ml-2">@{t.igUsername}</span>}
+                  {t.note && <div className="dim text-[12.5px] leading-snug mt-0.5">{t.note}</div>}
+                </div>
+                {t.phone ? (
+                  <span className="flex items-center gap-1.5 shrink-0">
+                    <a href={`tel:${t.phone.replace(/\s+/g, "")}`} className="num text-[13.5px] font-medium link">
+                      {t.phone}
+                    </a>
+                    <button type="button" className="btn btn-sm !h-[26px]" onClick={() => void copy(t.phone)} title="Copier le numéro">
+                      Copier
+                    </button>
+                  </span>
+                ) : (
+                  <span className="dim text-[12px] shrink-0">pas de numéro</span>
+                )}
+                <span className="dim text-[11.5px] shrink-0 w-[70px] text-right">{fmtDate(`${t.dueOn}T12:00:00Z`)}</span>
+                <button className="btn btn-sm btn-primary !h-[28px] shrink-0" onClick={() => void done(t)}>
+                  ✓ Fait
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+      <SendToSetterModal
+        open={adding}
+        self={!session.isAdmin}
+        onClose={() => setAdding(false)}
+        onSent={() => {
+          void reload();
+          bump();
+        }}
+      />
     </>
   );
 }
