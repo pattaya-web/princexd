@@ -146,7 +146,7 @@ export function LeadPanel({
             <div className="dim text-[12px] truncate">
               {l?.settingStatus ? SETTING_OPTIONS.find((o) => o.value === l.settingStatus)?.label : "À contacter"}
               {l?.doNotContact ? " · ne plus contacter" : ""}
-              {l?.heat ? ` · ${l.heat === "hot" ? "🔥 chaud" : l.heat === "warm" ? "🌤 tiède" : "❄️ froid"}` : ""}
+              {l?.heat ? ` · ${l.heat === "hot" ? "🔥 chaud" : l.heat === "warm" ? "🤔 veut réfléchir" : "❄️ froid"}` : ""}
             </div>
           </div>
           <button type="button" className="btn btn-sm" onClick={() => onOpenSheet(leadId)} title="Fiche complète du CRM : statuer un call, encaisser">
@@ -207,7 +207,7 @@ export function LeadPanel({
                 </select>
                 {(["hot", "warm", "cold"] as const).map((h) => (
                   <button key={h} type="button" className={`btn btn-sm ${l.heat === h ? "btn-primary" : ""}`} disabled={busy} onClick={() => void lead("heat", { heat: l.heat === h ? "" : h })}>
-                    {h === "hot" ? "🔥 Chaud" : h === "warm" ? "🌤 Tiède" : "❄️ Froid"}
+                    {h === "hot" ? "🔥 Chaud" : h === "warm" ? "🤔 Veut réfléchir" : "❄️ Froid"}
                   </button>
                 ))}
               </div>

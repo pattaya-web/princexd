@@ -463,7 +463,7 @@ export function OutcomePanel({
                     type="button"
                     className={`btn btn-sm !h-[34px] ${heat === h ? "btn-primary" : ""}`}
                     onClick={() => setHeat(h)}
-                    title={h === "hot" ? "Chaud : il veut, il lui manque un détail" : h === "warm" ? "Tiède : intéressé, mais hésite" : "Froid : peu de chances, on relance quand même"}
+                    title={h === "hot" ? "Chaud : il veut, il lui manque un détail" : h === "warm" ? "Veut réfléchir : intéressé, mais hésite" : "Froid : peu de chances, on relance quand même"}
                   >
                     {FOLLOWUP_HEAT_ICON[h]} {FOLLOWUP_HEAT_LABEL[h]}
                   </button>

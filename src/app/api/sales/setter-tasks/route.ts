@@ -5,7 +5,9 @@ import { handle, required } from "@/lib/sales/http";
 import { memberRoles } from "@/lib/sales/roles";
 import { escTelegram, notifyTelegram } from "@/lib/telegram";
 import { parisDay } from "@/lib/format";
-import type { SetterTask } from "@/lib/types";
+import { FOLLOWUP_HEATS, type FollowUpHeat, type SetterTask } from "@/lib/types";
+
+const heatOf = (v: unknown): FollowUpHeat | undefined => (FOLLOWUP_HEATS.includes(v as FollowUpHeat) ? (v as FollowUpHeat) : undefined);
 
 export const dynamic = "force-dynamic";
 
@@ -54,8 +56,9 @@ export async function POST(req: NextRequest) {
     const setterId = self ? session.memberId : b.setterId;
     const setter = db.team.find((m) => m.id === setterId && m.status !== "inactif" && memberRoles(m).includes("setter"));
     if (!setter) throw new Error(self ? "Seul un setter se pose des relances." : "Choisis le setter à qui envoyer la relance.");
-    if (self && !String(b.igUsername ?? "").trim()) throw new Error("Le pseudo Instagram du prospect est obligatoire.");
     const lead = b.leadId ? db.leads.find((l) => l.id === b.leadId) : undefined;
+    // Depuis une fiche, le lead suffit ; sinon le pseudo Instagram est la clé pour le retrouver.
+    if (self && !lead && !String(b.igUsername ?? "").trim()) throw new Error("Le pseudo Instagram du prospect est obligatoire.");
     const dueOn = /^\d{4}-\d{2}-\d{2}$/.test(String(b.dueOn ?? "")) ? String(b.dueOn) : parisDay(0);
     const now = new Date().toISOString();
     const task: SetterTask = {
@@ -72,6 +75,7 @@ export async function POST(req: NextRequest) {
       createdBy: self ? session.memberName || setter.name : session.memberName || "Mady",
       createdAt: now,
       doneAt: "",
+      ...(heatOf(b.heat) ? { heat: heatOf(b.heat) } : {}),
     };
     if (!task.name) throw new Error("Le nom du prospect est obligatoire.");
     db.setterTasks.unshift(task);
@@ -86,7 +90,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   return handle(async () => {
     const session = requireSales(readSession(req));
-    const b = (await req.json().catch(() => ({}))) as { id?: string; done?: boolean; dueOn?: string };
+    const b = (await req.json().catch(() => ({}))) as { id?: string; done?: boolean; dueOn?: string; heat?: string; note?: string };
     const db = readDB();
     const task = (db.setterTasks ?? []).find((t) => t.id === b.id);
     if (!task) throw new Error("Relance introuvable.");
@@ -96,6 +100,13 @@ export async function PATCH(req: NextRequest) {
       task.doneAt = b.done ? new Date().toISOString() : "";
     }
     if (typeof b.dueOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.dueOn)) task.dueOn = b.dueOn;
+    // Chaleur : « » la retire.
+    if (typeof b.heat === "string") {
+      const h = heatOf(b.heat);
+      if (h) task.heat = h;
+      else delete task.heat;
+    }
+    if (typeof b.note === "string" && b.note.trim()) task.note = b.note.trim().slice(0, 2000);
     writeDB(db);
     return { task: rows(db, (t) => t.id === task.id)[0] };
   });

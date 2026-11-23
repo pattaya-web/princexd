@@ -1,6 +1,7 @@
 "use client";
 
 import { hasRole, sessionHas } from "@/lib/sales/roles";
+import { SetterOutcomeBox } from "./SetterOutcome";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client";
 import { useSalesData } from "@/lib/sales/client";
@@ -1276,6 +1277,21 @@ export function AppointmentDetail({
               window.dispatchEvent(new Event("sales:changed"));
             }}
           />
+
+          {/* Setter : statuer le call passé (show / no-show, closé, pas closé, à relancer). */}
+          {!canRecord && sessionHas(session, "setter") && (appt.status === "booked" || appt.status === "confirmed") && appt.scheduledAt < new Date().toISOString() && (
+            <div>
+              <div className="label-xs mb-1.5">Après le call</div>
+              <SetterOutcomeBox
+                appointmentId={appt.id}
+                onDone={() => {
+                  void load(appt.id);
+                  onChanged();
+                  window.dispatchEvent(new Event("sales:changed"));
+                }}
+              />
+            </div>
+          )}
 
           {/* Actions du closer */}
           {canRecord && (

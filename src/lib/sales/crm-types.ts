@@ -59,7 +59,7 @@ export interface CrmFollowUp {
   bucket: FollowUpBucket;
 }
 
-export type TodoKind = "payment-overdue" | "followup-overdue" | "outcome" | "payment-due" | "payment-unspecified" | "noshow" | "unconfirmed";
+export type TodoKind = "payment-overdue" | "followup-overdue" | "outcome" | "closed-amount" | "payment-due" | "payment-unspecified" | "noshow" | "unconfirmed";
 
 export interface CrmTodo {
   kind: TodoKind;
@@ -72,6 +72,7 @@ export const TODO_LABEL: Record<TodoKind, string> = {
   "payment-overdue": "Paiement en retard",
   "followup-overdue": "Relance en retard",
   outcome: "Call passé · à statuer",
+  "closed-amount": "Closé par le setter · montant à poser",
   "payment-due": "Échéance à encaisser",
   "payment-unspecified": "Paiement à préciser",
   noshow: "No-show · à relancer",

@@ -105,6 +105,8 @@ export async function GET(req: NextRequest) {
     const pendingFollowUps = followUps.filter((f) => f.status === "pending");
 
     const kpis = computeKpis(appointments, sales, range, pendingFollowUps.length);
+    // Head of Setting : il confirme et statue tous les calls, les siens et ceux de Mady.
+    const teamKpis = session.salesHead && !session.isAdmin ? computeKpis(db.appointments, db.sales, range, 0) : null;
 
     /*
      * Derriere chaque chiffre, des noms : le setter veut la liste des
@@ -172,6 +174,7 @@ export async function GET(req: NextRequest) {
       range,
       currency,
       kpis,
+      teamKpis,
       kpiLeads,
       funnel,
       setters: session.isAdmin ? setterLeaderboard(db.team, db.appointments, db.sales, range) : [],

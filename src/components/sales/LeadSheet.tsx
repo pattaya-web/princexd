@@ -8,6 +8,9 @@ import { StatusBadge } from "./bits";
 import { AttributionBlock } from "./AttributionBlock";
 import { OutcomePanel, type SaleWithPayment } from "./OutcomePanel";
 import { SendToSetterModal } from "./SetterTasksCard";
+import { SetterOutcomeBox } from "./SetterOutcome";
+import { useSales } from "./context";
+import { sessionHas } from "@/lib/sales/roles";
 import type { ActivityLog, Lead } from "@/lib/types";
 import type { AppointmentStatus } from "@/lib/types";
 import type { LeadMeta } from "@/app/api/sales/leads/[id]/route";
@@ -86,6 +89,10 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
   const [saving, setSaving] = useState(false);
   /* Admin : envoyer cette fiche a un setter comme relance (« rappelle-le tel jour, voila le contexte »). */
   const [sendOpen, setSendOpen] = useState(false);
+  /* Setter : se noter une relance sur cette fiche (chaleur comprise), statuer le dernier call. */
+  const { session } = useSales();
+  const isSetter = !session.isAdmin && sessionHas(session, "setter");
+  const [selfOpen, setSelfOpen] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -190,6 +197,11 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
               → Envoyer à un setter
             </button>
           )}
+          {isSetter && l && (
+            <button className="btn" onClick={() => setSelfOpen(true)} title="Le noter dans tes relances : date, chaleur (chaud, veut réfléchir, froid), ce qu'il a dit">
+              📌 Relance
+            </button>
+          )}
           <button className="btn" onClick={onClose}>
             Fermer
           </button>
@@ -200,6 +212,7 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
       }
     >
       {l && <SendToSetterModal open={sendOpen} prefill={{ leadId: l.id, name: l.name, phone: l.phone ?? "", igUsername: l.igUsername ?? "" }} onClose={() => setSendOpen(false)} onSent={onChanged} />}
+      {l && isSetter && <SendToSetterModal open={selfOpen} self prefill={{ leadId: l.id, name: l.name, phone: l.phone ?? "", igUsername: l.igUsername ?? "" }} onClose={() => setSelfOpen(false)} onSent={onChanged} />}
       {loading && !data ? (
         <Spinner label="Chargement de la fiche…" />
       ) : !l ? null : (
@@ -384,6 +397,25 @@ export function LeadSheet({ id, onClose, onChanged }: { id: string | null; onClo
           {/* --------------------------- Notes --------------------------- */}
           <div className="lg:col-span-3 flex flex-col gap-3">
             {/* Show, en attente, reprogrammé, no-show, perdu, closé, paiements : sans derouler la prise de rendez-vous. */}
+            {/* Setter : le dernier call passé pas encore statué, en deux clics. */}
+            {id && data && isSetter && !data.canOutcome && (() => {
+              const now = new Date().toISOString();
+              const pending = data.appointments.find((a) => (a.status === "booked" || a.status === "confirmed") && a.scheduledAt < now);
+              return pending ? (
+                <div className="flex flex-col gap-1.5">
+                  <div className="label-xs">Statuer le call du {fmtDateTime(pending.scheduledAt)}</div>
+                  <SetterOutcomeBox
+                    appointmentId={pending.id}
+                    onDone={() => {
+                      onChanged();
+                      api<Payload>(`/api/sales/leads/${id}`)
+                        .then((d) => setData(d))
+                        .catch(() => undefined);
+                    }}
+                  />
+                </div>
+              ) : null;
+            })()}
             {id && data && (
               <OutcomePanel
                 lead={{ id: data.lead.id, name: data.lead.name, closerId: data.lead.closerId, phone: data.lead.phone, callStatus: data.lead.callStatus }}

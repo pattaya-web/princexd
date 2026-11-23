@@ -257,7 +257,7 @@ export function planTasks(db: DB, nowMs: number, cfg = opsSettings(db), ix = ind
         priority: prio("nurture"),
         dueAt: atParis(lead.nurtureUntil.slice(0, 10)),
         title: `Réactiver ${name}`,
-        context: clip(`En nurturing${lead.nurtureReason ? ` : ${lead.nurtureReason}` : ""}. ${lead.heat ? `Température : ${lead.heat === "hot" ? "chaud" : lead.heat === "warm" ? "tiède" : "froid"}. ` : ""}Source : ${src}.`),
+        context: clip(`En nurturing${lead.nurtureReason ? ` : ${lead.nurtureReason}` : ""}. ${lead.heat ? `Température : ${lead.heat === "hot" ? "chaud" : lead.heat === "warm" ? "veut réfléchir" : "froid"}. ` : ""}Source : ${src}.`),
       });
     }
   }
@@ -366,7 +366,7 @@ export function planTasks(db: DB, nowMs: number, cfg = opsSettings(db), ix = ind
     const appt = db.appointments.find((a) => a.id === fu.appointmentId);
     const obj = fu.objection ? objections.get(fu.objection) : undefined;
     const lastMsg = [...(fu.log ?? [])].reverse().find((e) => e.kind === "contact" || e.kind === "note");
-    const heat = fu.heat === "hot" ? "🔥 chaud" : fu.heat === "warm" ? "🌤 tiède" : fu.heat === "cold" ? "❄️ froid" : "";
+    const heat = fu.heat === "hot" ? "🔥 chaud" : fu.heat === "warm" ? "🤔 veut réfléchir" : fu.heat === "cold" ? "❄️ froid" : "";
     const parts = [
       obj ? `Objection : ${obj.label}.` : appt?.recap?.notClosedReason ? `Raison : ${appt.recap.notClosedReason}.` : "",
       heat ? `Intérêt : ${heat}.` : "",

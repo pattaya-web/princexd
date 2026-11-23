@@ -26,10 +26,13 @@ import { sessionHas } from "@/lib/sales/roles";
 import type { AppointmentRow } from "@/app/api/sales/appointments/route";
 import type { ShiftRow } from "@/app/api/sales/shifts/route";
 import type { SalesKpis } from "@/lib/sales/analytics";
+import { CallsToSettleCard } from "./SetterOutcome";
 import type { KpiLeadRow, KpiLeads } from "@/app/api/sales/dashboard/route";
 
 interface MemberPayload {
   kpis: SalesKpis;
+  /** Head of Setting : tous les calls (les siens et ceux de Mady). */
+  teamKpis?: SalesKpis | null;
   /** Les noms derriere chaque chiffre (rendez-vous poses, closes, pitches sans vente, no-shows). */
   kpiLeads?: KpiLeads;
   commissions: { setters: number; closers: number; due: number };
@@ -352,6 +355,22 @@ export function MemberHome() {
                   sub="reste à te verser"
                   tone="var(--accent)"
                 />
+                {data.teamKpis && (
+                  <div className="col-span-2 lg:col-span-5 flex flex-col gap-2 mt-1">
+                    <div className="label-xs">Tous les calls que tu gères (les tiens et ceux de Mady)</div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      <Metric label="Calls" value={fmtInt(data.teamKpis.appointments)} sub={`${fmtInt(data.teamKpis.attended)} honorés`} />
+                      <Metric label="Taux de show-up" value={`${data.teamKpis.showRate.toFixed(0)} %`} sub={`${fmtInt(data.teamKpis.attended)} venus`} tone={data.teamKpis.showRate >= 50 ? "var(--emerald)" : undefined} pct={data.teamKpis.showRate} />
+                      <Metric
+                        label="Taux de no-show"
+                        value={`${(data.teamKpis.attended + data.teamKpis.noShows ? (data.teamKpis.noShows / (data.teamKpis.attended + data.teamKpis.noShows)) * 100 : 0).toFixed(0)} %`}
+                        sub={`${fmtInt(data.teamKpis.noShows)} no-show`}
+                        tone={data.teamKpis.noShows > data.teamKpis.attended ? "var(--critical)" : undefined}
+                      />
+                      <Metric label="Closés" value={fmtInt(data.teamKpis.sales)} sub="ventes posées par Mady" tone="var(--emerald)" />
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -385,6 +404,9 @@ export function MemberHome() {
             </div>
           </Card>
         )}
+
+        {/* ------------------------- Calls passes a statuer ------------------------- */}
+        {isSetter && <CallsToSettleCard onOpen={(id) => setOpenId(id)} />}
 
         {/* ------------------------- No-shows a relancer jusqu'au R2 ------------------------- */}
         {isSetter && <NoShowCard onOpenLead={(id) => setNoShowSheet(id)} />}

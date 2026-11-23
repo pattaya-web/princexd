@@ -836,6 +836,8 @@ export interface SetterTask {
   createdBy: string;
   createdAt: string;
   doneAt: string;
+  /** Chaleur du prospect (chaud, veut réfléchir, froid) : chaud et « veut réfléchir » passent en relances prioritaires. */
+  heat?: FollowUpHeat;
 }
 
 /** Reglages du message de bienvenue des eleves (Eleves → Onboarding). */
@@ -2758,8 +2760,10 @@ export const LINK_CHANNEL_LABEL: Record<LinkChannel, string> = {
 /** Chaleur d'un prospect en attente : ce qu'on note en statuant le call. */
 export type FollowUpHeat = "hot" | "warm" | "cold";
 export const FOLLOWUP_HEATS: FollowUpHeat[] = ["hot", "warm", "cold"];
-export const FOLLOWUP_HEAT_LABEL: Record<FollowUpHeat, string> = { hot: "Chaud", warm: "Tiède", cold: "Froid" };
-export const FOLLOWUP_HEAT_ICON: Record<FollowUpHeat, string> = { hot: "🔥", warm: "🌤", cold: "❄️" };
+export const FOLLOWUP_HEAT_LABEL: Record<FollowUpHeat, string> = { hot: "Chaud", warm: "Veut réfléchir", cold: "Froid" };
+export const FOLLOWUP_HEAT_ICON: Record<FollowUpHeat, string> = { hot: "🔥", warm: "🤔", cold: "❄️" };
+/** Couleur de la chaleur : rouge, orange, bleu. */
+export const FOLLOWUP_HEAT_COLOR: Record<FollowUpHeat, string> = { hot: "var(--critical)", warm: "#f97316", cold: "var(--accent)" };
 
 export interface FollowUpLog {
   at: string;

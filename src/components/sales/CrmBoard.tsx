@@ -211,7 +211,7 @@ export function CrmBoard({ session, members, refreshKey, onChanged }: { session:
     }
     if (view === "todo") {
       const kinds = Object.keys(TODO_LABEL) as (keyof typeof TODO_LABEL)[];
-      const color: Record<string, string> = { "payment-overdue": BAD, "followup-overdue": BAD, outcome: WARN, "payment-due": WARN, "payment-unspecified": WARN, noshow: WARN, unconfirmed: "var(--accent)" };
+      const color: Record<string, string> = { "payment-overdue": BAD, "followup-overdue": BAD, outcome: WARN, "closed-amount": WARN, "payment-due": WARN, "payment-unspecified": WARN, noshow: WARN, unconfirmed: "var(--accent)" };
       return kinds.map((k) => ({ key: k, title: TODO_LABEL[k], color: color[k], items: list.filter((r) => r.todo?.kind === k) })).filter((g) => g.items.length);
     }
     return null;

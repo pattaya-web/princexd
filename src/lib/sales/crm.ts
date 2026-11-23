@@ -126,6 +126,8 @@ export function buildCrm(db: DB, session: Session): CrmPayload {
       todo = { kind: "followup-overdue", rank: 2, reason: `Relance prévue le ${isoToParisInput(fuV.dueAt).slice(0, 10).split("-").reverse().slice(0, 2).join("/")}${fuV.notes ? ` : ${fuV.notes}` : ""}` };
     } else if (appt && apptPending && apptPast && !pendingFu) {
       todo = { kind: "outcome", rank: 3, reason: "Le call est passé : show, no-show, closé, en attente, perdu ?" };
+    } else if (appt && appt.status === "completed" && appt.recap?.closed && !saleV && !cancelledSale) {
+      todo = { kind: "closed-amount", rank: 3, reason: "Le setter a déclaré ce call closé : ouvre le rendez-vous et pose la vente (montant, encaissé)." };
     } else if (saleV && saleV.paymentState === "due") {
       todo = { kind: "payment-due", rank: 4, reason: saleV.paymentSummary };
     } else if (saleV && saleV.paymentState === "unspecified") {
@@ -160,6 +162,9 @@ export function buildCrm(db: DB, session: Session): CrmPayload {
       tone = appt.confirmation === "confirmed" ? "accent" : "warn";
     } else if (appt && apptPending && apptPast) {
       headline = "Call passé · à statuer";
+      tone = "warn";
+    } else if (appt && appt.status === "completed" && appt.recap?.closed) {
+      headline = "Closé · montant à poser";
       tone = "warn";
     } else if (appt && (appt.status === "completed" || appt.status === "follow-up")) {
       headline = appt.status === "completed" ? "Pitché · pas de décision" : "En attente";

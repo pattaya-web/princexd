@@ -331,8 +331,10 @@ export function recordOutcome(session: Session, id: string, input: OutcomeInput)
   const appt = db.appointments.find((a) => a.id === id);
   if (!appt) throw new Forbidden("Rendez-vous introuvable.");
 
-  // Le closer assigne et l'admin, personne d'autre.
-  if (!session.isAdmin && !(sessionHas(session, "closer") && appt.closerId === session.memberId)) {
+  // Le closer assigne et l'admin. Le setter (2026-11-23) statue aussi ses calls
+  // (tous s'il est Head of Setting), mais jamais une vente avec montant.
+  const setterMay = !input.sale && (Boolean(session.salesHead) || (sessionHas(session, "setter") && appt.setterId === session.memberId));
+  if (!session.isAdmin && !(sessionHas(session, "closer") && appt.closerId === session.memberId) && !setterMay) {
     throw new Forbidden("Seul le closer assigné peut enregistrer le résultat de ce call.");
   }
 

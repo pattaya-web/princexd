@@ -8,6 +8,11 @@ import { hasRole, sessionHas } from "@/lib/sales/roles";
 import { Card, Empty, Field, Modal, useToast } from "@/components/ui";
 import { useSales } from "./context";
 import type { SetterTaskRow } from "@/app/api/sales/setter-tasks/route";
+import { FOLLOWUP_HEATS, FOLLOWUP_HEAT_COLOR, FOLLOWUP_HEAT_ICON, FOLLOWUP_HEAT_LABEL, type FollowUpHeat } from "@/lib/types";
+import { HeatBadge, HeatPicker } from "./SetterOutcome";
+
+/** Chaud et « veut réfléchir » d'abord : ce sont les relances prioritaires. */
+const isPriority = (t: SetterTaskRow) => t.heat === "hot" || t.heat === "warm";
 
 /* ----------------------------- Envoyer une relance ----------------------------- */
 
@@ -34,10 +39,12 @@ export function SendToSetterModal({ open, prefill, self, onClose, onSent }: { op
   const [kind, setKind] = useState<"call" | "message">("message");
   const [dueOn, setDueOn] = useState(parisDay(0));
   const [note, setNote] = useState("");
+  const [heat, setHeat] = useState<FollowUpHeat | "">("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setHeat("");
     setName(prefill?.name ?? "");
     setPhone(prefill?.phone ?? "");
     setIg(prefill?.igUsername ?? "");
@@ -50,7 +57,7 @@ export function SendToSetterModal({ open, prefill, self, onClose, onSent }: { op
   const send = async () => {
     setBusy(true);
     try {
-      await api("/api/sales/setter-tasks", { method: "POST", body: JSON.stringify({ setterId, leadId: prefill?.leadId ?? "", name, phone, igUsername: ig, kind, dueOn, note }) });
+      await api("/api/sales/setter-tasks", { method: "POST", body: JSON.stringify({ setterId, leadId: prefill?.leadId ?? "", name, phone, igUsername: ig, kind, dueOn, note, heat }) });
       toast(self ? `Relance notée pour le ${fmtDate(`${dueOn}T12:00:00Z`)}.` : `Relance envoyée à ${setters.find((s) => s.id === setterId)?.name ?? "ton setter"}.`);
       onSent?.();
       onClose();
@@ -71,15 +78,18 @@ export function SendToSetterModal({ open, prefill, self, onClose, onSent }: { op
           <button className="btn" onClick={onClose} disabled={busy}>
             Annuler
           </button>
-          <button className="btn btn-primary" onClick={() => void send()} disabled={busy || (!self && (!setterId || !name.trim())) || (self && !ig.trim()) || !note.trim()}>
+          <button className="btn btn-primary" onClick={() => void send()} disabled={busy || (!self && (!setterId || !name.trim())) || (self && !ig.trim() && !prefill?.leadId) || !note.trim()}>
             {busy ? <span className="spinner" /> : self ? "Noter la relance" : "Envoyer"}
           </button>
         </>
       }
     >
       <div className="grid sm:grid-cols-2 gap-3">
+        <Field label="Il est" className="sm:col-span-2" hint="Chaud et « veut réfléchir » passent en relances prioritaires.">
+          <HeatPicker value={heat} onChange={setHeat} />
+        </Field>
         {self ? (
-          <Field label="Instagram du prospect" hint="Son @, c'est la clé : c'est comme ça que tu le retrouves.">
+          <Field label={prefill?.leadId ? "Instagram du prospect · optionnel" : "Instagram du prospect"} hint="Son @, c'est la clé : c'est comme ça que tu le retrouves.">
             <input className="input" value={ig} onChange={(e) => setIg(e.target.value)} placeholder="pseudo sans @" autoFocus />
           </Field>
         ) : (
@@ -123,7 +133,7 @@ export function SendToSetterModal({ open, prefill, self, onClose, onSent }: { op
 
 /* ----------------------------- Liste admin (Pilotage) ----------------------------- */
 
-function TaskLine({ t, canDo, onDone, onDelete, showSetter }: { t: SetterTaskRow; canDo: boolean; onDone: (t: SetterTaskRow, done: boolean) => void; onDelete?: (t: SetterTaskRow) => void; showSetter?: boolean }) {
+function TaskLine({ t, canDo, onDone, onDelete, showSetter, onHeat }: { t: SetterTaskRow; canDo: boolean; onDone: (t: SetterTaskRow, done: boolean) => void; onDelete?: (t: SetterTaskRow) => void; showSetter?: boolean; onHeat?: (t: SetterTaskRow, heat: FollowUpHeat | "") => void }) {
   const toast = useToast();
   const copy = async (v: string) => {
     try {
@@ -142,6 +152,24 @@ function TaskLine({ t, canDo, onDone, onDelete, showSetter }: { t: SetterTaskRow
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[13px] font-semibold">{t.name}</span>
+          {onHeat && t.status === "open" ? (
+            <select
+              className="select !h-[24px] !w-auto !py-0 !text-[11px] font-semibold"
+              style={t.heat ? { color: FOLLOWUP_HEAT_COLOR[t.heat], borderColor: FOLLOWUP_HEAT_COLOR[t.heat] } : undefined}
+              value={t.heat ?? ""}
+              onChange={(e) => onHeat(t, e.target.value as FollowUpHeat | "")}
+              title="Chaleur du prospect"
+            >
+              <option value="">Chaleur ?</option>
+              {FOLLOWUP_HEATS.map((h) => (
+                <option key={h} value={h}>
+                  {FOLLOWUP_HEAT_ICON[h]} {FOLLOWUP_HEAT_LABEL[h]}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <HeatBadge heat={t.heat} />
+          )}
           <span className="badge !text-[10.5px] !py-0">{t.kind === "call" ? "☏ à rappeler" : "✉ à écrire"}</span>
           {t.phone && (
             <button type="button" className="link num text-[12px]" onClick={() => void copy(t.phone)} title="Copier le numéro">
@@ -241,9 +269,20 @@ export function SetterTasksMemberCard() {
   const { data, reload } = useSalesData<{ rows: SetterTaskRow[] }>(`/api/sales/setter-tasks?done=1&v=${version}`, { every: 60_000 });
   const rows = data?.rows ?? [];
   const openRows = rows.filter((r) => r.status === "open");
+  const priority = openRows.filter(isPriority).sort((a, b) => (a.heat === b.heat ? a.dueOn.localeCompare(b.dueOn) : a.heat === "hot" ? -1 : 1));
+  const others = openRows.filter((r) => !isPriority(r));
   const doneRows = rows.filter((r) => r.status === "done").slice(0, 5);
   const [showDone, setShowDone] = useState(false);
   const [adding, setAdding] = useState(false);
+
+  const setHeat = async (t: SetterTaskRow, heat: FollowUpHeat | "") => {
+    try {
+      await api("/api/sales/setter-tasks", { method: "PATCH", body: JSON.stringify({ id: t.id, heat }) });
+      void reload();
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  };
 
   const done = async (t: SetterTaskRow, d: boolean) => {
     try {
@@ -264,7 +303,7 @@ export function SetterTasksMemberCard() {
             {openRows.length > 0 && <span className="badge badge-accent !text-[10.5px] !py-0 num">{openRows.length}</span>}
           </span>
         }
-        subtitle="Un prospect qui te dit « reviens dans une semaine » : note son @, la date, pourquoi. Le jour venu, il est ici et en pop-up. Celles que Mady t'envoie arrivent au même endroit."
+        subtitle="Un prospect qui te dit « reviens dans une semaine » : note son @, la date, pourquoi, et sa chaleur. 🔥 Chaud et 🤔 Veut réfléchir passent en prioritaires. Le jour venu, il est ici et en pop-up."
         padded={false}
         actions={
           <>
@@ -283,8 +322,19 @@ export function SetterTasksMemberCard() {
           <Empty>Rien en attente. Tu es à jour.</Empty>
         ) : (
           <ul>
-            {openRows.map((t) => (
-              <TaskLine key={t.id} t={t} canDo onDone={done} />
+            {priority.length > 0 && (
+              <li className="px-3.5 pt-2.5 pb-1 label-xs" style={{ color: "#f97316" }}>
+                Prioritaires · {priority.length}
+              </li>
+            )}
+            {priority.map((t) => (
+              <TaskLine key={t.id} t={t} canDo onDone={done} onHeat={setHeat} />
+            ))}
+            {priority.length > 0 && others.length > 0 && (
+              <li className="px-3.5 pt-2.5 pb-1 label-xs">Les autres · {others.length}</li>
+            )}
+            {others.map((t) => (
+              <TaskLine key={t.id} t={t} canDo onDone={done} onHeat={setHeat} />
             ))}
             {showDone && doneRows.map((t) => <TaskLine key={t.id} t={t} canDo onDone={done} />)}
           </ul>
