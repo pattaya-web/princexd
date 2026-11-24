@@ -32,6 +32,7 @@ import { MediaField } from "@/components/MediaField";
 import { ElementField, ELEMENT_NAME, EMPTY_ELEMENT, type ElementValue } from "@/components/ElementField";
 import { SkPage } from "@/components/Skeleton";
 import { StudioMemberKey } from "@/components/StudioMemberKey";
+import { StudioQuickPrompts } from "@/components/StudioQuickPrompts";
 import { fetchStudioJobs, GENERATIONS_EVENT, readStudioJobsCache, STUDIO_JOBS_EVENT } from "@/components/JobsDock";
 import { duration, estimateSec, fmtInt, fmtUsdInEur, label, relative } from "@/lib/format";
 import type { Generation, StudioMarker } from "@/lib/types";
@@ -120,6 +121,9 @@ function StudioInner() {
     return () => setUploadViaKie(false);
   }, [isStudent]);
   const [guideClosed, setGuideClosed] = useLocalState("studio-editor-guide-closed", false);
+  /* Onglets à côté du titre (admin) : le Studio, ou les prompts à copier-coller. */
+  const [topTabRaw, setTopTab] = useLocalState<"studio" | "prompts">("studio-top-tab", "studio");
+  const topTab = session?.isAdmin ? topTabRaw : "studio";
   /* Panneau flottant replie sur sa ligne d'onglets : la galerie en entier. */
   const [dockMin, setDockMin] = useLocalState("studio-dock-min", false);
   const [modelId, setModelId] = useState(() => firstOfKind("image").id);
@@ -542,6 +546,18 @@ function StudioInner() {
     <>
       <PageHeader
         title="Studio IA"
+        titleAside={
+          session?.isAdmin ? (
+            <Tabs
+              value={topTab}
+              onChange={setTopTab}
+              options={[
+                { value: "studio", label: "Studio" },
+                { value: "prompts", label: "Prompts" },
+              ]}
+            />
+          ) : undefined
+        }
         actions={
           <>
             {pending.length > 0 && (
@@ -559,7 +575,9 @@ function StudioInner() {
         }
       />
 
-      <div className="flex flex-col gap-4">
+      {topTab === "prompts" && <StudioQuickPrompts />}
+      {/* Caché plutôt que démonté : le formulaire en cours reste rempli en revenant. */}
+      <div className="flex flex-col gap-4" style={topTab === "prompts" ? { display: "none" } : undefined}>
         {isMember && <StudioMemberKey />}
         {isStudent && !isMember && (
           <div className="rounded-[10px] px-3.5 py-2.5 text-[12.5px] leading-relaxed" style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--accent) 25%, transparent)" }}>

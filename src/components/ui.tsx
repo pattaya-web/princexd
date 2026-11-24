@@ -9,17 +9,23 @@ export function PageHeader({
   title,
   subtitle,
   actions,
+  titleAside,
 }: {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  /** Petit contenu collé à droite du titre (onglets). */
+  titleAside?: ReactNode;
 }) {
   return (
     <header className="relative z-[1] flex flex-wrap items-end justify-between gap-4 mb-6 sm:mb-8">
       <div className="min-w-0">
-        <h1 className="grad-text text-[30px] sm:text-[38px] font-semibold leading-[1.08] pb-0.5" style={{ letterSpacing: "-0.035em" }}>
-          {title}
-        </h1>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="grad-text text-[30px] sm:text-[38px] font-semibold leading-[1.08] pb-0.5" style={{ letterSpacing: "-0.035em" }}>
+            {title}
+          </h1>
+          {titleAside}
+        </div>
         {subtitle && <p className="muted text-[14px] sm:text-[15px] mt-2 max-w-2xl leading-relaxed">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2 flex-wrap min-w-0 max-w-full">{actions}</div>}
